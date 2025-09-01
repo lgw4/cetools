@@ -61,6 +61,7 @@
         "rabbitmq",
         "reftex",
         "replstate",
+        "rollresult",
         "ropeproject",
         "Scrapy",
         "sdist",

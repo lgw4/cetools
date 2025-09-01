@@ -6,10 +6,10 @@ readme = "README.md"
 requires-python = ">=3.13"
 authors = [{ name = "lgw4" }]
 license = { file = "LICENSE" }
-dependencies = ["attrs==25.3.0"]
+dependencies = ["attrs>=25.3.0", "pydantic>=2.0"]
 
 [project.optional-dependencies]
-dev = ["black==24.10.0", "isort==5.13.0", "pytest==7.4.0", "typer==0.9.0"]
+dev = ["black>=24.10.0", "isort>=5.13.0", "pytest>=7.4.0", "typer>=0.9.0"]
 # Console script entry points (placeholder)
 
 [project.scripts]
