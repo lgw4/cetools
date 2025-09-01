@@ -1,0 +1,9 @@
+2025-08-31T23:59:50Z - Switched `pyproject.toml` build backend to `hatchling` and updated `pyproject.toml` to avoid using `setuptools` per user request.
+2025-08-31T23:59:30Z - Added `copilot-documents/project-specification.md` with project requirements, APIs, data models, and next steps per specification prompt; prefer Black for formatting.
+2025-08-31T23:59:00Z - Implemented bootstrap step: updated `pyproject.toml` with dev extras and console script placeholder, added `justfile`, and expanded `README.md` with uv/just instructions.
+2025-08-31T23:41:14Z - Updated `copilot-documents/project-implementation.md` to prefer Pydantic v2 for data models.
+2025-08-31T23:38:08Z - Updated `copilot-documents/project-implementation.md` to use Typer for CLI instead of argparse.
+2025-08-31T23:33:44Z - Created `copilot-documents/project-implementation.md` containing the implementation plan for cetools.
+2025-08-31T23:26:17Z - Created `copilot-documents/project-specification.md` containing the initial project specification for cetools.
+
+# This file contains GitHub Copilot generated content.
