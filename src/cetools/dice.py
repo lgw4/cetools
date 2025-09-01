@@ -9,16 +9,18 @@ import random
 import re
 from typing import List
 
-from ..exceptions import InvalidInputError
-from ..models import RollResult
-
-__all__ = ["roll"]
-
+from .exceptions import InvalidInputError
+from .models import RollResult
 
 _DICE_RE = re.compile(r"^\s*(?:(?P<count>\d*)d(?P<sides>\d+)(?P<mod>[+-]\d+)?)\s*$", re.I)
 
 
 def _parse_term(term: str):
+    """Parse a single dice term like '2d6+1' or 'd20' or '4d8-2'.
+
+    Returns (count:int, sides:int, modifier:int)
+    Raises InvalidInputError for bad formats.
+    """
     m = _DICE_RE.match(term)
     if not m:
         raise InvalidInputError(f"Invalid dice expression: {term!r}")
@@ -40,6 +42,14 @@ def _parse_term(term: str):
 
 
 def roll(expression: str, seed: int | None = None) -> RollResult:
+    """Roll dice for an expression and return a RollResult.
+
+    Supports comma-separated expressions (e.g. '2d6+1,1d4'). Breakdown contains
+    only individual die rolls; modifiers are applied to the total but not included
+    in `breakdown`.
+
+    The function is deterministic when `seed` is provided.
+    """
     if not isinstance(expression, str) or not expression.strip():
         raise InvalidInputError("Expression must be a non-empty string")
 

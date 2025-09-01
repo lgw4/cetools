@@ -80,5 +80,10 @@
         "tmtags",
         "Typer",
         "webassets"
-    ]
+    ],
+    "python.testing.pytestArgs": [
+        "copilot-documents"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
 }
