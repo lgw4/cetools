@@ -1,4 +1,4 @@
-"""Character generator package for cetools.
+"""Character generator for cetools.
 
 This file contains GitHub Copilot generated content.
 """
@@ -7,11 +7,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ..dice import roll
-from ..exceptions import InvalidInputError
-from ..models import Character as CharacterModel
-
-__all__ = ["generate"]
+from .dice import roll
+from .exceptions import InvalidInputError
+from .models import Character as CharacterModel
 
 
 def _roll_stat(seed: Optional[int], expr: str) -> int:
