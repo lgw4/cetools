@@ -1,14 +1,8 @@
-2025-08-31T23:59:59Z - Ran full test suite via `uv run pytest -q -vv -s`: collected 9 tests, all green — "9 passed in 0.03s"; no failures remain locally.
-2025-08-31T23:59:59Z - Removed stray module files `src/cetools/characters.py` and `src/cetools/dice.py` so package `__init__.py` files are authoritative for imports.
-2025-08-31T23:59:59Z - Refactored character generator: moved `generate()` implementation into `src/cetools/characters/__init__.py` so `from cetools.characters import generate` works; removed legacy `src/cetools/character.py` to avoid duplicate symbols and import ambiguities.
-2025-08-31T23:59:59Z - Implemented Characters generator (step 4): added `src/cetools/characters.py` with `generate(seed: int|None=None, template: dict|None=None) -> Character` that rolls attributes using the dice module (3d6 for STR/DEX/END/INT and 2d6+6 for EDU/SOC), supports deterministic seeds and simple template overrides; added tests `tests/test_characters.py` for seed determinism and template override behavior.
-2025-08-31T23:59:59Z - Implemented Dice module (step 3): added `src/cetools/dice/__init__.py` implementing `roll(expression: str, seed: int|None) -> RollResult` with deterministic seeding, comma-separated expressions support, a MAX_DICE guard, and JSON-serializable `RollResult`; added unit tests `tests/test_dice.py`; removed duplicate file `src/cetools/dice.py` to fix import conflict. Attempted test runs and resolved import-on-collection errors by moving implementation into the `dice` package.
-2025-08-31T23:59:50Z - Switched `pyproject.toml` build backend to `hatchling` and updated `pyproject.toml` to avoid using `setuptools` per user request.
-2025-08-31T23:59:30Z - Added `copilot-documents/project-specification.md` with project requirements, APIs, data models, and next steps per specification prompt; prefer Black for formatting.
-2025-08-31T23:59:00Z - Implemented bootstrap step: updated `pyproject.toml` with dev extras and console script placeholder, added `justfile`, and expanded `README.md` with uv/just instructions.
-2025-08-31T23:41:14Z - Updated `copilot-documents/project-implementation.md` to prefer Pydantic v2 for data models.
-2025-08-31T23:38:08Z - Updated `copilot-documents/project-implementation.md` to use Typer for CLI instead of argparse.
-2025-08-31T23:33:44Z - Created `copilot-documents/project-implementation.md` containing the implementation plan for cetools.
-2025-08-31T23:26:17Z - Created `copilot-documents/project-specification.md` containing the initial project specification for cetools.
+2025-09-07T03:58:10Z - Updated `project-specification.md`: changed core model recommendation to use `pydantic`.
+2025-09-07T03:41:20Z - Updated `project-specification.md`: added requirement that the roll parser supports Cepheus-style D66 rolls (including optional unordered variant) and is seedable; documented behavior and CLI options.
+2025-09-07T03:28:45Z - Updated `project-specification.md`: set CLI argument parsing and validation to use `typer` (type-driven, Click-compatible).
+2025-09-07T03:05:12Z - Updated `project-specification.md`: converted example character JSON numeric fields to SRD pseudo-hexadecimal notation (A=10, B=11, C=12).
+2025-09-07T02:44:05Z - Updated `project-specification.md`: added requirement that output values use Cepheus SRD pseudo-hexadecimal notation; added guidance for accepting and normalizing inputs.
+2025-09-07T02:17:30Z - Created `project-specification.md` with initial project overview and requirements.
 
 # This file contains GitHub Copilot generated content.

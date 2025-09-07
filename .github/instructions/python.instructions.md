@@ -15,7 +15,7 @@ applyTo: "**/*.py"
 - Follow [Black](https://black.readthedocs.io/en/stable/the_black_code_style/current_style.html) and [PEP 8](https://peps.python.org/pep-0008/) for code style. Where there is a conflict, prefer Black code style. Override Black's line length to 99 characters.
 - Use initial underscores in variable names to indicate variables intended to be private.
 - *Never* use single letters for variable names. Variable names must be a *minimum* of two characters in length.
-- Prefer functions to classes. Only use classes when necessary.
+- Prefer Python functions and built-in data types to classes. Only use classes when necessary.
 - Prefer straightforward code to complex code.
 - Always use the constants defined in `http.HTTPStatus` for HTTP status codes.
 

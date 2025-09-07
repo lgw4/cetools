@@ -33,3 +33,7 @@
 ## Shell Scripts
 
 - All shell commands or scripts (including examples in project documentation) should be in Bourne shell (or Bash shell, if necessary) format.
+
+## Versioning
+
+- Use [`bumpver`](https://github.com/mbarkhau/bumpver) for versioning this project. Use C[CalVer](https://calver.org) for this project.
