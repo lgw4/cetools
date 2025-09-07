@@ -132,7 +132,7 @@ Suggested REST endpoints (future):
 ## Quality Gates
 
 - Automated tests run in CI on push. Target coverage: reasonable for core modules (e.g., 70%+ initially).
-- Linting with `ruff` and formatting with `black` (configured in `pyproject.toml`).
+- Formatting with `black` and linting with `flake8` (configured in `pyproject.toml`).
 
 ## Security and Privacy
 

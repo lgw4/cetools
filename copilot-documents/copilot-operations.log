@@ -1,3 +1,5 @@
+2025-09-07T04:25:30Z - Updated `project-specification.md`: added `flake8` as the Python linter and retained `black` for formatting.
+2025-09-07T04:09:55Z - Updated `project-specification.md`: removed `ruff` and set formatting tool to `black` only.
 2025-09-07T03:58:10Z - Updated `project-specification.md`: changed core model recommendation to use `pydantic`.
 2025-09-07T03:41:20Z - Updated `project-specification.md`: added requirement that the roll parser supports Cepheus-style D66 rolls (including optional unordered variant) and is seedable; documented behavior and CLI options.
 2025-09-07T03:28:45Z - Updated `project-specification.md`: set CLI argument parsing and validation to use `typer` (type-driven, Click-compatible).
