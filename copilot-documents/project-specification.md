@@ -90,12 +90,14 @@ Examples:
 
 Example Character JSON shape (simplified):
 
+```json
 {
   "name": "Asha",
   "attributes": {"STR": "A", "DEX": "C", "INT": "B"},
   "skills": {"Pilot": "2"},
   "gear": [ {"name":"Laser Pistol", "count": "1"} ]
 }
+```
 
 ## API / Extensibility Considerations
 
