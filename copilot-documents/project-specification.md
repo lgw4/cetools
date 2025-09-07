@@ -75,7 +75,7 @@ Each command is a thin CLI wrapper that calls into the core Python library (pack
 
 ## Data Models
 
-- Use `pydantic` for core models: Character, NPC, Item, Encounter, RollResult. 
+- Use `pydantic` for core models: Character, NPC, Item, Encounter, RollResult.
 - Serialization: support JSON and YAML (via PyYAML) for exports and imports.
 - Config: user config stored in `~/.config/cetools/config.toml` (or XDG equivalent). Use TOML for human friendliness.
 
