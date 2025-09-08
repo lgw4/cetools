@@ -45,31 +45,42 @@ Core contract for library functions:
 
 ## Major Features / Commands (initial MVP)
 
--- cetools character create --template `template` [--name NAME] [--export json|yaml|csv]
+- cetools character create --template `template` [--name NAME] [--export json|yaml|csv]
 
-- Create a PC or NPC from SRD rules and templates.
+Create a PC or NPC from SRD rules and templates.
 
--- cetools roll `expression` [--seed SEED] [--adv/--dis]
+- cetools roll `expression` [--seed SEED] [--adv/--dis]
 
--- Parse dice expressions (e.g., 2d6+3) and output detailed roll breakdown. The roll parser and executor MUST support Cepheus-style special rolls including D66. Support the following behaviors:
+Parse dice expressions (e.g., 2d6+3) and output detailed roll breakdown. The roll parser and executor MUST support Cepheus-style special rolls including D66. Support the following behaviors:
 
 - `d66` or `D66`: roll two d6 and produce a composite result where the first die is the tens digit and the second die is the units digit (e.g., roll 3 and 5 -> result 35). The CLI output should show the individual die results and the composed value.
 - `d66u` / `D66U` (optional flag/suffix): produce an unordered D66 where the two dice are sorted descending before composition (some tables use the unordered convention); implement this as an optional mode and document it in the help.
 - Accept both lower- and upper-case `d66` forms and allow an explicit `d66!` or `d66u` variant if users want to force unordered/composed behavior.
-
 The roll output should be consistent and seedable (support `--seed`) so scripts and tests can reproduce results. Ensure exports show both the roll breakdown and the final composed D66 value.
 
--- cetools npc gen [--level N] [--template T] [--export json]
+- cetools npc gen [--level N] [--template T] [--export json]
 
-- Generate NPC stats, gear, and a short description.
+  Generate NPC stats, gear, and a short description.
 
--- cetools encounter balance --party `file|json` --difficulty <easy|avg|hard>
+- cetools world subsector create [--seed SEED] [--export json|yaml]
 
-- Suggest encounters based on party composition.
+  Create a subsector or world (star system, world data) suitable for campaign placement. Support X/Y/Z seedable generation, population class, trade codes, TL, and basic planetary descriptors. Exportable for GM use.
 
--- cetools srlookup `term` [--format json|text]
+- cetools encounter animal gen [--world WORLD] [--challenge CH] [--export json]
 
-- Search local SRD index for game terms and output references.
+  Generate animal encounters appropriate to a world or subsector. Include species, behavior, encounter table roll (including D66 where appropriate), and loot/treasure if applicable.
+
+- cetools encounter patron gen [--tone <friendly|neutral|hostile>] [--level N] [--export json]
+
+  Generate patron NPCs or patron-encounters (patrons who hire or affect PCs): motivations, hooks, likely rewards, obligations, and patron relationship templates.
+
+- cetools encounter balance --party `file|json` --difficulty <easy|avg|hard>
+
+  Suggest encounters based on party composition.
+
+- cetools srlookup `term` [--format json|text]
+
+  Search local SRD index for game terms and output references.
 
 Each command is a thin CLI wrapper that calls into the core Python library (package: `cetools.core`).
 
@@ -147,7 +158,7 @@ Suggested REST endpoints (future):
 ## Deliverables (MVP)
 
 1. `cetools` Python package with `cetools.core` library and `cetools.cli` entrypoints.
-2. CLI commands: `character create`, `roll`, `npc gen`, `encounter balance`, `srlookup`.
+2. CLI commands: `character create`, `roll`, `npc gen`, `encounter balance`, `srlookup`, `encounter animal gen`, `encounter patron gen`, `world create`, `subsector create`.
 3. Local config and SRD index caching.
 4. Tests and CI configuration.
 5. README with quickstart and examples.
