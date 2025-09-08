@@ -125,7 +125,7 @@ def normalize_pseudo_hex(value: Union[str, int]) -> str:
     """
     Normalize a value to Cepheus Engine pseudo-hexadecimal notation.
 
-    This function accepts either a string (which might be in decimal, hex, or
+    This function accepts either a string (which might be in decimal or
     pseudo-hex notation) or an integer, and normalizes it to pseudo-hex.
 
     Args:
@@ -136,13 +136,6 @@ def normalize_pseudo_hex(value: Union[str, int]) -> str:
     """
     if isinstance(value, int):
         return dec_to_pseudo_hex(value)
-
-    # Handle hex notation (e.g., 0xC)
-    if value.lower().startswith("0x"):
-        try:
-            return dec_to_pseudo_hex(int(value, 16))
-        except ValueError:
-            pass
 
     # Try as pseudo-hex
     if is_pseudo_hex(value):

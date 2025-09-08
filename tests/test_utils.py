@@ -90,8 +90,6 @@ class TestPseudoHex:
         assert normalize_pseudo_hex("j") == "J"  # Case normalization
         assert normalize_pseudo_hex("Q") == "Q"
         assert normalize_pseudo_hex("Z") == "Z"
-        assert normalize_pseudo_hex("0xA") == "A"  # Hex notation
-        assert normalize_pseudo_hex("0xC") == "C"
 
         with pytest.raises(ValueError):
             normalize_pseudo_hex("invalid")
