@@ -1,3 +1,6 @@
+2025-09-07T22:50:00Z - Fixed failing test in test_normalize_pseudo_hex by modifying normalize_pseudo_hex function to preserve numeric strings as-is instead of converting through decimal
+2025-09-07T10:45:00Z - Updated `pyproject.toml`: replaced setuptools with hatchling as the build system.
+2025-09-07T10:30:00Z - Implemented Phase 1, Step 1 of the project implementation plan: created project directory structure, initialized Python package, configured pyproject.toml with dependencies and tools (black, flake8, bumpver), implemented core utilities for pseudo-hex conversion and configuration management, updated README with installation and usage instructions, and added initial test files.
 2025-09-07T06:15:45Z - Created and formatted `project-implementation.md` with detailed implementation plan based on `project-specification.md`. Organized plan into 5 steps with 8 phases, each step achievable within 40 work hours.
 2025-09-07T05:51:40Z - Updated `project-specification.md`: added CLI deliverables: `encounter animal gen`, `encounter patron gen`, `world create`, and `subsector create`.
 2025-09-07T04:45:00Z - Updated `project-specification.md`: added subsector/world creation and new encounter generators (animal and patron) to Major Features; documented CLI commands and export behavior.
@@ -8,6 +11,6 @@
 2025-09-07T03:28:45Z - Updated `project-specification.md`: set CLI argument parsing and validation to use `typer` (type-driven, Click-compatible).
 2025-09-07T03:05:12Z - Updated `project-specification.md`: converted example character JSON numeric fields to SRD pseudo-hexadecimal notation (A=10, B=11, C=12).
 2025-09-07T02:44:05Z - Updated `project-specification.md`: added requirement that output values use Cepheus SRD pseudo-hexadecimal notation; added guidance for accepting and normalizing inputs.
-2025-09-07T02:17:30Z - Created `project-specification.md` with initial project overview and requirements.
+2025-09-07T01:30:00Z - Created project specification document
 
 # This file contains GitHub Copilot generated content.

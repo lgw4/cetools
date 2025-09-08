@@ -1,19 +1,57 @@
 [project]
 name = "cetools"
-version = "2025.09.01"
+version = "2025.09.0"
 description = "Common utilities for Cepheus Engine tabletop roleplaying game"
 readme = "README.md"
 requires-python = ">=3.13"
-authors = [{ name = "lgw4" }]
+authors = [{ name = "lgw4" }, { name = "GitHub Copilot" }]
 license = { file = "LICENSE" }
-dependencies = ["attrs>=25.3.0", "pydantic>=2.11.7"]
+dependencies = [
+    "attrs>=25.3.0",
+    "pydantic>=2.11.7",
+    "typer>=0.17.4",
+    "tomli>=2.2.1",
+    "tomli-w>=1.2.0",
+    "click>=8.2.1",
+]
 
 [project.optional-dependencies]
-dev = ["black>=25.1.0", "isort>=6.0.1", "pytest>=8.4.2", "typer>=0.17.4"]
+dev = [
+    "black>=25.1.0",
+    "isort>=6.0.1",
+    "pytest>=8.4.2",
+    "flake8>=7.3.0",
+    "bumpver>=2025.1131",
+]
 
+[project.scripts]
+cetools = "cetools.cli:app"
+
+[build-system]
+requires = ["hatchling>=1.21.0"]
+build-backend = "hatchling.build"
 
 [tool.black]
 line-length = 99
+target-version = ["py313"]
 
 [tool.isort]
 profile = "black"
+line_length = 99
+
+[tool.flake8]
+max-line-length = 99
+exclude = [".git", "__pycache__", "build", "dist"]
+extend-ignore = ["E203", "W503"]
+
+[tool.bumpver]
+current_version = "2025.09.0"
+version_pattern = "YYYY.0M.INC0"
+commit_message = "Bump version to {new_version}"
+commit = true
+tag = true
+push = true
+
+[tool.bumpver.file_patterns]
+"pyproject.toml" = ['^current_version = "{version}"', '^version = "{version}"']
+"cetools/__init__.py" = ['^__version__ = "{version}"']
