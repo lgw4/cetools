@@ -2,13 +2,57 @@
 
 from typing import Union
 
+# Cepheus Engine pseudo-hexadecimal mapping tables
+# Based on official SRD specification, excluding I and O
+DEC_TO_PSEUDO_HEX = {
+    0: "0",
+    1: "1",
+    2: "2",
+    3: "3",
+    4: "4",
+    5: "5",
+    6: "6",
+    7: "7",
+    8: "8",
+    9: "9",
+    10: "A",
+    11: "B",
+    12: "C",
+    13: "D",
+    14: "E",
+    15: "F",
+    16: "G",
+    17: "H",
+    18: "J",
+    19: "K",
+    20: "L",
+    21: "M",
+    22: "N",
+    23: "P",
+    24: "Q",
+    25: "R",
+    26: "S",
+    27: "T",
+    28: "U",
+    29: "V",
+    30: "W",
+    31: "X",
+    32: "Y",
+    33: "Z",
+}
+
+# Reverse mapping for pseudo-hex to decimal conversion
+PSEUDO_HEX_TO_DEC = {
+    v: k for k, v in DEC_TO_PSEUDO_HEX.items() if isinstance(v, str) and v.isalpha()
+}
+
 
 def dec_to_pseudo_hex(value: int) -> str:
     """
     Convert a decimal integer to Cepheus Engine pseudo-hexadecimal notation.
 
-    In Cepheus Engine, values 0-9 remain as digits, but values 10-15 are represented
-    as A-F, and values 16+ are represented as actual numbers.
+    In Cepheus Engine, values 0-9 remain as digits, values 10-33 are represented
+    as A-Z (excluding I and O), and values 34+ are represented as actual numbers.
 
     Args:
         value: The decimal integer to convert
@@ -18,12 +62,12 @@ def dec_to_pseudo_hex(value: int) -> str:
     """
     if value < 0:
         raise ValueError("Cannot convert negative values to pseudo-hex")
-    if value <= 9:
-        return str(value)
-    if value <= 15:
-        # Map 10-15 to A-F
-        return chr(ord("A") + (value - 10))
-    # Values 16+ remain as decimal
+
+    # Use dictionary lookup for values 0-33
+    if value in DEC_TO_PSEUDO_HEX:
+        return DEC_TO_PSEUDO_HEX[value]
+
+    # Values 34+ remain as decimal
     return str(value)
 
 
@@ -39,11 +83,11 @@ def pseudo_hex_to_dec(value: str) -> int:
     """
     value = value.upper()
 
-    # Handle A-F (values 10-15)
-    if len(value) == 1 and "A" <= value <= "F":
-        return ord(value) - ord("A") + 10
+    # Handle single character pseudo-hex letters using dictionary lookup
+    if len(value) == 1 and value in PSEUDO_HEX_TO_DEC:
+        return PSEUDO_HEX_TO_DEC[value]
 
-    # Ensure it's a valid number
+    # Handle numeric strings
     try:
         return int(value)
     except ValueError:
@@ -65,11 +109,11 @@ def is_pseudo_hex(value: str) -> bool:
 
     value = value.upper()
 
-    # Single character A-F
-    if len(value) == 1 and "A" <= value <= "F":
+    # Check if it's a valid pseudo-hex letter using dictionary
+    if len(value) == 1 and value in PSEUDO_HEX_TO_DEC:
         return True
 
-    # Try to parse as a number
+    # Check if it's a valid number
     try:
         int(value)
         return True
@@ -102,8 +146,8 @@ def normalize_pseudo_hex(value: Union[str, int]) -> str:
 
     # Try as pseudo-hex
     if is_pseudo_hex(value):
-        # If it's a single A-F character, normalize case
-        if len(value) == 1 and value.upper() in "ABCDEF":
+        # If it's a single valid pseudo-hex character, normalize case using dictionary
+        if len(value) == 1 and value.upper() in PSEUDO_HEX_TO_DEC:
             return value.upper()
         # For numeric strings that are valid pseudo-hex, preserve them as-is
         # (they're already in the correct format)
