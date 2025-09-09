@@ -14,7 +14,7 @@ This project provides a set of command-line utilities for players and referees o
 
 - Provide a small, discoverable CLI with composable commands and sensible defaults.
 - Keep the core logic library-usable so commands are thin wrappers around a stable Python API.
-- Persist user configuration locally (JSON/TOML) and support exporting generated artifacts (JSON/YAML/CSV).
+- Persist user configuration locally (JSON/TOML) and support exporting generated artifacts (JSON/CSV).
 - Ship with documentation, tests, and CI hooks to ensure quality.
 
 ## Non-Goals (initial)
@@ -33,8 +33,8 @@ This project provides a set of command-line utilities for players and referees o
 
 ## High-level Architecture / Contract
 
-- Inputs: user commands (CLI args / config files), optional JSON/YAML artifact imports.
-- Outputs: console output (human readable), machine outputs (JSON/YAML/CSV files), exit codes (0 success, >0 errors).
+- Inputs: user commands (CLI args / config files), optional JSON artifact imports.
+- Outputs: console output (human readable), machine outputs (JSON/CSV files), exit codes (0 success, >0 errors).
 - Error modes: invalid input, missing resources (SRD lookup), disk IO errors, dependency failures.
 
 Core contract for library functions:
@@ -45,7 +45,7 @@ Core contract for library functions:
 
 ## Major Features / Commands (initial MVP)
 
-- cetools character create --template `template` [--name NAME] [--export json|yaml|csv]
+- cetools character create --template `template` [--name NAME] [--export json|csv]
 
 Create a PC or NPC from SRD rules and templates.
 
@@ -62,7 +62,7 @@ The roll output should be consistent and seedable (support `--seed`) so scripts 
 
   Generate NPC stats, gear, and a short description.
 
-- cetools world subsector create [--seed SEED] [--export json|yaml]
+- cetools world subsector create [--seed SEED] [--export json]
 
   Create a subsector or world (star system, world data) suitable for campaign placement. Support X/Y/Z seedable generation, population class, trade codes, TL, and basic planetary descriptors. Exportable for GM use.
 
@@ -87,7 +87,7 @@ Each command is a thin CLI wrapper that calls into the core Python library (pack
 ## Data Models
 
 - Use `pydantic` for core models: Character, NPC, Item, Encounter, RollResult.
-- Serialization: support JSON and YAML (via PyYAML) for exports and imports.
+- Serialization: support JSON for exports and imports.
 - Config: user config stored in `~/.config/cetools/config.toml` (or XDG equivalent). Use TOML for human friendliness.
 
 ### Notation and value formats
@@ -124,7 +124,7 @@ Suggested REST endpoints (future):
 
 ## Storage and Artifact Handling
 
-- Short-term: local file exports (JSON/YAML/CSV) and local cache of SRD index (JSON file under cache dir).
+- Short-term: local file exports (JSON/CSV) and local cache of SRD index (JSON file under cache dir).
 - Config under XDG paths: `XDG_CONFIG_HOME/cetools/config.toml`, `XDG_DATA_HOME/cetools/cache/srd-index.json`.
 - Avoid embedding sensitive data. No remote storage in MVP.
 

@@ -27,7 +27,7 @@ This implementation plan outlines the step-by-step approach to build the Cepheus
 1. **Core Data Models and Utilities**
    - Implement `pydantic` models for Characters, NPCs, Items, etc.
    - Create utility functions for pseudo-hexadecimal notation conversion
-   - Implement serialization/deserialization for JSON, YAML, and CSV exports
+   - Implement serialization/deserialization for JSON and CSV exports
    - Build configuration management and XDG path handling
 
 2. **Roll Parser Implementation**
@@ -51,7 +51,7 @@ This implementation plan outlines the step-by-step approach to build the Cepheus
 
 2. **Character Persistence and Export**
    - Create storage mechanisms for character data
-   - Implement export functionality in multiple formats (JSON, YAML, CSV)
+   - Implement export functionality in multiple formats (JSON and CSV)
    - Add import capabilities for existing character data
 
 ### Phase 2 (20 hours)
