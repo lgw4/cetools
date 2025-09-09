@@ -1,4 +1,4 @@
-# CETools: Tools for use with the _Cepheus Engine SRD_ tabletop role-playing game
+# CETools: Tools for use with the _Cepheus Engine SRD_ tabletop roleplaying game
 
 CETools is a suite of command-line utilities designed for players and referees of the Cepheus Engine tabletop roleplaying game. This project provides tools for character creation, NPC generation, dice rolling, world building, encounter generation, and SRD lookup.
 
@@ -41,20 +41,20 @@ cetools srlookup "jump drive"
 ## Development Setup
 
 1. Clone the repository
-2. Set up a virtual environment with uv:
+1. Set up a virtual environment with uv:
 
 ```bash
 uv venv
 source .venv/bin/activate  # On Unix/macOS
 ```
 
-3. Install development dependencies:
+1. Install development dependencies:
 
 ```bash
 uv pip install -e ".[dev]"
 ```
 
-4. Run tests:
+1. Run tests:
 
 ```bash
 pytest

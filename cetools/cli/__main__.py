@@ -5,7 +5,7 @@ import typer
 # Create the main application
 app = typer.Typer(
     name="cetools",
-    help="Tools for use with the Cepheus Engine SRD tabletop role-playing game",
+    help="Tools for use with the Cepheus Engine SRD tabletop roleplaying game",
     add_completion=False,
 )
 
