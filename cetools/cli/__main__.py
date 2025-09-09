@@ -65,15 +65,32 @@ def roll(
     disadvantage: bool = typer.Option(False, "--dis", help="Roll with disadvantage"),
 ):
     """Parse dice expressions and output detailed roll breakdown."""
-    # Implementation placeholder - will be implemented in later phases
-    typer.echo(f"Rolling {expression}...")
-    if seed is not None:
-        typer.echo(f"Using seed: {seed}")
-    if advantage:
-        typer.echo("Rolling with advantage")
-    if disadvantage:
-        typer.echo("Rolling with disadvantage")
-    typer.echo("Roll functionality not yet implemented")
+    try:
+        from cetools.core import DiceExpressionError, roll_dice
+
+        result = roll_dice(expression, seed=seed, advantage=advantage, disadvantage=disadvantage)
+
+        # Display the roll result
+        typer.echo(f"Rolling {expression}")
+        if seed is not None:
+            typer.echo(f"Seed: {seed}")
+        if advantage:
+            typer.echo("Rolling with advantage")
+        if disadvantage:
+            typer.echo("Rolling with disadvantage")
+
+        typer.echo(f"Result: {result.breakdown}")
+
+        # Show D66 composed value if applicable
+        if result.d66_composed is not None:
+            typer.echo(f"D66 Value: {result.d66_composed}")
+
+    except DiceExpressionError as ex:
+        typer.echo(f"Error: {ex}", err=True)
+        raise typer.Exit(2)
+    except Exception as ex:
+        typer.echo(f"Unexpected error: {ex}", err=True)
+        raise typer.Exit(10)
 
 
 @app.command()

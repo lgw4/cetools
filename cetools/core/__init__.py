@@ -10,6 +10,15 @@ from .config import (
     save_config,
     set_config_value,
 )
+from .dice import (
+    AdvantageType,
+    DiceExpressionError,
+    DiceParser,
+    DiceRoll,
+    DiceType,
+    RollResult,
+    roll_dice,
+)
 from .models import (
     NPC,
     Attributes,
@@ -49,6 +58,14 @@ __all__ = [
     "load_config",
     "save_config",
     "set_config_value",
+    # Dice
+    "AdvantageType",
+    "DiceExpressionError",
+    "DiceParser",
+    "DiceRoll",
+    "DiceType",
+    "RollResult",
+    "roll_dice",
     # Models
     "Attributes",
     "AttributeType",
