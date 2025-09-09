@@ -25,8 +25,11 @@ pip install git+https://github.com/lgw4/cetools.git
 ## Quick Start
 
 ```bash
-# Generate a character
+# Generate a character (when installed)
 cetools character create --template traveller
+
+# Or, during development, run via uv and python3
+uv run python3 -m cetools.cli.__main__ character create --template traveller --export json
 
 # Roll dice
 cetools roll 2d6+3

@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Sequence, Type, TypeVar, Union
 
 from pydantic import BaseModel
 
+from .config import CONFIG_DIR
 from .models import NPC, Character, Equipment, Party
 
 # Type variable for Pydantic models
@@ -154,6 +155,61 @@ def _flatten_dict(data: Dict[str, Any], parent_key: str = "", sep: str = "_") ->
     return dict(items)
 
 
+def _unflatten_dict(data: Dict[str, Any], sep: str = "_") -> Dict[str, Any]:
+    """
+    Convert a flattened dictionary (as produced by _flatten_dict) back into
+    a nested dictionary suitable for Pydantic model construction.
+
+    This supports indexed list fields like `equipment_0_name` which will be
+    converted back into `equipment: [{"name": ...}]`.
+    """
+    result: Dict[str, Any] = {}
+
+    for flat_key, value in data.items():
+        parts = flat_key.split(sep)
+        target = result
+
+        for i, part in enumerate(parts):
+            # If this is a numeric index, treat parent as a list
+            if part.isdigit():
+                idx = int(part)
+                # previous key must have created a list
+                # find the list in target (the previous key)
+                # We skip handling bare numeric-leading keys as our flattener always
+                # prefixes indices with a named key (e.g., equipment_0_name)
+                continue
+
+            # Look ahead to see if next part is an index
+            next_is_index = (i + 1 < len(parts)) and parts[i + 1].isdigit()
+
+            if next_is_index:
+                # Ensure list exists for this key
+                if part not in target or not isinstance(target[part], list):
+                    target[part] = []
+
+                # Ensure the list is large enough
+                idx = int(parts[i + 1])
+                while len(target[part]) <= idx:
+                    target[part].append({})
+
+                # Move target into the indexed dict
+                target = target[part][idx]
+                # Skip the index part on next loop iteration
+                continue
+
+            # Last part -> assign value
+            if i == len(parts) - 1:
+                # If value looks like a number, leave as-is; Pydantic will coerce
+                target[part] = value
+            else:
+                # Ensure nested dict exists
+                if part not in target or not isinstance(target[part], dict):
+                    target[part] = {}
+                target = target[part]
+
+    return result
+
+
 def save_to_file(
     obj: Union[BaseModel, Sequence[BaseModel]],
     file_path: Union[str, Path],
@@ -239,6 +295,8 @@ def load_from_file(
         suffix = path.suffix.lower()
         if suffix == ".json":
             format_type = "json"
+        elif suffix == ".csv":
+            format_type = "csv"
         else:
             raise ValueError(f"Cannot auto-detect format for file: {path}")
 
@@ -252,6 +310,24 @@ def load_from_file(
                 return [model_class.model_validate(item) for item in data]
             else:
                 return model_class.model_validate(data)
+        elif format_type == "csv":
+            # Parse CSV and reconstruct nested structures
+            reader = csv.DictReader(StringIO(content))
+            rows = list(reader)
+            if not rows:
+                raise SerializationError(f"CSV file {path} is empty")
+
+            # If multiple rows, treat as list of objects
+            objects: List[T] = []
+            for row in rows:
+                # Convert empty strings to None where appropriate
+                cleaned = {k: (v if v != "" else None) for k, v in row.items()}
+                nested = _unflatten_dict(cleaned)
+                objects.append(model_class.model_validate(nested))
+
+            if len(objects) == 1:
+                return objects[0]
+            return objects
         else:
             raise ValueError(f"Unsupported format for loading: {format_type}")
 

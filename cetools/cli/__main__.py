@@ -113,13 +113,37 @@ def character_create(
     export_format: str = typer.Option(None, "--export", help="Export format (json, yaml, csv)"),
 ):
     """Create a PC or NPC from SRD rules and templates."""
-    # Implementation placeholder - will be implemented in later phases
-    typer.echo(f"Creating character with template '{template}'...")
-    if name:
-        typer.echo(f"Character name: {name}")
-    if export_format:
-        typer.echo(f"Export format: {export_format}")
-    typer.echo("Character creation functionality not yet implemented")
+    # Use the creation module to create a character and optionally export
+    try:
+        from cetools.core.config import get_config_value
+        from cetools.core.creation import create_character
+        from cetools.core.serialization import save_character
+
+        # Determine effective template and export format from config when not provided
+        if not template:
+            template = get_config_value("character", "default_template", "traveller")
+
+        if not export_format:
+            export_format = get_config_value("general", "export_format", None)
+
+        typer.echo(f"Creating character with template '{template}'...")
+
+        char = create_character(template_name=template, name=name)
+
+        if export_format:
+            # Save to a file in the current directory using a predictable name
+            file_name = f"{char.name.replace(' ', '_')}.{export_format}"
+            save_character(char, file_name, format_type=export_format)
+            typer.echo(f"Character exported to {file_name}")
+        else:
+            # Print JSON to stdout as default human-readable output
+            from cetools.core.serialization import to_json
+
+            typer.echo(to_json(char))
+
+    except Exception as ex:
+        typer.echo(f"Error creating character: {ex}", err=True)
+        raise typer.Exit(2)
 
 
 # NPC commands
