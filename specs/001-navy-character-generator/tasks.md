@@ -34,9 +34,9 @@ description: "Task list for Navy Character Generator implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T004 [P] Implement `DiceRoller` protocol and default `RandomDiceRoller` implementation in `src/cetools/engine/dice.py` — `roll(sides: int, count: int = 1) -> int` returns sum of `count` dice; default uses `random.randint`
-- [ ] T005 [P] Implement `RankEntry` and `Career` frozen dataclasses in `src/cetools/engine/careers/base.py` — include all fields from data-model.md (`qualification_stat`, `qualification_target`, `survival_stat`, `survival_target`, `commission_stat`, `commission_target`, `advancement_stat`, `advancement_target`, `reenlistment_target`, `service_skills`, `personal_development`, `specialist_skills`, `advanced_education`, `ranks`, `cash_benefits`, `material_benefits`)
-- [ ] T006 [P] Implement `Skill`, `Benefit`, `Term`, `Character`, and `GenerationFailure` dataclasses in `src/cetools/engine/models.py` — field types per data-model.md; `Benefit.kind` is `Literal["cash", "material"]`; `Character.upp` is a derived `str`
+- [X] T004 [P] Implement `DiceRoller` protocol and default `RandomDiceRoller` implementation in `src/cetools/engine/dice.py` — `roll(sides: int, count: int = 1) -> int` returns sum of `count` dice; default uses `random.randint`
+- [X] T005 [P] Implement `RankEntry` and `Career` frozen dataclasses in `src/cetools/engine/careers/base.py` — include all fields from data-model.md (`qualification_stat`, `qualification_target`, `survival_stat`, `survival_target`, `commission_stat`, `commission_target`, `advancement_stat`, `advancement_target`, `reenlistment_target`, `service_skills`, `personal_development`, `specialist_skills`, `advanced_education`, `ranks`, `cash_benefits`, `material_benefits`)
+- [X] T006 [P] Implement `Skill`, `Benefit`, `Term`, `Character`, and `GenerationFailure` dataclasses in `src/cetools/engine/models.py` — field types per data-model.md; `Benefit.kind` is `Literal["cash", "material"]`; `Character.upp` is a derived `str`
 
 **Checkpoint**: Foundation ready — user story implementation can now begin.
 
