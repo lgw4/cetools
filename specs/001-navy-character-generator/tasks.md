@@ -22,9 +22,9 @@ description: "Task list for Navy Character Generator implementation"
 
 **Purpose**: Scaffold the Python project with all required tooling and package structure.
 
-- [ ] T001 Initialize Python project — create `pyproject.toml` with Python 3.13, `[project.scripts]` entry `cetools = "cetools.cli.main:app"`, runtime dep `typer>=0.15`, dev deps `pytest>=8`, `black>=24`, `flake8>=7`, `src` layout, and `[tool.pytest.ini_options]` pointing to `tests/`
-- [ ] T002 [P] Create package skeleton — add empty `src/cetools/__init__.py`, `src/cetools/engine/__init__.py`, `src/cetools/engine/careers/__init__.py`, `tests/` directory (with `.keep` or initial `conftest.py`), and a minimal stub `src/cetools/cli/__init__.py` + `src/cetools/cli/main.py` containing `app = typer.Typer()` to satisfy the `cetools` entry point before T003
-- [ ] T003 Run `uv sync` and confirm `cetools --help` resolves without error
+- [X] T001 Initialize Python project — create `pyproject.toml` with Python 3.13, `[project.scripts]` entry `cetools = "cetools.cli.main:app"`, runtime dep `typer>=0.15`, dev deps `pytest>=8`, `black>=24`, `flake8>=7`, `src` layout, and `[tool.pytest.ini_options]` pointing to `tests/`
+- [X] T002 [P] Create package skeleton — add empty `src/cetools/__init__.py`, `src/cetools/engine/__init__.py`, `src/cetools/engine/careers/__init__.py`, `tests/` directory (with `.keep` or initial `conftest.py`), and a minimal stub `src/cetools/cli/__init__.py` + `src/cetools/cli/main.py` containing `app = typer.Typer()` to satisfy the `cetools` entry point before T003
+- [X] T003 Run `uv sync` and confirm `cetools --help` resolves without error
 
 ---
 

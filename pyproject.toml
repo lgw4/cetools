@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cetools"
+version = "0.1.0"
+description = "Cepheus Engine character generation tools"
+requires-python = ">=3.13"
+dependencies = [
+    "typer>=0.15",
+]
+
+[project.scripts]
+cetools = "cetools.cli.main:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cetools"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "black>=24",
+    "flake8>=7",
+]
