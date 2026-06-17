@@ -1,0 +1,20 @@
+schema_version: "1.0"
+
+extension:
+  id: git-branch
+  name: "Git Branch"
+  version: "1.0.0"
+  description: "Creates and switches to a new git feature branch before specification"
+  author: local
+
+provides:
+  commands:
+    - name: speckit.git.branch
+      file: commands/speckit.git.branch.md
+      description: "Create and switch to a new git branch for the current feature"
+
+hooks:
+  before_specify:
+    command: speckit.git.branch
+    optional: false
+    description: "Create git branch before specification"
