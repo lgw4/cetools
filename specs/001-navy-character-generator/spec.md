@@ -107,12 +107,24 @@ benefits, career history).
 
 ### Edge Cases
 
-- What happens when characteristic rolls produce a value of 0 for any characteristic?
-- How does the generator handle a character who fails enlistment and the draft table
-  assigns them to the Navy anyway?
+- Characteristic rolls use 2d6 and produce values in the range 2–12; a raw value of 0
+  is impossible at generation time and requires no special handling.
+- A character drafted to a non-Navy service triggers a full retry (re-roll, re-enlist).
+  A character drafted directly to Navy follows the same career path as an enlistee.
 - What if a character's skill table roll produces a skill they already have—does
   the level increment correctly?
-- What happens when the user requests 0 or a negative number of characters?
+- When the user requests 0 or a negative count, the CLI MUST emit a validation error
+  (e.g., `Error: count must be a positive integer`) and exit with a non-zero status code.
+
+## Clarifications
+
+### Session 2026-06-17
+
+- Q: Are aging characteristic effects in scope for MVP, and what is the maximum service limit? → A: Aging effects are OUT OF SCOPE; hard cap at 7 terms (28 years). Age is tracked and displayed only; it does not modify characteristics.
+- Q: When the user passes a count of 0 or a negative number, what should the CLI do? → A: Emit a validation error message and exit with a non-zero status code.
+- Q: For an automated generator, how is the "character chooses to leave after four terms" rule handled? → A: The generator always attempts re-enlistment beyond term 4, continuing until re-enlistment fails, survival fails, or the 7-term cap is reached.
+- Q: What is the JSON output schema (field names and structure)? → A: Flat top-level object: `upp` (string), `age` (int), `rank` (string), `terms` (int), `skills` (object mapping name→level), `benefits` (array of `{type, value}` objects).
+- Q: When a character fails Navy enlistment and the SRD draft assigns them to a non-Navy service, what should the generator do? → A: Retry from scratch (re-roll characteristics, re-attempt enlistment) until the character enlists or is drafted into the Navy — every invocation is guaranteed to produce a Navy character.
 
 ## Requirements *(mandatory)*
 
@@ -123,7 +135,13 @@ benefits, career history).
   following Cepheus Engine SRD rules.
 
 - **FR-002**: The generator MUST apply the Navy enlistment check against the character's
-  characteristics and, on failure, resolve the draft procedure per SRD rules.
+  characteristics and, on failure, resolve the draft procedure per SRD rules. If the
+  draft assigns the character to a non-Navy service, the generator MUST retry from
+  scratch (re-rolling characteristics and re-attempting enlistment) until the character
+  enters the Navy by enlistment or Navy draft. Every invocation is guaranteed to
+  produce a Navy character. The retry loop MUST terminate with an error after 1,000
+  consecutive non-Navy outcomes to guarantee termination under any implementation
+  defect; in practice, 1,000 consecutive non-Navy outcomes are statistically impossible.
 
 - **FR-003**: The generator MUST simulate each term of Navy service by resolving the
   survival roll, commission roll (if applicable), promotion roll (if applicable), and
@@ -133,26 +151,68 @@ benefits, career history).
   skill list, combining duplicate skills into a higher skill level.
 
 - **FR-005**: The generator MUST track the character's Navy rank and update it on a
-  successful commission or promotion roll.
+  successful commission or promotion roll. A promotion roll that succeeds when the
+  character is already at the maximum Navy rank has no effect; the rank does not change.
 
 - **FR-006**: The generator MUST end a character's career when a survival roll is failed
-  (applying SRD consequences), when the re-enlistment roll fails, when the character
-  chooses to leave (after four terms), or when the maximum service limit is reached.
+  (applying SRD consequences), when the re-enlistment roll fails, or when the 7-term
+  maximum (28 years of service) is reached. Terms 1 through 4 are served automatically
+  without a re-enlistment check; the character cannot voluntarily leave before term 4.
+  Beginning with term 5, the generator MUST attempt a re-enlistment roll after each
+  term; if the roll fails, the career ends and mustering-out benefits are calculated.
+  The career continues until a dice-driven stopping condition or the 7-term cap.
+  A survival failure ends the character's career immediately; for this MVP, survival
+  failure is career-ending only and does not kill the character or modify characteristics.
+  Aging characteristic effects are not simulated; age is tracked and displayed only.
 
 - **FR-007**: The generator MUST calculate and apply mustering-out benefits (cash and
   material) based on the number of terms served and final rank.
 
 - **FR-008**: The generator MUST display the completed character in human-readable
-  format including UPP, age, rank, skills, and benefits.
+  format including UPP, age, rank, skills, and benefits. The CLI command MUST be
+  `cetools navy`. UPP values use hexadecimal notation for values 10–15 (A–F); since
+  initial characteristic rolls use 2d6 (range 2–12) and no characteristic modification
+  occurs during generation, the maximum displayable UPP digit is C (12). When multiple
+  characters are generated, each character block MUST be separated by a line containing
+  only `---`.
 
 - **FR-009**: The generator MUST support generating more than one character in a single
-  invocation when the user specifies a count.
+  invocation via a `--count INTEGER` flag (default: 1). If the count is 0 or negative,
+  the CLI MUST emit the message `Error: count must be a positive integer` and exit with
+  status code 1. A successful invocation MUST exit with status code 0. Any unexpected
+  runtime error MUST exit with a non-zero status code.
 
-- **FR-010**: The generator MUST support producing structured (JSON) output alongside
-  or instead of human-readable output.
+- **FR-010**: The generator MUST support producing structured (JSON) output via a
+  `--json` boolean flag (default: false). The JSON schema for a single character MUST
+  contain these top-level fields: `upp` (string, hexadecimal UPP notation), `age`
+  (integer), `rank` (string, Navy rank title or enlisted rating; empty string `""` for
+  a character who never received a commission and has no enlisted rating title), `terms`
+  (integer, terms served), `skills` (object mapping skill name to integer level; MUST be
+  an empty object `{}` if the character has no skills), and `benefits` (array of objects
+  each with `type` ("cash" or "material") and `value` (integer credits for cash benefits;
+  string benefit name for material benefits)). Multiple characters MUST be output as a
+  JSON array of such objects. The `career_history` field is intentionally excluded from
+  the JSON output schema.
 
-- **FR-011**: All Cepheus Engine SRD dice-roll tables used by the Navy career MUST be
-  faithfully implemented per the published SRD.
+- **FR-011**: All Cepheus Engine SRD dice-roll tables and constants used by the Navy
+  career MUST be faithfully implemented per the published SRD
+  (https://cepheus-srd.opengamingnetwork.com). Before implementation begins, the
+  implementation plan MUST enumerate every SRD-derived constant required by FR-001
+  through FR-007, including: the Navy enlistment target number and all characteristic
+  DMs; survival, commission, promotion, and re-enlistment target numbers and all DMs
+  for each; the number of skill rolls acquired per term; all Navy skill tables
+  (Personal Development, Service Skills, Advanced Education, Officer Skills) with their
+  full skill lists; the number of mustering-out benefit rolls per term and any rank
+  bonuses; the cash and material benefit tables with all valid material benefit names;
+  the characteristic modifier table (mapping raw values to DMs); and all Navy enlisted
+  ratings and officer rank titles.
+
+- **FR-012**: All character generation logic MUST reside in library modules under
+  `src/cetools/` that are fully independent of the CLI layer. The CLI entry point
+  (Typer command) MUST act as a thin binding that calls into library functions only;
+  no business logic is permitted in the CLI handler. SRD table data MUST be
+  importable and exercisable in tests without invoking the CLI. This requirement
+  enforces Constitution Principle I (CLI First, Logic Decoupled).
 
 ### Key Entities
 
@@ -179,11 +239,14 @@ benefits, career history).
 
 ### Measurable Outcomes
 
-- **SC-001**: A user can generate a complete, rules-legal Navy character in under
-  five seconds from invoking the command to viewing the result.
+- **SC-001**: A user can generate a single complete, rules-legal Navy character in under
+  five seconds from invoking the command to viewing the result. No time constraint is
+  placed on batch invocations (SC-003).
 
 - **SC-002**: Every generated character's characteristics, skills, rank, and benefits
   can be verified by hand against the Cepheus Engine SRD tables with zero discrepancies.
+  Acceptance procedure: generate 10 sample characters and verify each field against the
+  CE SRD tables manually; all 10 must pass without discrepancy.
 
 - **SC-003**: The generator can produce 100 characters in a single invocation without
   error.
@@ -208,3 +271,6 @@ benefits, career history).
   output; no database or file storage is built into the MVP.
 - The future HTTP API expansion is out of scope for this feature but the character
   generation logic must be structured to support it without major rework.
+- Aging characteristic effects (CE SRD aging tables, characteristic degradation) are
+  out of scope for this MVP. Age is computed as 18 + (4 × terms served) and displayed
+  only; it does not modify characteristics.
