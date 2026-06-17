@@ -44,12 +44,12 @@ isolation violates both principles simultaneously.
 
 ### III. Code Quality
 
-All code MUST be formatted with Black and MUST pass pyflakes linting with zero
+All code MUST be formatted with Black and MUST pass flake8 linting with zero
 errors. Both checks MUST run and pass before finishing any change:
 
 ```bash
 uv run black .
-uv run pyflakes src tests
+uv run flake8 src tests
 ```
 
 **Rationale**: Consistent formatting eliminates style debates; static analysis
@@ -72,8 +72,8 @@ Dependencies and project metadata are managed with `uv` via `pyproject.toml`.
 - **Setup**: `uv sync` (installs project and all dev dependencies into `.venv`)
 - **Tests**: `uv run pytest`
 - **Format**: `uv run black .`
-- **Lint**: `uv run pyflakes src tests`
-- **Pre-commit gate**: `uv run black . && uv run pyflakes src tests && uv run pytest`
+- **Lint**: `uv run flake8 src tests`
+- **Pre-commit gate**: `uv run black . && uv run flake8 src tests && uv run pytest`
 
 All toolchain commands MUST pass before a change is committed.
 

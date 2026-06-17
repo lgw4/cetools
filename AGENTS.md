@@ -32,10 +32,10 @@ All new code should have corresponding tests in `tests/`. Run the full suite bef
 ## Code style
 
 - Format with Black: `uv run black .`
-- Lint with pyflakes: `uv run pyflakes src tests`
+- Lint with flake8: `uv run flake8 src tests`
 - Both should be run (and pass) before finishing a change.
 
 ## PR instructions
 
-- Title format: `[cetools] <Title>`
-- Run `uv run black . && uv run pyflakes src tests && uv run pytest` before committing.
+- Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for all commit messages and PR titles (e.g., `feat: add X`, `fix: correct Y`, `docs: update Z`).
+- Run `uv run black . && uv run flake8 src tests && uv run pytest` before committing.
