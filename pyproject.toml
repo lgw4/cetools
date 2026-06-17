@@ -20,6 +20,13 @@ packages = ["src/cetools"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
+[tool.black]
+line-length = 99
+target-version = ["py314"]
+
+[tool.flake8]
+max-line-length = 99
+
 [dependency-groups]
 dev = [
     "pytest>=8",

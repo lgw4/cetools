@@ -4,6 +4,32 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 
+def characteristic_modifier(score: int) -> int:
+    if score <= 2:
+        return -2
+    if score <= 5:
+        return -1
+    if score <= 8:
+        return 0
+    if score <= 11:
+        return 1
+    if score <= 14:
+        return 2
+    if score <= 17:
+        return 3
+    if score <= 20:
+        return 4
+    if score <= 23:
+        return 5
+    if score <= 26:
+        return 6
+    if score <= 29:
+        return 7
+    if score <= 32:
+        return 8
+    return 9
+
+
 @dataclass
 class Skill:
     name: str
