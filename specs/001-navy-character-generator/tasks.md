@@ -93,14 +93,14 @@ description: "Task list for Navy Character Generator implementation"
 
 > **Write these tests FIRST; ensure they FAIL before implementing T017–T019.**
 
-- [ ] T015 [P] [US2] Write formatter tests (output contains `UPP:`, career name, rank title, terms, age, all six characteristic names, skill list with levels, benefits section, pension line when `pension is not None`; characteristic value > 9 shows pseudo-hex letter; no `I` or `O` in UPP) in `tests/test_formatter.py`
-- [ ] T016 [P] [US2] Write CLI integration tests (exit code 0 + non-empty stdout + empty stderr on success; exit code 1 + empty stdout + non-empty stderr on enlistment failure; exit code 1 + empty stdout + non-empty stderr on survival failure) in `tests/test_cli.py` — use `subprocess.run(["cetools", "character", "generate"])` or `typer.testing.CliRunner`
+- [X] T015 [P] [US2] Write formatter tests (output contains `UPP:`, career name, rank title, terms, age, all six characteristic names, skill list with levels, benefits section, pension line when `pension is not None`; characteristic value > 9 shows pseudo-hex letter; no `I` or `O` in UPP) in `tests/test_formatter.py`
+- [X] T016 [P] [US2] Write CLI integration tests (exit code 0 + non-empty stdout + empty stderr on success; exit code 1 + empty stdout + non-empty stderr on enlistment failure; exit code 1 + empty stdout + non-empty stderr on survival failure) in `tests/test_cli.py` — use `subprocess.run(["cetools", "character", "generate"])` or `typer.testing.CliRunner`
 
 ### Implementation for User Story 2
 
-- [ ] T017 [US2] Implement `format_character(character: Character) -> str` in `src/cetools/formatter.py` — plain-text output matching the content contract in contracts/cli.md: UPP on first line or labeled, career name + rank title + terms + age, all six characteristics by name and value (with pseudo-hex letter if value > 9), all skills with levels, all benefits (cash amounts as `CrX,XXX`, material names), pension as `Cr10,000/year` if applicable
-- [ ] T018 [US2] Implement root Typer app in `src/cetools/cli/main.py` — create `app = typer.Typer()`, add character sub-app via `app.add_typer(character.app, name="character")`
-- [ ] T019 [US2] Implement `generate` command in `src/cetools/cli/character.py` — call `generate_character(NAVY_CAREER)`, on `Character` print `format_character(result)` to stdout and exit 0; on `GenerationFailure` print `result.reason` to stderr and `raise typer.Exit(code=1)` (no stdout output)
+- [X] T017 [US2] Implement `format_character(character: Character) -> str` in `src/cetools/formatter.py` — plain-text output matching the content contract in contracts/cli.md: UPP on first line or labeled, career name + rank title + terms + age, all six characteristics by name and value (with pseudo-hex letter if value > 9), all skills with levels, all benefits (cash amounts as `CrX,XXX`, material names), pension as `Cr10,000/year` if applicable
+- [X] T018 [US2] Implement root Typer app in `src/cetools/cli/main.py` — create `app = typer.Typer()`, add character sub-app via `app.add_typer(character.app, name="character")`
+- [X] T019 [US2] Implement `generate` command in `src/cetools/cli/character.py` — call `generate_character(NAVY_CAREER)`, on `Character` print `format_character(result)` to stdout and exit 0; on `GenerationFailure` print `result.reason` to stderr and `raise typer.Exit(code=1)` (no stdout output)
 
 **Checkpoint**: `uv run cetools character generate` exits 0 with a formatted character on stdout, or exits 1 with only stderr output on failure. `uv run pytest tests/test_formatter.py tests/test_cli.py` passes.
 

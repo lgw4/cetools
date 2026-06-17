@@ -1,6 +1,9 @@
 import typer
 
+from cetools.cli import character
+
 app = typer.Typer()
+app.add_typer(character.app, name="character")
 
 
 @app.callback()
