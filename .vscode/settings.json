@@ -63,6 +63,7 @@
         "streamlit",
         "Streamlit",
         "tmbootpicker",
+        "Typer",
         "unbuilt",
         "webassets"
     ]
