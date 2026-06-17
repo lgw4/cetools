@@ -34,12 +34,13 @@ Build a Cepheus Engine Navy character generator as a data-driven Python library,
 
 ## Constitution Check
 
-*The project constitution is a template (not yet customized). No constitutional gates apply. Applying sensible defaults:*
+*Constitution v1.0.0 ratified 2026-06-17. All five principles apply.*
 
-- Library-first: generation engine MUST be independent of CLI (FR-013) — MET by design
-- CLI interface: `cetools character generate`; stdout for success, stderr for failure (FR-015, FR-016) — MET by design
-- Test-first: all new code has corresponding tests in `tests/` (AGENTS.md) — REQUIRED
-- Extensibility: career system MUST be data-driven (FR-014) — MET by frozen `Career` dataclass pattern
+- **I — SRD-Fidelity**: The spec FRs contained incorrect target numbers and rank titles. Implementation follows the SRD throughout; all corrections are documented in [research.md](research.md#discrepancies-spec-vs-srd). No deliberate deviations from SRD rules exist in this feature — MET.
+- **II — Library-First**: The generation engine (`src/cetools/engine/`) has zero dependency on Typer or any delivery layer. FR-013 enforces this at the module boundary — MET by design.
+- **III — CLI Interface**: `cetools character generate`; stdout for success (exit 0), stderr for failure (exit 1), no game logic in CLI code (FR-015, FR-016) — MET by design.
+- **IV — Test-First**: All phases write failing tests before implementation; pytest suite must be green before any PR — REQUIRED.
+- **V — Data-Driven Extensibility**: All career variation lives in a `Career` frozen dataclass (FR-014). The engine imports `Career` and `DiceRoller` only — zero Navy-specific references permitted in `generator.py` — MET by frozen `Career` dataclass pattern.
 
 No gate violations.
 

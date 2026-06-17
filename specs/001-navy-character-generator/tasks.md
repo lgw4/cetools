@@ -23,8 +23,8 @@ description: "Task list for Navy Character Generator implementation"
 **Purpose**: Scaffold the Python project with all required tooling and package structure.
 
 - [ ] T001 Initialize Python project — create `pyproject.toml` with Python 3.13, `[project.scripts]` entry `cetools = "cetools.cli.main:app"`, runtime dep `typer>=0.15`, dev deps `pytest>=8`, `black>=24`, `flake8>=7`, `src` layout, and `[tool.pytest.ini_options]` pointing to `tests/`
-- [ ] T002 [P] Create package skeleton — add empty `src/cetools/__init__.py`, `src/cetools/cli/__init__.py`, `src/cetools/engine/__init__.py`, `src/cetools/engine/careers/__init__.py`, and `tests/` directory (with `.keep` or initial `conftest.py`)
-- [ ] T003 Run `uv sync` and confirm `cetools --help` resolves without error after stub CLI exists
+- [ ] T002 [P] Create package skeleton — add empty `src/cetools/__init__.py`, `src/cetools/engine/__init__.py`, `src/cetools/engine/careers/__init__.py`, `tests/` directory (with `.keep` or initial `conftest.py`), and a minimal stub `src/cetools/cli/__init__.py` + `src/cetools/cli/main.py` containing `app = typer.Typer()` to satisfy the `cetools` entry point before T003
+- [ ] T003 Run `uv sync` and confirm `cetools --help` resolves without error
 
 ---
 
@@ -55,10 +55,10 @@ description: "Task list for Navy Character Generator implementation"
 
 > **Write these tests FIRST; ensure they FAIL before implementing T011–T012.**
 
-- [ ] T007 [P] [US1] Write pseudo-hex encoding tests (all 34 mappings 0–33, boundary values 9→`9`/10→`A`/17→`H`/18→`J`/22→`N`/23→`P`/33→`Z`, invalid inputs raise `ValueError`) in `tests/test_pseudohex.py`
+- [ ] T007 [P] [US1] Write pseudo-hex encoding tests (all 34 mappings 0–33, boundary values 9→`9`/10→`A`/17→`H`/18→`J`/22→`N`/23→`P`/33→`Z`, out-of-range inputs raise `ValueError`: value 34, value -1, invalid char `"I"`, invalid char `"O"`) in `tests/test_pseudohex.py`
 - [ ] T008 [P] [US1] Write model tests (characteristic modifier table for all score bands 0–33+, `encode_upp` produces correct 6-char string for sample scores, `GenerationFailure.exit_code == 1`) in `tests/test_models.py`
 - [ ] T009 [P] [US1] Write Navy career data integrity tests (all tuple lengths are 6 for skill tables and 7 for benefit tables, rank titles match SRD, `qualification_stat="Intelligence"`, `qualification_target=6`, `survival_stat="Intelligence"`, `survival_target=5`, `commission_stat="Social Standing"`, `commission_target=7`, `advancement_stat="Education"`, `advancement_target=6`) in `tests/test_careers.py`
-- [ ] T010 [P] [US1] Write generator lifecycle tests (enlistment pass → `Character`; enlistment fail → `GenerationFailure`; survival fail mid-term → `GenerationFailure`; 7-term cap with voluntary muster-out; natural-12 on re-enlistment at term 7 forces term 8; first-term basic training grants all 6 service skills at Level 0; aging check triggers at term 4+; pension present at 5+ terms; cash roll cap enforced at 3; rank bonus rolls applied at O4/O5/O6) in `tests/test_generator.py`
+- [ ] T010 [P] [US1] Write generator lifecycle tests (enlistment pass → `Character`; enlistment fail → `GenerationFailure`; survival fail mid-term → `GenerationFailure`; 7-term cap with voluntary muster-out; natural-12 on re-enlistment at term 7 forces term 8; first-term basic training grants all 6 service skills at Level 0; aging check triggers at term 4+; pension present at 5+ terms; cash roll cap enforced at 3; rank bonus rolls applied at O4/O5/O6; wall-clock duration of one full generation call is < 2 seconds — SC-001) in `tests/test_generator.py`
 
 ### Implementation for User Story 1
 
@@ -199,7 +199,7 @@ Task T012: src/cetools/engine/pseudohex.py      (pseudo-hex encoding)
 
 - `[P]` tasks operate on different files and have no shared dependencies within their phase
 - `[USN]` label maps each task to a user story for traceability to spec.md acceptance criteria
-- SRD-corrected values are in research.md; use data-model.md's `NAVY_CAREER` concrete instance as the authoritative source (not spec FRs, which contain errors)
+- SRD-corrected values are in research.md; use data-model.md's `NAVY_CAREER` concrete instance as the authoritative source for all target numbers and rank data
 - Aging stat reductions in MVP are applied in order: Strength → Dexterity → Endurance (no player input needed)
 - Background skills: always 3 skills at Level 0 from the primary education list in research.md (simplified per spec Assumption)
 - Pseudo-hex table has 34 entries (0–33); `I` and `O` are omitted; confirm with boundary tests at 17→`H`, 18→`J`, 22→`N`, 23→`P`
