@@ -122,11 +122,11 @@ description: "Task list for Navy Character Generator implementation"
 
 > **Write this test FIRST; ensure it FAILS if any Navy-specific hardcoding exists.**
 
-- [ ] T020 [P] [US3] Write extensibility test — define a minimal stub `Career` (use `dataclasses.replace` on `NAVY_CAREER` with `name="Scout"`) and assert `generate_character(stub_career, roller=controlled_roller)` returns `Character | GenerationFailure` without importing `navy.py` in the engine; assert no `"Navy"` string literal appears in `src/cetools/engine/generator.py` in `tests/test_careers.py` (extend existing file)
+- [X] T020 [P] [US3] Write extensibility test — define a minimal stub `Career` (use `dataclasses.replace` on `NAVY_CAREER` with `name="Scout"`) and assert `generate_character(stub_career, roller=controlled_roller)` returns `Character | GenerationFailure` without importing `navy.py` in the engine; assert no `"Navy"` string literal appears in `src/cetools/engine/generator.py` in `tests/test_careers.py` (extend existing file)
 
 ### Implementation for User Story 3
 
-- [ ] T021 [US3] Audit `src/cetools/engine/generator.py` for any hardcoded Navy values (career name strings, fixed target numbers, rank title strings) and replace with `career.<field>` lookups if found — goal is zero Navy-specific references in the engine
+- [X] T021 [US3] Audit `src/cetools/engine/generator.py` for any hardcoded Navy values (career name strings, fixed target numbers, rank title strings) and replace with `career.<field>` lookups if found — goal is zero Navy-specific references in the engine
 
 **Checkpoint**: `uv run pytest tests/test_careers.py` passes including the extensibility test. `rg "Navy" src/cetools/engine/generator.py` returns no results.
 
