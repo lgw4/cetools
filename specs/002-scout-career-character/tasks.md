@@ -81,16 +81,16 @@
 
 ### Tests First — US2 (write and confirm failing)
 
-- [ ] T015 [P] [US2] Write failing tests for `draft_character(roller)`: seeded roller producing roll 5 → Scout outcome, rolls 1–4/6 → Navy outcome; assert `Character.drafted` is `True`; assert career name matches draft table result in `tests/test_generator.py`
-- [ ] T016 [P] [US2] Write failing test for `draft_character` when draft resolves an unimplemented career: mock `DRAFT_TABLE` to contain `"marine"`; assert `GenerationFailure` is returned with a clear message containing `"marine"` in `tests/test_generator.py`
-- [ ] T017 [P] [US2] Write failing test for formatter: `format_character(character_with_drafted_true)` includes `"(Drafted)"` in the career line between the career name and the rank parenthetical (e.g., `"Scout (Drafted) (Scout, Rank 0)"`) in `tests/test_formatter.py`
-- [ ] T018 [P] [US2] Write failing tests for CLI draft default: invoke `cetools character generate` with no `--career`; assert exit code 0; assert stdout career line contains `"(Drafted)"` in `tests/test_cli.py`
+- [X] T015 [P] [US2] Write failing tests for `draft_character(roller)`: seeded roller producing roll 5 → Scout outcome, rolls 1–4/6 → Navy outcome; assert `Character.drafted` is `True`; assert career name matches draft table result in `tests/test_generator.py`
+- [X] T016 [P] [US2] Write failing test for `draft_character` when draft resolves an unimplemented career: mock `DRAFT_TABLE` to contain `"marine"`; assert `GenerationFailure` is returned with a clear message containing `"marine"` in `tests/test_generator.py`
+- [X] T017 [P] [US2] Write failing test for formatter: `format_character(character_with_drafted_true)` includes `"(Drafted)"` in the career line between the career name and the rank parenthetical (e.g., `"Scout (Drafted) (Scout, Rank 0)"`) in `tests/test_formatter.py`
+- [X] T018 [P] [US2] Write failing tests for CLI draft default: invoke `cetools character generate` with no `--career`; assert exit code 0; assert stdout career line contains `"(Drafted)"` in `tests/test_cli.py`
 
 ### Implementation — US2 (make tests green)
 
-- [ ] T019 [US2] Implement `draft_character(roller: DiceRoller | None = None) -> Character | GenerationFailure` in `src/cetools/engine/generator.py`; roll 1D6, index `DRAFT_TABLE[roll-1]`, look up career in `CAREER_REGISTRY`; if not found return `GenerationFailure` with message `"Draft assigned unimplemented career '{name}'"` (exit code 1); else call `generate_career_character(career, roller, drafted=True)`
-- [ ] T020 [US2] Update career line in `src/cetools/formatter.py` to render `"{career} (Drafted) ({rank_title}, Rank {rank})"` when `character.drafted` is `True`; no change when `False`
-- [ ] T021 [US2] Add `career: Optional[str] = typer.Option(None, "--career")` to `cetools character generate` in `src/cetools/cli/character.py`; when `career` is `None` call `draft_character()` and route result to formatter or stderr/exit-1
+- [X] T019 [US2] Implement `draft_character(roller: DiceRoller | None = None) -> Character | GenerationFailure` in `src/cetools/engine/generator.py`; roll 1D6, index `DRAFT_TABLE[roll-1]`, look up career in `CAREER_REGISTRY`; if not found return `GenerationFailure` with message `"Draft assigned unimplemented career '{name}'"` (exit code 1); else call `generate_career_character(career, roller, drafted=True)`
+- [X] T020 [US2] Update career line in `src/cetools/formatter.py` to render `"{career} (Drafted) ({rank_title}, Rank {rank})"` when `character.drafted` is `True`; no change when `False`
+- [X] T021 [US2] Add `career: Optional[str] = typer.Option(None, "--career")` to `cetools character generate` in `src/cetools/cli/character.py`; when `career` is `None` call `draft_character()` and route result to formatter or stderr/exit-1
 
 **Checkpoint**: US2 independently testable — draft path produces "(Drafted)" characters; US1 unaffected
 

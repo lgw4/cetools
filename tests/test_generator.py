@@ -3,6 +3,7 @@ from cetools.engine.careers.scout import SCOUT_CAREER
 from cetools.engine.generator import (
     _apply_material_benefit,
     _apply_skill_entry,
+    draft_character,
     generate_career_character,
     generate_character,
     roll_until_qualified,
@@ -459,6 +460,48 @@ def test_single_term_scout_muster_out() -> None:
     assert len(term.skills_gained) == 8  # 6 basic training + 2 skill rolls
     assert len(term.skills_gained[6:]) == 2
     assert len(result.benefits) == 1
+
+
+# --- T015: draft_character ---
+
+
+def test_draft_character_roll_5_gives_scout() -> None:
+    # DRAFT_TABLE[4] = "scout"; 1D6 roll=5 → index 4 → Scout career
+    roller = SequenceRoller([5], default=10)
+    result = draft_character(roller=roller)
+    assert isinstance(result, Character)
+    assert result.drafted is True
+    assert result.career == "Scout"
+
+
+def test_draft_character_roll_1_gives_navy() -> None:
+    # DRAFT_TABLE[0] = "navy"; 1D6 roll=1 → index 0 → Navy career
+    roller = SequenceRoller([1], default=10)
+    result = draft_character(roller=roller)
+    assert isinstance(result, Character)
+    assert result.drafted is True
+    assert result.career == "Navy"
+
+
+def test_draft_character_sets_drafted_true() -> None:
+    roller = SequenceRoller([3], default=10)
+    result = draft_character(roller=roller)
+    assert isinstance(result, Character)
+    assert result.drafted is True
+
+
+# --- T016: draft_character with unimplemented career ---
+
+
+def test_draft_character_unimplemented_career_returns_failure() -> None:
+    from unittest.mock import patch
+
+    # Patch DRAFT_TABLE in generator so index 0 is "marine" (not in CAREER_REGISTRY)
+    with patch("cetools.engine.generator.DRAFT_TABLE", ("marine",) + ("navy",) * 5):
+        roller = SequenceRoller([1], default=10)
+        result = draft_character(roller=roller)
+    assert isinstance(result, GenerationFailure)
+    assert "marine" in result.reason
 
 
 # --- T011: two skill rolls per term recorded in term history ---

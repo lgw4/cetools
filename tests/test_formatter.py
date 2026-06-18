@@ -2,7 +2,7 @@ from cetools.engine.models import Benefit, Character
 from cetools.formatter import format_character
 
 
-def _make_character(pension: int | None = 14000) -> Character:
+def _make_character(pension: int | None = 14000, drafted: bool = False) -> Character:
     return Character(
         characteristics={
             "Strength": 7,
@@ -30,6 +30,7 @@ def _make_character(pension: int | None = 14000) -> Character:
         ],
         pension=pension,
         terms=[],
+        drafted=drafted,
     )
 
 
@@ -120,6 +121,21 @@ def test_format_character_returns_string():
     result = format_character(_make_character())
     assert isinstance(result, str)
     assert len(result) > 0
+
+
+# --- T017: drafted label in career line ---
+
+
+def test_format_character_drafted_shows_drafted_in_career_line() -> None:
+    output = format_character(_make_character(drafted=True))
+    career_line = next(ln for ln in output.splitlines() if "Navy" in ln and "Rank" in ln)
+    assert "(Drafted)" in career_line
+    assert "Navy (Drafted)" in career_line
+
+
+def test_format_character_not_drafted_omits_drafted_label() -> None:
+    output = format_character(_make_character(drafted=False))
+    assert "(Drafted)" not in output
 
 
 def test_characteristics_printed_in_upp_order() -> None:

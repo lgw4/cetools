@@ -1,7 +1,8 @@
+from typing import Optional
+
 import typer
 
-from cetools.engine.careers.navy import NAVY_CAREER
-from cetools.engine.generator import generate_character
+from cetools.engine.generator import draft_character
 from cetools.engine.models import Character
 from cetools.formatter import format_character
 
@@ -9,9 +10,17 @@ app = typer.Typer()
 
 
 @app.command()
-def generate() -> None:
-    """Generate a Navy character."""
-    result = generate_character(NAVY_CAREER)
+def generate(career: Optional[str] = typer.Option(None, "--career")) -> None:
+    """Generate a character."""
+    if career is None:
+        result = draft_character()
+    else:
+        typer.echo(
+            f"Unknown career '{career}'. Valid careers: navy, scout",
+            err=True,
+        )
+        raise typer.Exit(1)
+
     if isinstance(result, Character):
         typer.echo(format_character(result))
     else:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from cetools.engine.careers.base import Career
+from cetools.engine.careers.registry import CAREER_REGISTRY, DRAFT_TABLE
 from cetools.engine.dice import DiceRoller, RandomDiceRoller
 from cetools.engine.models import (
     Benefit,
@@ -339,6 +340,17 @@ def roll_until_qualified(career: Career, roller: DiceRoller | None = None) -> di
         characteristics = {stat: roller.roll(6, count=2) for stat in _STAT_NAMES}
         if characteristics[career.qualification_stat] >= career.qualification_target:
             return characteristics
+
+
+def draft_character(roller: DiceRoller | None = None) -> Character | GenerationFailure:
+    if roller is None:
+        roller = RandomDiceRoller()
+    roll = roller.roll(6)
+    name = DRAFT_TABLE[roll - 1]
+    career = CAREER_REGISTRY.get(name)
+    if career is None:
+        return GenerationFailure(reason=f"Draft assigned unimplemented career '{name}'")
+    return generate_career_character(career, roller, drafted=True)
 
 
 def generate_career_character(
