@@ -2,7 +2,8 @@ from typing import Optional
 
 import typer
 
-from cetools.engine.generator import draft_character
+from cetools.engine.careers import CAREER_REGISTRY
+from cetools.engine.generator import draft_character, generate_career_character
 from cetools.engine.models import Character
 from cetools.formatter import format_character
 
@@ -15,11 +16,16 @@ def generate(career: Optional[str] = typer.Option(None, "--career")) -> None:
     if career is None:
         result = draft_character()
     else:
-        typer.echo(
-            f"Unknown career '{career}'. Valid careers: navy, scout",
-            err=True,
-        )
-        raise typer.Exit(1)
+        original = career
+        normalized = career.strip().lower()
+        if normalized not in CAREER_REGISTRY:
+            valid = ", ".join(sorted(CAREER_REGISTRY))
+            typer.echo(
+                f"Unknown career '{original}'. Valid careers: {valid}",
+                err=True,
+            )
+            raise typer.Exit(1)
+        result = generate_career_character(CAREER_REGISTRY[normalized])
 
     if isinstance(result, Character):
         typer.echo(format_character(result))

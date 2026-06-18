@@ -104,15 +104,15 @@
 
 ### Tests First — US3 (write and confirm failing)
 
-- [ ] T022 [P] [US3] Write failing tests for named `--career` paths: `--career scout` exits 0, career line has no "(Drafted)", Intelligence ≥ 6; `--career navy` exits 0, career line has no "(Drafted)", Intelligence ≥ 6 in `tests/test_cli.py`
-- [ ] T023 [P] [US3] Write failing tests for unrecognized career: `--career marine` exits 1, stderr equals `"Unknown career 'marine'. Valid careers: navy, scout"` exactly; original unmodified input appears in message in `tests/test_cli.py`
-- [ ] T024 [P] [US3] Write failing tests for input normalization: `--career Scout`, `--career SCOUT`, `--career "  scout  "` all exit 0 and behave identically to `--career scout` in `tests/test_cli.py`
+- [X] T022 [P] [US3] Write failing tests for named `--career` paths: `--career scout` exits 0, career line has no "(Drafted)", Intelligence ≥ 6; `--career navy` exits 0, career line has no "(Drafted)", Intelligence ≥ 6 in `tests/test_cli.py`
+- [X] T023 [P] [US3] Write failing tests for unrecognized career: `--career marine` exits 1, stderr equals `"Unknown career 'marine'. Valid careers: navy, scout"` exactly; original unmodified input appears in message in `tests/test_cli.py`
+- [X] T024 [P] [US3] Write failing tests for input normalization: `--career Scout`, `--career SCOUT`, `--career "  scout  "` all exit 0 and behave identically to `--career scout` in `tests/test_cli.py`
 
 ### Implementation — US3 (make tests green)
 
-- [ ] T025 [US3] Implement `--career` normalization in `src/cetools/cli/character.py`: capture original value before normalization; strip whitespace, lowercase; validate against `CAREER_REGISTRY` keys
-- [ ] T026 [US3] Implement recognized `--career` routing in `src/cetools/cli/character.py`: call `generate_career_character(CAREER_REGISTRY[normalized_name])` and route result to formatter or stderr/exit-1
-- [ ] T027 [US3] Implement unrecognized career error in `src/cetools/cli/character.py`: print `Unknown career '{original_value}'. Valid careers: {', '.join(sorted(CAREER_REGISTRY))}` to stderr, `raise typer.Exit(1)` — derive the list dynamically from `CAREER_REGISTRY` so error output stays correct as new careers are registered
+- [X] T025 [US3] Implement `--career` normalization in `src/cetools/cli/character.py`: capture original value before normalization; strip whitespace, lowercase; validate against `CAREER_REGISTRY` keys
+- [X] T026 [US3] Implement recognized `--career` routing in `src/cetools/cli/character.py`: call `generate_career_character(CAREER_REGISTRY[normalized_name])` and route result to formatter or stderr/exit-1
+- [X] T027 [US3] Implement unrecognized career error in `src/cetools/cli/character.py`: print `Unknown career '{original_value}'. Valid careers: {', '.join(sorted(CAREER_REGISTRY))}` to stderr, `raise typer.Exit(1)` — derive the list dynamically from `CAREER_REGISTRY` so error output stays correct as new careers are registered
 
 **Checkpoint**: All three user stories independently functional; full feature complete
 
@@ -122,10 +122,10 @@
 
 **Purpose**: Quality gate, formatting, and end-to-end validation.
 
-- [ ] T028 [P] Run `uv run black .` and resolve any formatting issues across `src/cetools/` and `tests/`
-- [ ] T029 [P] Run `uv run flake8 src tests` and resolve any lint warnings
-- [ ] T030 Run `uv run pytest` and confirm all tests pass and `src/cetools` coverage is ≥ 85%
-- [ ] T031 Run quickstart.md Scenarios 1–5 manually (`cetools character generate --career scout`, no-flag draft, `--career navy`, `--career marine`, case variants) and confirm all expected outputs and exit codes
+- [X] T028 [P] Run `uv run black .` and resolve any formatting issues across `src/cetools/` and `tests/`
+- [X] T029 [P] Run `uv run flake8 src tests` and resolve any lint warnings
+- [X] T030 Run `uv run pytest` and confirm all tests pass and `src/cetools` coverage is ≥ 85%
+- [X] T031 Run quickstart.md Scenarios 1–5 manually (`cetools character generate --career scout`, no-flag draft, `--career navy`, `--career marine`, case variants) and confirm all expected outputs and exit codes
 
 ---
 
