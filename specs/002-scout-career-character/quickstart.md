@@ -27,7 +27,7 @@ uv run cetools character generate --career scout
 **Expected output** (abbreviated; exact values vary by random rolls):
 
 ```
-UPP: xxxxxxx
+UPP: xxxxxx
 
 Scout (Scout, Rank 0) — N terms, age A
 
@@ -64,7 +64,7 @@ uv run cetools character generate
 **Expected output** (abbreviated):
 
 ```
-UPP: xxxxxxx
+UPP: xxxxxx
 
 Navy (Drafted) (Starman, Rank 0) — N terms, age A
 ```
@@ -95,7 +95,7 @@ uv run cetools character generate --career navy
 **Expected output** (abbreviated):
 
 ```
-UPP: xxxxxxx
+UPP: xxxxxx
 
 Navy (Starman, Rank 0) — N terms, age A
 ```

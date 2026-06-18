@@ -75,14 +75,14 @@ Characteristics:
   Social Standing: 5
 
 Skills:
-  Advocates-0, Animals-0, Comms-1, Electronics-0, Gun Combat-0, Gunnery-0, Navigation-1, Piloting-1, Recon-0
+  Advocate-0, Animals-0, Comms-1, Electronics-0, Gun Combat-0, Gunnery-0, Navigation-1, Piloting-1, Recon-0
 
 Mustering-Out Benefits:
   Cash:     Cr5,000, Cr1,000, Cr10,000
   Material: Weapon
 ```
 
-**Exit codes**: `0` on success, `1` if the character died or failed enlistment (reason written to stderr).
+**Exit codes**: `0` on success, `1` if the character died, generation failed, or an unknown `--career` value was given (reason written to stderr).
 
 Characteristic values above 9 are shown in [pseudo-hex notation](https://evolvedexperiment.github.io/cepheus-srd/introduction.html#pseudo-hexadecimal-notation) — `A`=10, `B`=11, … skipping `I` and `O`.
 

@@ -101,7 +101,7 @@
             "approve": true,
             "matchCommandLine": true
         },
-        "/^bash \\.specify/extensions/agent-context/scripts/bash/update-agent-context\\.sh specs/001-navy-character-generator/plan\\.md$/": {
+        "/^bash \\.specify/extensions/agent-context/scripts/bash/update-agent-context\\.sh specs/002-scout-career-character/plan\\.md$/": {
             "approve": true,
             "matchCommandLine": true
         },
