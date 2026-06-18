@@ -8,6 +8,15 @@
 
 **Input**: User description: "We need to add the Scout career to the character generator. We also need to add an optional flag to specify the requested career when invoking the character generator. In these cases, the character generator should automatically generate a new set of characteristics until the character meets the admission requirements for the requested career. If a career is not specified, the character should enter the draft."
 
+## Clarifications
+
+### Session 2026-06-17
+
+- Q: When the draft assigns Navy, does the enlistment roll still apply, or does the draft bypass it? → A: The draft bypasses the enlistment roll for all draft results. The draft directly assigns a career (same mechanism as `--career`); no qualification roll is made for draft-assigned characters.
+- Q: Does the `--career` re-roll loop use a raw characteristic value check or a 2D6 qualification roll? → A: Raw characteristic value check - re-roll the full UPP until the `qualification_stat` score is >= `qualification_target` as a raw number; no extra dice roll is made.
+- Q: Scout's Pilot-1 basic training conflicts with the current engine granting all `service_skills` at level 0 in term 1. How is this resolved? → A: Add a `basic_training_skills` tuple to the Career dataclass, separating "skills granted at level 0 in term 1" from "skills available for Service Skills rolls." FR-001's "zero changes to the generation engine" means zero changes to the generation algorithm, not the data schema; Career dataclass field additions are permitted.
+- Q: What is the canonical spelling of the "Explorer's Society" / "Explorer's Society" benefit? → A: "Explorer's Society" per the SRD Important Terms definition (singular possessive). Normalized across spec; existing `navy.py` spelling is already correct.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Generate a Scout Character (Priority: P1)
@@ -41,7 +50,7 @@ A player or referee invokes the character generator without specifying a career.
 
 1. **Given** the generator is invoked without `--career`, **When** generation begins, **Then** no enlistment roll is made; instead, a draft roll determines the character's career (Navy or Scout per the draft table for the careers supported at this phase).
 2. **Given** a draft roll lands on Scout, **When** the character proceeds, **Then** the Scout career rules apply (no commission, two skill rolls per term, Scout skill tables, Scout mustering-out tables).
-3. **Given** a draft roll lands on Navy, **When** the character proceeds, **Then** existing Navy career rules apply unchanged.
+3. **Given** a draft roll lands on Navy, **When** the character proceeds, **Then** the enlistment roll is bypassed and existing Navy career progression rules apply unchanged (commission, advancement, survival, skill tables, mustering-out).
 4. **Given** a draft outcome, **When** the character output is displayed, **Then** the output identifies the career as draft-assigned and names the career (e.g., "Scout (Drafted)" or "Navy (Drafted)").
 
 ---
@@ -74,24 +83,24 @@ A player or referee can request a specific career at invocation using a `--caree
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST implement the Scout career as a data structure conforming to the existing career data interface, requiring zero changes to the core generation engine.
-- **FR-002**: The Scout career data MUST specify: qualification stat Intelligence, qualification target 6; survival stat Endurance, survival target 7; no commission or advancement; re-enlistment target 6; basic training skill Pilot-1.
-- **FR-003**: The Scout career data MUST include all four skill tables exactly as specified in the SRD: Personal Development (Jack o' Trades, +1 Dex, +1 Edu, +1 Int, +1 Edu, Melee Combat), Service Skills (Comms, Electronics, Gun Combat, Gunnery, Recon, Piloting), Specialist Skills (Engineering, Gunnery, Demolitions, Navigation, Medicine, Vehicle), and Advanced Education (Advocate, Computer, Linguistics, Medicine, Navigation, Tactics; available only if Education 8+).
-- **FR-004**: The Scout career data MUST include the material benefits mustering-out table: 1. Low Passage, 2. +1 Edu, 3. Weapon, 4. Mid Passage, 5. Explorers' Society, 6. Courier Vessel.
+- **FR-001**: The system MUST implement the Scout career as a data structure. The generation algorithm MUST require zero changes to process it. The Career dataclass MAY gain new fields (e.g., `basic_training_skills`) to accommodate careers whose basic training differs from their full service skills list; adding a field to the data schema is not a generation algorithm change.
+- **FR-002**: The Scout career data MUST specify: qualification stat Intelligence, qualification target 6; survival stat Endurance, survival target 7; no commission or advancement; re-enlistment target 6; `basic_training_skills` tuple containing only Pilot (granted at level 0 in term 1, then raised to level 1 by the rank-0 bonus skill entry).
+- **FR-003**: The Scout career data MUST include all four skill roll tables exactly as specified in the SRD: Personal Development (Jack o' Trades, +1 Dex, +1 Edu, +1 Int, +1 Edu, Melee Combat), Service Skills (Comms, Electronics, Gun Combat, Gunnery, Recon, Piloting), Specialist Skills (Engineering, Gunnery, Demolitions, Navigation, Medicine, Vehicle), and Advanced Education (Advocate, Computer, Linguistics, Medicine, Navigation, Tactics; available only if Education 8+). These tuples govern skill rolls only; they are NOT used as the basic training source (see FR-002).
+- **FR-004**: The Scout career data MUST include the material benefits mustering-out table: 1. Low Passage, 2. +1 Edu, 3. Weapon, 4. Mid Passage, 5. Explorer's Society, 6. Courier Vessel.
 - **FR-005**: The Scout career data MUST include the cash benefits mustering-out table: 1. Cr1,000, 2. Cr5,000, 3. Cr10,000, 4. Cr10,000, 5. Cr20,000, 6. Cr50,000, 7. Cr50,000.
 - **FR-006**: The generation engine MUST award exactly two skill rolls per Scout term, because Scouts have no commission or advancement track. The engine MUST derive the number of skill rolls from the career data structure (commission-enabled: up to 2 if no advancement; no-commission career: always 2) rather than hardcoding 2 for Scout.
 - **FR-007**: The CLI MUST accept an optional `--career <name>` flag on the `cetools character generate` subcommand. Valid values for this phase are `navy` and `scout` (case-insensitive).
-- **FR-008**: When `--career <name>` is supplied, the system MUST generate characteristics and re-roll them as a complete set until the qualification target for the requested career is met, then proceed directly to the first term without an enlistment roll.
-- **FR-009**: When `--career` is not supplied, the system MUST determine the character's career by rolling on the draft table rather than attempting enlistment.
+- **FR-008**: When `--career <name>` is supplied, the system MUST generate characteristics and re-roll them as a complete set until the raw value of the career's `qualification_stat` is >= `qualification_target` (e.g., for both Navy and Scout: Intelligence raw score >= 6). No 2D6 qualification roll is made; the check is a direct comparison of the characteristic value. The system then proceeds to the first term without an enlistment roll.
+- **FR-009**: When `--career` is not supplied, the system MUST determine the character's career by rolling on the draft table rather than attempting enlistment. The draft result assigns the career directly, bypassing the qualification roll entirely; a draft-assigned character cannot fail enlistment.
 - **FR-010**: The draft table for this phase MUST cover only the two implemented careers. Scouts (draft result 5 per SRD) and Navy (all other results per the subset table) are the valid outcomes.
 - **FR-011**: The character output MUST indicate how career assignment occurred: "Drafted" when assigned via draft, or the career name alone when assigned via `--career`.
 - **FR-012**: When an unrecognized career name is passed to `--career`, the CLI MUST exit with code 1 and print the list of valid career names to stderr.
 - **FR-013**: The system MUST NOT implement a retirement pension for Scouts, as the SRD awards retirement only to careers with a commission/advancement track.
-- **FR-014**: All existing Navy character generation behavior MUST be preserved unchanged, including enlistment rolls when no `--career` flag triggers a direct Navy draft result.
+- **FR-014**: All existing Navy career progression behavior MUST be preserved unchanged: commission, advancement, survival, re-enlistment, skill tables, and mustering-out tables. When the draft assigns Navy, the qualification roll is bypassed identically to `--career navy`; the character proceeds directly to term 1 with no enlistment check.
 
 ### Key Entities
 
-- **Scout Career**: A career data structure conforming to the existing career interface. Has no commission or advancement tracks; specifies Pilot-1 as basic training; awards two skill rolls per term; has unique mustering-out tables.
+- **Scout Career**: A career data structure extending the existing career interface. Has no commission or advancement tracks; sets `basic_training_skills=("Pilot",)` with a rank-0 bonus of Pilot to yield Pilot-1; awards two skill rolls per term; has unique mustering-out tables.
 - **Draft Table**: A mapping from a 1D6 roll to a career assignment. For this phase, covers Navy and Scout only. Expands when additional careers are implemented.
 - **Career Flag**: The `--career` CLI argument. Selects a specific career for guaranteed enrollment via characteristic re-rolling. Absence triggers the draft.
 - **Qualification Re-roll Loop**: The process of re-rolling all six characteristics until the requested career's qualification threshold is met. Does not alter any other generation step.
@@ -113,7 +122,7 @@ A player or referee can request a specific career at invocation using a `--caree
 - The qualification check for `--career` re-rolls is identical for both Navy and Scout (Intelligence 6+); no DM for prior careers is applied, as this generator creates new characters with no prior career history.
 - The draft table is restricted to Navy and Scout for this phase. Expanding the draft table to all twelve SRD careers is deferred until those careers are implemented.
 - The `--career` flag accepts career names as lowercase strings; the implementation may normalise input case.
-- The Explorers' Society benefit (Scout material table, result 5) is recorded as a named benefit in the output; its in-game mechanical effect (free passage bookings, etc.) is noted but not mechanically simulated in this phase.
+- The Explorer's Society benefit (Scout material table, result 5) is recorded as a named benefit in the output; its in-game mechanical effect (free passage bookings, etc.) is noted but not mechanically simulated in this phase.
 - The Courier Vessel benefit (Scout material table, result 6) is recorded as a named benefit; ownership and maintenance rules are noted but not mechanically simulated in this phase.
 - Characteristic DM penalties from multiple prior careers (SRD rule: −2 per prior career to qualification) do not apply here, as the generator always creates a character with no prior career history.
 - Output format remains plain text to standard output; no structured format changes are introduced in this phase.
