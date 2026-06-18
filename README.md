@@ -1,6 +1,8 @@
 # cetools
 
-Cepheus Engine character generation tools. Generates playable Navy characters following the [Cepheus Engine SRD](https://evolvedexperiment.github.io/cepheus-srd/) rules.
+Cepheus Engine character generation tools. Generates playable characters following the [Cepheus Engine SRD](https://evolvedexperiment.github.io/cepheus-srd/) rules.
+
+Supported careers: **Navy**, **Scout**.
 
 ## Requirements
 
@@ -19,13 +21,20 @@ uv sync
 
 ### CLI
 
-Generate a Navy character and print a formatted record to stdout:
+Generate a character for a specific career:
+
+```bash
+uv run cetools character generate --career navy
+uv run cetools character generate --career scout
+```
+
+Omit `--career` to let the draft table assign one randomly:
 
 ```bash
 uv run cetools character generate
 ```
 
-Example output:
+Example output (Navy):
 
 ```
 UPP: 95AB75
@@ -50,36 +59,80 @@ Mustering-Out Benefits:
 Retirement Pension: Cr10,000/year
 ```
 
+Example output (Scout, drafted):
+
+```
+UPP: 7A8965
+
+Scout (Drafted) (Scout, Rank 0) — 3 terms, age 30
+
+Characteristics:
+  Strength: 7
+  Dexterity: 10 (A)
+  Endurance: 8
+  Intelligence: 9
+  Education: 6
+  Social Standing: 5
+
+Skills:
+  Advocates-0, Animals-0, Comms-1, Electronics-0, Gun Combat-0, Gunnery-0, Navigation-1, Piloting-1, Recon-0
+
+Mustering-Out Benefits:
+  Cash:     Cr5,000, Cr1,000, Cr10,000
+  Material: Weapon
+```
+
 **Exit codes**: `0` on success, `1` if the character died or failed enlistment (reason written to stderr).
 
 Characteristic values above 9 are shown in [pseudo-hex notation](https://evolvedexperiment.github.io/cepheus-srd/introduction.html#pseudo-hexadecimal-notation) — `A`=10, `B`=11, … skipping `I` and `O`.
 
 ### Library
 
-The generation engine is usable directly without the CLI:
+The generation engine is usable directly without the CLI.
+
+Generate a character for a specific career (re-rolls characteristics until the career qualifies, enforces a hard 7-term cap):
 
 ```python
-from cetools.engine.generator import generate_character
+from cetools.engine.generator import generate_career_character
 from cetools.engine.careers.navy import NAVY_CAREER
+from cetools.engine.careers.scout import SCOUT_CAREER
 from cetools.engine.models import Character, GenerationFailure
 
-result = generate_character(NAVY_CAREER)
+result = generate_career_character(NAVY_CAREER)
 
 if isinstance(result, Character):
-    print(f"UPP: {result.upp}  Rank: {result.rank_title}  Terms: {result.terms_served}")
+    print(f"UPP: {result.upp}  Career: {result.career}  Terms: {result.terms_served}")
 else:
     print(f"Generation failed: {result.reason}")
 ```
 
-`generate_character` is a pure function with no I/O side effects. Inject a custom `DiceRoller` for deterministic results:
+Generate a draft character (career assigned by 1D6 roll against the draft table):
 
 ```python
-from cetools.engine.dice import DiceRoller
-from typing import Protocol
+from cetools.engine.generator import draft_character
+
+result = draft_character()
+if isinstance(result, Character):
+    print(f"Career: {result.career}  Drafted: {result.drafted}")
+```
+
+Use the career registry to look up a career by name:
+
+```python
+from cetools.engine.careers import CAREER_REGISTRY
+
+career = CAREER_REGISTRY["scout"]  # or "navy"
+```
+
+Inject a custom `DiceRoller` for deterministic results:
+
+```python
+from cetools.engine.generator import generate_career_character
+from cetools.engine.careers.scout import SCOUT_CAREER
 
 class FixedRoller:
     def roll(self, sides: int, count: int = 1) -> int:
         return count * 4  # always rolls 4 per die
 
-result = generate_character(NAVY_CAREER, roller=FixedRoller())
+result = generate_career_character(SCOUT_CAREER, roller=FixedRoller())
 ```
