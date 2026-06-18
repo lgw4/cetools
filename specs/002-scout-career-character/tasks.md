@@ -34,15 +34,15 @@
 
 ### Tests First (write and confirm failing)
 
-- [ ] T002 [P] Write failing test: `Character.drafted` defaults to `False` and is a `bool` field in `tests/test_models.py`
-- [ ] T003 [P] Write failing tests: `SCOUT_CAREER` field validation (all 17 fields from data-model.md — `name`, `qualification_stat`, `qualification_target`, `survival_stat`, `survival_target`, `commission_stat=None`, `commission_target=None`, `advancement_stat=None`, `advancement_target=None`, `reenlistment_target`, `service_skills`, `personal_development`, `specialist_skills`, `advanced_education`, `ranks`, `cash_benefits`, `material_benefits`) and `CAREER_REGISTRY`/`DRAFT_TABLE` structure (keys `"navy"` and `"scout"`, draft table length 6, index 4 is `"scout"`) in `tests/test_careers.py`
+- [X] T002 [P] Write failing test: `Character.drafted` defaults to `False` and is a `bool` field in `tests/test_models.py`
+- [X] T003 [P] Write failing tests: `SCOUT_CAREER` field validation (all 17 fields from data-model.md — `name`, `qualification_stat`, `qualification_target`, `survival_stat`, `survival_target`, `commission_stat=None`, `commission_target=None`, `advancement_stat=None`, `advancement_target=None`, `reenlistment_target`, `service_skills`, `personal_development`, `specialist_skills`, `advanced_education`, `ranks`, `cash_benefits`, `material_benefits`) and `CAREER_REGISTRY`/`DRAFT_TABLE` structure (keys `"navy"` and `"scout"`, draft table length 6, index 4 is `"scout"`) in `tests/test_careers.py`
 
 ### Implementation (make tests green)
 
-- [ ] T004 Add `drafted: bool = False` field to `Character` dataclass in `src/cetools/engine/models.py`
-- [ ] T005 Create `SCOUT_CAREER` `Career` instance with all SRD-specified values (FR-002 through FR-005) in `src/cetools/engine/careers/scout.py`; single `ranks` entry: `RankEntry(rank=0, title="Scout", bonus_skills=("Piloting",))`, `cash_benefits=(1000, 5000, 10000, 10000, 20000, 50000, 50000)`, `material_benefits=("Low Passage", "+1 Edu", "Weapon", "Mid Passage", "Explorer's Society", "Courier Vessel")`
-- [ ] T006 Create `CAREER_REGISTRY: dict[str, Career]` and `DRAFT_TABLE: tuple[str, ...]` in `src/cetools/engine/careers/registry.py`; registry keys `"navy"` and `"scout"`; draft table `("navy", "navy", "navy", "navy", "scout", "navy")`
-- [ ] T007 Update `src/cetools/engine/careers/__init__.py` to re-export `CAREER_REGISTRY`, `DRAFT_TABLE`, and `SCOUT_CAREER`
+- [X] T004 Add `drafted: bool = False` field to `Character` dataclass in `src/cetools/engine/models.py`
+- [X] T005 Create `SCOUT_CAREER` `Career` instance with all SRD-specified values (FR-002 through FR-005) in `src/cetools/engine/careers/scout.py`; single `ranks` entry: `RankEntry(rank=0, title="Scout", bonus_skills=("Piloting",))`, `cash_benefits=(1000, 5000, 10000, 10000, 20000, 50000, 50000)`, `material_benefits=("Low Passage", "+1 Edu", "Weapon", "Mid Passage", "Explorer's Society", "Courier Vessel")`
+- [X] T006 Create `CAREER_REGISTRY: dict[str, Career]` and `DRAFT_TABLE: tuple[str, ...]` in `src/cetools/engine/careers/registry.py`; registry keys `"navy"` and `"scout"`; draft table `("navy", "navy", "navy", "navy", "scout", "navy")`
+- [X] T007 Update `src/cetools/engine/careers/__init__.py` to re-export `CAREER_REGISTRY`, `DRAFT_TABLE`, and `SCOUT_CAREER`
 
 **Checkpoint**: Foundation ready — `Character.drafted`, `SCOUT_CAREER`, `CAREER_REGISTRY`, and `DRAFT_TABLE` all exist and tests are green; user story phases can now begin
 

@@ -1,4 +1,4 @@
-from cetools.engine.models import GenerationFailure, characteristic_modifier
+from cetools.engine.models import Character, GenerationFailure, characteristic_modifier
 from cetools.engine.pseudohex import encode_upp
 
 MODIFIER_TABLE = [
@@ -79,3 +79,40 @@ def test_generation_failure_exit_code_is_1() -> None:
 def test_generation_failure_stores_reason() -> None:
     failure = GenerationFailure(reason="Navy enlistment failed")
     assert failure.reason == "Navy enlistment failed"
+
+
+# T002 — Character.drafted field
+def test_character_drafted_defaults_to_false() -> None:
+    char = Character(
+        characteristics={},
+        upp="000000",
+        age=18,
+        career="Scout",
+        rank=0,
+        rank_title="Scout",
+        terms_served=1,
+        skills={},
+        benefits=[],
+        pension=None,
+        terms=[],
+    )
+    assert char.drafted is False
+    assert isinstance(char.drafted, bool)
+
+
+def test_character_drafted_can_be_set_true() -> None:
+    char = Character(
+        characteristics={},
+        upp="000000",
+        age=18,
+        career="Scout",
+        rank=0,
+        rank_title="Scout",
+        terms_served=1,
+        skills={},
+        benefits=[],
+        pension=None,
+        terms=[],
+        drafted=True,
+    )
+    assert char.drafted is True

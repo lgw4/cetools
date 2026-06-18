@@ -66,6 +66,7 @@ class Character:
     benefits: list[Benefit]
     pension: int | None
     terms: list[Term]
+    drafted: bool = False
 
 
 @dataclass
