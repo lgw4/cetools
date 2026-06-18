@@ -20,7 +20,7 @@
 
 **Purpose**: Confirm the existing project structure matches plan.md before any new code is written.
 
-- [ ] T001 Verify existing project structure: `src/cetools/engine/careers/`, `tests/test_careers.py`, `tests/test_generator.py`, `tests/test_cli.py`, `tests/test_formatter.py`, `tests/test_models.py` all exist and are importable
+- [X] T001 Verify existing project structure: `src/cetools/engine/careers/`, `tests/test_careers.py`, `tests/test_generator.py`, `tests/test_cli.py`, `tests/test_formatter.py`, `tests/test_models.py` all exist and are importable
 
 **Checkpoint**: Project structure confirmed — proceed to Phase 2
 
