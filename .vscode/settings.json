@@ -5,6 +5,8 @@
         "Anagathics",
         "apdisk",
         "backupdb",
+        "behaviour",
+        "capitalisation",
         "celerybeat",
         "cetools",
         "codz",
@@ -40,6 +42,8 @@
         "msix",
         "netrwhist",
         "nohup",
+        "normalised",
+        "normalises",
         "nosetests",
         "pandoc",
         "pipenv",
@@ -76,6 +80,7 @@
         "tmbootpicker",
         "Typer",
         "unbuilt",
+        "unrecognised",
         "webassets"
     ],
     "chat.promptFilesRecommendations": {

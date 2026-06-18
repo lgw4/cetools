@@ -35,7 +35,7 @@
 ### Tests First (write and confirm failing)
 
 - [ ] T002 [P] Write failing test: `Character.drafted` defaults to `False` and is a `bool` field in `tests/test_models.py`
-- [ ] T003 [P] Write failing tests: `SCOUT_CAREER` field validation (all 16 fields from data-model.md — `name`, `qualification_stat`, `qualification_target`, `survival_stat`, `survival_target`, `commission_stat=None`, `commission_target=None`, `advancement_stat=None`, `advancement_target=None`, `reenlistment_target`, `service_skills`, `personal_development`, `specialist_skills`, `advanced_education`, `ranks`, `cash_benefits`, `material_benefits`) and `CAREER_REGISTRY`/`DRAFT_TABLE` structure (keys `"navy"` and `"scout"`, draft table length 6, index 4 is `"scout"`) in `tests/test_careers.py`
+- [ ] T003 [P] Write failing tests: `SCOUT_CAREER` field validation (all 17 fields from data-model.md — `name`, `qualification_stat`, `qualification_target`, `survival_stat`, `survival_target`, `commission_stat=None`, `commission_target=None`, `advancement_stat=None`, `advancement_target=None`, `reenlistment_target`, `service_skills`, `personal_development`, `specialist_skills`, `advanced_education`, `ranks`, `cash_benefits`, `material_benefits`) and `CAREER_REGISTRY`/`DRAFT_TABLE` structure (keys `"navy"` and `"scout"`, draft table length 6, index 4 is `"scout"`) in `tests/test_careers.py`
 
 ### Implementation (make tests green)
 
@@ -58,7 +58,9 @@
 
 - [ ] T008 [P] [US1] Write failing tests for `roll_until_qualified(career, roller)`: seeded roller that fails qualification N times then passes; assert returned dict has `qualification_stat` value ≥ `qualification_target`; assert loop runs multiple iterations when needed in `tests/test_generator.py`
 - [ ] T009 [P] [US1] Write failing tests for `generate_character` with new params: `preset_characteristics` skips internal roll; `bypass_qualification=True` skips enlistment roll; `hard_max_terms=True` caps at 7 terms even on natural-12 re-enlistment; `drafted=True` sets `Character.drafted` in `tests/test_generator.py`
-- [ ] T010 [P] [US1] Write failing tests for `generate_career_character(career, roller)` with Scout: asserts `Character` returned, `intelligence >= 6`, `Piloting` in skills at level ≥ 1 (rank-0 bonus applied), two skill rolls per term (no commission/advancement rolls), valid mustering-out benefits from Scout tables in `tests/test_generator.py`
+- [ ] T010 [P] [US1] Write failing tests for `generate_career_character(career, roller)` with Scout: asserts `Character` returned, `intelligence >= 6`, `Piloting` in skills at level ≥ 1 (rank-0 bonus applied), two skill rolls per term (no commission/advancement rolls), valid mustering-out benefits from Scout tables; when the seeded roller produces material table result 5, asserts `character.benefits` contains `Benefit(kind="material", material_name="Explorer's Society")` (validates Career string → Benefit object conversion) in `tests/test_generator.py`
+- [ ] T010a [P] [US1] Write failing test for Education < 8 restricts Scout skill rolls to 3 tables: generate via `generate_career_character` with a seeded roller that produces Education 7; assert no skill from Scout `advanced_education` tuple appears in `character.skills`; generate again with Education 8 and assert all four tables are reachable in `tests/test_generator.py`
+- [ ] T010b [P] [US1] Write failing test for single-term Scout muster out: use a seeded roller that fails re-enlistment after term 1; assert `character.terms_served == 1`, `character.skills["Piloting"] >= 1` (rank-0 bonus), exactly 2 skill-roll entries recorded in `term.skills_gained` beyond the 6 basic-training entries, and `len(character.benefits) == 1` in `tests/test_generator.py`
 - [ ] T011 [P] [US1] Write failing tests for two Scout skill rolls per term: mock roller to control re-enlistment; assert `len(character.skills)` grows by 2 per term (not 1) in `tests/test_generator.py`
 
 ### Implementation — US1 (make tests green)
@@ -110,7 +112,7 @@
 
 - [ ] T025 [US3] Implement `--career` normalization in `src/cetools/cli/character.py`: capture original value before normalization; strip whitespace, lowercase; validate against `CAREER_REGISTRY` keys
 - [ ] T026 [US3] Implement recognized `--career` routing in `src/cetools/cli/character.py`: call `generate_career_character(CAREER_REGISTRY[normalized_name])` and route result to formatter or stderr/exit-1
-- [ ] T027 [US3] Implement unrecognized career error in `src/cetools/cli/character.py`: print `Unknown career '{original_value}'. Valid careers: navy, scout` to stderr, `raise typer.Exit(1)`
+- [ ] T027 [US3] Implement unrecognized career error in `src/cetools/cli/character.py`: print `Unknown career '{original_value}'. Valid careers: {', '.join(sorted(CAREER_REGISTRY))}` to stderr, `raise typer.Exit(1)` — derive the list dynamically from `CAREER_REGISTRY` so error output stays correct as new careers are registered
 
 **Checkpoint**: All three user stories independently functional; full feature complete
 
@@ -154,7 +156,7 @@
 ### Parallel Opportunities
 
 - T002 and T003 can be written simultaneously (different test files, independent content)
-- T008, T009, T010, T011 can all be written simultaneously (all additive tests in `tests/test_generator.py`)
+- T008, T009, T010, T010a, T010b, T011 can all be written simultaneously (all additive tests in `tests/test_generator.py`)
 - T015, T016, T017, T018 can be written simultaneously (different test files and independent test functions)
 - T022, T023, T024 can be written simultaneously (all additive tests in `tests/test_cli.py`)
 - T028 and T029 can be run simultaneously (independent tools)
@@ -164,13 +166,15 @@
 ## Parallel Example: Phase 3 (US1) Test Writing
 
 ```bash
-# Write all four test groups together before touching implementation:
-Task T008: roll_until_qualified tests → tests/test_generator.py
-Task T009: generate_character new-params tests → tests/test_generator.py
-Task T010: generate_career_character scout tests → tests/test_generator.py
-Task T011: two-skill-rolls-per-term tests → tests/test_generator.py
+# Write all six test groups together before touching implementation:
+Task T008:   roll_until_qualified tests → tests/test_generator.py
+Task T009:   generate_character new-params tests → tests/test_generator.py
+Task T010:   generate_career_character scout tests → tests/test_generator.py
+Task T010a:  Education < 8 skill table restriction test → tests/test_generator.py
+Task T010b:  single-term muster out test → tests/test_generator.py
+Task T011:   two-skill-rolls-per-term tests → tests/test_generator.py
 
-# Confirm all four are RED before starting T012
+# Confirm all six are RED before starting T012
 uv run pytest tests/test_generator.py --no-cov
 ```
 

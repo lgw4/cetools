@@ -109,18 +109,19 @@ CLI invocation
                              CAREER_REGISTRY[career_name] → career
                                   │  (if not found → GenerationFailure, exit 1)
                                   ↓
-                             generate_character(career, roller,
-                                 preset_characteristics=qualifying_chars,
-                                 bypass_qualification=True,
-                                 hard_max_terms=True,
+                             generate_career_character(career, roller,
                                  drafted=True)
+                                  │  (calls roll_until_qualified, then generate_character
+                                  │   with preset_characteristics, bypass_qualification=True,
+                                  │   hard_max_terms=True, drafted=True — identical to
+                                  │   the --career path above, just with drafted=True)
 ```
 
 ### Validation Rules
 
 - `--career` input: strip whitespace → lowercase → must be a key in `CAREER_REGISTRY`; error on miss.
 - Draft result: `DRAFT_TABLE[roll-1]` string must be a key in `CAREER_REGISTRY`; `GenerationFailure` on miss.
-- `Character.drafted` is immutable after construction; formatter reads it once.
+- `Character.drafted` is set once at construction and not mutated thereafter; formatter reads it once. (`Character` is a plain `@dataclass`, not frozen; this is a convention, not a language-enforced constraint.)
 
 ---
 

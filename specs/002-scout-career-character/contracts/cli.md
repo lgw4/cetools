@@ -63,8 +63,9 @@ Examples of equivalent inputs for `scout`:
 
 ### With `--career <name>` (unrecognized, after normalization)
 
-1. Print to stderr: `Unknown career '{original_value}'. Valid careers: navy, scout`
+1. Print to stderr: `Unknown career '{original_value}'. Valid careers: {career_list}`
    - `{original_value}` is the raw user-supplied string before any normalization.
+   - `{career_list}` is `', '.join(sorted(CAREER_REGISTRY))` — for this phase: `navy, scout`. Derived at runtime so the message stays accurate as new careers are registered.
 2. Exit 1.
 
 ---
@@ -112,8 +113,10 @@ Mustering-Out Benefits:
 ## Error Output Format (stderr on failure)
 
 ```
-Unknown career '<original_value>'. Valid careers: navy, scout
+Unknown career '<original_value>'. Valid careers: <sorted CAREER_REGISTRY keys>
 ```
+
+(For this phase the rendered output is `navy, scout`. The list is derived at runtime from `CAREER_REGISTRY` so it expands automatically when new careers are registered.)
 
 or (for character death):
 

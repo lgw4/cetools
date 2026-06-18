@@ -179,6 +179,25 @@ f"{character.career}{origin} ({character.rank_title}, Rank {character.rank}) —
 
 ---
 
+## 11. Pension Table (SRD)
+
+**Source**: SRD (https://evolvedexperiment.github.io/cepheus-srd/character-creation.html), Aging & Retirement section.
+
+| Terms Served | Annual Pension |
+|--------------|----------------|
+| 1–4 | None |
+| 5 | Cr10,000 |
+| 6 | Cr12,000 |
+| 7 | Cr14,000 |
+| 8 | Cr16,000 |
+| 9+ | Cr16,000 + Cr2,000 per term beyond 8 |
+
+The SRD pension rule applies to all careers (it is not restricted to commissioned careers). The engine constant `_PENSION = {5: 10000, 6: 12000, 7: 14000, 8: 16000}` and its fallback formula `16000 + (terms_served - 8) * 2000` match these values exactly. FR-013 references these amounts; this table is the SRD citation backing them.
+
+**Note**: Scout's 7-term hard cap (FR-015) means a Scout character can receive at most Cr14,000/year pension. The 8-term entry is included for completeness and for Navy characters who may reach 8 terms.
+
+---
+
 ## 10. Best Practices: typer Optional Flag
 
 **Decision**: Use `typer.Option(None)` for `--career`. When `None`, call `draft_character()`; when a string, normalize and validate.

@@ -86,7 +86,7 @@ Run several times to observe both Navy and Scout outcomes from the draft table (
 
 ## Scenario 3: Navy by career flag
 
-**Purpose**: Verifies SC-003 path for Navy and confirms existing Navy behavior is unchanged (FR-014).
+**Purpose**: Verifies FR-014 — existing Navy behavior is preserved unchanged when Navy is selected via `--career`.
 
 ```bash
 uv run cetools character generate --career navy
