@@ -103,6 +103,10 @@
         "/^git add -A && git commit -m \"chore: update speckit integration and scout career spec\"$/": {
             "approve": true,
             "matchCommandLine": true
+        },
+        "/^git push$/": {
+            "approve": true,
+            "matchCommandLine": true
         }
     }
 }
