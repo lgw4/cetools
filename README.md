@@ -2,7 +2,7 @@
 
 Cepheus Engine character generation tools. Generates playable characters following the [Cepheus Engine SRD](https://evolvedexperiment.github.io/cepheus-srd/) rules.
 
-Supported careers: **Navy**, **Scout**.
+Supported careers: **Aerospace System Defense**, **Navy**, **Scout**.
 
 ## Requirements
 
@@ -26,6 +26,7 @@ Generate a character for a specific career:
 ```bash
 uv run cetools character generate --career navy
 uv run cetools character generate --career scout
+uv run cetools character generate --career "aerospace system defense"
 ```
 
 Omit `--career` to let the draft table assign one randomly:
@@ -57,6 +58,28 @@ Mustering-Out Benefits:
   Material: High Passage, Low Passage, Weapon
 
 Retirement Pension: Cr10,000/year
+```
+
+Example output (Aerospace System Defense):
+
+```
+UPP: 9985B7
+
+Aerospace System Defense (Flight Lieutenant, Rank 2) — 1 terms, age 22
+
+Characteristics:
+  Strength: 9
+  Dexterity: 9
+  Endurance: 8
+  Intelligence: 5
+  Education: 11 (B)
+  Social Standing: 7
+
+Skills:
+  Admin-0, Advocate-0, Aircraft-1, Animals-0, Electronics-0, Gun Combat-0, Gunnery-0, Melee Combat-1, Survival-0
+
+Mustering-Out Benefits:
+  Cash:     Cr50,000
 ```
 
 Example output (Scout, drafted):
@@ -94,6 +117,7 @@ Generate a character for a specific career (re-rolls characteristics until the c
 
 ```python
 from cetools.engine.generator import generate_career_character
+from cetools.engine.careers.aerospace import AEROSPACE_CAREER
 from cetools.engine.careers.navy import NAVY_CAREER
 from cetools.engine.careers.scout import SCOUT_CAREER
 from cetools.engine.models import Character, GenerationFailure
@@ -121,7 +145,7 @@ Use the career registry to look up a career by name:
 ```python
 from cetools.engine.careers import CAREER_REGISTRY
 
-career = CAREER_REGISTRY["scout"]  # or "navy"
+career = CAREER_REGISTRY["scout"]  # or "navy", "aerospace system defense"
 ```
 
 Inject a custom `DiceRoller` for deterministic results:

@@ -305,7 +305,11 @@ def test_draft_table_index_4_is_scout() -> None:
     assert DRAFT_TABLE[4] == "scout"
 
 
+def test_draft_table_index_0_is_aerospace() -> None:
+    assert DRAFT_TABLE[0] == "aerospace system defense"
+
+
 def test_draft_table_other_entries_are_navy() -> None:
     for i, entry in enumerate(DRAFT_TABLE):
-        if i != 4:
+        if i not in (0, 4):
             assert entry == "navy", f"DRAFT_TABLE[{i}] expected 'navy', got {entry!r}"
