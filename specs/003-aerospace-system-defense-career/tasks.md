@@ -112,7 +112,7 @@ description: "Task list for Aerospace System Defense Career feature"
 
 ### Implementation for Polish
 
-- [X] T019 Implement "did you mean" suggestion using `difflib.get_close_matches(normalized, CAREER_REGISTRY.keys(), n=1, cutoff=0.4)` in the CLI error path in src/cetools/cli/character.py; if no match, list all canonical names from `CAREER_REGISTRY.values()` sorted by `career.name`
+- [X] T019 Implement "did you mean" suggestion using `difflib.get_close_matches(normalized, CAREER_REGISTRY.keys(), n=1, cutoff=0.6)` in the CLI error path in src/cetools/cli/character.py; if no match, list all canonical names from `CAREER_REGISTRY.values()` sorted by `career.name`
 - [X] T020 Update `--career` flag help text to enumerate canonical career names derived from `CAREER_REGISTRY` at import time in src/cetools/cli/character.py
 - [X] T021 Run quality gate: `uv run black . && uv run flake8 src tests && uv run pytest` and resolve any failures
 

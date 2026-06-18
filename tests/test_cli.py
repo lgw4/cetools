@@ -246,8 +246,6 @@ _AEROSPACE_RANK_TITLES = {
     "Air Commodore",
 }
 
-_AEROSPACE_CHARACTER = _make_character(drafted=False)
-
 
 def _make_aerospace_character() -> "Character":
     from cetools.engine.models import Benefit, Character
@@ -359,19 +357,27 @@ def test_aerospace_career_hyphenated_mixed_case_exits_0() -> None:
 
 
 def test_career_near_miss_did_you_mean_exits_1() -> None:
-    result = runner.invoke(app, ["character", "generate", "--career", "Areospace"])
+    result = runner.invoke(app, ["character", "generate", "--career", "neavy"])
     assert result.exit_code == 1
 
 
 def test_career_near_miss_did_you_mean_message() -> None:
-    result = runner.invoke(app, ["character", "generate", "--career", "Areospace"])
-    assert "Unknown career 'Areospace'" in result.stderr
-    assert "Did you mean: Aerospace System Defense" in result.stderr
+    result = runner.invoke(app, ["character", "generate", "--career", "neavy"])
+    assert "Unknown career 'neavy'" in result.stderr
+    assert "Did you mean: Navy" in result.stderr
 
 
 def test_career_near_miss_no_valid_careers_list() -> None:
-    result = runner.invoke(app, ["character", "generate", "--career", "Areospace"])
+    result = runner.invoke(app, ["character", "generate", "--career", "neavy"])
     assert "Valid careers:" not in result.stderr
+
+
+def test_career_partial_prefix_no_did_you_mean() -> None:
+    # "Aerospace" alone has similarity ~0.545 to "aerospace system defense", below
+    # the cutoff=0.6 threshold, so it must fall back to the "Valid careers" list.
+    result = runner.invoke(app, ["character", "generate", "--career", "Aerospace"])
+    assert "Did you mean" not in result.stderr
+    assert "Valid careers:" in result.stderr
 
 
 # --- T017: "No close match" lists all canonical career names ---

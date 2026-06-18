@@ -30,7 +30,7 @@ def generate(
         normalized = career.strip().lower().replace("-", " ")
         if normalized not in CAREER_REGISTRY:
             matches = difflib.get_close_matches(
-                normalized, CAREER_REGISTRY.keys(), n=1, cutoff=0.4
+                normalized, CAREER_REGISTRY.keys(), n=1, cutoff=0.6
             )
             if matches:
                 canonical = CAREER_REGISTRY[matches[0]].name
