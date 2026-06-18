@@ -1,8 +1,17 @@
 installed:
 - agent-context
+- git-branch
 settings:
   auto_execute_hooks: true
 hooks:
+  before_specify:
+  - extension: git-branch
+    command: speckit.git.branch
+    enabled: true
+    optional: false
+    priority: 10
+    description: Create git branch before specification
+    condition: null
   after_specify:
   - extension: agent-context
     command: speckit.agent-context.update

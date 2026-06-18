@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cetools"
+version = "0.1.0"
+description = "Cepheus Engine character generation tools"
+requires-python = ">=3.13"
+dependencies = [
+    "typer>=0.15",
+]
+
+[project.scripts]
+cetools = "cetools.cli.main:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cetools"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--cov=src/cetools", "--cov-report=term-missing", "--cov-fail-under=85"]
+
+[tool.coverage.run]
+source = ["src/cetools"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+
+[tool.black]
+line-length = 99
+target-version = ["py313"]
+
+[tool.flake8]
+max-line-length = 99
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=5",
+    "black>=24",
+    "flake8>=7",
+]
