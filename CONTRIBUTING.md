@@ -19,10 +19,11 @@ src/cetools/
 │   └── character.py
 ├── engine/         # Pure generation engine — no CLI dependency
 │   ├── careers/
-│   │   ├── base.py     # Career + RankEntry frozen dataclasses
-│   │   ├── navy.py     # NAVY_CAREER instance
-│   │   ├── scout.py    # SCOUT_CAREER instance
-│   │   └── registry.py # CAREER_REGISTRY dict + DRAFT_TABLE tuple
+│   │   ├── base.py       # Career + RankEntry frozen dataclasses
+│   │   ├── aerospace.py  # AEROSPACE_CAREER instance
+│   │   ├── navy.py       # NAVY_CAREER instance
+│   │   ├── scout.py      # SCOUT_CAREER instance
+│   │   └── registry.py   # CAREER_REGISTRY dict + DRAFT_TABLE tuple
 │   ├── dice.py         # DiceRoller protocol + RandomDiceRoller
 │   ├── generator.py    # generate_career_character(), draft_character(),
 │   │                   # generate_character(), roll_until_qualified()
