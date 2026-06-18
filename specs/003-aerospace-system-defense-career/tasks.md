@@ -72,9 +72,9 @@ description: "Task list for Aerospace System Defense Career feature"
 
 ### Tests for User Story 2 (TDD — confirm failing before verifying they pass)
 
-- [ ] T011 [P] [US2] Write failing behavior tests asserting: (a) when a mocked commission roll succeeds (≥ commission_target) the character advances from rank 0 to rank 1 AND receives one extra skill roll that term; (b) when the commission roll fails the character stays at rank 0 (covering the "low-Education, never commissions" edge case from spec.md §Edge Cases); (c) when a mocked advancement roll succeeds (≥ advancement_target) an already-commissioned character's rank increments by 1 — in tests/test_aerospace_career.py (distinct from T002's data-field assertions)
-- [ ] T012 [P] [US2] Write failing behavior tests asserting that a freshly generated Aerospace character (before any terms) has Aircraft in their skill list (rank 0 bonus applied), and that a character who reaches rank 3 has Leadership in their skill list (rank 3 bonus applied) — in tests/test_aerospace_career.py (distinct from T004's RankEntry data assertions)
-- [ ] T011b [P] [US2] Write failing test asserting that a character already at rank 6 (Air Commodore) who succeeds on a mocked advancement roll remains at rank 6 — the rank cap edge case from spec.md §Edge Cases — in tests/test_aerospace_career.py
+- [X] T011 [P] [US2] Write failing behavior tests asserting: (a) when a mocked commission roll succeeds (≥ commission_target) the character advances from rank 0 to rank 1 AND receives one extra skill roll that term; (b) when the commission roll fails the character stays at rank 0 (covering the "low-Education, never commissions" edge case from spec.md §Edge Cases); (c) when a mocked advancement roll succeeds (≥ advancement_target) an already-commissioned character's rank increments by 1 — in tests/test_aerospace_career.py (distinct from T002's data-field assertions)
+- [X] T012 [P] [US2] Write failing behavior tests asserting that a freshly generated Aerospace character (before any terms) has Aircraft in their skill list (rank 0 bonus applied), and that a character who reaches rank 3 has Leadership in their skill list (rank 3 bonus applied) — in tests/test_aerospace_career.py (distinct from T004's RankEntry data assertions)
+- [X] T011b [P] [US2] Write failing test asserting that a character already at rank 6 (Air Commodore) who succeeds on a mocked advancement roll remains at rank 6 — the rank cap edge case from spec.md §Edge Cases — in tests/test_aerospace_career.py
 
 **Checkpoint**: T011, T011b, T012 tests pass (no additional implementation needed — data is already in AEROSPACE_CAREER from T008).
 
@@ -88,12 +88,12 @@ description: "Task list for Aerospace System Defense Career feature"
 
 ### Tests for User Story 3 (TDD — write FIRST, confirm FAILING before T015)
 
-- [ ] T013 [US3] Write failing test asserting `DRAFT_TABLE[0] == "aerospace system defense"` in tests/test_careers.py
-- [ ] T014 [US3] Update `test_draft_table_other_entries_are_navy` in tests/test_careers.py to allow index 0 as the Aerospace slot while asserting indices 1, 2, 3, and 5 remain "navy" and index 4 remains "scout"
+- [X] T013 [US3] Write failing test asserting `DRAFT_TABLE[0] == "aerospace system defense"` in tests/test_careers.py
+- [X] T014 [US3] Update `test_draft_table_other_entries_are_navy` in tests/test_careers.py to allow index 0 as the Aerospace slot while asserting indices 1, 2, 3, and 5 remain "navy" and index 4 remains "scout"
 
 ### Implementation for User Story 3
 
-- [ ] T015 [US3] Change `DRAFT_TABLE` index 0 from `"navy"` to `"aerospace system defense"` in src/cetools/engine/careers/registry.py
+- [X] T015 [US3] Change `DRAFT_TABLE` index 0 from `"navy"` to `"aerospace system defense"` in src/cetools/engine/careers/registry.py
 
 **Checkpoint**: T013–T014 tests pass; draft roll 1 assigns Aerospace System Defense.
 
@@ -105,16 +105,16 @@ description: "Task list for Aerospace System Defense Career feature"
 
 ### Tests for Polish (TDD — write FIRST, confirm FAILING before T019–T020)
 
-- [ ] T016 [P] Write failing tests for "did you mean" error message format on near-miss input (e.g., `--career "Areospace"` → `Unknown career 'Areospace'. Did you mean: Aerospace System Defense?`) in tests/test_cli.py
-- [ ] T017 [P] Write failing tests for "no close match" error format listing all canonical career names (e.g., `--career "marine"` → `Unknown career 'marine'. Valid careers: Aerospace System Defense, Navy, Scout`) in tests/test_cli.py
-- [ ] T017b [P] Write failing test for `--career --help` output showing all canonical career names in sorted alphabetical order (e.g., output contains `"Aerospace System Defense, Navy, Scout"`) in tests/test_cli.py
-- [ ] T018 Update `test_career_unknown_stderr_message_exact` in tests/test_cli.py to match the new error message format introduced by the "did you mean" logic — this test is currently PASSING (old format); updating it makes it RED immediately; T019's implementation makes it GREEN (T018 MUST precede T019 to keep the TDD red-green cycle unambiguous)
+- [X] T016 [P] Write failing tests for "did you mean" error message format on near-miss input (e.g., `--career "Areospace"` → `Unknown career 'Areospace'. Did you mean: Aerospace System Defense?`) in tests/test_cli.py
+- [X] T017 [P] Write failing tests for "no close match" error format listing all canonical career names (e.g., `--career "marine"` → `Unknown career 'marine'. Valid careers: Aerospace System Defense, Navy, Scout`) in tests/test_cli.py
+- [X] T017b [P] Write failing test for `--career --help` output showing all canonical career names in sorted alphabetical order (e.g., output contains `"Aerospace System Defense, Navy, Scout"`) in tests/test_cli.py
+- [X] T018 Update `test_career_unknown_stderr_message_exact` in tests/test_cli.py to match the new error message format introduced by the "did you mean" logic — this test is currently PASSING (old format); updating it makes it RED immediately; T019's implementation makes it GREEN (T018 MUST precede T019 to keep the TDD red-green cycle unambiguous)
 
 ### Implementation for Polish
 
-- [ ] T019 Implement "did you mean" suggestion using `difflib.get_close_matches(normalized, CAREER_REGISTRY.keys(), n=1, cutoff=0.6)` in the CLI error path in src/cetools/cli/character.py; if no match, list all canonical names from `CAREER_REGISTRY.values()` sorted by `career.name`
-- [ ] T020 Update `--career` flag help text to enumerate canonical career names derived from `CAREER_REGISTRY` at import time in src/cetools/cli/character.py
-- [ ] T021 Run quality gate: `uv run black . && uv run flake8 src tests && uv run pytest` and resolve any failures
+- [X] T019 Implement "did you mean" suggestion using `difflib.get_close_matches(normalized, CAREER_REGISTRY.keys(), n=1, cutoff=0.4)` in the CLI error path in src/cetools/cli/character.py; if no match, list all canonical names from `CAREER_REGISTRY.values()` sorted by `career.name`
+- [X] T020 Update `--career` flag help text to enumerate canonical career names derived from `CAREER_REGISTRY` at import time in src/cetools/cli/character.py
+- [X] T021 Run quality gate: `uv run black . && uv run flake8 src tests && uv run pytest` and resolve any failures
 
 ---
 

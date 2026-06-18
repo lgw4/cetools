@@ -191,10 +191,11 @@ def test_career_unknown_exits_1() -> None:
 
 
 def test_career_unknown_stderr_message_exact() -> None:
+    # T018: updated to match the "no close match" format (canonical names, no suggestion)
     result = runner.invoke(app, ["character", "generate", "--career", "marine"])
     assert (
         result.stderr.strip()
-        == "Unknown career 'marine'. Valid careers: aerospace system defense, navy, scout"
+        == "Unknown career 'marine'. Valid careers: Aerospace System Defense, Navy, Scout"
     )
 
 
@@ -352,3 +353,56 @@ def test_aerospace_career_hyphenated_mixed_case_exits_0() -> None:
             app, ["character", "generate", "--career", "Aerospace-System-Defense"]
         )
     assert result.exit_code == 0
+
+
+# --- T016: "Did you mean" suggestion for near-miss input ---
+
+
+def test_career_near_miss_did_you_mean_exits_1() -> None:
+    result = runner.invoke(app, ["character", "generate", "--career", "Areospace"])
+    assert result.exit_code == 1
+
+
+def test_career_near_miss_did_you_mean_message() -> None:
+    result = runner.invoke(app, ["character", "generate", "--career", "Areospace"])
+    assert "Unknown career 'Areospace'" in result.stderr
+    assert "Did you mean: Aerospace System Defense" in result.stderr
+
+
+def test_career_near_miss_no_valid_careers_list() -> None:
+    result = runner.invoke(app, ["character", "generate", "--career", "Areospace"])
+    assert "Valid careers:" not in result.stderr
+
+
+# --- T017: "No close match" lists all canonical career names ---
+
+
+def test_career_no_match_lists_canonical_names() -> None:
+    result = runner.invoke(app, ["character", "generate", "--career", "xyzzy"])
+    assert "Aerospace System Defense" in result.stderr
+    assert "Navy" in result.stderr
+    assert "Scout" in result.stderr
+
+
+def test_career_no_match_valid_careers_format() -> None:
+    result = runner.invoke(app, ["character", "generate", "--career", "xyzzy"])
+    assert result.stderr.strip() == (
+        "Unknown career 'xyzzy'. Valid careers: Aerospace System Defense, Navy, Scout"
+    )
+
+
+def test_career_no_match_no_did_you_mean() -> None:
+    result = runner.invoke(app, ["character", "generate", "--career", "xyzzy"])
+    assert "Did you mean" not in result.stderr
+
+
+# --- T017b: --help text enumerates canonical career names ---
+
+
+def test_career_help_lists_canonical_names() -> None:
+    result = runner.invoke(app, ["character", "generate", "--help"])
+    # Career names may be wrapped by the terminal box renderer; check each individually.
+    assert "Aerospace System" in result.output
+    assert "Defense" in result.output
+    assert "Navy" in result.output
+    assert "Scout" in result.output
