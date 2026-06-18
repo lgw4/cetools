@@ -184,6 +184,23 @@ def test_rank_bonus_muster_rolls_applied() -> None:
     assert len(result.benefits) == expected_total
 
 
+# --- Material benefit row 7 reachable via rank DM ---
+
+
+def test_material_benefit_row_7_reachable_at_rank_5_plus() -> None:
+    # SmartRoller(10, 6): all 2D6 checks pass → rank 6 (Commodore), 7 terms served;
+    # material_dm = 1 (rank >= 5). Each material benefit roll: 6 + 1 - 1 = 6 → index 6
+    # → material_benefits[6] = "Explorer's Society". Without the DM it would be index 5
+    # (High Passage), so this confirms row 7 is reachable.
+    result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 6))
+    assert isinstance(result, Character)
+    assert result.rank >= 5
+    material_benefits = [b for b in result.benefits if b.kind == "material"]
+    assert any(
+        b.material_name == "Explorer's Society" for b in material_benefits
+    ), "rank 5+ DM should make material benefit row 7 (Explorer's Society) reachable"
+
+
 # --- Benefits non-empty ---
 
 
@@ -210,6 +227,37 @@ def test_generation_completes_under_2_seconds() -> None:
     generate_character(NAVY_CAREER)  # uses default RandomDiceRoller
     elapsed = time.perf_counter() - start
     assert elapsed < 2.0, f"generate_character took {elapsed:.3f}s (> 2s)"
+
+
+# --- Skill rolls per term ---
+
+
+def test_failed_commission_grants_two_skill_rolls() -> None:
+    # Stats=8 (modifier 0); qualify 8≥6 ✓, survive 8≥5 ✓, commission 4+0=4<7 ✗.
+    # Neither commission nor advancement was received, so 2 skill rolls must follow.
+    # Each skill roll consumes 2 dice: table select then entry select.
+    # Edu=8 → 4 tables; 1D6=2 → (2-1)%4=1 → service_skills; 1D6=1 → "Comms".
+    # Comms is level 0 after basic training; two rolls push it to level 2.
+    # With only 1 roll it would stay at 1.
+    roller = SequenceRoller([8, 8, 8, 8, 8, 8, 8, 8, 4, 2, 1, 2], default=1)
+    result = generate_character(NAVY_CAREER, roller=roller)
+    assert isinstance(result, Character)
+    assert result.terms_served == 1
+    assert result.rank == 0
+    assert result.skills.get("Comms") == 2, "failed commission should not reduce skill rolls to 1"
+
+
+# --- Rank bonus skill levels ---
+
+
+def test_rank_bonus_skills_granted_at_level_1() -> None:
+    # SmartRoller(10, 1): Edu=10 so advanced_education table is used; 1D6=1 → index 0
+    # = "Advocate" for all normal rolls, so Zero-G (rank 0) and Tactics (rank 3)
+    # can only appear via rank bonuses and must start at level 1, not 0.
+    result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 1))
+    assert isinstance(result, Character)
+    assert result.skills.get("Zero-G") == 1, "rank-0 bonus should grant Zero-G-1"
+    assert result.skills.get("Tactics") == 1, "rank-3 bonus should grant Tactics-1"
 
 
 # --- Extensibility (US3 preview) ---

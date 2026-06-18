@@ -58,11 +58,15 @@ def _roll_skill(
     skills: dict[str, int],
     roller: DiceRoller,
 ) -> None:
-    idx = (roller.roll(6) - 1) % 6
-    table = career.service_skills
+    tables = [
+        career.personal_development,
+        career.service_skills,
+        career.specialist_skills,
+    ]
     if characteristics.get("Education", 0) >= 8:
-        table = career.advanced_education
-    entry = table[idx]
+        tables.append(career.advanced_education)
+    table = tables[(roller.roll(6) - 1) % len(tables)]
+    entry = table[(roller.roll(6) - 1) % 6]
     _apply_skill_entry(entry, characteristics, skills)
 
 
@@ -88,7 +92,7 @@ def _apply_skill_entry(
 
 def _grant_rank_bonus(rank_entry, characteristics: dict[str, int], skills: dict[str, int]) -> None:
     for skill_name in rank_entry.bonus_skills:
-        skills[skill_name] = skills.get(skill_name, -1) + 1
+        skills[skill_name] = skills.get(skill_name, 0) + 1
 
 
 def _apply_aging(characteristics: dict[str, int], terms_served: int, roller: DiceRoller) -> None:
@@ -132,15 +136,18 @@ def _muster_out(
     cash_rolls_used = 0
     benefits: list[Benefit] = []
 
+    cash_dm = 1 if skills.get("Gambling", -1) >= 0 else 0
+    material_dm = 1 if rank >= 5 else 0
+
     for _ in range(total_rolls):
         use_cash = cash_rolls_used < _MAX_CASH_ROLLS
         if use_cash:
-            idx = max(0, min(6, roller.roll(6) - 1))
+            idx = max(0, min(6, roller.roll(6) + cash_dm - 1))
             amount = career.cash_benefits[idx]
             benefits.append(Benefit(kind="cash", cash_amount=amount))
             cash_rolls_used += 1
         else:
-            idx = max(0, min(6, roller.roll(6) - 1))
+            idx = max(0, min(6, roller.roll(6) + material_dm - 1))
             name = career.material_benefits[idx]
             _apply_material_benefit(name, characteristics, skills)
             benefits.append(Benefit(kind="material", material_name=name))
@@ -174,7 +181,7 @@ def _pension(terms_served: int) -> int | None:
 
 def generate_character(
     career: Career,
-    roller: DiceRoller = None,  # type: ignore[assignment]
+    roller: DiceRoller | None = None,
 ) -> Character | GenerationFailure:
     if roller is None:
         roller = RandomDiceRoller()
@@ -227,7 +234,6 @@ def generate_character(
             )
 
         commission_attempted = False
-        advancement_attempted = False
 
         if rank == 0 and career.commission_stat is not None:
             commission_attempted = True
@@ -236,7 +242,6 @@ def generate_character(
                 rank = 1
                 commissioned_this_term = True
                 _grant_rank_bonus(career.ranks[rank], characteristics, skills)
-                advancement_attempted = True
                 adv_dm = _dm(characteristics, career.advancement_stat)
                 adv_target = career.advancement_target
                 if roller.roll(6, count=2) + adv_dm >= adv_target:
@@ -246,9 +251,8 @@ def generate_character(
                         _grant_rank_bonus(career.ranks[rank], characteristics, skills)
 
         if not commission_attempted and rank >= 1 and career.advancement_stat is not None:
-            advancement_attempted = True
-            adv_dm = _dm(characteristics, career.advancement_stat)
             adv_target = career.advancement_target
+            adv_dm = _dm(characteristics, career.advancement_stat)
             if roller.roll(6, count=2) + adv_dm >= adv_target:
                 if rank < 6:
                     rank += 1
@@ -256,7 +260,7 @@ def generate_character(
                     _grant_rank_bonus(career.ranks[rank], characteristics, skills)
 
         skill_rolls = 1
-        if not commission_attempted and not advancement_attempted:
+        if not commissioned_this_term and not promoted_this_term:
             skill_rolls = 2
 
         for _ in range(skill_rolls):
