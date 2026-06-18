@@ -41,7 +41,7 @@ Characteristics:
   Social Standing: 5
 
 Skills:
-  Admin-0, Advocate-0, Animals-0, Comms-0, Engineering-3, Gun Combat-0, Gunnery-1, Melee Combat-1, Tactics-0, Vehicle-0, Zero-G-0
+  Admin-0, Advocate-0, Animals-0, Comms-0, Engineering-3, Gun Combat-0, Gunnery-1, Melee Combat-1, Tactics-1, Vehicle-0, Zero-G-1
 
 Mustering-Out Benefits:
   Cash:     Cr20,000, Cr10,000, Cr10,000

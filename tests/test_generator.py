@@ -1,5 +1,9 @@
 from cetools.engine.careers.navy import NAVY_CAREER
-from cetools.engine.generator import generate_character
+from cetools.engine.generator import (
+    _apply_material_benefit,
+    _apply_skill_entry,
+    generate_character,
+)
 from cetools.engine.models import Character, GenerationFailure
 
 
@@ -271,3 +275,18 @@ def test_generate_character_accepts_any_career_without_navy_hardcoding() -> None
     stub_career = dataclasses.replace(NAVY_CAREER, name="Scout")
     result = generate_character(stub_career, roller=SmartRoller(10, 1))
     assert isinstance(result, (Character, GenerationFailure))
+
+
+# --- Characteristic cap at 33 ---
+
+
+def test_apply_skill_entry_caps_stat_at_33() -> None:
+    characteristics = {"Strength": 33}
+    _apply_skill_entry("+1 Str", characteristics, {})
+    assert characteristics["Strength"] == 33
+
+
+def test_apply_material_benefit_caps_stat_at_33() -> None:
+    characteristics = {"Strength": 33}
+    _apply_material_benefit("+1 Str", characteristics, {})
+    assert characteristics["Strength"] == 33

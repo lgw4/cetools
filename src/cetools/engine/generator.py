@@ -86,7 +86,7 @@ def _apply_skill_entry(
         }
         full_name = stat_map.get(stat_abbr)
         if full_name:
-            characteristics[full_name] = characteristics.get(full_name, 0) + 1
+            characteristics[full_name] = min(33, characteristics.get(full_name, 0) + 1)
     else:
         skills[entry] = skills.get(entry, -1) + 1
 
@@ -169,7 +169,7 @@ def _apply_material_benefit(
     }
     if name in stat_map:
         stat = stat_map[name]
-        characteristics[stat] = characteristics.get(stat, 0) + 1
+        characteristics[stat] = min(33, characteristics.get(stat, 0) + 1)
 
 
 def _pension(terms_served: int) -> int | None:
