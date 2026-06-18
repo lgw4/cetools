@@ -236,25 +236,33 @@ def generate_character(
 
         commission_attempted = False
 
-        if rank == 0 and career.commission_stat is not None:
+        if (
+            rank == 0
+            and career.commission_stat is not None
+            and career.commission_target is not None
+        ):
             commission_attempted = True
             comm_dm = _dm(characteristics, career.commission_stat)
             if roller.roll(6, count=2) + comm_dm >= career.commission_target:
                 rank = 1
                 commissioned_this_term = True
                 _grant_rank_bonus(career.ranks[rank], characteristics, skills)
-                adv_dm = _dm(characteristics, career.advancement_stat)
-                adv_target = career.advancement_target
-                if roller.roll(6, count=2) + adv_dm >= adv_target:
-                    if rank < 6:
-                        rank += 1
-                        promoted_this_term = True
-                        _grant_rank_bonus(career.ranks[rank], characteristics, skills)
+                if career.advancement_stat is not None and career.advancement_target is not None:
+                    adv_dm = _dm(characteristics, career.advancement_stat)
+                    if roller.roll(6, count=2) + adv_dm >= career.advancement_target:
+                        if rank < 6:
+                            rank += 1
+                            promoted_this_term = True
+                            _grant_rank_bonus(career.ranks[rank], characteristics, skills)
 
-        if not commission_attempted and rank >= 1 and career.advancement_stat is not None:
-            adv_target = career.advancement_target
+        if (
+            not commission_attempted
+            and rank >= 1
+            and career.advancement_stat is not None
+            and career.advancement_target is not None
+        ):
             adv_dm = _dm(characteristics, career.advancement_stat)
-            if roller.roll(6, count=2) + adv_dm >= adv_target:
+            if roller.roll(6, count=2) + adv_dm >= career.advancement_target:
                 if rank < 6:
                     rank += 1
                     promoted_this_term = True

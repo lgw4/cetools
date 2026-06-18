@@ -257,8 +257,8 @@ def test_per_term_skill_rolls_recorded_in_term_history() -> None:
 
 
 def test_rank_bonus_skills_granted_at_level_1() -> None:
-    # SmartRoller(10, 1): Edu=10 so advanced_education table is used; 1D6=1 → index 0
-    # = "Advocate" for all normal rolls, so Zero-G (rank 0) and Tactics (rank 3)
+    # SmartRoller(10, 1): 1D6=1 → table index (1-1)%4=0 → personal_development[0]
+    # = "+1 Str" for every skill roll, so Zero-G (rank 0) and Tactics (rank 3)
     # can only appear via rank bonuses and must start at level 1, not 0.
     result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 1))
     assert isinstance(result, Character)
