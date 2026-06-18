@@ -194,6 +194,9 @@ def generate_character(
         roller = RandomDiceRoller()
 
     if preset_characteristics is not None:
+        missing = [s for s in _STAT_NAMES if s not in preset_characteristics]
+        if missing:
+            raise ValueError(f"preset_characteristics missing required stats: {missing}")
         characteristics: dict[str, int] = dict(preset_characteristics)
     else:
         characteristics = {stat: roller.roll(6, count=2) for stat in _STAT_NAMES}

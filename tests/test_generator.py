@@ -1,3 +1,5 @@
+import pytest
+
 from cetools.engine.careers.navy import NAVY_CAREER
 from cetools.engine.careers.scout import SCOUT_CAREER
 from cetools.engine.generator import (
@@ -317,6 +319,18 @@ def test_roll_until_qualified_loops_until_qualified() -> None:
 
 
 # --- T009: generate_character new params ---
+
+
+def test_preset_characteristics_missing_stat_raises() -> None:
+    incomplete = {
+        "Strength": 9,
+        "Dexterity": 9,
+        "Endurance": 9,
+        "Intelligence": 9,
+        # Education and Social Standing intentionally omitted
+    }
+    with pytest.raises(ValueError, match="missing required stats"):
+        generate_character(NAVY_CAREER, preset_characteristics=incomplete)
 
 
 def test_preset_characteristics_are_used_not_rolled() -> None:

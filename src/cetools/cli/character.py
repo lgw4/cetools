@@ -1,5 +1,3 @@
-from typing import Optional
-
 import typer
 
 from cetools.engine.careers import CAREER_REGISTRY
@@ -11,7 +9,7 @@ app = typer.Typer()
 
 
 @app.command()
-def generate(career: Optional[str] = typer.Option(None, "--career")) -> None:
+def generate(career: str | None = typer.Option(None, "--career")) -> None:
     """Generate a character."""
     if career is None:
         result = draft_character()
