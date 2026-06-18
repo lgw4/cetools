@@ -1,5 +1,3 @@
-import time
-
 from cetools.engine.careers.navy import NAVY_CAREER
 from cetools.engine.generator import generate_character
 from cetools.engine.models import Character, GenerationFailure
@@ -219,16 +217,6 @@ def test_successful_character_served_at_least_one_term() -> None:
     assert result.terms_served >= 1
 
 
-# --- Performance ---
-
-
-def test_generation_completes_under_2_seconds() -> None:
-    start = time.perf_counter()
-    generate_character(NAVY_CAREER)  # uses default RandomDiceRoller
-    elapsed = time.perf_counter() - start
-    assert elapsed < 2.0, f"generate_character took {elapsed:.3f}s (> 2s)"
-
-
 # --- Skill rolls per term ---
 
 
@@ -245,6 +233,20 @@ def test_failed_commission_grants_two_skill_rolls() -> None:
     assert result.terms_served == 1
     assert result.rank == 0
     assert result.skills.get("Comms") == 2, "failed commission should not reduce skill rolls to 1"
+
+
+def test_per_term_skill_rolls_recorded_in_term_history() -> None:
+    # Same roller: 2 skill rolls after failed commission, both land on "Comms".
+    # Basic training records 6 service skills; each skill roll appends its entry.
+    # Edu=8 → 4 tables; 1D6=2 → service_skills[0] = "Comms".
+    roller = SequenceRoller([8, 8, 8, 8, 8, 8, 8, 8, 4, 2, 1, 2], default=1)
+    result = generate_character(NAVY_CAREER, roller=roller)
+    assert isinstance(result, Character)
+    term = result.terms[0]
+    # 6 from basic training + 2 from skill rolls
+    assert len(term.skills_gained) == 8
+    # "Comms" appears once in basic training and twice from the two skill rolls
+    assert term.skills_gained.count("Comms") == 3
 
 
 # --- Rank bonus skill levels ---

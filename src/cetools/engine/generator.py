@@ -57,7 +57,7 @@ def _roll_skill(
     characteristics: dict[str, int],
     skills: dict[str, int],
     roller: DiceRoller,
-) -> None:
+) -> str:
     tables = [
         career.personal_development,
         career.service_skills,
@@ -68,6 +68,7 @@ def _roll_skill(
     table = tables[(roller.roll(6) - 1) % len(tables)]
     entry = table[(roller.roll(6) - 1) % 6]
     _apply_skill_entry(entry, characteristics, skills)
+    return entry
 
 
 def _apply_skill_entry(
@@ -264,7 +265,7 @@ def generate_character(
             skill_rolls = 2
 
         for _ in range(skill_rolls):
-            _roll_skill(career, characteristics, skills, roller)
+            skills_gained_this_term.append(_roll_skill(career, characteristics, skills, roller))
 
         age += 4
         terms_served += 1

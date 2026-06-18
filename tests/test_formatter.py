@@ -120,3 +120,18 @@ def test_format_character_returns_string():
     result = format_character(_make_character())
     assert isinstance(result, str)
     assert len(result) > 0
+
+
+def test_characteristics_printed_in_upp_order() -> None:
+    output = format_character(_make_character())
+    stat_names = (
+        "Strength",
+        "Dexterity",
+        "Endurance",
+        "Intelligence",
+        "Education",
+        "Social Standing",
+    )
+    stat_lines = [ln.strip() for ln in output.splitlines() if any(n in ln for n in stat_names)]
+    names_found = [ln.split(":")[0] for ln in stat_lines]
+    assert names_found == list(stat_names)

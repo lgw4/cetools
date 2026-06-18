@@ -89,3 +89,10 @@ def test_survival_failure_stderr_nonempty():
     with patch("cetools.cli.character.generate_character", return_value=failure):
         result = runner.invoke(app, ["character", "generate"])
     assert result.stderr.strip()
+
+
+def test_failure_exit_code_propagated_from_generation_failure() -> None:
+    failure = GenerationFailure(reason="Custom failure", exit_code=2)
+    with patch("cetools.cli.character.generate_character", return_value=failure):
+        result = runner.invoke(app, ["character", "generate"])
+    assert result.exit_code == 2

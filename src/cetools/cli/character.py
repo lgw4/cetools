@@ -16,4 +16,4 @@ def generate() -> None:
         typer.echo(format_character(result))
     else:
         typer.echo(result.reason, err=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=result.exit_code)
