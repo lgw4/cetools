@@ -25,7 +25,7 @@ description: "Task list for Aerospace System Defense Career feature"
 
 **Purpose**: Confirm the project baseline is clean before making any changes.
 
-- [ ] T001 Verify the existing test suite passes with `uv run pytest` to establish a clean baseline
+- [X] T001 Verify the existing test suite passes with `uv run pytest` to establish a clean baseline
 
 ---
 
@@ -45,18 +45,18 @@ description: "Task list for Aerospace System Defense Career feature"
 
 ### Tests for User Story 1 (TDD — write FIRST, confirm FAILING before T008)
 
-- [ ] T002 [US1] Write failing tests for AEROSPACE_CAREER qualification, survival, commission, advancement, and reenlistment field values in tests/test_aerospace_career.py
-- [ ] T003 [P] [US1] Write failing tests for all four AEROSPACE_CAREER skill tables (personal_development, service_skills, specialist_skills, advanced_education), asserting the exact skill name at each of the 6 positions per table (24 positions total — no count-only or "etc." assertions) in tests/test_aerospace_career.py
-- [ ] T004 [P] [US1] Write failing tests for all seven AEROSPACE_CAREER rank entries (rank 0 Airman through rank 6 Air Commodore, with correct bonus skills at ranks 0 and 3) in tests/test_aerospace_career.py
-- [ ] T005 [P] [US1] Write failing tests for AEROSPACE_CAREER mustering-out tables (7 cash entries and 7 material entries matching FR-005) in tests/test_aerospace_career.py
-- [ ] T006 [P] [US1] Write failing CLI test asserting `--career "Aerospace System Defense"` exits 0, output contains "Aerospace System Defense", and the rank title is one of the seven valid Aerospace rank strings (Airman, Flight Officer, Flight Lieutenant, Squadron Leader, Wing Commander, Group Captain, Air Commodore) in tests/test_cli.py
-- [ ] T007 [P] [US1] Write failing CLI tests for case-insensitive input (`"aerospace system defense"`, `"AEROSPACE SYSTEM DEFENSE"`) and hyphenated input (`"aerospace-system-defense"`) resolving to the Aerospace career in tests/test_cli.py
+- [X] T002 [US1] Write failing tests for AEROSPACE_CAREER qualification, survival, commission, advancement, and reenlistment field values in tests/test_aerospace_career.py
+- [X] T003 [P] [US1] Write failing tests for all four AEROSPACE_CAREER skill tables (personal_development, service_skills, specialist_skills, advanced_education), asserting the exact skill name at each of the 6 positions per table (24 positions total — no count-only or "etc." assertions) in tests/test_aerospace_career.py
+- [X] T004 [P] [US1] Write failing tests for all seven AEROSPACE_CAREER rank entries (rank 0 Airman through rank 6 Air Commodore, with correct bonus skills at ranks 0 and 3) in tests/test_aerospace_career.py
+- [X] T005 [P] [US1] Write failing tests for AEROSPACE_CAREER mustering-out tables (7 cash entries and 7 material entries matching FR-005) in tests/test_aerospace_career.py
+- [X] T006 [P] [US1] Write failing CLI test asserting `--career "Aerospace System Defense"` exits 0, output contains "Aerospace System Defense", and the rank title is one of the seven valid Aerospace rank strings (Airman, Flight Officer, Flight Lieutenant, Squadron Leader, Wing Commander, Group Captain, Air Commodore) in tests/test_cli.py
+- [X] T007 [P] [US1] Write failing CLI tests for case-insensitive input (`"aerospace system defense"`, `"AEROSPACE SYSTEM DEFENSE"`) and hyphenated input (`"aerospace-system-defense"`) resolving to the Aerospace career in tests/test_cli.py
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Create AEROSPACE_CAREER instance per data-model.md (all fields, rank entries, skill tables, mustering-out tables) in src/cetools/engine/careers/aerospace.py
-- [ ] T009 [US1] Register `"aerospace system defense": AEROSPACE_CAREER` in CAREER_REGISTRY in src/cetools/engine/careers/registry.py
-- [ ] T010 [US1] Add hyphen normalization (`input.strip().lower().replace("-", " ")`) to career name lookup in src/cetools/cli/character.py
+- [X] T008 [US1] Create AEROSPACE_CAREER instance per data-model.md (all fields, rank entries, skill tables, mustering-out tables) in src/cetools/engine/careers/aerospace.py
+- [X] T009 [US1] Register `"aerospace system defense": AEROSPACE_CAREER` in CAREER_REGISTRY in src/cetools/engine/careers/registry.py
+- [X] T010 [US1] Add hyphen normalization (`input.strip().lower().replace("-", " ")`) to career name lookup in src/cetools/cli/character.py
 
 **Checkpoint**: T002–T007 tests all green; `cetools character generate --career "Aerospace System Defense"` and its case/hyphen variants work end-to-end.
 

@@ -192,7 +192,10 @@ def test_career_unknown_exits_1() -> None:
 
 def test_career_unknown_stderr_message_exact() -> None:
     result = runner.invoke(app, ["character", "generate", "--career", "marine"])
-    assert result.stderr.strip() == "Unknown career 'marine'. Valid careers: navy, scout"
+    assert (
+        result.stderr.strip()
+        == "Unknown career 'marine'. Valid careers: aerospace system defense, navy, scout"
+    )
 
 
 def test_career_unknown_original_value_in_message() -> None:
@@ -227,4 +230,125 @@ def test_career_with_whitespace_exits_0() -> None:
         return_value=_SCOUT_CHARACTER,
     ):
         result = runner.invoke(app, ["character", "generate", "--career", "  scout  "])
+    assert result.exit_code == 0
+
+
+# --- T006: Aerospace System Defense CLI generation ---
+
+_AEROSPACE_RANK_TITLES = {
+    "Airman",
+    "Flight Officer",
+    "Flight Lieutenant",
+    "Squadron Leader",
+    "Wing Commander",
+    "Group Captain",
+    "Air Commodore",
+}
+
+_AEROSPACE_CHARACTER = _make_character(drafted=False)
+
+
+def _make_aerospace_character() -> "Character":
+    from cetools.engine.models import Benefit, Character
+
+    return Character(
+        characteristics={
+            "Strength": 7,
+            "Dexterity": 9,
+            "Endurance": 8,
+            "Intelligence": 6,
+            "Education": 7,
+            "Social Standing": 5,
+        },
+        upp="798675",
+        age=26,
+        career="Aerospace System Defense",
+        rank=1,
+        rank_title="Flight Officer",
+        terms_served=1,
+        skills={"Aircraft": 1, "Electronics": 0},
+        benefits=[Benefit(kind="cash", cash_amount=1000)],
+        pension=0,
+        terms=[],
+        drafted=False,
+    )
+
+
+def test_aerospace_career_exact_name_exits_0() -> None:
+    with patch(
+        "cetools.cli.character.generate_career_character",
+        return_value=_make_aerospace_character(),
+    ):
+        result = runner.invoke(
+            app, ["character", "generate", "--career", "Aerospace System Defense"]
+        )
+    assert result.exit_code == 0
+
+
+def test_aerospace_career_exact_name_output_contains_career_name() -> None:
+    with patch(
+        "cetools.cli.character.generate_career_character",
+        return_value=_make_aerospace_character(),
+    ):
+        result = runner.invoke(
+            app, ["character", "generate", "--career", "Aerospace System Defense"]
+        )
+    assert "Aerospace System Defense" in result.stdout
+
+
+def test_aerospace_career_output_contains_valid_rank_title() -> None:
+    with patch(
+        "cetools.cli.character.generate_career_character",
+        return_value=_make_aerospace_character(),
+    ):
+        result = runner.invoke(
+            app, ["character", "generate", "--career", "Aerospace System Defense"]
+        )
+    assert any(title in result.stdout for title in _AEROSPACE_RANK_TITLES)
+
+
+# --- T007: Case-insensitive and hyphenated input ---
+
+
+def test_aerospace_career_lowercase_exits_0() -> None:
+    with patch(
+        "cetools.cli.character.generate_career_character",
+        return_value=_make_aerospace_character(),
+    ):
+        result = runner.invoke(
+            app, ["character", "generate", "--career", "aerospace system defense"]
+        )
+    assert result.exit_code == 0
+
+
+def test_aerospace_career_uppercase_exits_0() -> None:
+    with patch(
+        "cetools.cli.character.generate_career_character",
+        return_value=_make_aerospace_character(),
+    ):
+        result = runner.invoke(
+            app, ["character", "generate", "--career", "AEROSPACE SYSTEM DEFENSE"]
+        )
+    assert result.exit_code == 0
+
+
+def test_aerospace_career_hyphenated_exits_0() -> None:
+    with patch(
+        "cetools.cli.character.generate_career_character",
+        return_value=_make_aerospace_character(),
+    ):
+        result = runner.invoke(
+            app, ["character", "generate", "--career", "aerospace-system-defense"]
+        )
+    assert result.exit_code == 0
+
+
+def test_aerospace_career_hyphenated_mixed_case_exits_0() -> None:
+    with patch(
+        "cetools.cli.character.generate_career_character",
+        return_value=_make_aerospace_character(),
+    ):
+        result = runner.invoke(
+            app, ["character", "generate", "--career", "Aerospace-System-Defense"]
+        )
     assert result.exit_code == 0

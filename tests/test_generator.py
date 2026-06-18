@@ -511,13 +511,13 @@ def test_draft_character_roll_5_gives_scout() -> None:
     assert result.career == "Scout"
 
 
-def test_draft_character_roll_1_gives_navy() -> None:
-    # DRAFT_TABLE[0] = "navy"; 1D6 roll=1 → index 0 → Navy career
+def test_draft_character_roll_1_gives_aerospace() -> None:
+    # DRAFT_TABLE[0] = "aerospace system defense"; 1D6 roll=1 → index 0
     roller = SequenceRoller([1], default=10)
     result = draft_character(roller=roller)
     assert isinstance(result, Character)
     assert result.drafted is True
-    assert result.career == "Navy"
+    assert result.career == "Aerospace System Defense"
 
 
 def test_draft_character_sets_drafted_true() -> None:

@@ -15,7 +15,7 @@ def generate(career: str | None = typer.Option(None, "--career")) -> None:
         result = draft_character()
     else:
         original = career
-        normalized = career.strip().lower()
+        normalized = career.strip().lower().replace("-", " ")
         if normalized not in CAREER_REGISTRY:
             valid = ", ".join(sorted(CAREER_REGISTRY))
             typer.echo(
