@@ -138,12 +138,13 @@ description: "Task list for Navy Character Generator implementation"
 
 **Purpose**: Formatting, linting, full suite validation, quickstart verification, and constitution compliance audit before opening the PR.
 
-- [ ] T022 [P] Run Black and fix all formatting: `uv run black src tests`
-- [ ] T023 [P] Run flake8 and fix all lint warnings: `uv run flake8 src tests`
-- [ ] T024 Run full test suite and confirm all tests pass: `uv run pytest -v`
-- [ ] T025 Run quickstart.md Scenario 1 manually (`uv run cetools character generate`) and verify output matches the content contract in contracts/cli.md
-- [ ] T026 Run quickstart.md Scenario 3 pseudo-hex validation: `uv run pytest tests/test_pseudohex.py -v`
-- [ ] T027 Constitution compliance audit — verify all five principles hold: (I) `rg "TODO|FIXME|HACK" src/` returns no SRD rule approximations; (II) `rg "from cetools.cli|import cetools.cli" src/cetools/engine/` returns no results; (III) `src/cetools/cli/character.py` contains only I/O routing with no game logic; (IV) every module under `src/cetools/` has a corresponding test file under `tests/`; (V) `rg "Navy" src/cetools/engine/generator.py` returns no results
+- [X] T022 [P] Run Black and fix all formatting: `uv run black src tests`
+- [X] T023 [P] Run flake8 and fix all lint warnings: `uv run flake8 src tests`
+- [X] T024 Run full test suite and confirm all tests pass: `uv run pytest -v`
+- [X] T025 Run quickstart.md Scenario 1 manually (`uv run cetools character generate`) and verify output matches the content contract in contracts/cli.md
+- [X] T026 Run quickstart.md Scenario 3 pseudo-hex validation: `uv run pytest tests/test_pseudohex.py -v`
+- [X] T027 Constitution compliance audit — verify all five principles hold: (I) `rg "TODO|FIXME|HACK" src/` returns no SRD rule approximations; (II) `rg "from cetools.cli|import cetools.cli" src/cetools/engine/` returns no results; (III) `src/cetools/cli/character.py` contains only I/O routing with no game logic; (IV) every module under `src/cetools/` has a corresponding test file under `tests/`; (V) `rg "Navy" src/cetools/engine/generator.py` returns no results
+- [X] T028 Add coverage.py reporting — add `pytest-cov>=5` to dev deps in `pyproject.toml`; configure `[tool.coverage.run]` (branch coverage, `src/cetools` source) and `[tool.coverage.report]` (fail under 85); add `--cov=src/cetools --cov-report=term-missing --cov-fail-under=85` to `[tool.pytest.ini_options] addopts`; update `AGENTS.md` running-tests and PR instructions sections
 
 ---
 

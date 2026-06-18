@@ -20,11 +20,13 @@ Installs the project and all dependencies (including dev dependencies) into `.ve
 uv run pytest
 ```
 
-Run a single file or test:
+Coverage is measured automatically. The suite fails if `src/cetools` coverage drops below 85%.
+
+Run a single file or test (no coverage enforcement on partial runs):
 
 ```bash
-uv run pytest tests/test_foo.py
-uv run pytest tests/test_foo.py::test_bar -v
+uv run pytest tests/test_foo.py --no-cov
+uv run pytest tests/test_foo.py::test_bar -v --no-cov
 ```
 
 All new code should have corresponding tests in `tests/`. Run the full suite before considering a task complete.
@@ -38,4 +40,4 @@ All new code should have corresponding tests in `tests/`. Run the full suite bef
 ## PR instructions
 
 - Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for all commit messages and PR titles (e.g., `feat: add X`, `fix: correct Y`, `docs: update Z`).
-- Run `uv run black . && uv run flake8 src tests && uv run pytest` before committing.
+- Run `uv run black . && uv run flake8 src tests && uv run pytest` before committing. The `pytest` step includes coverage; the suite fails if coverage falls below 85%.
