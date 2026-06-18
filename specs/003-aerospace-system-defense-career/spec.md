@@ -17,13 +17,13 @@ ranks, benefits, and mustering-out rolls applied according to the SRD.
 **Why this priority**: Core deliverable — this is the primary use case for the feature and is
 required for all other stories to have meaning.
 
-**Independent Test**: Run `cetools character --career "Aerospace System Defense"` and verify
+**Independent Test**: Run `cetools character generate --career "Aerospace System Defense"` and verify
 the output character sheet shows the correct career, rank titles (e.g., Airman, Flight Officer),
 and skills from the Aerospace System Defense tables.
 
 **Acceptance Scenarios**:
 
-1. **Given** the character generator, **When** invoked with `--career "Aerospace System Defense"`,
+1. **Given** the character generator, **When** invoked with `cetools character generate --career "Aerospace System Defense"`,
    **Then** the character sheet displays the career as "Aerospace System Defense", uses Aerospace
    rank titles (Airman through Air Commodore), and includes skills drawn from the Aerospace skill
    tables.
@@ -73,7 +73,7 @@ may be drafted into Aerospace System Defense via the existing draft table (draft
 **Why this priority**: The draft table already lists Aerospace System Defense as draft result 1.
 This story ensures the existing draft mechanism works correctly with the new career.
 
-**Independent Test**: Run `cetools character` (no `--career` flag) repeatedly and confirm that
+**Independent Test**: Run `cetools character generate` (no `--career` flag) repeatedly and confirm that
 characters drafted into Aerospace System Defense are generated correctly.
 
 **Acceptance Scenarios**:
@@ -138,6 +138,11 @@ characters drafted into Aerospace System Defense are generated correctly.
   | 5 | Group Captain | — |
   | 6 | Air Commodore | — |
 
+  Note: "Aircraft-1" and "Leadership-1" use SRD table notation (skill name + level awarded).
+  The `RankEntry.bonus_skills` field stores bare skill names — `("Aircraft",)` and
+  `("Leadership",)` — and the engine awards level 1 at the time of application, consistent
+  with how Navy and Scout rank bonuses are stored.
+
 - **FR-004**: The Aerospace skill tables MUST match the SRD exactly:
 
   | Table | Skills (positions 1–6) |
@@ -173,9 +178,10 @@ characters drafted into Aerospace System Defense are generated correctly.
 - **FR-009**: When `--career` is given an unrecognized value (including partial matches such as
   "Aerospace"), the CLI MUST output an error message of the form:
   `"Unknown career '<input>'. Did you mean: <closest match>?"` where the closest match is
-  determined by normalized string distance against the registered career names. Exit code MUST
-  be 1. If no close match exists, the message omits the suggestion and lists all valid career
-  names instead.
+  determined by `difflib.get_close_matches` with `cutoff=0.6` against the registered career
+  names (after normalization). Exit code MUST be 1. If no close match exists (no candidate
+  meets the 0.6 threshold), the message omits the suggestion and lists all valid career names
+  instead: `"Unknown career '<input>'. Valid careers: <comma-separated canonical names>"`.
 
 - **FR-010**: The `--career` flag's `--help` text MUST enumerate all valid canonical career names
   (e.g., `--career {Navy,Scout,"Aerospace System Defense"}`). When a new career is registered,
@@ -192,12 +198,14 @@ characters drafted into Aerospace System Defense are generated correctly.
 
 ### Measurable Outcomes
 
-- **SC-001**: Running `cetools character --career "Aerospace System Defense"` 100 times produces
-  zero errors and every output contains a rank title from the Aerospace rank table.
+- **SC-001** *(manual smoke test)*: Running `cetools character generate --career "Aerospace System Defense"`
+  100 times produces zero errors and every output contains a rank title from the Aerospace rank
+  table. Verified manually after T008–T010 are complete; no automated task required.
 
-- **SC-002**: An Aerospace character's skills always come from the four Aerospace skill tables
-  (Personal Development, Service Skills, Specialist, Advanced Education) — no skill from another
-  career's table appears.
+- **SC-002** *(manual smoke test)*: An Aerospace character's skills always come from the four
+  Aerospace skill tables (Personal Development, Service Skills, Specialist, Advanced Education)
+  — no skill from another career's table appears. Verified by inspection during manual runs;
+  the automated skill-table tests (T003) provide the unit-level guarantee.
 
 - **SC-003**: The career registry resolves "Aerospace System Defense" (and its case-insensitive
   variant) to the Aerospace career data structure with 100% accuracy.
