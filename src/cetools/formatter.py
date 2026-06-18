@@ -16,8 +16,9 @@ def format_character(character: Character) -> str:
 
     lines.append(f"UPP: {character.upp}")
     lines.append("")
+    drafted_label = " (Drafted)" if character.drafted else ""
     lines.append(
-        f"{character.career} ({character.rank_title}, Rank {character.rank})"
+        f"{character.career}{drafted_label} ({character.rank_title}, Rank {character.rank})"
         f" — {character.terms_served} terms, age {character.age}"
     )
     lines.append("")

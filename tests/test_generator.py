@@ -1,8 +1,14 @@
+import pytest
+
 from cetools.engine.careers.navy import NAVY_CAREER
+from cetools.engine.careers.scout import SCOUT_CAREER
 from cetools.engine.generator import (
     _apply_material_benefit,
     _apply_skill_entry,
+    draft_character,
+    generate_career_character,
     generate_character,
+    roll_until_qualified,
 )
 from cetools.engine.models import Character, GenerationFailure
 
@@ -290,3 +296,238 @@ def test_apply_material_benefit_caps_stat_at_33() -> None:
     characteristics = {"Strength": 33}
     _apply_material_benefit("+1 Str", characteristics, {})
     assert characteristics["Strength"] == 33
+
+
+# --- T008: roll_until_qualified ---
+
+
+def test_roll_until_qualified_returns_qualifying_characteristics() -> None:
+    # First iteration: all stats=2, Intelligence=2 < 6 → fail
+    # Second iteration: all stats=8, Intelligence=8 >= 6 → return
+    roller = SequenceRoller([2] * 6 + [8] * 6, default=8)
+    chars = roll_until_qualified(SCOUT_CAREER, roller)
+    assert chars[SCOUT_CAREER.qualification_stat] >= SCOUT_CAREER.qualification_target
+
+
+def test_roll_until_qualified_loops_until_qualified() -> None:
+    # Three failing iterations (Int=3 < 6), then one passing (Int=8)
+    roller = SequenceRoller([3] * 18 + [8] * 6, default=8)
+    chars = roll_until_qualified(SCOUT_CAREER, roller)
+    assert chars["Intelligence"] >= 6
+    # Roller consumed more than 6 values → actually looped multiple times
+    assert roller._pos > 6
+
+
+# --- T009: generate_character new params ---
+
+
+def test_preset_characteristics_missing_stat_raises() -> None:
+    incomplete = {
+        "Strength": 9,
+        "Dexterity": 9,
+        "Endurance": 9,
+        "Intelligence": 9,
+        # Education and Social Standing intentionally omitted
+    }
+    with pytest.raises(ValueError, match="missing required stats"):
+        generate_character(NAVY_CAREER, preset_characteristics=incomplete)
+
+
+def test_preset_characteristics_are_used_not_rolled() -> None:
+    # SmartRoller(10, 1) would roll Intelligence=10; preset gives Intelligence=9
+    preset = {
+        "Strength": 9,
+        "Dexterity": 9,
+        "Endurance": 9,
+        "Intelligence": 9,
+        "Education": 9,
+        "Social Standing": 9,
+    }
+    result = generate_character(
+        NAVY_CAREER,
+        roller=SmartRoller(10, 1),
+        preset_characteristics=preset,
+        bypass_qualification=True,
+    )
+    assert isinstance(result, Character)
+    # Intelligence=9 comes from preset, not 10 from SmartRoller
+    # SmartRoller(10, 1) → aging roll 10-terms ≥ 1 always → no stat reduction
+    assert result.characteristics["Intelligence"] == 9
+
+
+def test_bypass_qualification_skips_enlistment() -> None:
+    # ConstantRoller(1): qual_dm=-2, roll=1 → -1 < 6 → normally fails enlistment
+    # bypass_qualification=True must skip the enlistment check entirely
+    result = generate_character(NAVY_CAREER, roller=ConstantRoller(1), bypass_qualification=True)
+    # Result may be a survival failure but NOT an enlistment failure
+    if isinstance(result, GenerationFailure):
+        assert "enlist" not in result.reason.lower()
+
+
+def test_hard_max_terms_prevents_forced_8th_term() -> None:
+    # SmartRoller(12, 1): re-enlistment at term 7 = 12 → normally forces term 8
+    # hard_max_terms=True must prevent the extra term
+    result = generate_character(
+        NAVY_CAREER,
+        roller=SmartRoller(12, 1),
+        bypass_qualification=True,
+        hard_max_terms=True,
+    )
+    assert isinstance(result, Character)
+    assert result.terms_served == 7
+
+
+def test_drafted_param_sets_character_drafted_true() -> None:
+    result = generate_character(
+        NAVY_CAREER,
+        roller=SmartRoller(10, 1),
+        bypass_qualification=True,
+        drafted=True,
+    )
+    assert isinstance(result, Character)
+    assert result.drafted is True
+
+
+def test_drafted_defaults_to_false_in_generate_character() -> None:
+    result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 1))
+    assert isinstance(result, Character)
+    assert result.drafted is False
+
+
+# --- T010: generate_career_character with Scout ---
+
+
+def test_generate_career_character_returns_character() -> None:
+    result = generate_career_character(SCOUT_CAREER, roller=SmartRoller(10, 1))
+    assert isinstance(result, Character)
+
+
+def test_generate_career_character_intelligence_at_least_6() -> None:
+    result = generate_career_character(SCOUT_CAREER, roller=SmartRoller(10, 1))
+    assert isinstance(result, Character)
+    assert result.characteristics["Intelligence"] >= 6
+
+
+def test_generate_career_character_piloting_at_level_1() -> None:
+    # rank-0 bonus grants Piloting+1 before basic training; basic training skips setting it to 0
+    result = generate_career_character(SCOUT_CAREER, roller=SmartRoller(10, 1))
+    assert isinstance(result, Character)
+    assert result.skills.get("Piloting", 0) >= 1
+
+
+def test_generate_career_character_two_skill_rolls_per_term() -> None:
+    # Scout has no commission/advancement → always 2 skill rolls per term
+    result = generate_career_character(SCOUT_CAREER, roller=SmartRoller(10, 1))
+    assert isinstance(result, Character)
+    for i, term in enumerate(result.terms):
+        non_bt = term.skills_gained if i > 0 else term.skills_gained[6:]
+        assert len(non_bt) == 2, f"Term {i + 1} expected 2 skill rolls, got {len(non_bt)}"
+
+
+def test_generate_career_character_material_roll_5_gives_explorers_society() -> None:
+    # SmartRoller(10, 5): 2D6=10 passes all checks; 1D6=5 → material idx=4 → "Explorer's Society"
+    # 7 terms, rank=0, material_dm=0 → 3 cash rolls then material rolls with roll=5
+    result = generate_career_character(SCOUT_CAREER, roller=SmartRoller(10, 5))
+    assert isinstance(result, Character)
+    material_benefits = [b for b in result.benefits if b.kind == "material"]
+    assert any(b.material_name == "Explorer's Society" for b in material_benefits)
+
+
+# --- T010a: Education < 8 restricts Scout skill rolls to 3 tables ---
+
+
+def test_education_below_8_excludes_advanced_education_skills() -> None:
+    # ConstantRoller(7): all stats=7, Education=7 < 8 → only 3 skill tables (no advanced education)
+    # Skill rolls hit personal_development[0] = "+1 Str" (stat boost, no skill entry added)
+    # "Advocate" is excluded: it also appears in background skills (always granted)
+    # Check skills that come ONLY from advanced_education and not from other sources
+    result = generate_career_character(SCOUT_CAREER, roller=ConstantRoller(7))
+    assert isinstance(result, Character)
+    # Navigation and Tactics are in advanced_education only (not in service/background skills)
+    exclusively_advanced = {"Navigation", "Tactics"}
+    for skill in exclusively_advanced:
+        assert (
+            skill not in result.skills
+        ), f"{skill!r} must not appear when Edu<8 (advanced education excluded)"
+
+
+def test_education_8_or_above_can_access_advanced_education() -> None:
+    # SmartRoller(10, 4): all stats=10, Education=10 >= 8 → 4 tables available
+    # Skill table: (4-1)%4=3 → advanced_education; entry: (4-1)%6=3 → "Medicine"
+    result = generate_career_character(SCOUT_CAREER, roller=SmartRoller(10, 4))
+    assert isinstance(result, Character)
+    assert "Medicine" in result.skills
+
+
+# --- T010b: single-term Scout muster out ---
+
+
+def test_single_term_scout_muster_out() -> None:
+    # Qualification: 6 rolls of 8 (Intelligence=8 >= 6 → passes first try)
+    # Survival (2D6=8 >= 7 ✓); 2 skill rolls (1D6=1,1 each); re-enlistment (2D6=4 < 6 → fail)
+    roller = SequenceRoller([8, 8, 8, 8, 8, 8, 8, 1, 1, 1, 1, 4, 1], default=1)
+    result = generate_career_character(SCOUT_CAREER, roller=roller)
+    assert isinstance(result, Character)
+    assert result.terms_served == 1
+    assert result.skills.get("Piloting", 0) >= 1
+    term = result.terms[0]
+    assert len(term.skills_gained) == 8  # 6 basic training + 2 skill rolls
+    assert len(term.skills_gained[6:]) == 2
+    assert len(result.benefits) == 1
+
+
+# --- T015: draft_character ---
+
+
+def test_draft_character_roll_5_gives_scout() -> None:
+    # DRAFT_TABLE[4] = "scout"; 1D6 roll=5 → index 4 → Scout career
+    roller = SequenceRoller([5], default=10)
+    result = draft_character(roller=roller)
+    assert isinstance(result, Character)
+    assert result.drafted is True
+    assert result.career == "Scout"
+
+
+def test_draft_character_roll_1_gives_navy() -> None:
+    # DRAFT_TABLE[0] = "navy"; 1D6 roll=1 → index 0 → Navy career
+    roller = SequenceRoller([1], default=10)
+    result = draft_character(roller=roller)
+    assert isinstance(result, Character)
+    assert result.drafted is True
+    assert result.career == "Navy"
+
+
+def test_draft_character_sets_drafted_true() -> None:
+    roller = SequenceRoller([3], default=10)
+    result = draft_character(roller=roller)
+    assert isinstance(result, Character)
+    assert result.drafted is True
+
+
+# --- T016: draft_character with unimplemented career ---
+
+
+def test_draft_character_unimplemented_career_returns_failure() -> None:
+    from unittest.mock import patch
+
+    # Patch DRAFT_TABLE in generator so index 0 is "marine" (not in CAREER_REGISTRY)
+    with patch("cetools.engine.generator.DRAFT_TABLE", ("marine",) + ("navy",) * 5):
+        roller = SequenceRoller([1], default=10)
+        result = draft_character(roller=roller)
+    assert isinstance(result, GenerationFailure)
+    assert "marine" in result.reason
+
+
+# --- T011: two skill rolls per term recorded in term history ---
+
+
+def test_two_skill_rolls_per_term_in_term_history() -> None:
+    # SmartRoller(10, 1): all terms complete; basic training only in term 1
+    result = generate_career_character(SCOUT_CAREER, roller=SmartRoller(10, 1))
+    assert isinstance(result, Character)
+    assert result.terms_served >= 2
+    # Term 1: 6 basic training entries + 2 skill roll entries
+    assert len(result.terms[0].skills_gained) == 8
+    # All subsequent terms: exactly 2 skill roll entries each
+    for term in result.terms[1:]:
+        assert len(term.skills_gained) == 2

@@ -5,6 +5,8 @@
         "Anagathics",
         "apdisk",
         "backupdb",
+        "behaviour",
+        "capitalisation",
         "celerybeat",
         "cetools",
         "codz",
@@ -13,6 +15,7 @@
         "Connor",
         "cython",
         "Cython",
+        "dataclass",
         "dataclasses",
         "dmypy",
         "donotpresent",
@@ -39,6 +42,8 @@
         "msix",
         "netrwhist",
         "nohup",
+        "normalised",
+        "normalises",
         "nosetests",
         "pandoc",
         "pipenv",
@@ -75,6 +80,38 @@
         "tmbootpicker",
         "Typer",
         "unbuilt",
+        "unrecognised",
         "webassets"
-    ]
+    ],
+    "chat.promptFilesRecommendations": {
+        "speckit.constitution": true,
+        "speckit.specify": true,
+        "speckit.plan": true,
+        "speckit.tasks": true,
+        "speckit.implement": true
+    },
+    "chat.tools.terminal.autoApprove": {
+        ".specify/scripts/bash/": true,
+        ".specify/scripts/powershell/": true,
+        "/^bash \\.specify/scripts/bash/check-prerequisites\\.sh --json --paths-only$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^bash \\.specify/scripts/bash/check-prerequisites\\.sh --json --paths-only >/dev/null$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^bash \\.specify/extensions/agent-context/scripts/bash/update-agent-context\\.sh specs/002-scout-career-character/plan\\.md$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^git add -A && git commit -m \"chore: update speckit integration and scout career spec\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^git push$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
 }

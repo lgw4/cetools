@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from cetools.engine.careers.base import Career
+from cetools.engine.careers.registry import CAREER_REGISTRY, DRAFT_TABLE
 from cetools.engine.dice import DiceRoller, RandomDiceRoller
 from cetools.engine.models import (
     Benefit,
@@ -148,7 +149,8 @@ def _muster_out(
             benefits.append(Benefit(kind="cash", cash_amount=amount))
             cash_rolls_used += 1
         else:
-            idx = max(0, min(6, roller.roll(6) + material_dm - 1))
+            mat_max = len(career.material_benefits) - 1
+            idx = max(0, min(mat_max, roller.roll(6) + material_dm - 1))
             name = career.material_benefits[idx]
             _apply_material_benefit(name, characteristics, skills)
             benefits.append(Benefit(kind="material", material_name=name))
@@ -183,20 +185,31 @@ def _pension(terms_served: int) -> int | None:
 def generate_character(
     career: Career,
     roller: DiceRoller | None = None,
+    preset_characteristics: dict[str, int] | None = None,
+    bypass_qualification: bool = False,
+    hard_max_terms: bool = False,
+    drafted: bool = False,
 ) -> Character | GenerationFailure:
     if roller is None:
         roller = RandomDiceRoller()
 
-    characteristics: dict[str, int] = {stat: roller.roll(6, count=2) for stat in _STAT_NAMES}
+    if preset_characteristics is not None:
+        missing = [s for s in _STAT_NAMES if s not in preset_characteristics]
+        if missing:
+            raise ValueError(f"preset_characteristics missing required stats: {missing}")
+        characteristics: dict[str, int] = dict(preset_characteristics)
+    else:
+        characteristics = {stat: roller.roll(6, count=2) for stat in _STAT_NAMES}
 
     skills: dict[str, int] = {}
     for i in range(3):
         bg_skill = _BACKGROUND_SKILLS[i % len(_BACKGROUND_SKILLS)]
         skills[bg_skill] = skills.get(bg_skill, -1) + 1
 
-    qual_dm = _dm(characteristics, career.qualification_stat)
-    if roller.roll(6, count=2) + qual_dm < career.qualification_target:
-        return GenerationFailure(reason=f"{career.name} enlistment failed")
+    if not bypass_qualification:
+        qual_dm = _dm(characteristics, career.qualification_stat)
+        if roller.roll(6, count=2) + qual_dm < career.qualification_target:
+            return GenerationFailure(reason=f"{career.name} enlistment failed")
 
     rank = 0
     _grant_rank_bonus(career.ranks[rank], characteristics, skills)
@@ -297,7 +310,7 @@ def generate_character(
 
         reenlist_roll = roller.roll(6, count=2)
         if terms_served >= _MAX_TERMS:
-            if reenlist_roll == 12:
+            if reenlist_roll == 12 and not hard_max_terms:
                 mandatory_extra = True
             else:
                 break
@@ -319,4 +332,43 @@ def generate_character(
         benefits=benefits,
         pension=_pension(terms_served),
         terms=term_history,
+        drafted=drafted,
+    )
+
+
+def roll_until_qualified(career: Career, roller: DiceRoller | None = None) -> dict[str, int]:
+    if roller is None:
+        roller = RandomDiceRoller()
+    while True:
+        characteristics = {stat: roller.roll(6, count=2) for stat in _STAT_NAMES}
+        if characteristics[career.qualification_stat] >= career.qualification_target:
+            return characteristics
+
+
+def draft_character(roller: DiceRoller | None = None) -> Character | GenerationFailure:
+    if roller is None:
+        roller = RandomDiceRoller()
+    roll = roller.roll(6)
+    name = DRAFT_TABLE[roll - 1]
+    career = CAREER_REGISTRY.get(name)
+    if career is None:
+        return GenerationFailure(reason=f"Draft assigned unimplemented career '{name}'")
+    return generate_career_character(career, roller, drafted=True)
+
+
+def generate_career_character(
+    career: Career,
+    roller: DiceRoller | None = None,
+    drafted: bool = False,
+) -> Character | GenerationFailure:
+    if roller is None:
+        roller = RandomDiceRoller()
+    characteristics = roll_until_qualified(career, roller)
+    return generate_character(
+        career,
+        roller=roller,
+        preset_characteristics=characteristics,
+        bypass_qualification=True,
+        hard_max_terms=True,
+        drafted=drafted,
     )
