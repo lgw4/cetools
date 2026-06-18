@@ -46,10 +46,10 @@ description: "Task list for Aerospace System Defense Career feature"
 ### Tests for User Story 1 (TDD — write FIRST, confirm FAILING before T008)
 
 - [ ] T002 [US1] Write failing tests for AEROSPACE_CAREER qualification, survival, commission, advancement, and reenlistment field values in tests/test_aerospace_career.py
-- [ ] T003 [P] [US1] Write failing tests for all four AEROSPACE_CAREER skill tables (personal_development, service_skills, specialist_skills, advanced_education — 6 entries each) in tests/test_aerospace_career.py
+- [ ] T003 [P] [US1] Write failing tests for all four AEROSPACE_CAREER skill tables (personal_development, service_skills, specialist_skills, advanced_education), asserting the exact skill name at each of the 6 positions per table (24 positions total — no count-only or "etc." assertions) in tests/test_aerospace_career.py
 - [ ] T004 [P] [US1] Write failing tests for all seven AEROSPACE_CAREER rank entries (rank 0 Airman through rank 6 Air Commodore, with correct bonus skills at ranks 0 and 3) in tests/test_aerospace_career.py
 - [ ] T005 [P] [US1] Write failing tests for AEROSPACE_CAREER mustering-out tables (7 cash entries and 7 material entries matching FR-005) in tests/test_aerospace_career.py
-- [ ] T006 [P] [US1] Write failing CLI test asserting `--career "Aerospace System Defense"` exits 0 and output contains the career name and an Aerospace rank title in tests/test_cli.py
+- [ ] T006 [P] [US1] Write failing CLI test asserting `--career "Aerospace System Defense"` exits 0, output contains "Aerospace System Defense", and the rank title is one of the seven valid Aerospace rank strings (Airman, Flight Officer, Flight Lieutenant, Squadron Leader, Wing Commander, Group Captain, Air Commodore) in tests/test_cli.py
 - [ ] T007 [P] [US1] Write failing CLI tests for case-insensitive input (`"aerospace system defense"`, `"AEROSPACE SYSTEM DEFENSE"`) and hyphenated input (`"aerospace-system-defense"`) resolving to the Aerospace career in tests/test_cli.py
 
 ### Implementation for User Story 1
@@ -72,10 +72,11 @@ description: "Task list for Aerospace System Defense Career feature"
 
 ### Tests for User Story 2 (TDD — confirm failing before verifying they pass)
 
-- [ ] T011 [P] [US2] Write failing behavior tests asserting that when a mocked commission roll succeeds (≥ commission_target) the character advances from rank 0 to rank 1, and when it fails the character stays at rank 0; and that when a mocked advancement roll succeeds (≥ advancement_target) an already-commissioned character's rank increments by 1 — in tests/test_aerospace_career.py (distinct from T002's data-field assertions)
+- [ ] T011 [P] [US2] Write failing behavior tests asserting: (a) when a mocked commission roll succeeds (≥ commission_target) the character advances from rank 0 to rank 1 AND receives one extra skill roll that term; (b) when the commission roll fails the character stays at rank 0 (covering the "low-Education, never commissions" edge case from spec.md §Edge Cases); (c) when a mocked advancement roll succeeds (≥ advancement_target) an already-commissioned character's rank increments by 1 — in tests/test_aerospace_career.py (distinct from T002's data-field assertions)
 - [ ] T012 [P] [US2] Write failing behavior tests asserting that a freshly generated Aerospace character (before any terms) has Aircraft in their skill list (rank 0 bonus applied), and that a character who reaches rank 3 has Leadership in their skill list (rank 3 bonus applied) — in tests/test_aerospace_career.py (distinct from T004's RankEntry data assertions)
+- [ ] T011b [P] [US2] Write failing test asserting that a character already at rank 6 (Air Commodore) who succeeds on a mocked advancement roll remains at rank 6 — the rank cap edge case from spec.md §Edge Cases — in tests/test_aerospace_career.py
 
-**Checkpoint**: T011–T012 tests pass (no additional implementation needed — data is already in AEROSPACE_CAREER from T008).
+**Checkpoint**: T011, T011b, T012 tests pass (no additional implementation needed — data is already in AEROSPACE_CAREER from T008).
 
 ---
 
@@ -106,7 +107,8 @@ description: "Task list for Aerospace System Defense Career feature"
 
 - [ ] T016 [P] Write failing tests for "did you mean" error message format on near-miss input (e.g., `--career "Areospace"` → `Unknown career 'Areospace'. Did you mean: Aerospace System Defense?`) in tests/test_cli.py
 - [ ] T017 [P] Write failing tests for "no close match" error format listing all canonical career names (e.g., `--career "marine"` → `Unknown career 'marine'. Valid careers: Aerospace System Defense, Navy, Scout`) in tests/test_cli.py
-- [ ] T018 Update `test_career_unknown_stderr_message_exact` in tests/test_cli.py to match the new error message format introduced by the "did you mean" logic
+- [ ] T017b [P] Write failing test for `--career --help` output showing all canonical career names in sorted alphabetical order (e.g., output contains `"Aerospace System Defense, Navy, Scout"`) in tests/test_cli.py
+- [ ] T018 Update `test_career_unknown_stderr_message_exact` in tests/test_cli.py to match the new error message format introduced by the "did you mean" logic — this test is currently PASSING (old format); updating it makes it RED immediately; T019's implementation makes it GREEN (T018 MUST precede T019 to keep the TDD red-green cycle unambiguous)
 
 ### Implementation for Polish
 
@@ -142,9 +144,9 @@ description: "Task list for Aerospace System Defense Career feature"
 ### Parallel Opportunities
 
 - T003, T004, T005, T006, T007 can all run in parallel (all are new test content in the same file or different files — no conflicts with T002 if T002 is written first).
-- T011 and T012 can run in parallel.
+- T011, T011b, and T012 can run in parallel.
 - T013 and T014 can run in parallel.
-- T016, T017 can run in parallel.
+- T016, T017, T017b can run in parallel.
 - T019 and T020 can run in parallel (both edit `cli/character.py` — coordinate if pairing).
 
 ---
@@ -193,6 +195,7 @@ Task T010: Edit src/cetools/cli/character.py
 | Scenario 4: Mustering-out benefits | T005, T008 |
 | Scenario 5: Typo "did you mean" | T016, T019 |
 | Scenario 6: No close match | T017, T019 |
+| Scenario 9: Help text enumerates careers | T017b, T020 |
 | Scenario 7: Draft | T013–T015 |
 | Scenario 8: Full test suite | T021 |
 
@@ -203,7 +206,8 @@ Task T010: Edit src/cetools/cli/character.py
 - **TDD is non-negotiable** (Constitution §IV): confirm each test file's new tests are RED before writing implementation code.
 - **[P]** tasks target different files (or non-conflicting sections) and can run in parallel.
 - **[Story]** label maps each task to a specific user story for traceability and independent testing.
-- US2 requires no new implementation files — all rank/commission/advancement data is in `AEROSPACE_CAREER` (T008).
+- US2 requires no new implementation files — all rank/commission/advancement data is in `AEROSPACE_CAREER` (T008). T011b (rank cap) and the CHK023 edge case are covered by existing engine logic; tests validate it rather than requiring new implementation.
 - `cli/character.py` is edited three times across phases (T010, T019, T020); sequence these to avoid conflicts.
+- T017b must be written and confirmed FAILING before T020 is started (TDD).
 - After T015, re-run `test_careers.py` to confirm the draft table correction does not break any Scout/Navy draft assertions.
 - Commit after each phase or logical group using Conventional Commits (e.g., `feat: add aerospace system defense career`).

@@ -177,16 +177,21 @@ characters drafted into Aerospace System Defense are generated correctly.
 
 - **FR-009**: When `--career` is given an unrecognized value (including partial matches such as
   "Aerospace"), the CLI MUST output an error message of the form:
-  `"Unknown career '<input>'. Did you mean: <closest match>?"` where the closest match is
-  determined by `difflib.get_close_matches` with `cutoff=0.6` against the registered career
-  names (after normalization). Exit code MUST be 1. If no close match exists (no candidate
-  meets the 0.6 threshold), the message omits the suggestion and lists all valid career names
-  instead: `"Unknown career '<input>'. Valid careers: <comma-separated canonical names>"`.
+  `"Unknown career '<input>'. Did you mean: <closest match>?"` where `<input>` is the raw
+  value as the user typed it, and the closest match is determined by
+  `difflib.get_close_matches(normalized, CAREER_REGISTRY.keys(), n=1, cutoff=0.6)` — the
+  result is the `career.name` (canonical title-cased name) of the matching registry entry.
+  Exit code MUST be 1. If no close match exists (no candidate meets the 0.6 threshold), the
+  message omits the suggestion and lists all valid canonical career names in sorted
+  alphabetical order instead:
+  `"Unknown career '<input>'. Valid careers: <comma-separated canonical names>"`.
 
 - **FR-010**: The `--career` flag's `--help` text MUST enumerate all valid canonical career names
-  (e.g., `--career {Navy,Scout,"Aerospace System Defense"}`). When a new career is registered,
-  the help text MUST be updated to include it. This is a CLI-layer change only — the list of
-  valid names is derived from the career registry, not hardcoded.
+  in sorted alphabetical order (e.g., `--career TEXT   Career name. Valid: Aerospace System
+  Defense, Navy, Scout`). When a new career is registered, the help text MUST be updated to
+  include it. The ordering MUST be consistent with the "Valid careers" listing in FR-009's
+  no-match branch. This is a CLI-layer change only — the list of valid names is derived from
+  the career registry, not hardcoded.
 
 ### Key Entities
 
@@ -207,8 +212,10 @@ characters drafted into Aerospace System Defense are generated correctly.
   — no skill from another career's table appears. Verified by inspection during manual runs;
   the automated skill-table tests (T003) provide the unit-level guarantee.
 
-- **SC-003**: The career registry resolves "Aerospace System Defense" (and its case-insensitive
-  variant) to the Aerospace career data structure with 100% accuracy.
+- **SC-003** *(automated via T007, T009, T021)*: The career registry resolves
+  "Aerospace System Defense" (and its case-insensitive and hyphenated variants) to the
+  Aerospace career data structure with 100% accuracy. Verified by T007 (case/hyphen CLI
+  tests) and T009 (registry key assertion), confirmed green by T021.
 
 - **SC-004**: All existing tests continue to pass after the Aerospace career is added — zero
   regressions in Navy or Scout character generation.

@@ -5,6 +5,7 @@ from cetools.engine.careers.scout import SCOUT_CAREER
 from cetools.engine.generator import (
     _apply_material_benefit,
     _apply_skill_entry,
+    _muster_out,
     draft_character,
     generate_career_character,
     generate_character,
@@ -207,6 +208,28 @@ def test_material_benefit_row_7_reachable_at_rank_5_plus() -> None:
     assert any(
         b.material_name == "Explorer's Society" for b in material_benefits
     ), "rank 5+ DM should make material benefit row 7 (Explorer's Society) reachable"
+
+
+# --- Cash DM from Gambling skill ---
+
+
+def test_gambling_skill_grants_cash_dm_on_muster_out() -> None:
+    # Direct unit test of _muster_out with a controlled 1D6 roll of 5.
+    # Without Gambling: idx = max(0, min(6, 5+0-1)) = 4 → cash_benefits[4] = 20,000
+    # With Gambling:    idx = max(0, min(6, 5+1-1)) = 5 → cash_benefits[5] = 50,000
+    common = dict(
+        career=NAVY_CAREER,
+        terms_served=1,
+        rank=0,
+        characteristics={},
+        roller=ConstantRoller(5),
+    )
+    without_dm = _muster_out(**common, skills={})
+    with_dm = _muster_out(**common, skills={"Gambling": 0})
+    assert len(without_dm) == 1
+    assert len(with_dm) == 1
+    assert without_dm[0].cash_amount == 20000
+    assert with_dm[0].cash_amount == 50000
 
 
 # --- Benefits non-empty ---
