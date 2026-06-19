@@ -1,14 +1,5 @@
-from cetools.engine.models import Character
+from cetools.engine.models import STAT_NAMES, Character
 from cetools.engine.pseudohex import to_pseudohex
-
-_UPP_ORDER = (
-    "Strength",
-    "Dexterity",
-    "Endurance",
-    "Intelligence",
-    "Education",
-    "Social Standing",
-)
 
 
 def format_character(character: Character) -> str:
@@ -24,7 +15,7 @@ def format_character(character: Character) -> str:
     lines.append("")
 
     lines.append("Characteristics:")
-    for name in _UPP_ORDER:
+    for name in STAT_NAMES:
         value = character.characteristics[name]
         if value > 9:
             ph = to_pseudohex(value)

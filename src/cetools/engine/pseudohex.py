@@ -1,3 +1,5 @@
+from cetools.engine.models import STAT_NAMES
+
 _TO_CHAR = (
     "0",
     "1",
@@ -37,15 +39,6 @@ _TO_CHAR = (
 
 _FROM_CHAR = {c: i for i, c in enumerate(_TO_CHAR)}
 
-_UPP_ORDER = (
-    "Strength",
-    "Dexterity",
-    "Endurance",
-    "Intelligence",
-    "Education",
-    "Social Standing",
-)
-
 
 def to_pseudohex(value: int) -> str:
     if value < 0 or value > 33:
@@ -60,4 +53,4 @@ def from_pseudohex(char: str) -> int:
 
 
 def encode_upp(scores: dict[str, int]) -> str:
-    return "".join(to_pseudohex(scores[stat]) for stat in _UPP_ORDER)
+    return "".join(to_pseudohex(scores[stat]) for stat in STAT_NAMES)
