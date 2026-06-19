@@ -14,6 +14,28 @@ uv sync
 
 Installs the project and all dependencies (including dev dependencies) into `.venv`.
 
+### Hooks
+
+After `uv sync`, install the pre-push quality gate hooks (one-time per clone):
+
+```bash
+pre-commit install --hook-type pre-push
+```
+
+This installs hooks that run isort, Black, flake8, and pytest automatically before every `git push`.
+
+If a push is rejected because of unsorted imports, fix them with:
+
+```bash
+uv run isort .
+```
+
+To deliberately update pinned hook revisions:
+
+```bash
+uv run pre-commit autoupdate
+```
+
 ## Running tests
 
 ```bash

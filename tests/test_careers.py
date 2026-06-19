@@ -173,9 +173,10 @@ def test_navy_name() -> None:
     assert NAVY_CAREER.name == "Navy"
 
 
+from cetools.engine.careers.registry import CAREER_REGISTRY, DRAFT_TABLE  # noqa: E402
+
 # T003 — SCOUT_CAREER field validation
 from cetools.engine.careers.scout import SCOUT_CAREER  # noqa: E402
-from cetools.engine.careers.registry import CAREER_REGISTRY, DRAFT_TABLE  # noqa: E402
 
 
 def test_scout_career_name() -> None:
@@ -371,6 +372,7 @@ def test_career_rejects_too_few_ranks() -> None:
 
 def test_career_rejects_too_many_ranks() -> None:
     import pytest
+
     from cetools.engine.careers.base import RankEntry
 
     eight_ranks = tuple(RankEntry(rank=i, title=f"R{i}", bonus_skills=()) for i in range(8))
@@ -380,6 +382,7 @@ def test_career_rejects_too_many_ranks() -> None:
 
 def test_career_rejects_nonconsecutive_ranks() -> None:
     import pytest
+
     from cetools.engine.careers.base import RankEntry
 
     bad_ranks = (
