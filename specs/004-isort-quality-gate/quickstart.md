@@ -118,7 +118,7 @@ git checkout -- src/cetools/formatter.py
 git clone <repo-url> cetools-fresh
 cd cetools-fresh
 uv sync                                         # installs isort, pre-commit, all dev deps
-pre-commit install --hook-type pre-push         # registers the pre-push hook
+uv run pre-commit install --hook-type pre-push  # registers the pre-push hook
 git push                                        # triggers hooks on next push
 ```
 

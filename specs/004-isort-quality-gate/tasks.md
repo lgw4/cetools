@@ -58,8 +58,8 @@ an isort diff. Fix with `uv run isort .`, re-push, confirm success. (quickstart.
 
 ### Implementation for User Story 1
 
-- [X] T005 [US1] Create `.pre-commit-config.yaml` at repo root with the isort hook entry: `repo: https://github.com/PyCQA/isort`, `rev: 5.13.2`, `hooks: [{id: isort, args: [--check-only, --diff], stages: [pre-push]}]`
-- [X] T006 [US1] Install the pre-push hook: run `pre-commit install --hook-type pre-push` from the repo root; confirm `.git/hooks/pre-push` now exists
+- [X] T005 [US1] Create `.pre-commit-config.yaml` at repo root with isort as a `repo: local` hook using `entry: uv run isort --check-only --diff`, `stages: [pre-push]`
+- [X] T006 [US1] Install the pre-push hook: run `uv run pre-commit install --hook-type pre-push` from the repo root; confirm `.git/hooks/pre-push` now exists
 - [X] T007 [US1] Verify US1 acceptance: follow quickstart.md Scenario 1 (push blocked by unsorted imports) and Scenario 3 (push succeeds after `uv run isort .` fix)
 
 **Checkpoint**: US1 is fully functional — push rejected on unsorted imports, accepted after fix.

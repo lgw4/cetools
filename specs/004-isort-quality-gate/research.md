@@ -2,9 +2,9 @@
 
 ## Decision: isort version to pin
 
-- **Decision**: Pin to `isort==5.13.2` (PyPI dev dep) and `rev: 5.13.2` in `.pre-commit-config.yaml`
-- **Rationale**: 5.13.x is the current stable release line; 5.13.2 was the most recent patch as of 2026-06-18. Pinning to an exact tag satisfies FR-005.
-- **Alternatives considered**: `isort>=5.13` for the PyPI dep (accepted — floor pin); floating `rev: latest` for pre-commit (rejected — violates FR-005 pinning requirement).
+- **Decision**: Use `isort>=5.13` as a floor-pinned PyPI dev dep; all hooks run via `uv run` against the resolved version in `uv.lock` (8.0.1 as of 2026-06-18), eliminating separate `.pre-commit-config.yaml` rev pins.
+- **Rationale**: Switching all hooks to `repo: local` with `entry: uv run ...` ensures developers always run the same tool version whether they invoke `uv run isort .` manually or push and trigger the hook. A separate `rev:` pin would create version skew between `uv.lock` and the hook environment.
+- **Alternatives considered**: exact-pin `isort==5.13.2` for both PyPI dep and hook rev — rejected; this causes confusing failures when `uv run isort .` (using `uv.lock`) fixes imports that the hook (pinned to an older version) still rejects.
 
 ## Decision: pre-commit version to pin
 
@@ -53,7 +53,7 @@
 
 - **Decision**: All four hooks (isort, black, flake8, pytest) run at the `pre-push` stage.
 - **Rationale**: Per the spec assumptions and FR-003, pre-push keeps the commit cycle fast. Only the push to the remote is gated.
-- **How to configure**: Each hook entry includes `stages: [pre-push]`, and the developer installs with `pre-commit install --hook-type pre-push`.
+- **How to configure**: Each hook entry includes `stages: [pre-push]`, and the developer installs with `uv run pre-commit install --hook-type pre-push`.
 - **Alternatives considered**: `pre-commit` stage for lint-only hooks — rejected; the spec explicitly requires a single gate at push time; splitting stages adds cognitive overhead.
 
 ## Decision: initial isort sort of existing codebase

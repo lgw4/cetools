@@ -19,7 +19,7 @@ Installs the project and all dependencies (including dev dependencies) into `.ve
 After `uv sync`, install the pre-push quality gate hooks (one-time per clone):
 
 ```bash
-pre-commit install --hook-type pre-push
+uv run pre-commit install --hook-type pre-push
 ```
 
 This installs hooks that run isort, Black, flake8, and pytest automatically before every `git push`.
