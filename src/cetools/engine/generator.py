@@ -4,6 +4,8 @@ from cetools.engine.careers.base import Career
 from cetools.engine.careers.registry import CAREER_REGISTRY, DRAFT_TABLE
 from cetools.engine.dice import DiceRoller, RandomDiceRoller
 from cetools.engine.models import (
+    STAT_ABBREV,
+    STAT_NAMES,
     Benefit,
     Character,
     GenerationFailure,
@@ -11,15 +13,6 @@ from cetools.engine.models import (
     characteristic_modifier,
 )
 from cetools.engine.pseudohex import encode_upp
-
-_STAT_NAMES = (
-    "Strength",
-    "Dexterity",
-    "Endurance",
-    "Intelligence",
-    "Education",
-    "Social Standing",
-)
 
 _PHYSICAL_STATS = ("Strength", "Dexterity", "Endurance")
 
@@ -76,16 +69,7 @@ def _apply_skill_entry(
     entry: str, characteristics: dict[str, int], skills: dict[str, int]
 ) -> None:
     if entry.startswith("+1 "):
-        stat_abbr = entry[3:]
-        stat_map = {
-            "Str": "Strength",
-            "Dex": "Dexterity",
-            "End": "Endurance",
-            "Int": "Intelligence",
-            "Edu": "Education",
-            "Soc": "Social Standing",
-        }
-        full_name = stat_map.get(stat_abbr)
+        full_name = STAT_ABBREV.get(entry[3:])
         if full_name:
             characteristics[full_name] = min(33, characteristics.get(full_name, 0) + 1)
     else:
@@ -161,17 +145,10 @@ def _muster_out(
 def _apply_material_benefit(
     name: str, characteristics: dict[str, int], skills: dict[str, int]
 ) -> None:
-    stat_map = {
-        "+1 Str": "Strength",
-        "+1 Dex": "Dexterity",
-        "+1 End": "Endurance",
-        "+1 Int": "Intelligence",
-        "+1 Edu": "Education",
-        "+1 Soc": "Social Standing",
-    }
-    if name in stat_map:
-        stat = stat_map[name]
-        characteristics[stat] = min(33, characteristics.get(stat, 0) + 1)
+    if name.startswith("+1 "):
+        stat = STAT_ABBREV.get(name[3:])
+        if stat:
+            characteristics[stat] = min(33, characteristics.get(stat, 0) + 1)
 
 
 def _pension(terms_served: int) -> int | None:
@@ -194,12 +171,12 @@ def generate_character(
         roller = RandomDiceRoller()
 
     if preset_characteristics is not None:
-        missing = [s for s in _STAT_NAMES if s not in preset_characteristics]
+        missing = [s for s in STAT_NAMES if s not in preset_characteristics]
         if missing:
             raise ValueError(f"preset_characteristics missing required stats: {missing}")
         characteristics: dict[str, int] = dict(preset_characteristics)
     else:
-        characteristics = {stat: roller.roll(6, count=2) for stat in _STAT_NAMES}
+        characteristics = {stat: roller.roll(6, count=2) for stat in STAT_NAMES}
 
     skills: dict[str, int] = {}
     for i in range(3):
@@ -340,7 +317,7 @@ def roll_until_qualified(career: Career, roller: DiceRoller | None = None) -> di
     if roller is None:
         roller = RandomDiceRoller()
     while True:
-        characteristics = {stat: roller.roll(6, count=2) for stat in _STAT_NAMES}
+        characteristics = {stat: roller.roll(6, count=2) for stat in STAT_NAMES}
         if characteristics[career.qualification_stat] >= career.qualification_target:
             return characteristics
 

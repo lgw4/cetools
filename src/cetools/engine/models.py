@@ -3,6 +3,24 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
+STAT_NAMES: tuple[str, ...] = (
+    "Strength",
+    "Dexterity",
+    "Endurance",
+    "Intelligence",
+    "Education",
+    "Social Standing",
+)
+
+STAT_ABBREV: dict[str, str] = {
+    "Str": "Strength",
+    "Dex": "Dexterity",
+    "End": "Endurance",
+    "Int": "Intelligence",
+    "Edu": "Education",
+    "Soc": "Social Standing",
+}
+
 
 def characteristic_modifier(score: int) -> int:
     if score <= 2:

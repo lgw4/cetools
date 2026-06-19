@@ -313,3 +313,78 @@ def test_draft_table_other_entries_are_navy() -> None:
     for i, entry in enumerate(DRAFT_TABLE):
         if i not in (0, 4):
             assert entry == "navy", f"DRAFT_TABLE[{i}] expected 'navy', got {entry!r}"
+
+
+# ── Career.__post_init__ validation ──────────────────────────────────────────
+
+
+def _make_valid_career(**overrides):
+    """Return a valid Career built from NAVY_CAREER fields with optional overrides."""
+    import dataclasses
+
+    from cetools.engine.careers.navy import NAVY_CAREER
+
+    return dataclasses.replace(NAVY_CAREER, **overrides)
+
+
+def test_career_rejects_invalid_qualification_stat() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="qualification_stat"):
+        _make_valid_career(name="Bad", qualification_stat="Luck")
+
+
+def test_career_rejects_invalid_survival_stat() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="survival_stat"):
+        _make_valid_career(name="Bad", survival_stat="Luck")
+
+
+def test_career_rejects_invalid_commission_stat() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="commission_stat"):
+        _make_valid_career(name="Bad", commission_stat="Luck")
+
+
+def test_career_rejects_invalid_advancement_stat() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="advancement_stat"):
+        _make_valid_career(name="Bad", advancement_stat="Luck")
+
+
+def test_career_rejects_skill_table_wrong_length() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="service_skills"):
+        _make_valid_career(name="Bad", service_skills=("A", "B"))
+
+
+def test_career_rejects_too_few_ranks() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="ranks"):
+        _make_valid_career(name="Bad", ranks=())
+
+
+def test_career_rejects_too_many_ranks() -> None:
+    import pytest
+    from cetools.engine.careers.base import RankEntry
+
+    eight_ranks = tuple(RankEntry(rank=i, title=f"R{i}", bonus_skills=()) for i in range(8))
+    with pytest.raises(ValueError, match="ranks"):
+        _make_valid_career(name="Bad", ranks=eight_ranks)
+
+
+def test_career_rejects_nonconsecutive_ranks() -> None:
+    import pytest
+    from cetools.engine.careers.base import RankEntry
+
+    bad_ranks = (
+        RankEntry(rank=0, title="R0", bonus_skills=()),
+        RankEntry(rank=2, title="R2", bonus_skills=()),
+    )
+    with pytest.raises(ValueError, match="rank at index 1"):
+        _make_valid_career(name="Bad", ranks=bad_ranks)
