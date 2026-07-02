@@ -527,18 +527,27 @@ def test_draft_character_sets_drafted_true() -> None:
     assert result.drafted is True
 
 
+def test_draft_character_roll_2_gives_marine() -> None:
+    # DRAFT_TABLE[1] = "marine"; 1D6 roll=2 → index 1 → Marine career
+    roller = SequenceRoller([2], default=10)
+    result = draft_character(roller=roller)
+    assert isinstance(result, Character)
+    assert result.drafted is True
+    assert result.career == "Marine"
+
+
 # --- T016: draft_character with unimplemented career ---
 
 
 def test_draft_character_unimplemented_career_returns_failure() -> None:
     from unittest.mock import patch
 
-    # Patch DRAFT_TABLE in generator so index 0 is "marine" (not in CAREER_REGISTRY)
-    with patch("cetools.engine.generator.DRAFT_TABLE", ("marine",) + ("navy",) * 5):
+    # Patch DRAFT_TABLE in generator so index 0 is "merchant" (not in CAREER_REGISTRY)
+    with patch("cetools.engine.generator.DRAFT_TABLE", ("merchant",) + ("navy",) * 5):
         roller = SequenceRoller([1], default=10)
         result = draft_character(roller=roller)
     assert isinstance(result, GenerationFailure)
-    assert "marine" in result.reason
+    assert "merchant" in result.reason
 
 
 # --- T011: two skill rolls per term recorded in term history ---

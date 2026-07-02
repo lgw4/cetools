@@ -186,22 +186,21 @@ def test_career_navy_no_drafted_marker() -> None:
 
 
 def test_career_unknown_exits_1() -> None:
-    result = runner.invoke(app, ["character", "generate", "--career", "marine"])
+    result = runner.invoke(app, ["character", "generate", "--career", "merchant"])
     assert result.exit_code == 1
 
 
 def test_career_unknown_stderr_message_exact() -> None:
     # T018: updated to match the "no close match" format (canonical names, no suggestion)
-    result = runner.invoke(app, ["character", "generate", "--career", "marine"])
-    assert (
-        result.stderr.strip()
-        == "Unknown career 'marine'. Valid careers: Aerospace System Defense, Navy, Scout"
+    result = runner.invoke(app, ["character", "generate", "--career", "merchant"])
+    assert result.stderr.strip() == (
+        "Unknown career 'merchant'. Valid careers: Aerospace System Defense, Marine, Navy, Scout"
     )
 
 
 def test_career_unknown_original_value_in_message() -> None:
-    result = runner.invoke(app, ["character", "generate", "--career", "Marine"])
-    assert "Marine" in result.stderr
+    result = runner.invoke(app, ["character", "generate", "--career", "Merchant"])
+    assert "Merchant" in result.stderr
 
 
 # --- T024: Input normalization ---
@@ -386,6 +385,7 @@ def test_career_partial_prefix_no_did_you_mean() -> None:
 def test_career_no_match_lists_canonical_names() -> None:
     result = runner.invoke(app, ["character", "generate", "--career", "xyzzy"])
     assert "Aerospace System Defense" in result.stderr
+    assert "Marine" in result.stderr
     assert "Navy" in result.stderr
     assert "Scout" in result.stderr
 
@@ -393,7 +393,7 @@ def test_career_no_match_lists_canonical_names() -> None:
 def test_career_no_match_valid_careers_format() -> None:
     result = runner.invoke(app, ["character", "generate", "--career", "xyzzy"])
     assert result.stderr.strip() == (
-        "Unknown career 'xyzzy'. Valid careers: Aerospace System Defense, Navy, Scout"
+        "Unknown career 'xyzzy'. Valid careers: Aerospace System Defense, Marine, Navy, Scout"
     )
 
 
@@ -410,5 +410,109 @@ def test_career_help_lists_canonical_names() -> None:
     # Career names may be wrapped by the terminal box renderer; check each individually.
     assert "Aerospace System" in result.output
     assert "Defense" in result.output
+    assert "Marine" in result.output
     assert "Navy" in result.output
     assert "Scout" in result.output
+
+
+# --- T006: Marine CLI generation ---
+
+_MARINE_RANK_TITLES = {
+    "Trooper",
+    "Lieutenant",
+    "Captain",
+    "Major",
+    "Lt Colonel",
+    "Colonel",
+    "Brigadier",
+}
+
+
+def _make_marine_character() -> Character:
+    return Character(
+        characteristics={
+            "Strength": 8,
+            "Dexterity": 7,
+            "Endurance": 9,
+            "Intelligence": 8,
+            "Education": 7,
+            "Social Standing": 6,
+        },
+        upp="879876",
+        age=22,
+        career="Marine",
+        rank=0,
+        rank_title="Trooper",
+        terms_served=1,
+        skills={"Zero-G": 1, "Gun Combat": 0},
+        benefits=[Benefit(kind="cash", cash_amount=1000)],
+        pension=0,
+        terms=[],
+        drafted=False,
+    )
+
+
+def test_career_marine_exits_0() -> None:
+    with patch(
+        "cetools.cli.character.generate_career_character",
+        return_value=_make_marine_character(),
+    ):
+        result = runner.invoke(app, ["character", "generate", "--career", "Marine"])
+    assert result.exit_code == 0
+
+
+def test_career_marine_output_contains_career_name() -> None:
+    with patch(
+        "cetools.cli.character.generate_career_character",
+        return_value=_make_marine_character(),
+    ):
+        result = runner.invoke(app, ["character", "generate", "--career", "Marine"])
+    assert "Marine" in result.stdout
+
+
+def test_career_marine_output_contains_valid_rank_title() -> None:
+    with patch(
+        "cetools.cli.character.generate_career_character",
+        return_value=_make_marine_character(),
+    ):
+        result = runner.invoke(app, ["character", "generate", "--career", "Marine"])
+    assert any(title in result.stdout for title in _MARINE_RANK_TITLES)
+
+
+def test_career_marine_no_drafted_marker() -> None:
+    with patch(
+        "cetools.cli.character.generate_career_character",
+        return_value=_make_marine_character(),
+    ):
+        result = runner.invoke(app, ["character", "generate", "--career", "Marine"])
+    assert "(Drafted)" not in result.stdout
+
+
+# --- T007: Marine case-insensitive input ---
+
+
+def test_career_marine_lowercase_exits_0() -> None:
+    with patch(
+        "cetools.cli.character.generate_career_character",
+        return_value=_make_marine_character(),
+    ):
+        result = runner.invoke(app, ["character", "generate", "--career", "marine"])
+    assert result.exit_code == 0
+
+
+def test_career_marine_uppercase_exits_0() -> None:
+    with patch(
+        "cetools.cli.character.generate_career_character",
+        return_value=_make_marine_character(),
+    ):
+        result = runner.invoke(app, ["character", "generate", "--career", "MARINE"])
+    assert result.exit_code == 0
+
+
+# --- T009A: "Marines" (plural, near-miss) suggests Marine ---
+
+
+def test_career_marines_plural_did_you_mean_marine() -> None:
+    result = runner.invoke(app, ["character", "generate", "--career", "Marines"])
+    assert result.exit_code == 1
+    assert result.stderr.strip() == "Unknown career 'Marines'. Did you mean: Marine?"
