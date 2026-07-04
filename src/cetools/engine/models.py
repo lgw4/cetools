@@ -54,6 +54,12 @@ class Benefit:
     cash_amount: int | None = None
     material_name: str | None = None
 
+    def __post_init__(self) -> None:
+        if self.kind == "cash" and self.cash_amount is None:
+            raise ValueError("Benefit: kind 'cash' requires cash_amount")
+        if self.kind == "material" and self.material_name is None:
+            raise ValueError("Benefit: kind 'material' requires material_name")
+
 
 @dataclass
 class Term:

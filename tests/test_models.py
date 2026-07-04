@@ -1,4 +1,11 @@
-from cetools.engine.models import Character, GenerationFailure, characteristic_modifier
+import pytest
+
+from cetools.engine.models import (
+    Benefit,
+    Character,
+    GenerationFailure,
+    characteristic_modifier,
+)
 from cetools.engine.pseudohex import encode_upp
 
 MODIFIER_TABLE = [
@@ -137,3 +144,23 @@ def test_character_name_field_is_stored() -> None:
         name="Jane Doe",
     )
     assert char.name == "Jane Doe"
+
+
+def test_benefit_cash_requires_cash_amount() -> None:
+    with pytest.raises(ValueError, match="cash_amount"):
+        Benefit(kind="cash")
+
+
+def test_benefit_material_requires_material_name() -> None:
+    with pytest.raises(ValueError, match="material_name"):
+        Benefit(kind="material")
+
+
+def test_benefit_cash_with_amount_is_valid() -> None:
+    benefit = Benefit(kind="cash", cash_amount=5000)
+    assert benefit.cash_amount == 5000
+
+
+def test_benefit_material_with_name_is_valid() -> None:
+    benefit = Benefit(kind="material", material_name="Blade")
+    assert benefit.material_name == "Blade"
