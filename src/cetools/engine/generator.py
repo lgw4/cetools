@@ -46,6 +46,10 @@ def _dm(characteristics: dict[str, int], stat: str) -> int:
     return characteristic_modifier(characteristics[stat])
 
 
+def _check(roller: DiceRoller, characteristics: dict[str, int], stat: str, target: int) -> bool:
+    return roller.roll(6, count=2) + _dm(characteristics, stat) >= target
+
+
 def _roll_skill(
     career: Career,
     characteristics: dict[str, int],
@@ -184,8 +188,9 @@ def generate_character(
         skills[bg_skill] = skills.get(bg_skill, -1) + 1
 
     if not bypass_qualification:
-        qual_dm = _dm(characteristics, career.qualification_stat)
-        if roller.roll(6, count=2) + qual_dm < career.qualification_target:
+        if not _check(
+            roller, characteristics, career.qualification_stat, career.qualification_target
+        ):
             return GenerationFailure(reason=f"{career.name} enlistment failed")
 
     rank = 0
@@ -208,8 +213,7 @@ def generate_character(
                     skills[skill_name] = 0
                 skills_gained_this_term.append(skill_name)
 
-        surv_dm = _dm(characteristics, career.survival_stat)
-        if roller.roll(6, count=2) + surv_dm < career.survival_target:
+        if not _check(roller, characteristics, career.survival_stat, career.survival_target):
             term_history.append(
                 Term(
                     number=term_num,
@@ -232,14 +236,14 @@ def generate_character(
             and career.commission_target is not None
         ):
             commission_attempted = True
-            comm_dm = _dm(characteristics, career.commission_stat)
-            if roller.roll(6, count=2) + comm_dm >= career.commission_target:
+            if _check(roller, characteristics, career.commission_stat, career.commission_target):
                 rank = 1
                 commissioned_this_term = True
                 _grant_rank_bonus(career.ranks[rank], characteristics, skills)
                 if career.advancement_stat is not None and career.advancement_target is not None:
-                    adv_dm = _dm(characteristics, career.advancement_stat)
-                    if roller.roll(6, count=2) + adv_dm >= career.advancement_target:
+                    if _check(
+                        roller, characteristics, career.advancement_stat, career.advancement_target
+                    ):
                         if rank < 6:
                             rank += 1
                             promoted_this_term = True
@@ -251,8 +255,7 @@ def generate_character(
             and career.advancement_stat is not None
             and career.advancement_target is not None
         ):
-            adv_dm = _dm(characteristics, career.advancement_stat)
-            if roller.roll(6, count=2) + adv_dm >= career.advancement_target:
+            if _check(roller, characteristics, career.advancement_stat, career.advancement_target):
                 if rank < 6:
                     rank += 1
                     promoted_this_term = True

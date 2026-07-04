@@ -5,6 +5,7 @@ from cetools.engine.careers.scout import SCOUT_CAREER
 from cetools.engine.generator import (
     _apply_material_benefit,
     _apply_skill_entry,
+    _check,
     _muster_out,
     draft_character,
     generate_career_character,
@@ -13,6 +14,25 @@ from cetools.engine.generator import (
 )
 from cetools.engine.models import Character, GenerationFailure
 from conftest import ConstantRoller, SequenceRoller, SmartRoller
+
+# --- Check helper ---
+
+
+def test_check_succeeds_when_roll_plus_modifier_meets_target() -> None:
+    # ConstantRoller(6): 2D6=6, Intelligence=8 → dm=0 → 6+0=6 >= target 6
+    assert _check(ConstantRoller(6), {"Intelligence": 8}, "Intelligence", 6) is True
+
+
+def test_check_fails_when_roll_plus_modifier_below_target() -> None:
+    # ConstantRoller(5): 2D6=5, Intelligence=8 → dm=0 → 5+0=5 < target 6
+    assert _check(ConstantRoller(5), {"Intelligence": 8}, "Intelligence", 6) is False
+
+
+def test_check_applies_characteristic_modifier() -> None:
+    # ConstantRoller(4): 2D6=4, Intelligence=12 → dm=+2 → 4+2=6 >= target 6
+    # Without the modifier, 4 < 6 would fail.
+    assert _check(ConstantRoller(4), {"Intelligence": 12}, "Intelligence", 6) is True
+
 
 # --- Enlistment ---
 
