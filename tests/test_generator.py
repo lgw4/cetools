@@ -305,6 +305,12 @@ def test_apply_stat_boost_returns_false_for_plain_skill_name() -> None:
     assert characteristics["Strength"] == 7
 
 
+def test_apply_stat_boost_returns_true_for_unknown_abbreviation_without_applying() -> None:
+    characteristics = {"Strength": 7}
+    assert _apply_stat_boost("+1 Xyz", characteristics) is True
+    assert characteristics == {"Strength": 7}
+
+
 # --- Characteristic cap at 33 ---
 
 

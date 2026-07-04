@@ -70,6 +70,7 @@ def _roll_skill(
 
 
 def _apply_stat_boost(name: str, characteristics: dict[str, int]) -> bool:
+    """Return True if `name` is a "+1 X" entry, whether or not X is a known stat."""
     if not name.startswith("+1 "):
         return False
     stat = STAT_ABBREV.get(name[3:])
