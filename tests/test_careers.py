@@ -4,29 +4,13 @@ import os
 from cetools.engine.careers.navy import NAVY_CAREER
 from cetools.engine.generator import generate_character
 from cetools.engine.models import Character, GenerationFailure
-
-
-class _ConstantRoller:
-    def __init__(self, value: int) -> None:
-        self._value = value
-
-    def roll(self, sides: int, count: int = 1) -> int:
-        return self._value
-
-
-class _SmartRoller:
-    def __init__(self, two_dice_value: int, one_die_value: int) -> None:
-        self._two = two_dice_value
-        self._one = one_die_value
-
-    def roll(self, sides: int, count: int = 1) -> int:
-        return self._two if count >= 2 else self._one
+from conftest import ConstantRoller, SmartRoller
 
 
 def test_extensibility_stub_career_returns_character_or_failure() -> None:
     """A non-Navy Career passes through generate_character unchanged."""
     stub = dataclasses.replace(NAVY_CAREER, name="Scout")
-    roller = _SmartRoller(two_dice_value=12, one_die_value=1)
+    roller = SmartRoller(two_dice_value=12, one_die_value=1)
     result = generate_character(stub, roller=roller)
     assert isinstance(result, (Character, GenerationFailure))
 
@@ -34,7 +18,7 @@ def test_extensibility_stub_career_returns_character_or_failure() -> None:
 def test_extensibility_failure_path_with_stub_career() -> None:
     """A stub career with always-low rolls triggers enlistment failure."""
     stub = dataclasses.replace(NAVY_CAREER, name="Scout")
-    roller = _ConstantRoller(1)
+    roller = ConstantRoller(1)
     result = generate_character(stub, roller=roller)
     assert isinstance(result, GenerationFailure)
 
@@ -42,7 +26,7 @@ def test_extensibility_failure_path_with_stub_career() -> None:
 def test_extensibility_result_uses_stub_career_name() -> None:
     """Character or failure reason reflects the stub career name, not 'Navy'."""
     stub = dataclasses.replace(NAVY_CAREER, name="Scout")
-    roller = _ConstantRoller(1)
+    roller = ConstantRoller(1)
     result = generate_character(stub, roller=roller)
     assert isinstance(result, GenerationFailure)
     assert "Scout" in result.reason
@@ -52,7 +36,7 @@ def test_extensibility_result_uses_stub_career_name() -> None:
 def test_extensibility_success_character_career_name() -> None:
     """Successful generation reflects the stub career name."""
     stub = dataclasses.replace(NAVY_CAREER, name="Scout")
-    roller = _SmartRoller(two_dice_value=12, one_die_value=1)
+    roller = SmartRoller(two_dice_value=12, one_die_value=1)
     result = generate_character(stub, roller=roller)
     assert isinstance(result, Character)
     assert result.career == "Scout"

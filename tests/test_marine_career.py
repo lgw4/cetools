@@ -2,6 +2,7 @@ from cetools.engine.careers.marine import MARINE_CAREER
 from cetools.engine.dice import RandomDiceRoller
 from cetools.engine.generator import generate_career_character, generate_character
 from cetools.engine.models import Character, GenerationFailure
+from conftest import SequenceRoller, SmartRoller
 
 _MARINE_RANK_TITLES = {
     "Trooper",
@@ -180,33 +181,6 @@ def test_generate_career_character_marine_100_runs_no_unhandled_exceptions() -> 
 # US2 (Phase 4): commission, advancement, rank cap, bonus-skill retention,
 # rank-based mustering-out bonus rolls
 # ---------------------------------------------------------------------------
-
-
-class SequenceRoller:
-    """Returns values from a sequence, then falls back to a default."""
-
-    def __init__(self, values: list[int], default: int = 6):
-        self._values = list(values)
-        self._pos = 0
-        self._default = default
-
-    def roll(self, sides: int, count: int = 1) -> int:
-        if self._pos < len(self._values):
-            val = self._values[self._pos]
-            self._pos += 1
-            return val
-        return self._default
-
-
-class SmartRoller:
-    """Returns one value for 2-dice rolls (checks) and another for 1-die rolls (tables)."""
-
-    def __init__(self, two_dice_value: int, one_die_value: int):
-        self._two = two_dice_value
-        self._one = one_die_value
-
-    def roll(self, sides: int, count: int = 1) -> int:
-        return self._two if count >= 2 else self._one
 
 
 # All stats = 7 → characteristic_modifier(7) = 0 for every check, so each 2D6

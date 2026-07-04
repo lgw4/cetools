@@ -1,6 +1,7 @@
 """Tests for AEROSPACE_CAREER data fields and behavior (US1, US2)."""
 
 from cetools.engine.careers.base import RankEntry
+from conftest import ConstantRoller, SequenceRoller
 
 # ---------------------------------------------------------------------------
 # T002 — Qualification, survival, commission, advancement, reenlistment fields
@@ -274,13 +275,7 @@ def test_aerospace_commission_roll_success_advances_to_rank_1() -> None:
     from cetools.engine.generator import generate_character
     from cetools.engine.models import Character
 
-    class _CommissionSuccessRoller:
-        """Always passes qualification, survival, commission, advancement."""
-
-        def roll(self, sides: int, count: int = 1) -> int:
-            return 12
-
-    result = generate_character(AEROSPACE_CAREER, roller=_CommissionSuccessRoller())
+    result = generate_character(AEROSPACE_CAREER, roller=ConstantRoller(12))
     # With all rolls succeeding, character should be commissioned (rank >= 1)
     if isinstance(result, Character):
         assert result.rank >= 1
@@ -301,22 +296,12 @@ def test_aerospace_commission_roll_failure_stays_at_rank_0() -> None:
         "Social Standing": 7,
     }
 
-    class _NoCommissionRoller:
-        """Passes survival but fails commission/advancement/reenlistment."""
-
-        def __init__(self) -> None:
-            self._call = 0
-
-        def roll(self, sides: int, count: int = 1) -> int:
-            self._call += 1
-            # Survival (Dex 5): pass with 12
-            # Commission (Edu 6): fail with 1
-            # Reenlistment (5): fail after 1 term with 1
-            return 12 if self._call == 1 else 1
-
+    # Survival (Dex 5): pass with 12
+    # Commission (Edu 6): fail with 1
+    # Reenlistment (5): fail after 1 term with 1
     result = generate_character(
         AEROSPACE_CAREER,
-        roller=_NoCommissionRoller(),
+        roller=SequenceRoller([12], default=1),
         preset_characteristics=_PRESET,
         bypass_qualification=True,
     )
@@ -330,11 +315,7 @@ def test_aerospace_advancement_increments_rank() -> None:
     from cetools.engine.generator import generate_character
     from cetools.engine.models import Character
 
-    class _AlwaysPassRoller:
-        def roll(self, sides: int, count: int = 1) -> int:
-            return 12
-
-    result = generate_character(AEROSPACE_CAREER, roller=_AlwaysPassRoller())
+    result = generate_character(AEROSPACE_CAREER, roller=ConstantRoller(12))
     if isinstance(result, Character):
         assert result.rank >= 1
 
@@ -364,11 +345,7 @@ def test_aerospace_rank_0_aircraft_applied_at_enlistment() -> None:
     from cetools.engine.generator import generate_character
     from cetools.engine.models import Character
 
-    class _AlwaysPassRoller:
-        def roll(self, sides: int, count: int = 1) -> int:
-            return 12
-
-    result = generate_character(AEROSPACE_CAREER, roller=_AlwaysPassRoller())
+    result = generate_character(AEROSPACE_CAREER, roller=ConstantRoller(12))
     if isinstance(result, Character):
         assert "Aircraft" in result.skills
 
@@ -379,11 +356,7 @@ def test_aerospace_rank_3_leadership_applied() -> None:
     from cetools.engine.generator import generate_character
     from cetools.engine.models import Character
 
-    class _AlwaysPassRoller:
-        def roll(self, sides: int, count: int = 1) -> int:
-            return 12
-
-    result = generate_character(AEROSPACE_CAREER, roller=_AlwaysPassRoller())
+    result = generate_character(AEROSPACE_CAREER, roller=ConstantRoller(12))
     if isinstance(result, Character):
         if result.rank >= 3:
             assert "Leadership" in result.skills
