@@ -91,6 +91,7 @@ def test_character_drafted_defaults_to_false() -> None:
         rank=0,
         rank_title="Scout",
         terms_served=1,
+        name="Jane Doe",
         skills={},
         benefits=[],
         pension=None,
@@ -109,6 +110,7 @@ def test_character_drafted_can_be_set_true() -> None:
         rank=0,
         rank_title="Scout",
         terms_served=1,
+        name="Jane Doe",
         skills={},
         benefits=[],
         pension=None,
@@ -116,3 +118,22 @@ def test_character_drafted_can_be_set_true() -> None:
         drafted=True,
     )
     assert char.drafted is True
+
+
+# T002 — Character.name field
+def test_character_name_field_is_stored() -> None:
+    char = Character(
+        characteristics={},
+        upp="000000",
+        age=18,
+        career="Scout",
+        rank=0,
+        rank_title="Scout",
+        terms_served=1,
+        skills={},
+        benefits=[],
+        pension=None,
+        terms=[],
+        name="Jane Doe",
+    )
+    assert char.name == "Jane Doe"

@@ -64,6 +64,16 @@ def test_character_upp_is_six_pseudohex_chars() -> None:
     assert "O" not in result.upp
 
 
+# --- Name generation (US2) ---
+
+
+def test_generated_character_has_non_empty_two_word_name() -> None:
+    result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 1))
+    assert isinstance(result, Character)
+    assert result.name
+    assert len(result.name.split(" ")) >= 2
+
+
 # --- Survival failure ---
 
 

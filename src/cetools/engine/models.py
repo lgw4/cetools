@@ -74,6 +74,7 @@ class Character:
     rank: int
     rank_title: str
     terms_served: int
+    name: str
     skills: dict[str, int]
     benefits: list[Benefit]
     pension: int | None
