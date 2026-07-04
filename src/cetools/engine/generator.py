@@ -12,6 +12,7 @@ from cetools.engine.models import (
     Term,
     characteristic_modifier,
 )
+from cetools.engine.names import generate_name
 from cetools.engine.pseudohex import encode_upp
 
 _PHYSICAL_STATS = ("Strength", "Dexterity", "Endurance")
@@ -302,6 +303,7 @@ def generate_character(
                 break
 
     benefits = _muster_out(career, terms_served, rank, skills, characteristics, roller)
+    name = generate_name(roller)
 
     return Character(
         characteristics=characteristics,
@@ -311,6 +313,7 @@ def generate_character(
         rank=rank,
         rank_title=career.ranks[rank].title,
         terms_served=terms_served,
+        name=name,
         skills=skills,
         benefits=benefits,
         pension=_pension(terms_served),

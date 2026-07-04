@@ -21,6 +21,7 @@ _SCOUT_CHARACTER = Character(
     rank=0,
     rank_title="Scout",
     terms_served=1,
+    name="Jane Doe",
     skills={"Piloting": 1, "Navigation": 0},
     benefits=[Benefit(kind="cash", cash_amount=1000)],
     pension=0,
@@ -47,6 +48,7 @@ def _make_character(drafted: bool = False) -> Character:
         rank=6,
         rank_title="Commodore",
         terms_served=7,
+        name="Jane Doe",
         skills={"Navigation": 2, "Zero-G": 1},
         benefits=[Benefit(kind="cash", cash_amount=10000)],
         pension=14000,
@@ -125,20 +127,20 @@ def test_failure_exit_code_propagated_from_generation_failure() -> None:
 # --- T018: CLI draft default ---
 
 
-def test_cli_no_career_generates_drafted_character() -> None:
+def test_cli_no_career_generates_character_successfully() -> None:
     drafted_char = _make_character(drafted=True)
     with patch("cetools.cli.character.draft_character", return_value=drafted_char):
         result = runner.invoke(app, ["character", "generate"])
     assert result.exit_code == 0
-    assert "(Drafted)" in result.stdout
+    assert "(Drafted)" not in result.stdout
 
 
-def test_cli_no_career_career_line_contains_drafted() -> None:
+def test_cli_no_career_career_line_omits_drafted() -> None:
     drafted_char = _make_character(drafted=True)
     with patch("cetools.cli.character.draft_character", return_value=drafted_char):
         result = runner.invoke(app, ["character", "generate"])
     career_line = next(ln for ln in result.stdout.splitlines() if "Navy" in ln)
-    assert "(Drafted)" in career_line
+    assert "(Drafted)" not in career_line
 
 
 # --- T022: Named --career paths ---
@@ -264,6 +266,7 @@ def _make_aerospace_character() -> "Character":
         rank=1,
         rank_title="Flight Officer",
         terms_served=1,
+        name="Jane Doe",
         skills={"Aircraft": 1, "Electronics": 0},
         benefits=[Benefit(kind="cash", cash_amount=1000)],
         pension=0,
@@ -444,6 +447,7 @@ def _make_marine_character() -> Character:
         rank=0,
         rank_title="Trooper",
         terms_served=1,
+        name="Jane Doe",
         skills={"Zero-G": 1, "Gun Combat": 0},
         benefits=[Benefit(kind="cash", cash_amount=1000)],
         pension=0,
