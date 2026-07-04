@@ -49,12 +49,6 @@ def characteristic_modifier(score: int) -> int:
 
 
 @dataclass
-class Skill:
-    name: str
-    level: int
-
-
-@dataclass
 class Benefit:
     kind: Literal["cash", "material"]
     cash_amount: int | None = None
