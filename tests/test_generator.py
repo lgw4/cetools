@@ -5,6 +5,7 @@ from cetools.engine.careers.scout import SCOUT_CAREER
 from cetools.engine.generator import (
     _apply_material_benefit,
     _apply_skill_entry,
+    _apply_stat_boost,
     _check,
     _muster_out,
     draft_character,
@@ -287,6 +288,27 @@ def test_generate_character_accepts_any_career_without_navy_hardcoding() -> None
     stub_career = dataclasses.replace(NAVY_CAREER, name="Scout")
     result = generate_character(stub_career, roller=SmartRoller(10, 1))
     assert isinstance(result, (Character, GenerationFailure))
+
+
+# --- Stat boost helper ---
+
+
+def test_apply_stat_boost_applies_boost_and_returns_true() -> None:
+    characteristics = {"Strength": 7}
+    assert _apply_stat_boost("+1 Str", characteristics) is True
+    assert characteristics["Strength"] == 8
+
+
+def test_apply_stat_boost_returns_false_for_plain_skill_name() -> None:
+    characteristics = {"Strength": 7}
+    assert _apply_stat_boost("Melee Combat", characteristics) is False
+    assert characteristics["Strength"] == 7
+
+
+def test_apply_stat_boost_returns_true_for_unknown_abbreviation_without_applying() -> None:
+    characteristics = {"Strength": 7}
+    assert _apply_stat_boost("+1 Xyz", characteristics) is True
+    assert characteristics == {"Strength": 7}
 
 
 # --- Characteristic cap at 33 ---

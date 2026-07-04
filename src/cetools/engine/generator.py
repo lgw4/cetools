@@ -69,14 +69,20 @@ def _roll_skill(
     return entry
 
 
+def _apply_stat_boost(name: str, characteristics: dict[str, int]) -> bool:
+    """Return True if `name` is a "+1 X" entry, whether or not X is a known stat."""
+    if not name.startswith("+1 "):
+        return False
+    stat = STAT_ABBREV.get(name[3:])
+    if stat:
+        characteristics[stat] = min(33, characteristics.get(stat, 0) + 1)
+    return True
+
+
 def _apply_skill_entry(
     entry: str, characteristics: dict[str, int], skills: dict[str, int]
 ) -> None:
-    if entry.startswith("+1 "):
-        full_name = STAT_ABBREV.get(entry[3:])
-        if full_name:
-            characteristics[full_name] = min(33, characteristics.get(full_name, 0) + 1)
-    else:
+    if not _apply_stat_boost(entry, characteristics):
         skills[entry] = skills.get(entry, -1) + 1
 
 
@@ -149,10 +155,7 @@ def _muster_out(
 def _apply_material_benefit(
     name: str, characteristics: dict[str, int], skills: dict[str, int]
 ) -> None:
-    if name.startswith("+1 "):
-        stat = STAT_ABBREV.get(name[3:])
-        if stat:
-            characteristics[stat] = min(33, characteristics.get(stat, 0) + 1)
+    _apply_stat_boost(name, characteristics)
 
 
 def _pension(terms_served: int) -> int | None:
