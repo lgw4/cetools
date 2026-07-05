@@ -67,7 +67,7 @@ cetools character generate --career "Aerospace System Defense"
 - Cash: 1,000 / 5,000 / 10,000 / 20,000 / 50,000 Cr
 - Material: Low Passage, +1 Edu, Weapon, Mid Passage, High Passage, +1 Soc
 
-No `Explorer's Society` or `Courier Vessel` (those are Scout-only).
+No `Explorers' Society` or `Courier Vessel` (those are Scout-only).
 
 ---
 

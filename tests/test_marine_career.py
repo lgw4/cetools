@@ -150,12 +150,12 @@ def test_marine_material_benefits_content() -> None:
         "Mid Passage",
         "+1 Soc",
         "High Passage",
-        "Explorer's Society",
+        "Explorers' Society",
     )
 
 
 def test_marine_material_benefit_explorers_society_spelling() -> None:
-    assert MARINE_CAREER.material_benefits[6] == "Explorer's Society"
+    assert MARINE_CAREER.material_benefits[6] == "Explorers' Society"
 
 
 def test_marine_benefit_tables_have_seven_entries() -> None:

@@ -38,7 +38,7 @@ Fully-populated character:
 Commodore Bruce Ayala	7A6B85	Age 46
 Navy (7 terms)	Cr80,000
 Engineering-2, Gunnery-1, Navigation-2, Tactics-1, Zero-G-1
-High Passage, Explorer's Society
+High Passage, Explorers' Society
 ```
 
 No cash benefits, no material benefits, no skills:

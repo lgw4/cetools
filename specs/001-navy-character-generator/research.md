@@ -24,7 +24,7 @@ The following terms are defined by the SRD at the Introduction page and MUST be 
 | Skill | (none) | Skills are always expressed as Name-Level (e.g., Navigation-1) |
 | Universal Personality Profile | UPP | "character string", "stat block" |
 | Homeworld | (none) | "home planet", "birth world" |
-| Explorer's Society | (none) | Note: "Explorer's Society" not "Explorer's Society" |
+| Explorers' Society | (none) | Canonical SRD term (plural possessive); do not use "Explorer's Society" |
 
 **Pseudo-hexadecimal notation** (SRD canonical description): "The Cepheus Engine uses a form of pseudo-hexadecimal notation as a type of shorthand in noting specific values of characteristic scores, world statistics, drive type designations and similar design elements. The pseudohexadecimal notation proceeds as normal for values from 0 to 15, but extends beyond F for 15, with G for 16, etc. The Cepheus Engine skips the use of the letters I and O, because they might be mistaken for the numbers 1 and 0."
 
@@ -238,7 +238,7 @@ Both tables have 7 rows. Row 7 is reachable via high rank or Gambling skill DM.
 | 4 | Mid Passage |
 | 5 | +1 Soc |
 | 6 | High Passage |
-| 7 | Explorer's Society |
+| 7 | Explorers' Society |
 
 ### Aging Table
 

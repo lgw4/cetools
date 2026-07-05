@@ -50,7 +50,7 @@ SCOUT_CAREER = Career(
         "+1 Edu",
         "Weapon",
         "Mid Passage",
-        "Explorer's Society",
+        "Explorers' Society",
         "Courier Vessel",
     ),
 )

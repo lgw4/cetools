@@ -39,7 +39,7 @@ and includes skills drawn from the Marine skill tables.
 
 2. **Given** a character who survived all terms as a Marine, **When** mustering out, **Then**
    benefits are drawn from the Marine cash table (1,000–50,000 Cr) and material table (Low
-   Passage, +1 Edu, Weapon, Mid Passage, +1 Soc, High Passage, Explorer's Society).
+   Passage, +1 Edu, Weapon, Mid Passage, +1 Soc, High Passage, Explorers' Society).
 
 3. **Given** a character who failed the survival roll as a Marine, **When** the generator
    handles the result, **Then** the character is processed according to the existing
@@ -190,9 +190,9 @@ Marine career data.
   | 4 | 10,000 | Mid Passage |
   | 5 | 20,000 | +1 Soc |
   | 6 | 50,000 | High Passage |
-  | 7 | 50,000 | Explorer's Society |
+  | 7 | 50,000 | Explorers' Society |
 
-  The result-7 material benefit MUST use the exact string `Explorer's Society` (singular
+  The result-7 material benefit MUST use the exact string `Explorers' Society` (plural
   possessive), matching the spelling already established for the same benefit on the Scout
   career's material table, for consistency across the codebase.
 
@@ -307,9 +307,9 @@ Marine career data.
   previously held ranks, and is generic to all careers — no Marine-specific engine change is
   needed for a commissioned Marine officer to retain the rank 0 Zero-G-1 bonus skill (FR-013).
 
-- The material benefit "Explorer's Society" follows the exact spelling already established for
-  the Scout career's equivalent benefit, per prior SRD-fidelity clarification, rather than the
-  alternate "Explorers' Society" phrasing that also appears in SRD source material.
+- The material benefit "Explorers' Society" follows the exact spelling already established for
+  the Scout career's equivalent benefit, per the SRD Important Terms definition (plural
+  possessive), rather than the singular "Explorer's Society" phrasing used in earlier drafts.
 
 - The draft table is expanded by exactly one entry (roll 2) in this feature. The remaining
   unimplemented career slots (Maritime System Defense at roll 3, Surface System Defense at

@@ -70,7 +70,7 @@ MARINE_CAREER = Career(
         "Mid Passage",
         "+1 Soc",
         "High Passage",
-        "Explorer's Society",
+        "Explorers' Society",
     ),
 )
 ```
@@ -91,7 +91,7 @@ MARINE_CAREER = Career(
 | `ranks[0].bonus_skills` | `("Zero-G",)` | FR-003 — SRD "Zero-G-1" at Trooper; bare name + engine-applied level 1, matching `NAVY_CAREER.ranks[0]` convention |
 | `ranks[3].bonus_skills` | `("Tactics",)` | FR-003 — SRD "Tactics-1" at Major |
 | `material_benefits[4]` | `"+1 Soc"` | FR-005 — roll 5 = +1 Soc (matches Navy's roll-5 "+1 Soc"; differs from Aerospace's roll-5 "Weapon") |
-| `material_benefits[6]` | `"Explorer's Society"` | FR-005 — exact spelling matches `SCOUT_CAREER.material_benefits[4]`, not the "Explorers' Society" variant |
+| `material_benefits[6]` | `"Explorers' Society"` | FR-005 — exact spelling (plural possessive) matches `SCOUT_CAREER.material_benefits[4]`; supersedes the singular "Explorer's Society" spelling used in earlier drafts |
 
 ## Registry Change
 

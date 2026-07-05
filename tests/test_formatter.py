@@ -30,7 +30,7 @@ def _make_full_character(mishap: MishapOutcome | None = None, debt: int = 0) -> 
             Benefit(kind="cash", cash_amount=20000),
             Benefit(kind="cash", cash_amount=10000),
             Benefit(kind="material", material_name="High Passage"),
-            Benefit(kind="material", material_name="Explorer's Society"),
+            Benefit(kind="material", material_name="Explorers' Society"),
         ],
         pension=14000,
         terms=[],
@@ -67,7 +67,7 @@ def test_full_character_matches_contract_example() -> None:
         "Commodore Bruce Ayala\t7A6B85\tAge 46\n"
         "Navy (7 terms)\tCr80,000\n"
         "Engineering-2, Gunnery-1, Navigation-2, Tactics-1, Zero-G-1\n"
-        "High Passage, Explorer's Society"
+        "High Passage, Explorers' Society"
     )
 
 
@@ -121,7 +121,7 @@ def test_equipment_line_present_only_when_material_benefits_exist() -> None:
     output = format_character(_make_full_character())
     lines = output.split("\n")
     assert len(lines) == 4
-    assert lines[3] == "High Passage, Explorer's Society"
+    assert lines[3] == "High Passage, Explorers' Society"
 
 
 def test_equipment_line_omitted_entirely_when_no_material_benefits() -> None:

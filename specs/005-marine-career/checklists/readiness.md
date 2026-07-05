@@ -71,7 +71,8 @@ measurable — not whether the eventual implementation works. Items ask "is this
       Spec §FR-005, Assumptions] — **Verified**: FR-005 states the rationale directly ("matching
       the spelling already established for the same benefit on the Scout career's material
       table"); cross-checked against scout.py — `SCOUT_CAREER.material_benefits[4] ==
-      "Explorer's Society"` confirms an exact match.
+      "Explorers' Society"` confirms an exact match (plural possessive, per the SRD Important
+      Terms definition; supersedes the singular spelling used in earlier drafts).
 - [x] CHK010 Is the roll-5 "+1 Soc" benefit's relationship to other careers' roll-5 benefits
       (matches Navy, differs from Aerospace) called out, so a reader won't assume all careers
       share a fixed roll-5 pattern? [Consistency, Data Model] — **Resolved**: data-model.md's
