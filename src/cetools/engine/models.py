@@ -72,6 +72,15 @@ class Term:
 
 
 @dataclass
+class MishapOutcome:
+    roll: int
+    discharge_type: Literal["honorable", "dishonorable", "medical", "none"]
+    imprisoned: bool
+    injury_reductions: dict[str, int]
+    injury_crisis: bool
+
+
+@dataclass
 class Character:
     characteristics: dict[str, int]
     upp: str
@@ -86,6 +95,8 @@ class Character:
     pension: int | None
     terms: list[Term]
     drafted: bool = False
+    mishap: MishapOutcome | None = None
+    debt: int = 0
 
 
 @dataclass

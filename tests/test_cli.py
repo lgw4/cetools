@@ -97,21 +97,21 @@ def test_enlistment_failure_stderr_nonempty():
 
 
 def test_survival_failure_exit_code_1():
-    failure = GenerationFailure(reason="Character died during term 2 survival check")
+    failure = GenerationFailure(reason="Marine enlistment failed")
     with patch("cetools.cli.character.draft_character", return_value=failure):
         result = runner.invoke(app, ["character", "generate"])
     assert result.exit_code == 1
 
 
 def test_survival_failure_stdout_empty():
-    failure = GenerationFailure(reason="Character died during term 2 survival check")
+    failure = GenerationFailure(reason="Marine enlistment failed")
     with patch("cetools.cli.character.draft_character", return_value=failure):
         result = runner.invoke(app, ["character", "generate"])
     assert result.stdout == ""
 
 
 def test_survival_failure_stderr_nonempty():
-    failure = GenerationFailure(reason="Character died during term 2 survival check")
+    failure = GenerationFailure(reason="Marine enlistment failed")
     with patch("cetools.cli.character.draft_character", return_value=failure):
         result = runner.invoke(app, ["character", "generate"])
     assert result.stderr.strip()

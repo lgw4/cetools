@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from cetools.engine import mishaps
 from cetools.engine.careers.base import Career
 from cetools.engine.careers.registry import CAREER_REGISTRY, DRAFT_TABLE
 from cetools.engine.dice import DiceRoller, RandomDiceRoller
@@ -9,6 +10,7 @@ from cetools.engine.models import (
     Benefit,
     Character,
     GenerationFailure,
+    MishapOutcome,
     Term,
     characteristic_modifier,
 )
@@ -204,6 +206,8 @@ def generate_character(
     terms_served = 0
     term_history: list[Term] = []
     mandatory_extra = False
+    mishap: MishapOutcome | None = None
+    debt = 0
 
     for _term_iter in range(_MAX_TERMS + 1):
         term_num = terms_served + 1
@@ -228,9 +232,12 @@ def generate_character(
                     skills_gained=skills_gained_this_term,
                 )
             )
-            return GenerationFailure(
-                reason=f"Character died during term {term_num} survival check"
-            )
+            mishap, mishap_debt = mishaps.resolve_survival_mishap(roller, characteristics)
+            debt += mishap_debt
+            age += 2
+            if mishap.imprisoned:
+                age += 4
+            break
 
         commission_attempted = False
 
@@ -302,7 +309,12 @@ def generate_character(
             if reenlist_roll < career.reenlistment_target:
                 break
 
-    benefits = _muster_out(career, terms_served, rank, skills, characteristics, roller)
+    if mishap is not None and mishap.discharge_type == "dishonorable":
+        benefits: list[Benefit] = []
+        pension = None
+    else:
+        benefits = _muster_out(career, terms_served, rank, skills, characteristics, roller)
+        pension = _pension(terms_served)
     name = generate_name(roller)
 
     return Character(
@@ -316,9 +328,11 @@ def generate_character(
         name=name,
         skills=skills,
         benefits=benefits,
-        pension=_pension(terms_served),
+        pension=pension,
         terms=term_history,
         drafted=drafted,
+        mishap=mishap,
+        debt=debt,
     )
 
 

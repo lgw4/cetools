@@ -4,6 +4,7 @@ from cetools.engine.models import (
     Benefit,
     Character,
     GenerationFailure,
+    MishapOutcome,
     characteristic_modifier,
 )
 from cetools.engine.pseudohex import encode_upp
@@ -164,3 +165,67 @@ def test_benefit_cash_with_amount_is_valid() -> None:
 def test_benefit_material_with_name_is_valid() -> None:
     benefit = Benefit(kind="material", material_name="Blade")
     assert benefit.material_name == "Blade"
+
+
+# T002 — MishapOutcome dataclass
+def test_mishap_outcome_stores_all_fields() -> None:
+    outcome = MishapOutcome(
+        roll=1,
+        discharge_type="none",
+        imprisoned=False,
+        injury_reductions={"Strength": 3},
+        injury_crisis=False,
+    )
+    assert outcome.roll == 1
+    assert outcome.discharge_type == "none"
+    assert outcome.imprisoned is False
+    assert outcome.injury_reductions == {"Strength": 3}
+    assert outcome.injury_crisis is False
+
+
+# T002 — Character.mishap / Character.debt fields
+def test_character_mishap_and_debt_default() -> None:
+    char = Character(
+        characteristics={},
+        upp="000000",
+        age=18,
+        career="Scout",
+        rank=0,
+        rank_title="Scout",
+        terms_served=1,
+        name="Jane Doe",
+        skills={},
+        benefits=[],
+        pension=None,
+        terms=[],
+    )
+    assert char.mishap is None
+    assert char.debt == 0
+
+
+def test_character_mishap_and_debt_can_be_set() -> None:
+    outcome = MishapOutcome(
+        roll=3,
+        discharge_type="honorable",
+        imprisoned=False,
+        injury_reductions={},
+        injury_crisis=False,
+    )
+    char = Character(
+        characteristics={},
+        upp="000000",
+        age=18,
+        career="Scout",
+        rank=0,
+        rank_title="Scout",
+        terms_served=1,
+        name="Jane Doe",
+        skills={},
+        benefits=[],
+        pension=None,
+        terms=[],
+        mishap=outcome,
+        debt=15000,
+    )
+    assert char.mishap is outcome
+    assert char.debt == 15000
