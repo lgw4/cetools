@@ -44,7 +44,7 @@ three existing test files
 
 | Principle | Status | Notes |
 |-----------|--------|-------|
-| §I SRD-Fidelity | PASS | All tables in FR-002–FR-005 match SRD exactly, cross-checked against `NAVY_CAREER`/`SCOUT_CAREER` conventions (e.g. `"Explorer's Society"` spelling). No deviations. |
+| §I SRD-Fidelity | PASS | All tables in FR-002–FR-005 match SRD exactly, cross-checked against `NAVY_CAREER`/`SCOUT_CAREER` conventions (e.g. `"Explorers' Society"` spelling). No deviations. |
 | §II Library-First | PASS | `MARINE_CAREER` lives in `engine/careers/marine.py`; no game logic enters CLI code. |
 | §III CLI Interface | PASS | Zero CLI changes required — `_CANONICAL_CAREERS`, the "did you mean" logic, and error formatting are all registry-derived and already generic. |
 | §IV Test-First | MANDATORY | All new/changed tests must go red before `marine.py`/`registry.py` are written; full suite green before PR. |
@@ -168,5 +168,6 @@ remains unambiguous once commissioning is factored in.
 `"aerospace system defense"`). The `--career` flag's existing
 `.strip().lower().replace("-", " ")` normalization resolves `"Marine"`, `"marine"`,
 `"MARINE"`, and `"marine"`-with-hyphens-if-any to this key unchanged (FR-007) — no CLI edit
-needed. Per FR-005, `material_benefits[6]` uses `"Explorer's Society"` (matching
-`SCOUT_CAREER.material_benefits[4]`), not the `"Explorers' Society"` variant.
+needed. Per FR-005, `material_benefits[6]` uses `"Explorers' Society"` (matching
+`SCOUT_CAREER.material_benefits[4]`) — the plural-possessive spelling, not the singular
+`"Explorer's Society"` variant used in earlier drafts.

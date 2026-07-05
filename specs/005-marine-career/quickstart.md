@@ -69,7 +69,7 @@ cetools character generate --career "Marine"
 
 **Expected**: Benefits section shows values drawn only from:
 - Cash: 1,000 / 5,000 / 10,000 / 20,000 / 50,000 Cr
-- Material: Low Passage, +1 Edu, Weapon, Mid Passage, +1 Soc, High Passage, Explorer's Society
+- Material: Low Passage, +1 Edu, Weapon, Mid Passage, +1 Soc, High Passage, Explorers' Society
 
 No material benefit from another career's table (e.g. no `Courier Vessel`, which is Scout-only).
 

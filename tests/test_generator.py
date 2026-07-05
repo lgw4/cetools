@@ -280,15 +280,15 @@ def test_rank_bonus_muster_rolls_applied() -> None:
 def test_material_benefit_row_7_reachable_at_rank_5_plus() -> None:
     # SmartRoller(10, 6): all 2D6 checks pass → rank 6 (Commodore), 7 terms served;
     # material_dm = 1 (rank >= 5). Each material benefit roll: 6 + 1 - 1 = 6 → index 6
-    # → material_benefits[6] = "Explorer's Society". Without the DM it would be index 5
+    # → material_benefits[6] = "Explorers' Society". Without the DM it would be index 5
     # (High Passage), so this confirms row 7 is reachable.
     result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 6))
     assert isinstance(result, Character)
     assert result.rank >= 5
     material_benefits = [b for b in result.benefits if b.kind == "material"]
     assert any(
-        b.material_name == "Explorer's Society" for b in material_benefits
-    ), "rank 5+ DM should make material benefit row 7 (Explorer's Society) reachable"
+        b.material_name == "Explorers' Society" for b in material_benefits
+    ), "rank 5+ DM should make material benefit row 7 (Explorers' Society) reachable"
 
 
 # --- Cash DM from Gambling skill ---
@@ -550,12 +550,12 @@ def test_generate_career_character_two_skill_rolls_per_term() -> None:
 
 
 def test_generate_career_character_material_roll_5_gives_explorers_society() -> None:
-    # SmartRoller(10, 5): 2D6=10 passes all checks; 1D6=5 → material idx=4 → "Explorer's Society"
+    # SmartRoller(10, 5): 2D6=10 passes all checks; 1D6=5 → material idx=4 → "Explorers' Society"
     # 7 terms, rank=0, material_dm=0 → 3 cash rolls then material rolls with roll=5
     result = generate_career_character(SCOUT_CAREER, roller=SmartRoller(10, 5))
     assert isinstance(result, Character)
     material_benefits = [b for b in result.benefits if b.kind == "material"]
-    assert any(b.material_name == "Explorer's Society" for b in material_benefits)
+    assert any(b.material_name == "Explorers' Society" for b in material_benefits)
 
 
 # --- T010a: Education < 8 restricts Scout skill rolls to 3 tables ---

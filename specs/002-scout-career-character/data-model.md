@@ -28,7 +28,7 @@ No new fields are added. All Scout-specific values fit the existing schema.
 | `advanced_education` | `tuple[str, ...]` | `("Advocate", "Computer", "Linguistics", "Medicine", "Navigation", "Tactics")` |
 | `ranks` | `tuple[RankEntry, ...]` | Single entry: `RankEntry(0, "Scout", ("Piloting",))` |
 | `cash_benefits` | `tuple[int, ...]` | `(1000, 5000, 10000, 10000, 20000, 50000, 50000)` |
-| `material_benefits` | `tuple[str, ...]` | `("Low Passage", "+1 Edu", "Weapon", "Mid Passage", "Explorer's Society", "Courier Vessel")` |
+| `material_benefits` | `tuple[str, ...]` | `("Low Passage", "+1 Edu", "Weapon", "Mid Passage", "Explorers' Society", "Courier Vessel")` |
 
 ### `RankEntry` (frozen dataclass — `src/cetools/engine/careers/base.py`)
 
@@ -130,4 +130,4 @@ CLI invocation
 - Basic training (term 1): all `service_skills` granted at level 0 via existing engine code.
 - Rank-0 bonus (`Piloting`): applied by `_grant_rank_bonus` before term 1. Since `Piloting` is in `service_skills`, basic training sets it to 0, then the rank bonus raises it to 1. Net result: `Piloting-1` after term 1 basic training, matching the SRD Pilot-1 outcome.
 - Skill table selection: `_roll_skill` selects from up to 4 tables (advanced education excluded when `Education < 8`). Scout always has 3 available tables minimum.
-- Material benefits: `Explorer's Society` and `Courier Vessel` are stored as `Benefit(kind="material", material_name=...)` with no mechanical effect applied (deferred per spec assumptions).
+- Material benefits: `Explorers' Society` and `Courier Vessel` are stored as `Benefit(kind="material", material_name=...)` with no mechanical effect applied (deferred per spec assumptions).

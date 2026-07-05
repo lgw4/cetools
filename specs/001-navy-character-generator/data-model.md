@@ -176,7 +176,7 @@ Career(
         RankEntry(6, "Commodore", ()),
     ),
     cash_benefits=(1000, 5000, 10000, 10000, 20000, 50000, 50000),
-    material_benefits=("Low Passage", "+1 Edu", "Weapon", "Mid Passage", "+1 Soc", "High Passage", "Explorer's Society"),
+    material_benefits=("Low Passage", "+1 Edu", "Weapon", "Mid Passage", "+1 Soc", "High Passage", "Explorers' Society"),
 )
 ```
 

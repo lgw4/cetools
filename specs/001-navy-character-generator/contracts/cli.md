@@ -50,7 +50,7 @@ Skills:
 
 Mustering-Out Benefits:
   Cash:     Cr50,000, Cr20,000, Cr10,000
-  Material: High Passage, +1 Edu, Explorer's Society, Mid Passage
+  Material: High Passage, +1 Edu, Explorers' Society, Mid Passage
 
 Retirement Pension: Cr14,000/year
 ```

@@ -44,7 +44,7 @@ All NEEDS CLARIFICATION items from the Technical Context have been resolved. Thi
 | 2 | Cr5,000 | +1 Edu |
 | 3 | Cr10,000 | Weapon |
 | 4 | Cr10,000 | Mid Passage |
-| 5 | Cr20,000 | Explorer's Society |
+| 5 | Cr20,000 | Explorers' Society |
 | 6 | Cr50,000 | Courier Vessel |
 | 7 | Cr50,000 | — (no 7th material entry per SRD) |
 

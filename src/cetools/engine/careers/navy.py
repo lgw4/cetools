@@ -60,6 +60,6 @@ NAVY_CAREER = Career(
         "Mid Passage",
         "+1 Soc",
         "High Passage",
-        "Explorer's Society",
+        "Explorers' Society",
     ),
 )

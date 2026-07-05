@@ -145,7 +145,7 @@ def test_navy_material_benefits_content() -> None:
         "Mid Passage",
         "+1 Soc",
         "High Passage",
-        "Explorer's Society",
+        "Explorers' Society",
     )
 
 
@@ -256,7 +256,7 @@ def test_scout_material_benefits() -> None:
         "+1 Edu",
         "Weapon",
         "Mid Passage",
-        "Explorer's Society",
+        "Explorers' Society",
         "Courier Vessel",
     )
 
