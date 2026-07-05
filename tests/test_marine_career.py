@@ -1,7 +1,7 @@
 from cetools.engine.careers.marine import MARINE_CAREER
 from cetools.engine.dice import RandomDiceRoller
 from cetools.engine.generator import generate_career_character, generate_character
-from cetools.engine.models import Character, GenerationFailure
+from cetools.engine.models import Character
 from conftest import SequenceRoller, SmartRoller
 
 _MARINE_RANK_TITLES = {
@@ -169,12 +169,9 @@ def test_marine_benefit_tables_have_seven_entries() -> None:
 def test_generate_career_character_marine_100_runs_no_unhandled_exceptions() -> None:
     for _ in range(100):
         result = generate_career_character(MARINE_CAREER, roller=RandomDiceRoller())
-        assert isinstance(result, (Character, GenerationFailure))
-        if isinstance(result, Character):
-            assert result.career == "Marine"
-            assert result.rank_title in _MARINE_RANK_TITLES
-        else:
-            assert "survival check" in result.reason
+        assert isinstance(result, Character)
+        assert result.career == "Marine"
+        assert result.rank_title in _MARINE_RANK_TITLES
 
 
 # ---------------------------------------------------------------------------

@@ -77,18 +77,105 @@ def test_generated_character_has_non_empty_two_word_name() -> None:
 # --- Survival failure ---
 
 
-def test_survival_fail_returns_generation_failure() -> None:
+def test_survival_fail_returns_character_with_mishap() -> None:
     # 6 characteristics (10 each) + 1 qualification (10) → pass enlistment
-    # then survival roll = 1 → 1 + Int_dm(10) = 1 + 1 = 2 < 5 → die in term 1
+    # then survival roll = 1 → 1 + Int_dm(10) = 1 + 1 = 2 < 5 → mishap in term 1
     roller = SequenceRoller([10] * 7 + [1], default=1)
     result = generate_character(NAVY_CAREER, roller=roller)
-    assert isinstance(result, GenerationFailure)
-    assert result.exit_code == 1
-    assert (
-        "term" in result.reason.lower()
-        or "killed" in result.reason.lower()
-        or "died" in result.reason.lower()
-    )
+    assert isinstance(result, Character)
+    assert result.mishap is not None
+    assert result.terms[-1].survived is False
+
+
+# --- T010: one integration test per SURVIVAL_MISHAPS_TABLE roll ---
+
+
+def test_mishap_roll_1_injury_no_discharge() -> None:
+    # 7 passing values (6 characteristics + qualification, all 10) then a failing
+    # survival roll (2), mishap-table roll (1), two injury rolls (6, 6 -> both land
+    # on injury row 6, "no permanent effect", so no candidate/amount roll follows).
+    roller = SequenceRoller([10] * 7 + [2, 1, 6, 6], default=6)
+    result = generate_character(NAVY_CAREER, roller=roller)
+    assert isinstance(result, Character)
+    assert result.mishap.roll == 1
+    assert result.mishap.discharge_type == "none"
+    assert result.mishap.imprisoned is False
+    assert result.mishap.injury_reductions == {}
+    assert result.mishap.injury_crisis is False
+    assert result.debt == 0
+    assert result.age == 20
+
+
+def test_mishap_roll_2_honorable_discharge() -> None:
+    roller = SequenceRoller([10] * 7 + [2, 2], default=6)
+    result = generate_character(NAVY_CAREER, roller=roller)
+    assert isinstance(result, Character)
+    assert result.mishap.roll == 2
+    assert result.mishap.discharge_type == "honorable"
+    assert result.mishap.imprisoned is False
+    assert result.debt == 0
+    assert result.age == 20
+
+
+def test_mishap_roll_3_honorable_discharge_with_legal_debt() -> None:
+    roller = SequenceRoller([10] * 7 + [2, 3], default=6)
+    result = generate_character(NAVY_CAREER, roller=roller)
+    assert isinstance(result, Character)
+    assert result.mishap.roll == 3
+    assert result.mishap.discharge_type == "honorable"
+    assert result.mishap.imprisoned is False
+    assert result.debt == 10_000
+    assert result.age == 20
+
+
+def test_mishap_roll_4_dishonorable_discharge_not_imprisoned() -> None:
+    roller = SequenceRoller([10] * 7 + [2, 4], default=6)
+    result = generate_character(NAVY_CAREER, roller=roller)
+    assert isinstance(result, Character)
+    assert result.mishap.roll == 4
+    assert result.mishap.discharge_type == "dishonorable"
+    assert result.mishap.imprisoned is False
+    assert result.debt == 0
+    assert result.age == 20
+
+
+def test_mishap_roll_5_dishonorable_discharge_imprisoned() -> None:
+    # Outcome 5 adds an extra 4 years for imprisonment on top of the mishap
+    # term's usual +2 (research.md D9): age == 18 + 2 + 4 == 24.
+    roller = SequenceRoller([10] * 7 + [2, 5], default=6)
+    result = generate_character(NAVY_CAREER, roller=roller)
+    assert isinstance(result, Character)
+    assert result.mishap.roll == 5
+    assert result.mishap.discharge_type == "dishonorable"
+    assert result.mishap.imprisoned is True
+    assert result.debt == 0
+    assert result.age == 24
+
+
+def test_mishap_roll_6_medical_discharge_with_injury() -> None:
+    # Mishap-table roll 6, single injury roll of 6 -> injury row 6, no effect.
+    roller = SequenceRoller([10] * 7 + [2, 6, 6], default=6)
+    result = generate_character(NAVY_CAREER, roller=roller)
+    assert isinstance(result, Character)
+    assert result.mishap.roll == 6
+    assert result.mishap.discharge_type == "medical"
+    assert result.mishap.imprisoned is False
+    assert result.mishap.injury_reductions == {}
+    assert result.mishap.injury_crisis is False
+    assert result.debt == 0
+    assert result.age == 20
+
+
+def test_draft_character_survival_failure_returns_character_not_failure() -> None:
+    # Proves FR-011: draft_character funnels through the same mishap-resolution
+    # path as generate_character/generate_career_character, never GenerationFailure.
+    # Draft roll 5 -> Scout; 6 characteristics of 10 qualify immediately
+    # (Intelligence 10 >= 6); survival roll 2 -> 2 + End_dm(10)=1 = 3 < 7 -> fails;
+    # mishap-table roll 2 -> honorable discharge, no injury.
+    roller = SequenceRoller([5, 10, 10, 10, 10, 10, 10, 2, 2], default=6)
+    result = draft_character(roller=roller)
+    assert isinstance(result, Character)
+    assert result.mishap is not None
 
 
 # --- 7-term cap ---
@@ -395,11 +482,11 @@ def test_preset_characteristics_are_used_not_rolled() -> None:
 
 def test_bypass_qualification_skips_enlistment() -> None:
     # ConstantRoller(1): qual_dm=-2, roll=1 → -1 < 6 → normally fails enlistment
-    # bypass_qualification=True must skip the enlistment check entirely
+    # bypass_qualification=True must skip the enlistment check entirely; the
+    # survival check then also fails (1 + -2 < 5), which now resolves via the
+    # mishap table instead of GenerationFailure.
     result = generate_character(NAVY_CAREER, roller=ConstantRoller(1), bypass_qualification=True)
-    # Result may be a survival failure but NOT an enlistment failure
-    if isinstance(result, GenerationFailure):
-        assert "enlist" not in result.reason.lower()
+    assert isinstance(result, Character)
 
 
 def test_hard_max_terms_prevents_forced_8th_term() -> None:
@@ -563,6 +650,120 @@ def test_draft_character_unimplemented_career_returns_failure() -> None:
         result = draft_character(roller=roller)
     assert isinstance(result, GenerationFailure)
     assert "merchant" in result.reason
+
+
+# --- T017: benefits/pension/debt matrix after 5+ completed terms (US3) ---
+
+_SCOUT_PRESET = {
+    "Strength": 10,
+    "Dexterity": 10,
+    "Endurance": 10,
+    "Intelligence": 10,
+    "Education": 10,
+    "Social Standing": 10,
+}
+
+
+def _five_completed_scout_terms() -> list[int]:
+    # Scout has no commission/advancement, so each term is: survival(2D6),
+    # 2 skill rolls (table+entry each), [aging(2D6) once age>=34], reenlist(2D6).
+    # Preset stats of 10 give Endurance dm +1 (survival target 7, reenlistment
+    # target 6) so a roll of 10 passes every check; 1D6=1 keeps skill rolls
+    # deterministic (harmless "+1 Str" stat boosts, not asserted on here).
+    no_aging_term = [10, 1, 1, 1, 1, 10]
+    aging_term = [10, 1, 1, 1, 1, 10, 10]  # terms 4-5: age reaches 34+
+    return no_aging_term * 3 + aging_term * 2
+
+
+def _generate_scout_mishap_after_five_terms(mishap_extra: list[int]) -> Character:
+    # Term 6's survival roll (value 1) fails: 1 + End_dm(10)=1 = 2 < target 7.
+    values = _five_completed_scout_terms() + [1] + mishap_extra
+    roller = SequenceRoller(values, default=6)
+    result = generate_character(
+        SCOUT_CAREER,
+        roller=roller,
+        preset_characteristics=_SCOUT_PRESET,
+        bypass_qualification=True,
+    )
+    assert isinstance(result, Character)
+    return result
+
+
+def test_mishap_outcome_1_preserves_benefits_and_pension_after_five_terms() -> None:
+    # Mishap-table roll 1, injury rolls (6, 6) -> injury row 6, no effect.
+    result = _generate_scout_mishap_after_five_terms([1, 6, 6])
+    assert result.terms_served == 5
+    assert len(result.benefits) == 5
+    assert result.pension is not None
+    assert result.debt == 0
+
+
+def test_mishap_outcome_2_preserves_benefits_and_pension_after_five_terms() -> None:
+    result = _generate_scout_mishap_after_five_terms([2])
+    assert result.terms_served == 5
+    assert len(result.benefits) == 5
+    assert result.pension is not None
+    assert result.debt == 0
+
+
+def test_mishap_outcome_3_preserves_benefits_and_pension_with_legal_debt() -> None:
+    result = _generate_scout_mishap_after_five_terms([3])
+    assert result.terms_served == 5
+    assert len(result.benefits) == 5
+    assert result.pension is not None
+    assert result.debt == 10_000
+
+
+def test_mishap_outcome_4_forfeits_benefits_and_pension_after_five_terms() -> None:
+    result = _generate_scout_mishap_after_five_terms([4])
+    assert result.terms_served == 5
+    assert result.benefits == []
+    assert result.pension is None
+
+
+def test_mishap_outcome_5_forfeits_benefits_and_pension_after_five_terms() -> None:
+    result = _generate_scout_mishap_after_five_terms([5])
+    assert result.terms_served == 5
+    assert result.benefits == []
+    assert result.pension is None
+
+
+def test_mishap_outcome_6_preserves_benefits_and_pension_after_five_terms() -> None:
+    # Mishap-table roll 6, single injury roll 6 -> injury row 6, no effect.
+    result = _generate_scout_mishap_after_five_terms([6, 6])
+    assert result.terms_served == 5
+    assert len(result.benefits) == 5
+    assert result.pension is not None
+    assert result.debt == 0
+
+
+# --- T019: mishap during a character's very first term (edge case) ---
+
+
+def _generate_scout_first_term_mishap(mishap_extra: list[int]) -> Character:
+    # Term 1's survival roll (value 1) fails immediately: no prior terms.
+    values = [1] + mishap_extra
+    roller = SequenceRoller(values, default=6)
+    result = generate_character(
+        SCOUT_CAREER,
+        roller=roller,
+        preset_characteristics=_SCOUT_PRESET,
+        bypass_qualification=True,
+    )
+    assert isinstance(result, Character)
+    return result
+
+
+@pytest.mark.parametrize(
+    "mishap_extra",
+    [[1, 6, 6], [2], [3], [4], [5], [6, 6]],
+    ids=["outcome1", "outcome2", "outcome3", "outcome4", "outcome5", "outcome6"],
+)
+def test_first_term_mishap_yields_no_benefits_or_pension(mishap_extra: list[int]) -> None:
+    result = _generate_scout_first_term_mishap(mishap_extra)
+    assert result.terms_served == 0
+    assert result.benefits == []
+    assert result.pension is None
 
 
 # --- T011: two skill rolls per term recorded in term history ---
