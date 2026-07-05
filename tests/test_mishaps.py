@@ -198,6 +198,24 @@ def test_injury_crisis_zeroing_two_stats_charges_only_one_debt() -> None:
     assert debt == 10_000
 
 
+# --- Regression: a stat already at 0 before this mishap's injury (e.g. from prior
+# aging) must not spuriously trigger a crisis or get "restored" ---
+
+
+def test_injury_on_already_zero_stat_does_not_trigger_crisis() -> None:
+    # Strength is already 0 (e.g. from prior _apply_aging) before this mishap's
+    # injury; injury roll=2 (primary_dice=1, secondary=0); candidate pick=1 ->
+    # Strength; 1D6 primary amount=3 -> Strength stays at 0 (not driven there by
+    # this injury), so no crisis should fire and the stat is left as-is.
+    characteristics = {"Strength": 0, "Dexterity": 8, "Endurance": 8}
+    roller = SequenceRoller([6, 2, 1, 3], default=6)
+    outcome, debt = resolve_survival_mishap(roller, characteristics)
+    assert outcome.injury_reductions == {"Strength": 3}
+    assert characteristics["Strength"] == 0
+    assert outcome.injury_crisis is False
+    assert debt == 0
+
+
 # --- T006(d): mutates characteristics in place ---
 
 

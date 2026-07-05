@@ -98,21 +98,25 @@ def resolve_survival_mishap(
     entry = SURVIVAL_MISHAPS_TABLE[mishap_roll - 1]
 
     injury_reductions: dict[str, int] = {}
+    zeroed_stats: list[str] = []
     if entry.injury_rolls > 0:
         if entry.injury_rolls == 1:
             injury_roll = roller.roll(6)
         else:
             injury_roll = min(roller.roll(6), roller.roll(6))
+        before = dict(characteristics)
         injury_reductions = _apply_injury(INJURY_TABLE[injury_roll - 1], characteristics, roller)
+        zeroed_stats = [
+            stat for stat in injury_reductions if before[stat] > 0 and characteristics[stat] <= 0
+        ]
 
     injury_crisis = False
     debt = 0
-    if injury_reductions and any(characteristics[stat] <= 0 for stat in injury_reductions):
+    if zeroed_stats:
         injury_crisis = True
         debt = roller.roll(6) * 10_000
-        for stat in injury_reductions:
-            if characteristics[stat] <= 0:
-                characteristics[stat] = 1
+        for stat in zeroed_stats:
+            characteristics[stat] = 1
 
     if entry.debt > 0:
         debt = entry.debt
