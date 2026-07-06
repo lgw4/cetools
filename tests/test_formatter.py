@@ -212,6 +212,36 @@ def test_us3_material_benefits_listed_by_name_in_order() -> None:
     assert lines[-1] == "Weapon, Travellers' Aid Society, Ship Share"
 
 
+def test_material_benefits_combine_repeated_names_with_count() -> None:
+    """Matches spec 008's worked example: singles keep their order, then any
+    repeated name is appended once as "Name x N", in first-occurrence order."""
+    character = _make_empty_character()
+    character.benefits = [
+        Benefit(kind="material", material_name="Weapon"),
+        Benefit(kind="material", material_name="+1 Edu"),
+        Benefit(kind="material", material_name="High Passage"),
+        Benefit(kind="material", material_name="Weapon"),
+        Benefit(kind="material", material_name="+1 Soc"),
+        Benefit(kind="material", material_name="Weapon"),
+    ]
+    output = format_character(character)
+    lines = output.split("\n")
+    assert lines[-1] == "+1 Edu, High Passage, +1 Soc, Weapon x 3"
+
+
+def test_material_benefits_multiple_repeated_names_ordered_by_first_occurrence() -> None:
+    character = _make_empty_character()
+    character.benefits = [
+        Benefit(kind="material", material_name="High Passage"),
+        Benefit(kind="material", material_name="Weapon"),
+        Benefit(kind="material", material_name="High Passage"),
+        Benefit(kind="material", material_name="Weapon"),
+    ]
+    output = format_character(character)
+    lines = output.split("\n")
+    assert lines[-1] == "High Passage x 2, Weapon x 2"
+
+
 # --- User Story 2: understand why a career ended early (Mishap line) ---
 
 
