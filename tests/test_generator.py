@@ -1,5 +1,6 @@
 import pytest
 
+from cetools.engine.careers.aerospace import AEROSPACE_CAREER
 from cetools.engine.careers.navy import NAVY_CAREER
 from cetools.engine.careers.scout import SCOUT_CAREER
 from cetools.engine.generator import (
@@ -8,6 +9,7 @@ from cetools.engine.generator import (
     _apply_stat_boost,
     _check,
     _muster_out,
+    _roll_material_benefit,
     draft_character,
     generate_career_character,
     generate_character,
@@ -311,6 +313,41 @@ def test_gambling_skill_grants_cash_dm_on_muster_out() -> None:
     assert len(with_dm) == 1
     assert without_dm[0].cash_amount == 20000
     assert with_dm[0].cash_amount == 50000
+
+
+# --- Explorers' Society: reroll on repeat ---
+
+
+def test_roll_material_benefit_grants_explorers_society_when_not_yet_granted() -> None:
+    # NAVY_CAREER.material_benefits[6] = "Explorers' Society". material_dm=1, so
+    # idx = clamp(roll + 1 - 1) = roll; ConstantRoller(6) -> idx 6.
+    name = _roll_material_benefit(NAVY_CAREER, 1, ConstantRoller(6), set())
+    assert name == "Explorers' Society"
+
+
+def test_roll_material_benefit_rerolls_once_when_already_granted() -> None:
+    # First die = 6 -> "Explorers' Society", but it's already granted, so it
+    # rerolls: second die = 3 -> idx 3 -> "Mid Passage".
+    roller = SequenceRoller([6, 3], default=6)
+    name = _roll_material_benefit(NAVY_CAREER, 1, roller, {"Explorers' Society"})
+    assert name == "Mid Passage"
+
+
+def test_roll_material_benefit_rerolls_repeatedly_until_non_duplicate() -> None:
+    # Three more 6s in a row (each still "Explorers' Society", already granted)
+    # before a 2 finally lands on idx 2 -> "Weapon".
+    roller = SequenceRoller([6, 6, 6, 2], default=6)
+    name = _roll_material_benefit(NAVY_CAREER, 1, roller, {"Explorers' Society"})
+    assert name == "Weapon"
+
+
+def test_roll_material_benefit_unaffected_for_career_without_explorers_society() -> None:
+    # AEROSPACE_CAREER.material_benefits[6] = "+1 Soc" (no "Explorers' Society" entry
+    # exists in this table at all), so the uniqueness check can never match —
+    # behavior is identical to before this feature, even when `granted_names`
+    # already contains that string. material_dm=1, so idx = clamp(6 + 1 - 1) = 6.
+    name = _roll_material_benefit(AEROSPACE_CAREER, 1, ConstantRoller(6), {"Explorers' Society"})
+    assert name == "+1 Soc"
 
 
 # --- Benefits non-empty ---

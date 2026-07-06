@@ -43,6 +43,7 @@ _RANK_BONUS_ROLLS = {4: 1, 5: 2, 6: 3}
 
 _MAX_TERMS = 7
 _MAX_CASH_ROLLS = 3
+_UNIQUE_MATERIAL_BENEFIT = "Explorers' Society"
 
 
 def _dm(characteristics: dict[str, int], stat: str) -> int:
@@ -153,6 +154,21 @@ def _muster_out(
             benefits.append(Benefit(kind="material", material_name=name))
 
     return benefits
+
+
+def _roll_material_benefit(
+    career: Career,
+    material_dm: int,
+    roller: DiceRoller,
+    granted_names: set[str],
+) -> str:
+    mat_max = len(career.material_benefits) - 1
+    while True:
+        idx = max(0, min(mat_max, roller.roll(6) + material_dm - 1))
+        name = career.material_benefits[idx]
+        if name == _UNIQUE_MATERIAL_BENEFIT and name in granted_names:
+            continue
+        return name
 
 
 def _apply_material_benefit(
