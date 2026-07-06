@@ -280,17 +280,47 @@ def test_rank_bonus_muster_rolls_applied() -> None:
 
 
 def test_material_benefit_row_7_reachable_at_rank_5_plus() -> None:
-    # SmartRoller(10, 6): all 2D6 checks pass → rank 6 (Commodore), 7 terms served;
-    # material_dm = 1 (rank >= 5). Each material benefit roll: 6 + 1 - 1 = 6 → index 6
-    # → material_benefits[6] = "Explorers' Society". Without the DM it would be index 5
-    # (High Passage), so this confirms row 7 is reachable.
-    result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 6))
-    assert isinstance(result, Character)
-    assert result.rank >= 5
-    material_benefits = [b for b in result.benefits if b.kind == "material"]
+    # Direct unit test of _muster_out (a full generate_character run with a
+    # fixed-value roller would hang once reroll-on-repeat is wired in below, since
+    # a fixed roller can never produce a "different" result). rank=5 -> material_dm=1,
+    # so idx = clamp(roll + 1 - 1) = roll. terms_served=2 + rank-5 bonus_rolls (2) = 4
+    # total rolls: 3 cash (cap) + 1 material. ConstantRoller(6): material die=6 ->
+    # idx=6 -> material_benefits[6] = "Explorers' Society". Without the rank-5+ DM,
+    # idx would clamp to 5 (High Passage), so this confirms row 7 is reachable.
+    result = _muster_out(
+        career=NAVY_CAREER,
+        terms_served=2,
+        rank=5,
+        skills={},
+        characteristics={},
+        roller=ConstantRoller(6),
+    )
+    assert len(result) == 4
+    material_benefits = [b for b in result if b.kind == "material"]
     assert any(
         b.material_name == "Explorers' Society" for b in material_benefits
     ), "rank 5+ DM should make material benefit row 7 (Explorers' Society) reachable"
+
+
+def test_muster_out_grants_explorers_society_once_and_rerolls_repeat() -> None:
+    # NAVY_CAREER.material_benefits[6] = "Explorers' Society". rank=5 -> material_dm=1,
+    # so idx = clamp(roll + 1 - 1) = roll. terms_served=3 + rank-5 bonus_rolls (2) = 5
+    # total rolls: 3 cash (any values) + 2 material.
+    # Material roll 1: die=6 -> idx 6 -> "Explorers' Society" (granted).
+    # Material roll 2: die=6 -> idx 6 -> "Explorers' Society" again, but it's already
+    # granted, so it rerolls: die=2 -> idx 2 -> "Weapon" (accepted).
+    roller = SequenceRoller([1, 1, 1, 6, 6, 2], default=6)
+    result = _muster_out(
+        career=NAVY_CAREER,
+        terms_served=3,
+        rank=5,
+        skills={},
+        characteristics={},
+        roller=roller,
+    )
+    assert len(result) == 5  # reroll must not add an extra roll (FR-008)
+    material = [b.material_name for b in result if b.kind == "material"]
+    assert material == ["Explorers' Society", "Weapon"]
 
 
 # --- Cash DM from Gambling skill ---
@@ -587,11 +617,23 @@ def test_generate_career_character_two_skill_rolls_per_term() -> None:
 
 
 def test_generate_career_character_material_roll_5_gives_explorers_society() -> None:
-    # SmartRoller(10, 5): 2D6=10 passes all checks; 1D6=5 → material idx=4 → "Explorers' Society"
-    # 7 terms, rank=0, material_dm=0 → 3 cash rolls then material rolls with roll=5
-    result = generate_career_character(SCOUT_CAREER, roller=SmartRoller(10, 5))
-    assert isinstance(result, Character)
-    material_benefits = [b for b in result.benefits if b.kind == "material"]
+    # Direct unit test of _muster_out (a full generate_career_character run with a
+    # fixed-value roller would hang once reroll-on-repeat is wired in, since a fixed
+    # roller can never produce a "different" result). rank=0 -> material_dm=0, so
+    # idx = clamp(roll + 0 - 1) = roll - 1. terms_served=4 + rank-0 bonus_rolls (0) = 4
+    # total rolls: 3 cash (cap) + 1 material. ConstantRoller(5): material die=5 -> idx=4 ->
+    # SCOUT_CAREER.material_benefits[4] = "Explorers' Society". This confirms row 5
+    # (idx 4) is reachable with a roll of 5 and no rank DM.
+    result = _muster_out(
+        career=SCOUT_CAREER,
+        terms_served=4,
+        rank=0,
+        skills={},
+        characteristics={},
+        roller=ConstantRoller(5),
+    )
+    assert len(result) == 4
+    material_benefits = [b for b in result if b.kind == "material"]
     assert any(b.material_name == "Explorers' Society" for b in material_benefits)
 
 

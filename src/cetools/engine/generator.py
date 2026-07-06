@@ -135,6 +135,7 @@ def _muster_out(
     total_rolls = terms_served + bonus_rolls
     cash_rolls_used = 0
     benefits: list[Benefit] = []
+    granted_material_names: set[str] = set()
 
     cash_dm = 1 if skills.get("Gambling", -1) >= 0 else 0
     material_dm = 1 if rank >= 5 else 0
@@ -147,10 +148,11 @@ def _muster_out(
             benefits.append(Benefit(kind="cash", cash_amount=amount))
             cash_rolls_used += 1
         else:
-            mat_max = len(career.material_benefits) - 1
-            idx = max(0, min(mat_max, roller.roll(6) + material_dm - 1))
-            name = career.material_benefits[idx]
+            name = _roll_material_benefit(
+                career, material_dm, roller, granted_material_names
+            )
             _apply_material_benefit(name, characteristics, skills)
+            granted_material_names.add(name)
             benefits.append(Benefit(kind="material", material_name=name))
 
     return benefits
