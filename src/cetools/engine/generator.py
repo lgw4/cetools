@@ -148,9 +148,7 @@ def _muster_out(
             benefits.append(Benefit(kind="cash", cash_amount=amount))
             cash_rolls_used += 1
         else:
-            name = _roll_material_benefit(
-                career, material_dm, roller, granted_material_names
-            )
+            name = _roll_material_benefit(career, material_dm, roller, granted_material_names)
             _apply_material_benefit(name, characteristics, skills)
             granted_material_names.add(name)
             benefits.append(Benefit(kind="material", material_name=name))
