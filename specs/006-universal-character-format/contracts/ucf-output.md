@@ -28,7 +28,7 @@ Where:
 | `terms_served` | `character.terms_served` | Integer |
 | `funds` | `sum(cash benefit amounts)` | Thousands-separated integer, `0` when no cash benefits |
 | `skill_list` | `character.skills` | `"<Name>-<Level>"` per entry, sorted alphabetically by name, joined `", "`; empty string when no skills (line still present) |
-| `equipment_list` | `character.benefits` where `kind == "material"` | `material_name` per entry, joined `", "`, in benefit-list order |
+| `equipment_list` | `character.benefits` where `kind == "material"` | Distinct `material_name` values: names occurring once first, in original first-occurrence order; then any name occurring 2+ times, rendered once as `"<Name> x <count>"`, also ordered by first occurrence; joined `", "` (see spec 008) |
 
 ## Examples
 

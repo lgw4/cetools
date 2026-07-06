@@ -1,10 +1,31 @@
-from cetools.engine.models import Character
+from cetools.engine.models import Benefit, Character
 
 _DISCHARGE_TEXT = {
     "honorable": "Honorably discharged",
     "medical": "Medically discharged",
     "none": "Injured in action",
 }
+
+
+def _combine_material_benefits(benefits: list[Benefit]) -> list[str]:
+    names = [b.material_name for b in benefits if b.kind == "material"]
+
+    counts: dict[str, int] = {}
+    first_index: dict[str, int] = {}
+    for i, name in enumerate(names):
+        counts[name] = counts.get(name, 0) + 1
+        first_index.setdefault(name, i)
+
+    singles = sorted(
+        (name for name, count in counts.items() if count == 1),
+        key=lambda name: first_index[name],
+    )
+    repeats = sorted(
+        (name for name, count in counts.items() if count > 1),
+        key=lambda name: first_index[name],
+    )
+
+    return singles + [f"{name} x {counts[name]}" for name in repeats]
 
 
 def _mishap_line(character: Character) -> str:
@@ -45,7 +66,7 @@ def format_character(character: Character) -> str:
 
     lines = [line1, line2, line3]
 
-    material_parts = [b.material_name for b in character.benefits if b.kind == "material"]
+    material_parts = _combine_material_benefits(character.benefits)
     if material_parts:
         lines.append(", ".join(material_parts))
 

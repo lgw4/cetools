@@ -1,5 +1,6 @@
 import pytest
 
+from cetools.engine.careers.aerospace import AEROSPACE_CAREER
 from cetools.engine.careers.navy import NAVY_CAREER
 from cetools.engine.careers.scout import SCOUT_CAREER
 from cetools.engine.generator import (
@@ -8,6 +9,7 @@ from cetools.engine.generator import (
     _apply_stat_boost,
     _check,
     _muster_out,
+    _roll_material_benefit,
     draft_character,
     generate_career_character,
     generate_character,
@@ -278,17 +280,47 @@ def test_rank_bonus_muster_rolls_applied() -> None:
 
 
 def test_material_benefit_row_7_reachable_at_rank_5_plus() -> None:
-    # SmartRoller(10, 6): all 2D6 checks pass → rank 6 (Commodore), 7 terms served;
-    # material_dm = 1 (rank >= 5). Each material benefit roll: 6 + 1 - 1 = 6 → index 6
-    # → material_benefits[6] = "Explorers' Society". Without the DM it would be index 5
-    # (High Passage), so this confirms row 7 is reachable.
-    result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 6))
-    assert isinstance(result, Character)
-    assert result.rank >= 5
-    material_benefits = [b for b in result.benefits if b.kind == "material"]
+    # Direct unit test of _muster_out (a full generate_character run with a
+    # fixed-value roller would hang once reroll-on-repeat is wired in below, since
+    # a fixed roller can never produce a "different" result). rank=5 -> material_dm=1,
+    # so idx = clamp(roll + 1 - 1) = roll. terms_served=2 + rank-5 bonus_rolls (2) = 4
+    # total rolls: 3 cash (cap) + 1 material. ConstantRoller(6): material die=6 ->
+    # idx=6 -> material_benefits[6] = "Explorers' Society". Without the rank-5+ DM,
+    # idx would clamp to 5 (High Passage), so this confirms row 7 is reachable.
+    result = _muster_out(
+        career=NAVY_CAREER,
+        terms_served=2,
+        rank=5,
+        skills={},
+        characteristics={},
+        roller=ConstantRoller(6),
+    )
+    assert len(result) == 4
+    material_benefits = [b for b in result if b.kind == "material"]
     assert any(
         b.material_name == "Explorers' Society" for b in material_benefits
     ), "rank 5+ DM should make material benefit row 7 (Explorers' Society) reachable"
+
+
+def test_muster_out_grants_explorers_society_once_and_rerolls_repeat() -> None:
+    # NAVY_CAREER.material_benefits[6] = "Explorers' Society". rank=5 -> material_dm=1,
+    # so idx = clamp(roll + 1 - 1) = roll. terms_served=3 + rank-5 bonus_rolls (2) = 5
+    # total rolls: 3 cash (any values) + 2 material.
+    # Material roll 1: die=6 -> idx 6 -> "Explorers' Society" (granted).
+    # Material roll 2: die=6 -> idx 6 -> "Explorers' Society" again, but it's already
+    # granted, so it rerolls: die=2 -> idx 2 -> "Weapon" (accepted).
+    roller = SequenceRoller([1, 1, 1, 6, 6, 2], default=6)
+    result = _muster_out(
+        career=NAVY_CAREER,
+        terms_served=3,
+        rank=5,
+        skills={},
+        characteristics={},
+        roller=roller,
+    )
+    assert len(result) == 5  # reroll must not add an extra roll (FR-008)
+    material = [b.material_name for b in result if b.kind == "material"]
+    assert material == ["Explorers' Society", "Weapon"]
 
 
 # --- Cash DM from Gambling skill ---
@@ -311,6 +343,41 @@ def test_gambling_skill_grants_cash_dm_on_muster_out() -> None:
     assert len(with_dm) == 1
     assert without_dm[0].cash_amount == 20000
     assert with_dm[0].cash_amount == 50000
+
+
+# --- Explorers' Society: reroll on repeat ---
+
+
+def test_roll_material_benefit_grants_explorers_society_when_not_yet_granted() -> None:
+    # NAVY_CAREER.material_benefits[6] = "Explorers' Society". material_dm=1, so
+    # idx = clamp(roll + 1 - 1) = roll; ConstantRoller(6) -> idx 6.
+    name = _roll_material_benefit(NAVY_CAREER, 1, ConstantRoller(6), set())
+    assert name == "Explorers' Society"
+
+
+def test_roll_material_benefit_rerolls_once_when_already_granted() -> None:
+    # First die = 6 -> "Explorers' Society", but it's already granted, so it
+    # rerolls: second die = 3 -> idx 3 -> "Mid Passage".
+    roller = SequenceRoller([6, 3], default=6)
+    name = _roll_material_benefit(NAVY_CAREER, 1, roller, {"Explorers' Society"})
+    assert name == "Mid Passage"
+
+
+def test_roll_material_benefit_rerolls_repeatedly_until_non_duplicate() -> None:
+    # Three more 6s in a row (each still "Explorers' Society", already granted)
+    # before a 2 finally lands on idx 2 -> "Weapon".
+    roller = SequenceRoller([6, 6, 6, 2], default=6)
+    name = _roll_material_benefit(NAVY_CAREER, 1, roller, {"Explorers' Society"})
+    assert name == "Weapon"
+
+
+def test_roll_material_benefit_unaffected_for_career_without_explorers_society() -> None:
+    # AEROSPACE_CAREER.material_benefits[6] = "+1 Soc" (no "Explorers' Society" entry
+    # exists in this table at all), so the uniqueness check can never match —
+    # behavior is identical to before this feature, even when `granted_names`
+    # already contains that string. material_dm=1, so idx = clamp(6 + 1 - 1) = 6.
+    name = _roll_material_benefit(AEROSPACE_CAREER, 1, ConstantRoller(6), {"Explorers' Society"})
+    assert name == "+1 Soc"
 
 
 # --- Benefits non-empty ---
@@ -550,11 +617,23 @@ def test_generate_career_character_two_skill_rolls_per_term() -> None:
 
 
 def test_generate_career_character_material_roll_5_gives_explorers_society() -> None:
-    # SmartRoller(10, 5): 2D6=10 passes all checks; 1D6=5 → material idx=4 → "Explorers' Society"
-    # 7 terms, rank=0, material_dm=0 → 3 cash rolls then material rolls with roll=5
-    result = generate_career_character(SCOUT_CAREER, roller=SmartRoller(10, 5))
-    assert isinstance(result, Character)
-    material_benefits = [b for b in result.benefits if b.kind == "material"]
+    # Direct unit test of _muster_out (a full generate_career_character run with a
+    # fixed-value roller would hang once reroll-on-repeat is wired in, since a fixed
+    # roller can never produce a "different" result). rank=0 -> material_dm=0, so
+    # idx = clamp(roll + 0 - 1) = roll - 1. terms_served=4 + rank-0 bonus_rolls (0) = 4
+    # total rolls: 3 cash (cap) + 1 material. ConstantRoller(5): material die=5 -> idx=4 ->
+    # SCOUT_CAREER.material_benefits[4] = "Explorers' Society". This confirms row 5
+    # (idx 4) is reachable with a roll of 5 and no rank DM.
+    result = _muster_out(
+        career=SCOUT_CAREER,
+        terms_served=4,
+        rank=0,
+        skills={},
+        characteristics={},
+        roller=ConstantRoller(5),
+    )
+    assert len(result) == 4
+    material_benefits = [b for b in result if b.kind == "material"]
     assert any(b.material_name == "Explorers' Society" for b in material_benefits)
 
 
@@ -623,7 +702,16 @@ def test_draft_character_roll_1_gives_aerospace() -> None:
 
 
 def test_draft_character_sets_drafted_true() -> None:
-    roller = SequenceRoller([3], default=10)
+    # default=6 (not a larger value like 10): a fixed high-value roller would let
+    # rank climb until material_dm=1, at which point every material-benefit roll
+    # resolves to index 6 ("Explorers' Society"). Once granted once, the
+    # reroll-on-repeat helper would call roller.roll(6) again forever, since a
+    # fixed roller can never return a different value — an infinite loop.
+    # default=6 keeps commission from ever succeeding (Navy needs Social
+    # Standing >= 7; a fixed characteristic of 6 with a +0 DM never reaches it),
+    # so rank stays 0, material_dm stays 0, and every material roll resolves to
+    # index 5 ("High Passage") instead — no reroll is ever triggered.
+    roller = SequenceRoller([3], default=6)
     result = draft_character(roller=roller)
     assert isinstance(result, Character)
     assert result.drafted is True
@@ -631,7 +719,14 @@ def test_draft_character_sets_drafted_true() -> None:
 
 def test_draft_character_roll_2_gives_marine() -> None:
     # DRAFT_TABLE[1] = "marine"; 1D6 roll=2 → index 1 → Marine career
-    roller = SequenceRoller([2], default=10)
+    # default=6 for the same reason as test_draft_character_sets_drafted_true
+    # above. Marine's commission succeeds once at this default (Education
+    # target is exactly 6), reaching rank 1, but advancement then never
+    # succeeds (Social Standing target 7, unmet), so rank stays at 1 and
+    # material_dm stays 0 — every material roll resolves to index 5 ("High
+    # Passage"), never index 6 ("Explorers' Society"), so no reroll is ever
+    # triggered.
+    roller = SequenceRoller([2], default=6)
     result = draft_character(roller=roller)
     assert isinstance(result, Character)
     assert result.drafted is True
