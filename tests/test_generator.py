@@ -702,7 +702,16 @@ def test_draft_character_roll_1_gives_aerospace() -> None:
 
 
 def test_draft_character_sets_drafted_true() -> None:
-    roller = SequenceRoller([3], default=10)
+    # default=6 (not a larger value like 10): a fixed high-value roller would let
+    # rank climb until material_dm=1, at which point every material-benefit roll
+    # resolves to index 6 ("Explorers' Society"). Once granted once, the
+    # reroll-on-repeat helper would call roller.roll(6) again forever, since a
+    # fixed roller can never return a different value — an infinite loop.
+    # default=6 keeps commission from ever succeeding (Navy needs Social
+    # Standing >= 7; a fixed characteristic of 6 with a +0 DM never reaches it),
+    # so rank stays 0, material_dm stays 0, and every material roll resolves to
+    # index 5 ("High Passage") instead — no reroll is ever triggered.
+    roller = SequenceRoller([3], default=6)
     result = draft_character(roller=roller)
     assert isinstance(result, Character)
     assert result.drafted is True
@@ -710,7 +719,14 @@ def test_draft_character_sets_drafted_true() -> None:
 
 def test_draft_character_roll_2_gives_marine() -> None:
     # DRAFT_TABLE[1] = "marine"; 1D6 roll=2 → index 1 → Marine career
-    roller = SequenceRoller([2], default=10)
+    # default=6 for the same reason as test_draft_character_sets_drafted_true
+    # above. Marine's commission succeeds once at this default (Education
+    # target is exactly 6), reaching rank 1, but advancement then never
+    # succeeds (Social Standing target 7, unmet), so rank stays at 1 and
+    # material_dm stays 0 — every material roll resolves to index 5 ("High
+    # Passage"), never index 6 ("Explorers' Society"), so no reroll is ever
+    # triggered.
+    roller = SequenceRoller([2], default=6)
     result = draft_character(roller=roller)
     assert isinstance(result, Character)
     assert result.drafted is True
