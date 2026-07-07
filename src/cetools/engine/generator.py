@@ -19,7 +19,7 @@ from cetools.engine.pseudohex import encode_upp
 
 _PHYSICAL_STATS = ("Strength", "Dexterity", "Endurance")
 
-_BACKGROUND_SKILLS = (
+_EDUCATION_SKILLS = (
     "Admin",
     "Advocate",
     "Animals",
@@ -37,6 +37,19 @@ _BACKGROUND_SKILLS = (
     "Space Sciences",
 )
 
+_HOMEWORLD_SKILLS = (
+    "Animals",
+    "Broker",
+    "Carousing",
+    "Computer",
+    "Gun Combat",
+    "Melee Combat",
+    "Streetwise",
+    "Survival",
+    "Watercraft",
+    "Zero-G",
+)
+
 _PENSION = {5: 10000, 6: 12000, 7: 14000, 8: 16000}
 
 _RANK_BONUS_ROLLS = {4: 1, 5: 2, 6: 3}
@@ -48,6 +61,34 @@ _UNIQUE_MATERIAL_BENEFIT = "Explorers' Society"
 
 def _dm(characteristics: dict[str, int], stat: str) -> int:
     return characteristic_modifier(characteristics[stat])
+
+
+def _draw_distinct(
+    pool: tuple[str, ...],
+    count: int,
+    roller: DiceRoller,
+    exclude: tuple[str, ...] = (),
+) -> list[str]:
+    remaining = [skill for skill in pool if skill not in exclude]
+    chosen: list[str] = []
+    for _ in range(min(count, len(remaining))):
+        idx = (roller.roll(len(remaining)) - 1) % len(remaining)
+        chosen.append(remaining.pop(idx))
+    return chosen
+
+
+def _grant_background_skills(
+    characteristics: dict[str, int], skills: dict[str, int], roller: DiceRoller
+) -> None:
+    count = max(0, 3 + characteristic_modifier(characteristics.get("Education", 0)))
+    homeworld_count = min(2, count)
+    education_count = count - homeworld_count
+    homeworld = _draw_distinct(_HOMEWORLD_SKILLS, homeworld_count, roller)
+    education = _draw_distinct(
+        _EDUCATION_SKILLS, education_count, roller, exclude=tuple(homeworld)
+    )
+    for name in homeworld + education:
+        skills[name] = 0
 
 
 def _check(roller: DiceRoller, characteristics: dict[str, int], stat: str, target: int) -> bool:
@@ -205,9 +246,7 @@ def generate_character(
         characteristics = {stat: roller.roll(6, count=2) for stat in STAT_NAMES}
 
     skills: dict[str, int] = {}
-    for i in range(3):
-        bg_skill = _BACKGROUND_SKILLS[i % len(_BACKGROUND_SKILLS)]
-        skills[bg_skill] = skills.get(bg_skill, -1) + 1
+    _grant_background_skills(characteristics, skills, roller)
 
     if not bypass_qualification:
         if not _check(

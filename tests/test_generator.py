@@ -4,10 +4,13 @@ from cetools.engine.careers.aerospace import AEROSPACE_CAREER
 from cetools.engine.careers.navy import NAVY_CAREER
 from cetools.engine.careers.scout import SCOUT_CAREER
 from cetools.engine.generator import (
+    _HOMEWORLD_SKILLS,
     _apply_material_benefit,
     _apply_skill_entry,
     _apply_stat_boost,
     _check,
+    _draw_distinct,
+    _grant_background_skills,
     _muster_out,
     _roll_material_benefit,
     draft_character,
@@ -17,6 +20,14 @@ from cetools.engine.generator import (
 )
 from cetools.engine.models import Character, GenerationFailure
 from conftest import ConstantRoller, SequenceRoller, SmartRoller
+
+
+class _MaxFaceRoller:
+    """Always rolls the top face of whatever die it is asked for."""
+
+    def roll(self, sides: int, count: int = 1) -> int:
+        return sides
+
 
 # --- Check helper ---
 
@@ -82,7 +93,7 @@ def test_generated_character_has_non_empty_two_word_name() -> None:
 def test_survival_fail_returns_character_with_mishap() -> None:
     # 6 characteristics (10 each) + 1 qualification (10) → pass enlistment
     # then survival roll = 1 → 1 + Int_dm(10) = 1 + 1 = 2 < 5 → mishap in term 1
-    roller = SequenceRoller([10] * 7 + [1], default=1)
+    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 1], default=1)
     result = generate_character(NAVY_CAREER, roller=roller)
     assert isinstance(result, Character)
     assert result.mishap is not None
@@ -96,7 +107,7 @@ def test_mishap_roll_1_injury_no_discharge() -> None:
     # 7 passing values (6 characteristics + qualification, all 10) then a failing
     # survival roll (2), mishap-table roll (1), two injury rolls (6, 6 -> both land
     # on injury row 6, "no permanent effect", so no candidate/amount roll follows).
-    roller = SequenceRoller([10] * 7 + [2, 1, 6, 6], default=6)
+    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 1, 6, 6], default=6)
     result = generate_character(NAVY_CAREER, roller=roller)
     assert isinstance(result, Character)
     assert result.mishap.roll == 1
@@ -109,7 +120,7 @@ def test_mishap_roll_1_injury_no_discharge() -> None:
 
 
 def test_mishap_roll_2_honorable_discharge() -> None:
-    roller = SequenceRoller([10] * 7 + [2, 2], default=6)
+    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 2], default=6)
     result = generate_character(NAVY_CAREER, roller=roller)
     assert isinstance(result, Character)
     assert result.mishap.roll == 2
@@ -120,7 +131,7 @@ def test_mishap_roll_2_honorable_discharge() -> None:
 
 
 def test_mishap_roll_3_honorable_discharge_with_legal_debt() -> None:
-    roller = SequenceRoller([10] * 7 + [2, 3], default=6)
+    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 3], default=6)
     result = generate_character(NAVY_CAREER, roller=roller)
     assert isinstance(result, Character)
     assert result.mishap.roll == 3
@@ -131,7 +142,7 @@ def test_mishap_roll_3_honorable_discharge_with_legal_debt() -> None:
 
 
 def test_mishap_roll_4_dishonorable_discharge_not_imprisoned() -> None:
-    roller = SequenceRoller([10] * 7 + [2, 4], default=6)
+    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 4], default=6)
     result = generate_character(NAVY_CAREER, roller=roller)
     assert isinstance(result, Character)
     assert result.mishap.roll == 4
@@ -144,7 +155,7 @@ def test_mishap_roll_4_dishonorable_discharge_not_imprisoned() -> None:
 def test_mishap_roll_5_dishonorable_discharge_imprisoned() -> None:
     # Outcome 5 adds an extra 4 years for imprisonment on top of the mishap
     # term's usual +2 (research.md D9): age == 18 + 2 + 4 == 24.
-    roller = SequenceRoller([10] * 7 + [2, 5], default=6)
+    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 5], default=6)
     result = generate_character(NAVY_CAREER, roller=roller)
     assert isinstance(result, Character)
     assert result.mishap.roll == 5
@@ -156,7 +167,7 @@ def test_mishap_roll_5_dishonorable_discharge_imprisoned() -> None:
 
 def test_mishap_roll_6_medical_discharge_with_injury() -> None:
     # Mishap-table roll 6, single injury roll of 6 -> injury row 6, no effect.
-    roller = SequenceRoller([10] * 7 + [2, 6, 6], default=6)
+    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 6, 6], default=6)
     result = generate_character(NAVY_CAREER, roller=roller)
     assert isinstance(result, Character)
     assert result.mishap.roll == 6
@@ -174,7 +185,7 @@ def test_draft_character_survival_failure_returns_character_not_failure() -> Non
     # Draft roll 5 -> Scout; 6 characteristics of 10 qualify immediately
     # (Intelligence 10 >= 6); survival roll 2 -> 2 + End_dm(10)=1 = 3 < 7 -> fails;
     # mishap-table roll 2 -> honorable discharge, no injury.
-    roller = SequenceRoller([5, 10, 10, 10, 10, 10, 10, 2, 2], default=6)
+    roller = SequenceRoller([5, 10, 10, 10, 10, 10, 10] + [6] * 4 + [2, 2], default=6)
     result = draft_character(roller=roller)
     assert isinstance(result, Character)
     assert result.mishap is not None
@@ -408,7 +419,7 @@ def test_failed_commission_grants_two_skill_rolls() -> None:
     # Edu=8 → 4 tables; 1D6=2 → (2-1)%4=1 → service_skills; 1D6=1 → "Comms".
     # Comms is level 0 after basic training; two rolls push it to level 2.
     # With only 1 roll it would stay at 1.
-    roller = SequenceRoller([8, 8, 8, 8, 8, 8, 8, 8, 4, 2, 1, 2], default=1)
+    roller = SequenceRoller([8] * 6 + [6, 6, 6] + [8, 8, 4, 2, 1, 2], default=1)
     result = generate_character(NAVY_CAREER, roller=roller)
     assert isinstance(result, Character)
     assert result.terms_served == 1
@@ -420,7 +431,7 @@ def test_per_term_skill_rolls_recorded_in_term_history() -> None:
     # Same roller: 2 skill rolls after failed commission, both land on "Comms".
     # Basic training records 6 service skills; each skill roll appends its entry.
     # Edu=8 → 4 tables; 1D6=2 → service_skills[0] = "Comms".
-    roller = SequenceRoller([8, 8, 8, 8, 8, 8, 8, 8, 4, 2, 1, 2], default=1)
+    roller = SequenceRoller([8] * 6 + [6, 6, 6] + [8, 8, 4, 2, 1, 2], default=1)
     result = generate_character(NAVY_CAREER, roller=roller)
     assert isinstance(result, Character)
     term = result.terms[0]
@@ -643,7 +654,7 @@ def test_generate_career_character_material_roll_5_gives_explorers_society() -> 
 def test_education_below_8_excludes_advanced_education_skills() -> None:
     # ConstantRoller(7): all stats=7, Education=7 < 8 → only 3 skill tables (no advanced education)
     # Skill rolls hit personal_development[0] = "+1 Str" (stat boost, no skill entry added)
-    # "Advocate" is excluded: it also appears in background skills (always granted)
+    # Background skills are random now; probe only advanced-education-exclusive skills.
     # Check skills that come ONLY from advanced_education and not from other sources
     result = generate_career_character(SCOUT_CAREER, roller=ConstantRoller(7))
     assert isinstance(result, Character)
@@ -669,7 +680,7 @@ def test_education_8_or_above_can_access_advanced_education() -> None:
 def test_single_term_scout_muster_out() -> None:
     # Qualification: 6 rolls of 8 (Intelligence=8 >= 6 → passes first try)
     # Survival (2D6=8 >= 7 ✓); 2 skill rolls (1D6=1,1 each); re-enlistment (2D6=4 < 6 → fail)
-    roller = SequenceRoller([8, 8, 8, 8, 8, 8, 8, 1, 1, 1, 1, 4, 1], default=1)
+    roller = SequenceRoller([8] * 6 + [6, 6, 6] + [8, 1, 1, 1, 1, 4, 1], default=1)
     result = generate_career_character(SCOUT_CAREER, roller=roller)
     assert isinstance(result, Character)
     assert result.terms_served == 1
@@ -772,7 +783,7 @@ def _five_completed_scout_terms() -> list[int]:
 
 def _generate_scout_mishap_after_five_terms(mishap_extra: list[int]) -> Character:
     # Term 6's survival roll (value 1) fails: 1 + End_dm(10)=1 = 2 < target 7.
-    values = _five_completed_scout_terms() + [1] + mishap_extra
+    values = [6] * 4 + _five_completed_scout_terms() + [1] + mishap_extra
     roller = SequenceRoller(values, default=6)
     result = generate_character(
         SCOUT_CAREER,
@@ -837,7 +848,7 @@ def test_mishap_outcome_6_preserves_benefits_and_pension_after_five_terms() -> N
 
 def _generate_scout_first_term_mishap(mishap_extra: list[int]) -> Character:
     # Term 1's survival roll (value 1) fails immediately: no prior terms.
-    values = [1] + mishap_extra
+    values = [6] * 4 + [1] + mishap_extra
     roller = SequenceRoller(values, default=6)
     result = generate_character(
         SCOUT_CAREER,
@@ -874,3 +885,107 @@ def test_two_skill_rolls_per_term_in_term_history() -> None:
     # All subsequent terms: exactly 2 skill roll entries each
     for term in result.terms[1:]:
         assert len(term.skills_gained) == 2
+
+
+# --- Background skills: _draw_distinct ---
+
+
+def test_draw_distinct_returns_requested_count_of_distinct_items() -> None:
+    # ConstantRoller(1): idx = (1-1) % len = 0 every time → pops the head repeatedly.
+    result = _draw_distinct(("A", "B", "C", "D"), 3, ConstantRoller(1))
+    assert result == ["A", "B", "C"]
+    assert len(set(result)) == 3
+
+
+def test_draw_distinct_respects_exclude() -> None:
+    result = _draw_distinct(("A", "B", "C"), 2, ConstantRoller(1), exclude=("A",))
+    assert result == ["B", "C"]
+    assert "A" not in result
+
+
+def test_draw_distinct_truncates_when_over_requested() -> None:
+    # Only 2 items available but 5 requested → returns just the 2.
+    result = _draw_distinct(("A", "B"), 5, ConstantRoller(1))
+    assert result == ["A", "B"]
+
+
+def test_draw_distinct_uses_roller_to_index() -> None:
+    # ConstantRoller(3): idx = (3-1) % len = 2 % len.
+    # remaining=[A,B,C,D] → idx 2 → C; remaining=[A,B,D] → idx 2 → D.
+    result = _draw_distinct(("A", "B", "C", "D"), 2, ConstantRoller(3))
+    assert result == ["C", "D"]
+
+
+def test_draw_distinct_can_reach_pool_tail() -> None:
+    # Regression: indexing a pool larger than 6 with a fixed d6 left the tail
+    # unreachable (Zero-G at index 9 could never be drawn). Sizing the die to the
+    # remaining pool makes the last element reachable.
+    result = _draw_distinct(_HOMEWORLD_SKILLS, 1, _MaxFaceRoller())
+    assert result == ["Zero-G"]
+
+
+# --- Background skills: _grant_background_skills ---
+
+
+def test_background_skill_count_matches_three_plus_education_dm() -> None:
+    # count = 3 + characteristic_modifier(Education).
+    cases = {2: 1, 4: 2, 7: 3, 10: 4, 12: 5, 15: 6}
+    for education, expected in cases.items():
+        skills: dict[str, int] = {}
+        _grant_background_skills({"Education": education}, skills, ConstantRoller(1))
+        assert len(skills) == expected, f"Education {education} should grant {expected} skills"
+
+
+def test_background_skills_are_all_level_zero() -> None:
+    skills: dict[str, int] = {}
+    _grant_background_skills({"Education": 12}, skills, ConstantRoller(1))
+    assert all(level == 0 for level in skills.values())
+
+
+def test_background_low_education_draws_only_homeworld_skills() -> None:
+    # count 1 (Edu 2) and count 2 (Edu 4) → every skill comes from the homeworld pool.
+    for education in (2, 4):
+        skills: dict[str, int] = {}
+        _grant_background_skills({"Education": education}, skills, ConstantRoller(1))
+        assert set(skills) <= set(_HOMEWORLD_SKILLS)
+
+
+def test_background_full_draw_is_deterministic_and_distinct() -> None:
+    # Edu 12 → count 5. ConstantRoller(1) always pops index 0.
+    # Homeworld: Animals, Broker. Education (excluding those): Admin, Advocate, Carousing.
+    skills: dict[str, int] = {}
+    _grant_background_skills({"Education": 12}, skills, ConstantRoller(1))
+    assert set(skills) == {"Animals", "Broker", "Admin", "Advocate", "Carousing"}
+
+
+def test_background_skills_reproducible_across_identical_rollers() -> None:
+    first: dict[str, int] = {}
+    second: dict[str, int] = {}
+    _grant_background_skills({"Education": 10}, first, SequenceRoller([2, 4, 1, 3]))
+    _grant_background_skills({"Education": 10}, second, SequenceRoller([2, 4, 1, 3]))
+    assert first == second
+
+
+def test_generate_character_grants_background_skills() -> None:
+    # Preset Education 10 → 4 background skills. SmartRoller single-die value 1 →
+    # idx 0 every draw → homeworld Animals, Broker; education Admin, Advocate.
+    # Broker/Admin/Advocate are not Scout service, rank, or skill-roll outputs
+    # under this roller, so they can only come from background granting.
+    preset = {
+        "Strength": 10,
+        "Dexterity": 10,
+        "Endurance": 10,
+        "Intelligence": 10,
+        "Education": 10,
+        "Social Standing": 10,
+    }
+    result = generate_character(
+        SCOUT_CAREER,
+        roller=SmartRoller(10, 1),
+        preset_characteristics=preset,
+        bypass_qualification=True,
+    )
+    assert isinstance(result, Character)
+    for skill in ("Animals", "Broker", "Admin", "Advocate"):
+        assert skill in result.skills
+    assert result.skills["Broker"] == 0
