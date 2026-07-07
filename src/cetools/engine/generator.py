@@ -72,7 +72,7 @@ def _draw_distinct(
     remaining = [skill for skill in pool if skill not in exclude]
     chosen: list[str] = []
     for _ in range(min(count, len(remaining))):
-        idx = (roller.roll(6) - 1) % len(remaining)
+        idx = (roller.roll(len(remaining)) - 1) % len(remaining)
         chosen.append(remaining.pop(idx))
     return chosen
 

@@ -21,6 +21,14 @@ from cetools.engine.generator import (
 from cetools.engine.models import Character, GenerationFailure
 from conftest import ConstantRoller, SequenceRoller, SmartRoller
 
+
+class _MaxFaceRoller:
+    """Always rolls the top face of whatever die it is asked for."""
+
+    def roll(self, sides: int, count: int = 1) -> int:
+        return sides
+
+
 # --- Check helper ---
 
 
@@ -908,6 +916,14 @@ def test_draw_distinct_uses_roller_to_index() -> None:
     assert result == ["C", "D"]
 
 
+def test_draw_distinct_can_reach_pool_tail() -> None:
+    # Regression: indexing a pool larger than 6 with a fixed d6 left the tail
+    # unreachable (Zero-G at index 9 could never be drawn). Sizing the die to the
+    # remaining pool makes the last element reachable.
+    result = _draw_distinct(_HOMEWORLD_SKILLS, 1, _MaxFaceRoller())
+    assert result == ["Zero-G"]
+
+
 # --- Background skills: _grant_background_skills ---
 
 
@@ -972,3 +988,4 @@ def test_generate_character_grants_background_skills() -> None:
     assert isinstance(result, Character)
     for skill in ("Animals", "Broker", "Admin", "Advocate"):
         assert skill in result.skills
+    assert result.skills["Broker"] == 0
