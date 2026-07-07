@@ -49,6 +49,12 @@ present as a side effect of this placeholder.
 - **Selection:** generation is automated (no player choice), so skills are drawn
   **randomly without replacement** using the injected `DiceRoller`, keeping
   tests deterministic.
+- **Roll ordering:** background skills are granted at chargen start (before the
+  qualification check), faithful to the SRD ordering. Because this consumes
+  `count` `DiceRoller` draws before the rest of generation, existing
+  `SequenceRoller`-based tests that hand-count roll sequences desync and must be
+  migrated (see Testing). This ordering has no effect on `ConstantRoller`/
+  `SmartRoller`/`RandomDiceRoller` callers.
 - **Provenance:** background skills merge into the character's `skills` dict at
   level 0 with no separate tracking, exactly as career skills flow today. No
   data-model, CLI, or formatter changes.
@@ -104,17 +110,28 @@ Two files.
 
 ### `tests/test_generator.py`
 
-- New tests:
-  - `count` equals `3 + EDU DM` across representative Education values (set via
-    `preset_characteristics`): e.g. EDU 2 → 1, EDU 7 → 3, EDU 10 → 4, EDU 12 → 5,
-    EDU 15 → 6.
-  - The first `min(2, count)` background skills come from the homeworld pool.
-  - The remaining skills come from the education pool.
-  - All background skills are distinct and at level 0.
+- New tests (isolated `_draw_distinct` and `_grant_background_skills` calls, plus
+  one integration test through `generate_character`):
+  - `count` equals `3 + EDU DM` across representative Education values: EDU 2 → 1,
+    EDU 4 → 2, EDU 7 → 3, EDU 10 → 4, EDU 12 → 5, EDU 15 → 6.
+  - Low Education (count 1–2) draws only from the homeworld pool.
+  - A full deterministic draw yields the expected distinct set, all at level 0.
   - Determinism: the same roller produces the same background skills.
-- Update the two existing tests that assume `Advocate` is always granted
-  (`test_education_below_8_excludes_advanced_education_skills` and its neighbor)
-  so they control Education/roller instead of relying on the fixed placeholder.
+  - `_draw_distinct` honors count, exclude, over-request truncation, and roller
+    indexing.
+- Migrate the existing `SequenceRoller`-based tests that desync once background
+  skills consume roller draws at chargen start. This is **26 tests** across
+  `tests/test_generator.py` and `tests/test_marine_career.py` (survival/mishap
+  integration tests, the five-term and first-term mishap helpers, the
+  failed-commission and per-term skill-roll tests, the single-term muster and
+  draft-survival tests, and three Marine commission/advancement tests). Each is
+  fixed by inserting `count` filler roll values (`count = 3 + EDU DM` for that
+  test's Education) at the point the background draws occur; the filler values
+  are irrelevant since no migrated test asserts on background skills.
+- Fix the now-stale comment in
+  `test_education_below_8_excludes_advanced_education_skills` that claims
+  background skills are "always granted" (its `Navigation`/`Tactics` assertions
+  are unaffected).
 
 ## Out of scope
 
