@@ -248,8 +248,8 @@ def test_maritime_commission_roll_success_advances_to_rank_1() -> None:
     from cetools.engine.models import Character
 
     result = generate_character(MARITIME_CAREER, roller=ConstantRoller(12))
-    if isinstance(result, Character):
-        assert result.rank >= 1
+    assert isinstance(result, Character)
+    assert result.rank >= 1
 
 
 def test_maritime_commission_roll_failure_stays_at_rank_0() -> None:
@@ -287,8 +287,8 @@ def test_maritime_advancement_increments_rank() -> None:
     from cetools.engine.models import Character
 
     result = generate_character(MARITIME_CAREER, roller=ConstantRoller(12))
-    if isinstance(result, Character):
-        assert result.rank >= 1
+    assert isinstance(result, Character)
+    assert result.rank >= 1
 
 
 def test_maritime_rank_cap_at_6() -> None:
@@ -307,8 +307,8 @@ def test_maritime_rank_0_watercraft_applied_at_enlistment() -> None:
     from cetools.engine.models import Character
 
     result = generate_character(MARITIME_CAREER, roller=ConstantRoller(12))
-    if isinstance(result, Character):
-        assert "Watercraft" in result.skills
+    assert isinstance(result, Character)
+    assert "Watercraft" in result.skills
 
 
 def test_maritime_rank_3_leadership_applied() -> None:
@@ -318,6 +318,6 @@ def test_maritime_rank_3_leadership_applied() -> None:
     from cetools.engine.models import Character
 
     result = generate_character(MARITIME_CAREER, roller=ConstantRoller(12))
-    if isinstance(result, Character):
-        if result.rank >= 3:
-            assert "Leadership" in result.skills
+    assert isinstance(result, Character)
+    if result.rank >= 3:
+        assert "Leadership" in result.skills
