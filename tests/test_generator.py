@@ -8,6 +8,7 @@ from cetools.engine.generator import (
     _apply_skill_entry,
     _apply_stat_boost,
     _check,
+    _draw_distinct,
     _muster_out,
     _roll_material_benefit,
     draft_character,
@@ -874,3 +875,32 @@ def test_two_skill_rolls_per_term_in_term_history() -> None:
     # All subsequent terms: exactly 2 skill roll entries each
     for term in result.terms[1:]:
         assert len(term.skills_gained) == 2
+
+
+# --- Background skills: _draw_distinct ---
+
+
+def test_draw_distinct_returns_requested_count_of_distinct_items() -> None:
+    # ConstantRoller(1): idx = (1-1) % len = 0 every time → pops the head repeatedly.
+    result = _draw_distinct(("A", "B", "C", "D"), 3, ConstantRoller(1))
+    assert result == ["A", "B", "C"]
+    assert len(set(result)) == 3
+
+
+def test_draw_distinct_respects_exclude() -> None:
+    result = _draw_distinct(("A", "B", "C"), 2, ConstantRoller(1), exclude=("A",))
+    assert result == ["B", "C"]
+    assert "A" not in result
+
+
+def test_draw_distinct_truncates_when_over_requested() -> None:
+    # Only 2 items available but 5 requested → returns just the 2.
+    result = _draw_distinct(("A", "B"), 5, ConstantRoller(1))
+    assert result == ["A", "B"]
+
+
+def test_draw_distinct_uses_roller_to_index() -> None:
+    # ConstantRoller(3): idx = (3-1) % len = 2 % len.
+    # remaining=[A,B,C,D] → idx 2 → C; remaining=[A,B,D] → idx 2 → D.
+    result = _draw_distinct(("A", "B", "C", "D"), 2, ConstantRoller(3))
+    assert result == ["C", "D"]

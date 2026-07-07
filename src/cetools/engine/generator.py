@@ -37,6 +37,19 @@ _BACKGROUND_SKILLS = (
     "Space Sciences",
 )
 
+_HOMEWORLD_SKILLS = (
+    "Animals",
+    "Broker",
+    "Carousing",
+    "Computer",
+    "Gun Combat",
+    "Melee Combat",
+    "Streetwise",
+    "Survival",
+    "Watercraft",
+    "Zero-G",
+)
+
 _PENSION = {5: 10000, 6: 12000, 7: 14000, 8: 16000}
 
 _RANK_BONUS_ROLLS = {4: 1, 5: 2, 6: 3}
@@ -48,6 +61,20 @@ _UNIQUE_MATERIAL_BENEFIT = "Explorers' Society"
 
 def _dm(characteristics: dict[str, int], stat: str) -> int:
     return characteristic_modifier(characteristics[stat])
+
+
+def _draw_distinct(
+    pool: tuple[str, ...],
+    count: int,
+    roller: DiceRoller,
+    exclude: tuple[str, ...] = (),
+) -> list[str]:
+    remaining = [skill for skill in pool if skill not in exclude]
+    chosen: list[str] = []
+    for _ in range(min(count, len(remaining))):
+        idx = (roller.roll(6) - 1) % len(remaining)
+        chosen.append(remaining.pop(idx))
+    return chosen
 
 
 def _check(roller: DiceRoller, characteristics: dict[str, int], stat: str, target: int) -> bool:
