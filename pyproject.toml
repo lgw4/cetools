@@ -19,7 +19,7 @@ packages = ["src/cetools"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = ["--cov=src/cetools", "--cov-report=term-missing", "--cov-fail-under=85"]
+addopts = ["--cov=src/cetools", "--cov-report=term-missing", "--cov-fail-under=85", "--timeout=30"]
 
 [tool.coverage.run]
 source = ["src/cetools"]
@@ -49,4 +49,5 @@ dev = [
     "flake8>=7",
     "isort>=5.13",
     "pre-commit>=3",
+    "pytest-timeout>=2.3",
 ]
