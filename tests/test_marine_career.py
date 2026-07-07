@@ -200,7 +200,7 @@ def test_marine_commission_success_advances_rank_0_to_1() -> None:
     # Advancement (Soc 7, dm0), rolled immediately on commission: 2 ✗ → stays rank 1.
     # Commissioned this term → exactly 1 skill roll (table, entry).
     # Reenlistment (target 6): 2 ✗ → stop after 1 term.
-    roller = SequenceRoller([8, 6, 2, 1, 1, 2], default=1)
+    roller = SequenceRoller([6, 6, 6] + [8, 6, 2, 1, 1, 2], default=1)
     result = generate_character(
         MARINE_CAREER,
         roller=roller,
@@ -220,7 +220,7 @@ def test_marine_commission_failure_stays_rank_0() -> None:
     # advancement roll, which is only attempted after a successful commission).
     # Not commissioned/promoted this term → 2 skill rolls (table, entry) x2.
     # Reenlistment: 2 ✗ → stop after 1 term.
-    roller = SequenceRoller([8, 2, 1, 1, 1, 1, 2], default=1)
+    roller = SequenceRoller([6, 6, 6] + [8, 2, 1, 1, 1, 1, 2], default=1)
     result = generate_character(
         MARINE_CAREER,
         roller=roller,
@@ -240,7 +240,7 @@ def test_marine_advancement_increments_commissioned_officer_rank() -> None:
     # rank 1; 1 skill roll; reenlist 8 (≥6) → continue.
     # Term 2 (rank 1, no further commission attempt): survival 8 ✓;
     # advancement 8 ✓ (≥7) → rank 2; 1 skill roll; reenlist 2 ✗ → stop.
-    roller = SequenceRoller([8, 6, 2, 1, 1, 8, 8, 8, 1, 1, 2], default=1)
+    roller = SequenceRoller([6, 6, 6] + [8, 6, 2, 1, 1, 8, 8, 8, 1, 1, 2], default=1)
     result = generate_character(
         MARINE_CAREER,
         roller=roller,
@@ -287,7 +287,7 @@ def test_marine_commissioned_officer_retains_rank_0_zero_g_bonus() -> None:
     # Same script as test_marine_commission_success_advances_rank_0_to_1:
     # commissioned to rank 1, never demoted — the rank-0 Zero-G bonus must
     # persist since skills accumulate and are never cleared.
-    roller = SequenceRoller([8, 6, 2, 1, 1, 2], default=1)
+    roller = SequenceRoller([6, 6, 6] + [8, 6, 2, 1, 1, 2], default=1)
     result = generate_character(
         MARINE_CAREER,
         roller=roller,

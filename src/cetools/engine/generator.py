@@ -19,7 +19,7 @@ from cetools.engine.pseudohex import encode_upp
 
 _PHYSICAL_STATS = ("Strength", "Dexterity", "Endurance")
 
-_BACKGROUND_SKILLS = (
+_EDUCATION_SKILLS = (
     "Admin",
     "Advocate",
     "Animals",
@@ -85,7 +85,7 @@ def _grant_background_skills(
     education_count = count - homeworld_count
     homeworld = _draw_distinct(_HOMEWORLD_SKILLS, homeworld_count, roller)
     education = _draw_distinct(
-        _BACKGROUND_SKILLS, education_count, roller, exclude=tuple(homeworld)
+        _EDUCATION_SKILLS, education_count, roller, exclude=tuple(homeworld)
     )
     for name in homeworld + education:
         skills[name] = 0
@@ -246,9 +246,7 @@ def generate_character(
         characteristics = {stat: roller.roll(6, count=2) for stat in STAT_NAMES}
 
     skills: dict[str, int] = {}
-    for i in range(3):
-        bg_skill = _BACKGROUND_SKILLS[i % len(_BACKGROUND_SKILLS)]
-        skills[bg_skill] = skills.get(bg_skill, -1) + 1
+    _grant_background_skills(characteristics, skills, roller)
 
     if not bypass_qualification:
         if not _check(
