@@ -195,9 +195,11 @@ def test_career_unknown_exits_1() -> None:
 def test_career_unknown_stderr_message_exact() -> None:
     # T018: updated to match the "no close match" format (canonical names, no suggestion)
     result = runner.invoke(app, ["character", "generate", "--career", "merchant"])
-    assert result.stderr.strip() == (
-        "Unknown career 'merchant'. Valid careers: Aerospace System Defense, Marine, Navy, Scout"
+    expected = (
+        "Unknown career 'merchant'. Valid careers: Aerospace System Defense, "
+        "Marine, Maritime System Defense, Navy, Scout"
     )
+    assert result.stderr.strip() == expected
 
 
 def test_career_unknown_original_value_in_message() -> None:
@@ -395,9 +397,11 @@ def test_career_no_match_lists_canonical_names() -> None:
 
 def test_career_no_match_valid_careers_format() -> None:
     result = runner.invoke(app, ["character", "generate", "--career", "xyzzy"])
-    assert result.stderr.strip() == (
-        "Unknown career 'xyzzy'. Valid careers: Aerospace System Defense, Marine, Navy, Scout"
+    expected = (
+        "Unknown career 'xyzzy'. Valid careers: Aerospace System Defense, "
+        "Marine, Maritime System Defense, Navy, Scout"
     )
+    assert result.stderr.strip() == expected
 
 
 def test_career_no_match_no_did_you_mean() -> None:

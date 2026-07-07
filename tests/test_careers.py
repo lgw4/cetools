@@ -157,6 +157,7 @@ def test_navy_name() -> None:
     assert NAVY_CAREER.name == "Navy"
 
 
+from cetools.engine.careers.maritime import MARITIME_CAREER  # noqa: E402
 from cetools.engine.careers.registry import CAREER_REGISTRY, DRAFT_TABLE  # noqa: E402
 
 # T003 — SCOUT_CAREER field validation
@@ -282,6 +283,14 @@ def test_career_registry_scout_value() -> None:
     assert CAREER_REGISTRY["scout"] is SCOUT_CAREER
 
 
+def test_career_registry_has_maritime_key() -> None:
+    assert "maritime system defense" in CAREER_REGISTRY
+
+
+def test_career_registry_maritime_value() -> None:
+    assert CAREER_REGISTRY["maritime system defense"] is MARITIME_CAREER
+
+
 def test_draft_table_length_is_six() -> None:
     assert len(DRAFT_TABLE) == 6
 
@@ -298,9 +307,17 @@ def test_draft_table_index_1_is_marine() -> None:
     assert DRAFT_TABLE[1] == "marine"
 
 
+def test_draft_table_index_2_is_maritime() -> None:
+    assert DRAFT_TABLE[2] == "maritime system defense"
+
+
+def test_draft_table_index_3_is_navy() -> None:
+    assert DRAFT_TABLE[3] == "navy"
+
+
 def test_draft_table_other_entries_are_navy() -> None:
     for i, entry in enumerate(DRAFT_TABLE):
-        if i not in (0, 1, 4):
+        if i not in (0, 1, 2, 4):
             assert entry == "navy", f"DRAFT_TABLE[{i}] expected 'navy', got {entry!r}"
 
 
