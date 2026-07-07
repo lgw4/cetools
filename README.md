@@ -2,7 +2,7 @@
 
 Cepheus Engine character generation tools. Generates playable characters following the [Cepheus Engine SRD](https://evolvedexperiment.github.io/cepheus-srd/) rules.
 
-Supported careers: **Aerospace System Defense**, **Navy**, **Scout**.
+Supported careers: **Aerospace System Defense**, **Marine**, **Navy**, **Scout**. Omit the career to have one drafted at random.
 
 ## Requirements
 
@@ -26,7 +26,15 @@ Generate a character for a specific career:
 ```bash
 uv run cetools character generate --career navy
 uv run cetools character generate --career scout
+uv run cetools character generate --career marine
 uv run cetools character generate --career "aerospace system defense"
+```
+
+Career names are case-insensitive. An unknown career suggests the closest match and exits `1`:
+
+```console
+$ uv run cetools character generate --career navvy
+Unknown career 'navvy'. Did you mean: Navy?
 ```
 
 Omit `--career` to let the draft table assign one randomly:
@@ -35,77 +43,48 @@ Omit `--career` to let the draft table assign one randomly:
 uv run cetools character generate
 ```
 
-Example output (Navy):
+#### Output format
 
-```
-UPP: 95AB75
+Each character prints as a compact block:
 
-Navy (Commander, Rank 4) — 5 terms, age 38
+- **Line 1** — `Rank Name`, the [UPP](https://evolvedexperiment.github.io/cepheus-srd/introduction.html#universal-personality-profile), and age, tab-separated.
+- **Line 2** — career and terms served, then total mustering-out cash, tab-separated.
+- **Line 3** — skills, alphabetical.
+- **Optional** — a line of material benefits (repeats collapsed as `Name x N`).
+- **Optional** — a final `Mishap:` line when a survival mishap ended the career.
 
-Characteristics:
-  Strength: 9
-  Dexterity: 5
-  Endurance: 10 (A)
-  Intelligence: 11 (B)
-  Education: 7
-  Social Standing: 5
+Example output (Navy, full career):
 
-Skills:
-  Admin-0, Advocate-0, Animals-0, Comms-0, Engineering-3, Gun Combat-0, Gunnery-1, Melee Combat-1, Tactics-1, Vehicle-0, Zero-G-1
-
-Mustering-Out Benefits:
-  Cash:     Cr20,000, Cr10,000, Cr10,000
-  Material: High Passage, Low Passage, Weapon
-
-Retirement Pension: Cr10,000/year
+```text
+Starman Sam Voss	5A3B93	Age 38
+Navy (5 terms)	Cr52,000
+Admin-0, Advocate-1, Animals-0, Comms-0, Engineering-1, Gun Combat-0, Gunnery-0, Melee Combat-2, Tactics-1, Vehicle-2, Zero-G-1
++1 Edu, High Passage
 ```
 
-Example output (Aerospace System Defense):
+Example output (drafted; note repeated benefits collapsed to `x 2`):
 
-```
-UPP: 9985B7
-
-Aerospace System Defense (Flight Lieutenant, Rank 2) — 1 terms, age 22
-
-Characteristics:
-  Strength: 9
-  Dexterity: 9
-  Endurance: 8
-  Intelligence: 5
-  Education: 11 (B)
-  Social Standing: 7
-
-Skills:
-  Admin-0, Advocate-0, Aircraft-1, Animals-0, Electronics-0, Gun Combat-0, Gunnery-0, Melee Combat-1, Survival-0
-
-Mustering-Out Benefits:
-  Cash:     Cr50,000
+```text
+Captain Morgan Voss	7937A5	Age 42
+Navy (6 terms)	Cr61,000
+Admin-0, Advocate-0, Animals-0, Comms-0, Engineering-0, Gun Combat-0, Gunnery-0, Jack o' Trades-0, Leadership-0, Melee Combat-0, Piloting-0, Tactics-2, Vehicle-1, Zero-G-1
++1 Soc, +1 Edu x 2, Weapon x 2
 ```
 
-Example output (Scout, drafted):
+Example output (Marine, career cut short by a mishap):
 
-```
-UPP: 7A8965
-
-Scout (Drafted) (Scout, Rank 0) — 3 terms, age 30
-
-Characteristics:
-  Strength: 7
-  Dexterity: 10 (A)
-  Endurance: 8
-  Intelligence: 9
-  Education: 6
-  Social Standing: 5
-
-Skills:
-  Advocate-0, Animals-0, Comms-1, Electronics-0, Gun Combat-0, Gunnery-0, Navigation-1, Piloting-1, Recon-0
-
-Mustering-Out Benefits:
-  Cash:     Cr5,000, Cr1,000, Cr10,000
-  Material: Weapon
+```text
+Trooper Casey Voss	481749	Age 20
+Marine (0 terms)	Cr0
+Admin-0, Advocate-0, Animals-0, Battle Dress-0, Comms-0, Demolitions-0, Gun Combat-0, Gunnery-0, Melee Combat-0, Zero-G-1
+Mishap: Injured in action, injured (Endurance -6), survived an injury crisis; Debt Cr40,000
 ```
 
-**Exit codes**: `0` on success, `1` if the character died, generation failed, or an unknown `--career` value was given (reason written to stderr).
+Characters no longer die during generation. A failed survival roll resolves on the [Survival Mishaps table](https://evolvedexperiment.github.io/cepheus-srd/) and always yields a usable character: an injury, a discharge (honorable, dishonorable, or medical), and sometimes debt. The mishap is summarized on the `Mishap:` line.
+
+Output above is illustrative; generation is random, so your results will differ.
+
+**Exit codes**: `0` on success; `1` if generation failed or an unknown `--career` value was given (reason written to stderr).
 
 Characteristic values above 9 are shown in [pseudo-hex notation](https://evolvedexperiment.github.io/cepheus-srd/introduction.html#pseudo-hexadecimal-notation) — `A`=10, `B`=11, … skipping `I` and `O`.
 
@@ -130,6 +109,8 @@ else:
     print(f"Generation failed: {result.reason}")
 ```
 
+Both `generate_career_character` and `draft_character` return `Character | GenerationFailure`. A `Character` carries the fields surfaced in output — `name`, `rank_title`, `upp`, `age`, `skills`, `benefits`, and (when a survival mishap ended the career) `mishap` and `debt`.
+
 Generate a draft character (career assigned by 1D6 roll against the draft table):
 
 ```python
@@ -145,7 +126,7 @@ Use the career registry to look up a career by name:
 ```python
 from cetools.engine.careers import CAREER_REGISTRY
 
-career = CAREER_REGISTRY["scout"]  # or "navy", "aerospace system defense"
+career = CAREER_REGISTRY["scout"]  # or "navy", "marine", "aerospace system defense"
 ```
 
 Inject a custom `DiceRoller` for deterministic results:
