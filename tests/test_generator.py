@@ -4,11 +4,13 @@ from cetools.engine.careers.aerospace import AEROSPACE_CAREER
 from cetools.engine.careers.navy import NAVY_CAREER
 from cetools.engine.careers.scout import SCOUT_CAREER
 from cetools.engine.generator import (
+    _HOMEWORLD_SKILLS,
     _apply_material_benefit,
     _apply_skill_entry,
     _apply_stat_boost,
     _check,
     _draw_distinct,
+    _grant_background_skills,
     _muster_out,
     _roll_material_benefit,
     draft_character,
@@ -904,3 +906,45 @@ def test_draw_distinct_uses_roller_to_index() -> None:
     # remaining=[A,B,C,D] → idx 2 → C; remaining=[A,B,D] → idx 2 → D.
     result = _draw_distinct(("A", "B", "C", "D"), 2, ConstantRoller(3))
     assert result == ["C", "D"]
+
+
+# --- Background skills: _grant_background_skills ---
+
+
+def test_background_skill_count_matches_three_plus_education_dm() -> None:
+    # count = 3 + characteristic_modifier(Education).
+    cases = {2: 1, 4: 2, 7: 3, 10: 4, 12: 5, 15: 6}
+    for education, expected in cases.items():
+        skills: dict[str, int] = {}
+        _grant_background_skills({"Education": education}, skills, ConstantRoller(1))
+        assert len(skills) == expected, f"Education {education} should grant {expected} skills"
+
+
+def test_background_skills_are_all_level_zero() -> None:
+    skills: dict[str, int] = {}
+    _grant_background_skills({"Education": 12}, skills, ConstantRoller(1))
+    assert all(level == 0 for level in skills.values())
+
+
+def test_background_low_education_draws_only_homeworld_skills() -> None:
+    # count 1 (Edu 2) and count 2 (Edu 4) → every skill comes from the homeworld pool.
+    for education in (2, 4):
+        skills: dict[str, int] = {}
+        _grant_background_skills({"Education": education}, skills, ConstantRoller(1))
+        assert set(skills) <= set(_HOMEWORLD_SKILLS)
+
+
+def test_background_full_draw_is_deterministic_and_distinct() -> None:
+    # Edu 12 → count 5. ConstantRoller(1) always pops index 0.
+    # Homeworld: Animals, Broker. Education (excluding those): Admin, Advocate, Carousing.
+    skills: dict[str, int] = {}
+    _grant_background_skills({"Education": 12}, skills, ConstantRoller(1))
+    assert set(skills) == {"Animals", "Broker", "Admin", "Advocate", "Carousing"}
+
+
+def test_background_skills_reproducible_across_identical_rollers() -> None:
+    first: dict[str, int] = {}
+    second: dict[str, int] = {}
+    _grant_background_skills({"Education": 10}, first, SequenceRoller([2, 4, 1, 3]))
+    _grant_background_skills({"Education": 10}, second, SequenceRoller([2, 4, 1, 3]))
+    assert first == second

@@ -77,6 +77,20 @@ def _draw_distinct(
     return chosen
 
 
+def _grant_background_skills(
+    characteristics: dict[str, int], skills: dict[str, int], roller: DiceRoller
+) -> None:
+    count = max(0, 3 + characteristic_modifier(characteristics.get("Education", 0)))
+    homeworld_count = min(2, count)
+    education_count = count - homeworld_count
+    homeworld = _draw_distinct(_HOMEWORLD_SKILLS, homeworld_count, roller)
+    education = _draw_distinct(
+        _BACKGROUND_SKILLS, education_count, roller, exclude=tuple(homeworld)
+    )
+    for name in homeworld + education:
+        skills[name] = 0
+
+
 def _check(roller: DiceRoller, characteristics: dict[str, int], stat: str, target: int) -> bool:
     return roller.roll(6, count=2) + _dm(characteristics, stat) >= target
 
