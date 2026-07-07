@@ -418,6 +418,7 @@ def test_career_help_lists_canonical_names() -> None:
     assert "Aerospace System" in result.output
     assert "Defense" in result.output
     assert "Marine" in result.output
+    assert "Maritime" in result.output
     assert "Navy" in result.output
     assert "Scout" in result.output
 
