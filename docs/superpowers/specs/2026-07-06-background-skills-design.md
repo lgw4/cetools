@@ -90,6 +90,10 @@ the exclusion step in (3) prevents duplicates across the two pools.
   never yields fewer than 1.
 - Pool sizes always exceed demand: homeworld draws ≤ 2 of 10; education draws
   ≤ 10 of (15 minus up to 2 excluded). Draws never run dry.
+- The random draw must roll a die sized to the *remaining* pool
+  (`roller.roll(len(remaining))`), not a fixed d6. Both pools exceed 6 entries,
+  so a d6 would leave their tails (e.g. `Zero-G`, `Medicine`, the sciences)
+  permanently unreachable. A reachability regression test guards this.
 
 ## Code changes
 
