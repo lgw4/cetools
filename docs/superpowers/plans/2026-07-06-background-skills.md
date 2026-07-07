@@ -59,7 +59,7 @@ Purely additive. Adds the homeworld pool constant and a draw-without-replacement
 
 **Interfaces:**
 - Consumes: `DiceRoller` (already imported in `generator.py`).
-- Produces: `_HOMEWORLD_SKILLS: tuple[str, ...]`; `_draw_distinct(pool: tuple[str, ...], count: int, roller: DiceRoller, exclude: tuple[str, ...] = ()) -> list[str]` — returns up to `count` distinct items from `pool` (skipping any in `exclude`), drawn without replacement using `(roller.roll(6) - 1) % len(remaining)` indexing into a shrinking list.
+- Produces: `_HOMEWORLD_SKILLS: tuple[str, ...]`; `_draw_distinct(pool: tuple[str, ...], count: int, roller: DiceRoller, exclude: tuple[str, ...] = ()) -> list[str]` — returns up to `count` distinct items from `pool` (skipping any in `exclude`), drawn without replacement using `(roller.roll(len(remaining)) - 1) % len(remaining)` indexing into a shrinking list (the die is sized to the remaining pool so pools larger than six stay fully reachable).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -149,7 +149,7 @@ def _draw_distinct(
     remaining = [skill for skill in pool if skill not in exclude]
     chosen: list[str] = []
     for _ in range(min(count, len(remaining))):
-        idx = (roller.roll(6) - 1) % len(remaining)
+        idx = (roller.roll(len(remaining)) - 1) % len(remaining)
         chosen.append(remaining.pop(idx))
     return chosen
 ```
@@ -293,7 +293,7 @@ git commit -m "feat: add background skill granting helper"
 
 This is the "activate and reconcile" task. It replaces the placeholder with a call to `_grant_background_skills` at chargen start, renames `_BACKGROUND_SKILLS` → `_EDUCATION_SKILLS` for clarity, adds one integration test, and migrates the 26 existing `SequenceRoller` tests that desync because background skills now consume roller draws before the rest of generation. All of these must land together to keep the suite green, so they are one commit.
 
-**Background draw accounting (why the migration is needed):** With faithful start-ordering, `_grant_background_skills` calls `roller.roll(6)` exactly `count` times, right after characteristics are set and before the qualification check. For `SequenceRoller` tests this shifts every later value by `count` positions. The fix for each test is to insert `count` filler values (use `6`) at the point where the background draws occur — the value is irrelevant because it only selects which background skills are picked, which none of these tests assert on. `count` is derived from each test's Education (see the count table above).
+**Background draw accounting (why the migration is needed):** With faithful start-ordering, `_grant_background_skills` makes exactly `count` single-die `roller.roll(...)` calls (each die sized to the remaining pool, not a fixed d6), right after characteristics are set and before the qualification check. For `SequenceRoller` tests this shifts every later value by `count` positions. The fix for each test is to insert `count` filler values (use `6`) at the point where the background draws occur — the value is irrelevant because it only selects which background skills are picked, which none of these tests assert on. `count` is derived from each test's Education (see the count table above).
 
 **Files:**
 - Modify: `src/cetools/engine/generator.py` (rename constant; replace placeholder at lines 207–210 with the helper call)
