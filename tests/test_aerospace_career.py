@@ -277,8 +277,8 @@ def test_aerospace_commission_roll_success_advances_to_rank_1() -> None:
 
     result = generate_character(AEROSPACE_CAREER, roller=ConstantRoller(12))
     # With all rolls succeeding, character should be commissioned (rank >= 1)
-    if isinstance(result, Character):
-        assert result.rank >= 1
+    assert isinstance(result, Character)
+    assert result.rank >= 1
 
 
 def test_aerospace_commission_roll_failure_stays_at_rank_0() -> None:
@@ -316,8 +316,8 @@ def test_aerospace_advancement_increments_rank() -> None:
     from cetools.engine.models import Character
 
     result = generate_character(AEROSPACE_CAREER, roller=ConstantRoller(12))
-    if isinstance(result, Character):
-        assert result.rank >= 1
+    assert isinstance(result, Character)
+    assert result.rank >= 1
 
 
 # ---------------------------------------------------------------------------
@@ -346,8 +346,8 @@ def test_aerospace_rank_0_aircraft_applied_at_enlistment() -> None:
     from cetools.engine.models import Character
 
     result = generate_character(AEROSPACE_CAREER, roller=ConstantRoller(12))
-    if isinstance(result, Character):
-        assert "Aircraft" in result.skills
+    assert isinstance(result, Character)
+    assert "Aircraft" in result.skills
 
 
 def test_aerospace_rank_3_leadership_applied() -> None:
@@ -357,6 +357,6 @@ def test_aerospace_rank_3_leadership_applied() -> None:
     from cetools.engine.models import Character
 
     result = generate_character(AEROSPACE_CAREER, roller=ConstantRoller(12))
-    if isinstance(result, Character):
-        if result.rank >= 3:
-            assert "Leadership" in result.skills
+    assert isinstance(result, Character)
+    if result.rank >= 3:
+        assert "Leadership" in result.skills
