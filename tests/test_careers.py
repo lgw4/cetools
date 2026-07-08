@@ -162,6 +162,7 @@ from cetools.engine.careers.registry import CAREER_REGISTRY, DRAFT_TABLE  # noqa
 
 # T003 — SCOUT_CAREER field validation
 from cetools.engine.careers.scout import SCOUT_CAREER  # noqa: E402
+from cetools.engine.careers.surface import SURFACE_CAREER  # noqa: E402
 
 
 def test_scout_career_name() -> None:
@@ -291,6 +292,14 @@ def test_career_registry_maritime_value() -> None:
     assert CAREER_REGISTRY["maritime system defense"] is MARITIME_CAREER
 
 
+def test_career_registry_has_surface_key() -> None:
+    assert "surface system defense" in CAREER_REGISTRY
+
+
+def test_career_registry_surface_value() -> None:
+    assert CAREER_REGISTRY["surface system defense"] is SURFACE_CAREER
+
+
 def test_draft_table_length_is_six() -> None:
     assert len(DRAFT_TABLE) == 6
 
@@ -315,10 +324,16 @@ def test_draft_table_index_3_is_navy() -> None:
     assert DRAFT_TABLE[3] == "navy"
 
 
-def test_draft_table_other_entries_are_navy() -> None:
+def test_draft_table_index_5_is_surface() -> None:
+    assert DRAFT_TABLE[5] == "surface system defense"
+
+
+def test_draft_table_only_slot_3_is_navy() -> None:
     for i, entry in enumerate(DRAFT_TABLE):
-        if i not in (0, 1, 2, 4):
-            assert entry == "navy", f"DRAFT_TABLE[{i}] expected 'navy', got {entry!r}"
+        if i == 3:
+            assert entry == "navy", f"DRAFT_TABLE[3] expected 'navy', got {entry!r}"
+        else:
+            assert entry != "navy", f"DRAFT_TABLE[{i}] unexpectedly 'navy'"
 
 
 # ── Career.__post_init__ validation ──────────────────────────────────────────
