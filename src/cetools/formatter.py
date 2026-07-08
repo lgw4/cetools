@@ -8,20 +8,29 @@ _DISCHARGE_TEXT = {
 
 
 def _combine_material_benefits(benefits: list[Benefit]) -> list[str]:
-    names = [b.material_name for b in benefits if b.kind == "material"]
-
     boost_totals: dict[str, int] = {}
     boost_first_index: dict[str, int] = {}
     item_counts: dict[str, int] = {}
     item_first_index: dict[str, int] = {}
-    for i, name in enumerate(names):
-        if name.startswith("+1 "):
+    quantity_totals: dict[str, int] = {}
+    quantity_first_index: dict[str, int] = {}
+
+    index = 0
+    for benefit in benefits:
+        if benefit.kind != "material":
+            continue
+        name = benefit.material_name
+        if benefit.material_quantity is not None:
+            quantity_totals[name] = quantity_totals.get(name, 0) + benefit.material_quantity
+            quantity_first_index.setdefault(name, index)
+        elif name.startswith("+1 "):
             label = name[3:]
             boost_totals[label] = boost_totals.get(label, 0) + 1
-            boost_first_index.setdefault(label, i)
+            boost_first_index.setdefault(label, index)
         else:
             item_counts[name] = item_counts.get(name, 0) + 1
-            item_first_index.setdefault(name, i)
+            item_first_index.setdefault(name, index)
+        index += 1
 
     boosts = [
         f"+{boost_totals[label]} {label}"
@@ -35,8 +44,12 @@ def _combine_material_benefits(benefits: list[Benefit]) -> list[str]:
         (name for name, count in item_counts.items() if count > 1),
         key=lambda name: item_first_index[name],
     )
+    quantities = [
+        f"{quantity_totals[name]} {name}"
+        for name in sorted(quantity_totals, key=lambda name: quantity_first_index[name])
+    ]
 
-    return boosts + singles + [f"{name} (x{item_counts[name]})" for name in repeats]
+    return boosts + singles + [f"{name} (x{item_counts[name]})" for name in repeats] + quantities
 
 
 def _mishap_line(character: Character) -> str:
