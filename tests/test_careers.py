@@ -482,6 +482,7 @@ def test_registry_frontier_career_values() -> None:
 def test_frontier_careers_not_draftable() -> None:
     for key in ("athlete", "barbarian", "colonist", "hunter", "drifter"):
         assert key not in DRAFT_TABLE
+    assert len(DRAFT_TABLE) == 6
 
 
 from cetools.engine.careers.belter import BELTER_CAREER  # noqa: E402
@@ -507,5 +508,4 @@ def test_registry_rogue_spacer_career_values() -> None:
 def test_rogue_spacer_careers_not_draftable() -> None:
     for key in ("belter", "mercenary", "pirate", "rogue", "merchant"):
         assert key not in DRAFT_TABLE
-    assert len(DRAFT_TABLE) == 6
     assert len(DRAFT_TABLE) == 6
