@@ -2,7 +2,7 @@
 
 Cepheus Engine character generation tools. Generates playable characters following the [Cepheus Engine SRD](https://evolvedexperiment.github.io/cepheus-srd/) rules.
 
-Supported careers: **Aerospace System Defense**, **Marine**, **Navy**, **Scout**. Omit the career to have one drafted at random.
+Supported careers: **Aerospace System Defense**, **Marine**, **Maritime System Defense**, **Navy**, **Scout**. Omit the career to have one drafted at random.
 
 ## Requirements
 
@@ -126,7 +126,7 @@ Use the career registry to look up a career by name:
 ```python
 from cetools.engine.careers import CAREER_REGISTRY
 
-career = CAREER_REGISTRY["scout"]  # or "navy", "marine", "aerospace system defense"
+career = CAREER_REGISTRY["scout"]  # or "navy", "marine", "maritime system defense", "aerospace system defense"
 ```
 
 Inject a custom `DiceRoller` for deterministic results:
