@@ -13,8 +13,8 @@ class RankEntry:
 @dataclass(frozen=True)
 class Career:
     name: str
-    qualification_stat: str
-    qualification_target: int
+    qualification_stat: str | None
+    qualification_target: int | None
     survival_stat: str
     survival_target: int
     commission_stat: str | None
@@ -32,15 +32,18 @@ class Career:
 
     def __post_init__(self) -> None:
         valid_stats = set(STAT_NAMES)
+        if (self.qualification_stat is None) != (self.qualification_target is None):
+            raise ValueError(
+                f"Career '{self.name}': qualification_stat and qualification_target"
+                " must both be set or both be None"
+            )
+        if self.survival_stat not in valid_stats:
+            raise ValueError(
+                f"Career '{self.name}': survival_stat"
+                f" '{self.survival_stat}' is not a valid stat"
+            )
         for field_name, stat in (
             ("qualification_stat", self.qualification_stat),
-            ("survival_stat", self.survival_stat),
-        ):
-            if stat not in valid_stats:
-                raise ValueError(
-                    f"Career '{self.name}': {field_name} '{stat}' is not a valid stat"
-                )
-        for field_name, stat in (
             ("commission_stat", self.commission_stat),
             ("advancement_stat", self.advancement_stat),
         ):
