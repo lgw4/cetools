@@ -212,9 +212,9 @@ def test_us3_material_benefits_listed_by_name_in_order() -> None:
     assert lines[-1] == "Weapon, Travellers' Aid Society, Ship Share"
 
 
-def test_material_benefits_combine_repeated_names_with_count() -> None:
-    """Matches spec 008's worked example: singles keep their order, then any
-    repeated name is appended once as "Name x N", in first-occurrence order."""
+def test_material_benefits_sum_boosts_and_group_items() -> None:
+    """Stat boosts are summed and listed first; material items keep singles-then-
+    repeats ordering, each group ordered by first occurrence."""
     character = _make_empty_character()
     character.benefits = [
         Benefit(kind="material", material_name="Weapon"),
@@ -226,7 +226,53 @@ def test_material_benefits_combine_repeated_names_with_count() -> None:
     ]
     output = format_character(character)
     lines = output.split("\n")
-    assert lines[-1] == "+1 Edu, High Passage, +1 Soc, Weapon x 3"
+    assert lines[-1] == "+1 Edu, +1 Soc, High Passage, Weapon x 3"
+
+
+def test_repeated_stat_boost_sums_into_single_entry() -> None:
+    """Two "+1 Soc" rolls render as "+2 Soc", not "+1 Soc x 2"."""
+    character = _make_empty_character()
+    character.benefits = [
+        Benefit(kind="material", material_name="+1 Soc"),
+        Benefit(kind="material", material_name="+1 Soc"),
+    ]
+    output = format_character(character)
+    assert output.split("\n")[-1] == "+2 Soc"
+
+
+def test_single_stat_boost_renders_as_plus_one() -> None:
+    """A stat boost rolled once stays "+1 Edu" (no "x 1")."""
+    character = _make_empty_character()
+    character.benefits = [Benefit(kind="material", material_name="+1 Edu")]
+    output = format_character(character)
+    assert output.split("\n")[-1] == "+1 Edu"
+
+
+def test_triple_stat_boost_sums_to_plus_three() -> None:
+    character = _make_empty_character()
+    character.benefits = [
+        Benefit(kind="material", material_name="+1 Str"),
+        Benefit(kind="material", material_name="+1 Str"),
+        Benefit(kind="material", material_name="+1 Str"),
+    ]
+    output = format_character(character)
+    assert output.split("\n")[-1] == "+3 Str"
+
+
+def test_boosts_and_items_full_example() -> None:
+    """Reproduces the reported bug: "+1 Edu, +1 Soc x 2, Mid Passage, Weapon x 2"
+    must render with Soc summed and boosts first."""
+    character = _make_empty_character()
+    character.benefits = [
+        Benefit(kind="material", material_name="+1 Edu"),
+        Benefit(kind="material", material_name="Mid Passage"),
+        Benefit(kind="material", material_name="+1 Soc"),
+        Benefit(kind="material", material_name="+1 Soc"),
+        Benefit(kind="material", material_name="Weapon"),
+        Benefit(kind="material", material_name="Weapon"),
+    ]
+    output = format_character(character)
+    assert output.split("\n")[-1] == "+1 Edu, +2 Soc, Mid Passage, Weapon x 2"
 
 
 def test_material_benefits_multiple_repeated_names_ordered_by_first_occurrence() -> None:
