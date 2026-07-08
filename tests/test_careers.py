@@ -411,3 +411,23 @@ def test_career_rejects_nonconsecutive_ranks() -> None:
     )
     with pytest.raises(ValueError, match="rank at index 1"):
         _make_valid_career(name="Bad", ranks=bad_ranks)
+
+
+def test_career_allows_none_qualification() -> None:
+    career = _make_valid_career(name="NoQual", qualification_stat=None, qualification_target=None)
+    assert career.qualification_stat is None
+    assert career.qualification_target is None
+
+
+def test_career_rejects_qualification_stat_none_with_target_set() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="both be set or both be None"):
+        _make_valid_career(name="Bad", qualification_stat=None)
+
+
+def test_career_rejects_qualification_target_none_with_stat_set() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="both be set or both be None"):
+        _make_valid_career(name="Bad", qualification_target=None)
