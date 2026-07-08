@@ -197,7 +197,8 @@ def test_career_unknown_stderr_message_exact() -> None:
     result = runner.invoke(app, ["character", "generate", "--career", "merchant"])
     expected = (
         "Unknown career 'merchant'. Valid careers: Aerospace System Defense, "
-        "Marine, Maritime System Defense, Navy, Scout, Surface System Defense"
+        "Agent, Bureaucrat, Diplomat, Entertainer, Marine, "
+        "Maritime System Defense, Navy, Noble, Scout, Surface System Defense"
     )
     assert result.stderr.strip() == expected
 
@@ -399,7 +400,8 @@ def test_career_no_match_valid_careers_format() -> None:
     result = runner.invoke(app, ["character", "generate", "--career", "xyzzy"])
     expected = (
         "Unknown career 'xyzzy'. Valid careers: Aerospace System Defense, "
-        "Marine, Maritime System Defense, Navy, Scout, Surface System Defense"
+        "Agent, Bureaucrat, Diplomat, Entertainer, Marine, "
+        "Maritime System Defense, Navy, Noble, Scout, Surface System Defense"
     )
     assert result.stderr.strip() == expected
 

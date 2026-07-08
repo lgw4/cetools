@@ -2,7 +2,7 @@
 
 Cepheus Engine character generation tools. Generates playable characters following the [Cepheus Engine SRD](https://evolvedexperiment.github.io/cepheus-srd/) rules.
 
-Supported careers: **Aerospace System Defense**, **Marine**, **Maritime System Defense**, **Navy**, **Scout**, **Surface System Defense**. Omit the career to have one drafted at random.
+Supported careers: **Aerospace System Defense**, **Agent**, **Bureaucrat**, **Diplomat**, **Entertainer**, **Marine**, **Maritime System Defense**, **Navy**, **Noble**, **Scout**, **Surface System Defense**. Omit `--career` to have one of the six services (Aerospace System Defense, Marine, Maritime System Defense, Navy, Scout, Surface System Defense) drafted at random; the other careers are selectable with `--career` only.
 
 ## Requirements
 
