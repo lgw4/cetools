@@ -4,6 +4,7 @@ import pytest
 
 from cetools.engine.careers.aerospace import AEROSPACE_CAREER
 from cetools.engine.careers.navy import NAVY_CAREER
+from cetools.engine.careers.scientist import SCIENTIST_CAREER
 from cetools.engine.careers.scout import SCOUT_CAREER
 from cetools.engine.generator import (
     _HOMEWORLD_SKILLS,
@@ -391,6 +392,39 @@ def test_roll_material_benefit_unaffected_for_career_without_explorers_society()
     # already contains that string. material_dm=1, so idx = clamp(6 + 1 - 1) = 6.
     name = _roll_material_benefit(AEROSPACE_CAREER, 1, ConstantRoller(6), {"Explorers' Society"})
     assert name == "+1 Soc"
+
+
+# --- Research Vessel (Scientist) and Courier Vessel (Scout): once-only ---
+
+
+def test_roll_material_benefit_grants_research_vessel_when_not_yet_granted() -> None:
+    # SCIENTIST_CAREER.material_benefits[6] = "Research Vessel". material_dm=1, so
+    # idx = clamp(6 + 1 - 1) = 6.
+    name = _roll_material_benefit(SCIENTIST_CAREER, 1, ConstantRoller(6), set())
+    assert name == "Research Vessel"
+
+
+def test_roll_material_benefit_rerolls_research_vessel_when_already_granted() -> None:
+    # First die = 6 -> "Research Vessel", already granted, so it rerolls:
+    # second die = 4 -> idx 4 -> "+1 Soc".
+    roller = SequenceRoller([6, 4], default=6)
+    name = _roll_material_benefit(SCIENTIST_CAREER, 1, roller, {"Research Vessel"})
+    assert name == "+1 Soc"
+
+
+def test_roll_material_benefit_grants_courier_vessel_when_not_yet_granted() -> None:
+    # SCOUT_CAREER.material_benefits has 6 entries; [5] = "Courier Vessel".
+    # material_dm=1, roll 6 -> idx = clamp(6, 0, 5) = 5.
+    name = _roll_material_benefit(SCOUT_CAREER, 1, ConstantRoller(6), set())
+    assert name == "Courier Vessel"
+
+
+def test_roll_material_benefit_rerolls_courier_vessel_when_already_granted() -> None:
+    # First die = 6 -> idx 5 -> "Courier Vessel", already granted, so it rerolls:
+    # second die = 3 -> idx 3 -> "Mid Passage".
+    roller = SequenceRoller([6, 3], default=6)
+    name = _roll_material_benefit(SCOUT_CAREER, 1, roller, {"Courier Vessel"})
+    assert name == "Mid Passage"
 
 
 # --- Benefits non-empty ---

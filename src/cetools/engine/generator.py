@@ -56,7 +56,7 @@ _RANK_BONUS_ROLLS = {4: 1, 5: 2, 6: 3}
 
 _MAX_TERMS = 7
 _MAX_CASH_ROLLS = 3
-_UNIQUE_MATERIAL_BENEFIT = "Explorers' Society"
+_UNIQUE_MATERIAL_BENEFITS = frozenset({"Explorers' Society", "Research Vessel", "Courier Vessel"})
 _SHIP_SHARES_BENEFIT = "1D6 Ship Shares"
 
 
@@ -219,7 +219,7 @@ def _roll_material_benefit(
     while True:
         idx = max(0, min(mat_max, roller.roll(6) + material_dm - 1))
         name = career.material_benefits[idx]
-        if name == _UNIQUE_MATERIAL_BENEFIT and name in granted_names:
+        if name in _UNIQUE_MATERIAL_BENEFITS and name in granted_names:
             continue
         return name
 
