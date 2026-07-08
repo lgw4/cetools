@@ -436,6 +436,24 @@ def test_roll_material_benefit_terminates_with_fixed_roller_on_granted_unique() 
     assert name in SCOUT_CAREER.material_benefits
 
 
+def test_roll_material_benefit_raises_when_no_eligible_benefit_remains() -> None:
+    import dataclasses
+
+    import pytest
+
+    # Degenerate career whose entire material table is once-only benefits that
+    # are all already granted: the reroll loop exhausts and the fallback finds
+    # nothing, so the guard raises a descriptive error instead of a bare
+    # StopIteration. Not reachable with any real career table.
+    degenerate = dataclasses.replace(
+        SCOUT_CAREER,
+        material_benefits=("Explorers' Society", "Research Vessel", "Courier Vessel"),
+    )
+    granted = {"Explorers' Society", "Research Vessel", "Courier Vessel"}
+    with pytest.raises(RuntimeError, match="no material benefit outside"):
+        _roll_material_benefit(degenerate, 0, ConstantRoller(1), granted)
+
+
 # --- Benefits non-empty ---
 
 

@@ -227,10 +227,13 @@ def _roll_material_benefit(
     # on an already-granted once-only benefit would otherwise loop forever.
     # Fall back deterministically to the first table entry that is not an
     # already-granted once-only benefit — every real career table has one.
-    return next(
-        name
-        for name in career.material_benefits
-        if not (name in _UNIQUE_MATERIAL_BENEFITS and name in granted_names)
+    for name in career.material_benefits:
+        if not (name in _UNIQUE_MATERIAL_BENEFITS and name in granted_names):
+            return name
+    raise RuntimeError(
+        f"Career '{career.name}' has no material benefit outside the"
+        f" already-granted once-only set"
+        f" {sorted(_UNIQUE_MATERIAL_BENEFITS & granted_names)}"
     )
 
 
