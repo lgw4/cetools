@@ -188,25 +188,26 @@ def test_career_navy_no_drafted_marker() -> None:
 
 
 def test_career_unknown_exits_1() -> None:
-    result = runner.invoke(app, ["character", "generate", "--career", "merchant"])
+    result = runner.invoke(app, ["character", "generate", "--career", "smuggler"])
     assert result.exit_code == 1
 
 
 def test_career_unknown_stderr_message_exact() -> None:
     # T018: updated to match the "no close match" format (canonical names, no suggestion)
-    result = runner.invoke(app, ["character", "generate", "--career", "merchant"])
+    result = runner.invoke(app, ["character", "generate", "--career", "smuggler"])
     expected = (
-        "Unknown career 'merchant'. Valid careers: Aerospace System Defense, "
-        "Agent, Athlete, Barbarian, Bureaucrat, Colonist, Diplomat, Drifter, "
-        "Entertainer, Hunter, Marine, Maritime System Defense, Navy, Noble, "
-        "Scout, Surface System Defense"
+        "Unknown career 'smuggler'. Valid careers: Aerospace System Defense, "
+        "Agent, Athlete, Barbarian, Belter, Bureaucrat, Colonist, Diplomat, "
+        "Drifter, Entertainer, Hunter, Marine, Maritime System Defense, "
+        "Mercenary, Merchant, Navy, Noble, Pirate, Rogue, Scout, "
+        "Surface System Defense"
     )
     assert result.stderr.strip() == expected
 
 
 def test_career_unknown_original_value_in_message() -> None:
-    result = runner.invoke(app, ["character", "generate", "--career", "Merchant"])
-    assert "Merchant" in result.stderr
+    result = runner.invoke(app, ["character", "generate", "--career", "Smuggler"])
+    assert "Smuggler" in result.stderr
 
 
 # --- T024: Input normalization ---
@@ -401,9 +402,10 @@ def test_career_no_match_valid_careers_format() -> None:
     result = runner.invoke(app, ["character", "generate", "--career", "xyzzy"])
     expected = (
         "Unknown career 'xyzzy'. Valid careers: Aerospace System Defense, "
-        "Agent, Athlete, Barbarian, Bureaucrat, Colonist, Diplomat, Drifter, "
-        "Entertainer, Hunter, Marine, Maritime System Defense, Navy, Noble, "
-        "Scout, Surface System Defense"
+        "Agent, Athlete, Barbarian, Belter, Bureaucrat, Colonist, Diplomat, "
+        "Drifter, Entertainer, Hunter, Marine, Maritime System Defense, "
+        "Mercenary, Merchant, Navy, Noble, Pirate, Rogue, Scout, "
+        "Surface System Defense"
     )
     assert result.stderr.strip() == expected
 
