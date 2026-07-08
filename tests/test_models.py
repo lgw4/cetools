@@ -229,3 +229,13 @@ def test_character_mishap_and_debt_can_be_set() -> None:
     )
     assert char.mishap is outcome
     assert char.debt == 15000
+
+
+def test_benefit_material_quantity_defaults_none() -> None:
+    b = Benefit(kind="material", material_name="Weapon")
+    assert b.material_quantity is None
+
+
+def test_benefit_carries_material_quantity() -> None:
+    b = Benefit(kind="material", material_name="Ship Shares", material_quantity=4)
+    assert b.material_quantity == 4

@@ -1016,3 +1016,34 @@ def test_roll_until_qualified_none_qualification_returns_immediately() -> None:
     # All stats roll to 1 — Navy would loop forever; no-qual returns at once.
     result = roll_until_qualified(no_qual, roller=ConstantRoller(1))
     assert set(result.keys()) == set(STAT_NAMES)
+
+
+def test_muster_out_ship_shares_rolls_quantity() -> None:
+    import dataclasses
+
+    from cetools.engine.models import STAT_NAMES
+
+    ship_career = dataclasses.replace(
+        NAVY_CAREER,
+        material_benefits=(
+            "Low Passage",
+            "+1 Int",
+            "Weapon",
+            "Mid Passage",
+            "+1 Soc",
+            "High Passage",
+            "1D6 Ship Shares",
+        ),
+    )
+    characteristics = {stat: 7 for stat in STAT_NAMES}
+    # rank 5 -> material_dm=1 and +2 bonus muster rolls; terms=2 -> 4 total rolls
+    # (3 cash cap, then 1 material). Cash rolls 1,1,1; material-select roll 6 ->
+    # idx 6 -> "1D6 Ship Shares"; quantity roll 3.
+    roller = SequenceRoller([1, 1, 1, 6, 3])
+    benefits = _muster_out(ship_career, 2, 5, {}, characteristics, roller)
+    material = [b for b in benefits if b.kind == "material"]
+    assert len(material) == 1
+    assert material[0].material_name == "Ship Shares"
+    assert material[0].material_quantity == 3
+    # ship shares do not touch characteristics
+    assert all(value == 7 for value in characteristics.values())

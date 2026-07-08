@@ -53,6 +53,7 @@ class Benefit:
     kind: Literal["cash", "material"]
     cash_amount: int | None = None
     material_name: str | None = None
+    material_quantity: int | None = None
 
     def __post_init__(self) -> None:
         if self.kind == "cash" and self.cash_amount is None:
