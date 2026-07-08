@@ -10,22 +10,33 @@ _DISCHARGE_TEXT = {
 def _combine_material_benefits(benefits: list[Benefit]) -> list[str]:
     names = [b.material_name for b in benefits if b.kind == "material"]
 
-    counts: dict[str, int] = {}
-    first_index: dict[str, int] = {}
+    boost_totals: dict[str, int] = {}
+    boost_first_index: dict[str, int] = {}
+    item_counts: dict[str, int] = {}
+    item_first_index: dict[str, int] = {}
     for i, name in enumerate(names):
-        counts[name] = counts.get(name, 0) + 1
-        first_index.setdefault(name, i)
+        if name.startswith("+1 "):
+            label = name[3:]
+            boost_totals[label] = boost_totals.get(label, 0) + 1
+            boost_first_index.setdefault(label, i)
+        else:
+            item_counts[name] = item_counts.get(name, 0) + 1
+            item_first_index.setdefault(name, i)
 
+    boosts = [
+        f"+{boost_totals[label]} {label}"
+        for label in sorted(boost_totals, key=lambda label: boost_first_index[label])
+    ]
     singles = sorted(
-        (name for name, count in counts.items() if count == 1),
-        key=lambda name: first_index[name],
+        (name for name, count in item_counts.items() if count == 1),
+        key=lambda name: item_first_index[name],
     )
     repeats = sorted(
-        (name for name, count in counts.items() if count > 1),
-        key=lambda name: first_index[name],
+        (name for name, count in item_counts.items() if count > 1),
+        key=lambda name: item_first_index[name],
     )
 
-    return singles + [f"{name} x {counts[name]}" for name in repeats]
+    return boosts + singles + [f"{name} x {item_counts[name]}" for name in repeats]
 
 
 def _mishap_line(character: Character) -> str:
