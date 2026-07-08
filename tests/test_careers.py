@@ -457,3 +457,29 @@ def test_social_careers_not_draftable() -> None:
     for key in ("agent", "bureaucrat", "diplomat", "entertainer", "noble"):
         assert key not in DRAFT_TABLE
     assert len(DRAFT_TABLE) == 6
+
+
+from cetools.engine.careers.athlete import ATHLETE_CAREER  # noqa: E402
+from cetools.engine.careers.barbarian import BARBARIAN_CAREER  # noqa: E402
+from cetools.engine.careers.colonist import COLONIST_CAREER  # noqa: E402
+from cetools.engine.careers.drifter import DRIFTER_CAREER  # noqa: E402
+from cetools.engine.careers.hunter import HUNTER_CAREER  # noqa: E402
+
+
+def test_registry_has_frontier_career_keys() -> None:
+    for key in ("athlete", "barbarian", "colonist", "hunter", "drifter"):
+        assert key in CAREER_REGISTRY
+
+
+def test_registry_frontier_career_values() -> None:
+    assert CAREER_REGISTRY["athlete"] is ATHLETE_CAREER
+    assert CAREER_REGISTRY["barbarian"] is BARBARIAN_CAREER
+    assert CAREER_REGISTRY["colonist"] is COLONIST_CAREER
+    assert CAREER_REGISTRY["hunter"] is HUNTER_CAREER
+    assert CAREER_REGISTRY["drifter"] is DRIFTER_CAREER
+
+
+def test_frontier_careers_not_draftable() -> None:
+    for key in ("athlete", "barbarian", "colonist", "hunter", "drifter"):
+        assert key not in DRAFT_TABLE
+    assert len(DRAFT_TABLE) == 6
