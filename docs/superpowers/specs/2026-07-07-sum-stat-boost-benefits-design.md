@@ -13,8 +13,9 @@ Here `+1 Soc x 2` means the character rolled the `+1 Soc` benefit twice, so thei
 Social Standing went up by 2. The intended display is `+2 Soc`.
 
 The character's stats are already correct: each `+1 Soc` roll is applied to the UPP
-in the generator (`generator.py:215-218`, via `_apply_stat_boost`). The defect is
-purely in how the benefit line is formatted.
+in the generator by `_apply_material_benefit` (`generator.py:215-218`), which
+delegates to `_apply_stat_boost` (`generator.py:117-124`). The defect is purely in
+how the benefit line is formatted.
 
 ## Root cause
 

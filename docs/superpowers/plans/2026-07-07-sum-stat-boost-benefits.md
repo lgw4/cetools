@@ -6,7 +6,7 @@
 
 **Architecture:** Display-only change in `src/cetools/formatter.py`. The function `_combine_material_benefits` is rewritten to split material benefits into stat boosts (summed) and genuine items (unchanged `x N` notation). No changes to the generator, the `Benefit` model, or how characteristics are applied — the UPP is already correct.
 
-**Tech Stack:** Python 3.14, pytest, Black, flake8, isort, managed with `uv`.
+**Tech Stack:** Python 3.13+, pytest, Black, flake8, isort, managed with `uv`.
 
 ## Global Constraints
 
