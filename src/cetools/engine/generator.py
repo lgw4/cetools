@@ -248,7 +248,11 @@ def generate_character(
     skills: dict[str, int] = {}
     _grant_background_skills(characteristics, skills, roller)
 
-    if not bypass_qualification:
+    if (
+        not bypass_qualification
+        and career.qualification_stat is not None
+        and career.qualification_target is not None
+    ):
         if not _check(
             roller, characteristics, career.qualification_stat, career.qualification_target
         ):
@@ -396,6 +400,8 @@ def roll_until_qualified(career: Career, roller: DiceRoller | None = None) -> di
         roller = RandomDiceRoller()
     while True:
         characteristics = {stat: roller.roll(6, count=2) for stat in STAT_NAMES}
+        if career.qualification_stat is None or career.qualification_target is None:
+            return characteristics
         if characteristics[career.qualification_stat] >= career.qualification_target:
             return characteristics
 

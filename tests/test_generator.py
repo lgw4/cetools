@@ -1,3 +1,5 @@
+import dataclasses
+
 import pytest
 
 from cetools.engine.careers.aerospace import AEROSPACE_CAREER
@@ -18,7 +20,7 @@ from cetools.engine.generator import (
     generate_character,
     roll_until_qualified,
 )
-from cetools.engine.models import Character, GenerationFailure
+from cetools.engine.models import STAT_NAMES, Character, GenerationFailure
 from conftest import ConstantRoller, SequenceRoller, SmartRoller
 
 
@@ -989,3 +991,28 @@ def test_generate_character_grants_background_skills() -> None:
     for skill in ("Animals", "Broker", "Admin", "Advocate"):
         assert skill in result.skills
     assert result.skills["Broker"] == 0
+
+
+def test_generate_character_none_qualification_skips_enlistment_failure() -> None:
+    no_qual = dataclasses.replace(
+        NAVY_CAREER, name="Drifter", qualification_stat=None, qualification_target=None
+    )
+    # ConstantRoller(1) would fail Navy's Int 6+ qualification; with no
+    # qualification the career must not return an enlistment failure.
+    result = generate_character(no_qual, roller=ConstantRoller(1))
+    assert isinstance(result, Character)
+
+
+def test_generate_character_concrete_qualification_still_gates() -> None:
+    result = generate_character(NAVY_CAREER, roller=ConstantRoller(1))
+    assert isinstance(result, GenerationFailure)
+    assert "enlistment failed" in result.reason
+
+
+def test_roll_until_qualified_none_qualification_returns_immediately() -> None:
+    no_qual = dataclasses.replace(
+        NAVY_CAREER, name="Drifter", qualification_stat=None, qualification_target=None
+    )
+    # All stats roll to 1 — Navy would loop forever; no-qual returns at once.
+    result = roll_until_qualified(no_qual, roller=ConstantRoller(1))
+    assert set(result.keys()) == set(STAT_NAMES)
