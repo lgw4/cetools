@@ -1076,3 +1076,11 @@ def test_muster_out_hunter_ship_shares() -> None:
     assert len(material) == 1
     assert material[0].material_name == "Ship Shares"
     assert material[0].material_quantity == 3
+
+
+def test_generate_career_character_drifter_no_qualification() -> None:
+    from cetools.engine.careers.drifter import DRIFTER_CAREER
+
+    result = generate_career_character(DRIFTER_CAREER, roller=SmartRoller(10, 1))
+    assert isinstance(result, Character)
+    assert result.career == "Drifter"

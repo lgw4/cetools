@@ -1,0 +1,42 @@
+from cetools.engine.careers.base import Career, RankEntry
+
+DRIFTER_CAREER = Career(
+    name="Drifter",
+    qualification_stat=None,
+    qualification_target=None,
+    survival_stat="Endurance",
+    survival_target=5,
+    commission_stat=None,
+    commission_target=None,
+    advancement_stat=None,
+    advancement_target=None,
+    reenlistment_target=5,
+    service_skills=("Streetwise", "Mechanics", "Gun Combat", "Melee Combat", "Recon", "Vehicle"),
+    personal_development=("+1 Str", "+1 Dex", "+1 End", "Melee Combat", "Bribery", "Gambling"),
+    specialist_skills=(
+        "Electronics",
+        "Melee Combat",
+        "Bribery",
+        "Streetwise",
+        "Gambling",
+        "Recon",
+    ),
+    advanced_education=(
+        "Computer",
+        "Engineering",
+        "Jack o' Trades",
+        "Medicine",
+        "Liaison",
+        "Tactics",
+    ),
+    ranks=(RankEntry(0, "Drifter", ()),),
+    cash_benefits=(0, 1000, 2000, 5000, 5000, 10000, 10000),
+    material_benefits=(
+        "Low Passage",
+        "+1 Int",
+        "Weapon",
+        "Weapon",
+        "Mid Passage",
+        "Mid Passage",
+    ),
+)
