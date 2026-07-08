@@ -752,12 +752,12 @@ def test_draft_character_roll_2_gives_marine() -> None:
 def test_draft_character_unimplemented_career_returns_failure() -> None:
     from unittest.mock import patch
 
-    # Patch DRAFT_TABLE in generator so index 0 is "merchant" (not in CAREER_REGISTRY)
-    with patch("cetools.engine.generator.DRAFT_TABLE", ("merchant",) + ("navy",) * 5):
+    # Patch DRAFT_TABLE in generator so index 0 is "smuggler" (not in CAREER_REGISTRY)
+    with patch("cetools.engine.generator.DRAFT_TABLE", ("smuggler",) + ("navy",) * 5):
         roller = SequenceRoller([1], default=10)
         result = draft_character(roller=roller)
     assert isinstance(result, GenerationFailure)
-    assert "merchant" in result.reason
+    assert "smuggler" in result.reason
 
 
 # --- T017: benefits/pension/debt matrix after 5+ completed terms (US3) ---

@@ -482,4 +482,30 @@ def test_registry_frontier_career_values() -> None:
 def test_frontier_careers_not_draftable() -> None:
     for key in ("athlete", "barbarian", "colonist", "hunter", "drifter"):
         assert key not in DRAFT_TABLE
+
+
+from cetools.engine.careers.belter import BELTER_CAREER  # noqa: E402
+from cetools.engine.careers.mercenary import MERCENARY_CAREER  # noqa: E402
+from cetools.engine.careers.merchant import MERCHANT_CAREER  # noqa: E402
+from cetools.engine.careers.pirate import PIRATE_CAREER  # noqa: E402
+from cetools.engine.careers.rogue import ROGUE_CAREER  # noqa: E402
+
+
+def test_registry_has_rogue_spacer_career_keys() -> None:
+    for key in ("belter", "mercenary", "pirate", "rogue", "merchant"):
+        assert key in CAREER_REGISTRY
+
+
+def test_registry_rogue_spacer_career_values() -> None:
+    assert CAREER_REGISTRY["belter"] is BELTER_CAREER
+    assert CAREER_REGISTRY["mercenary"] is MERCENARY_CAREER
+    assert CAREER_REGISTRY["pirate"] is PIRATE_CAREER
+    assert CAREER_REGISTRY["rogue"] is ROGUE_CAREER
+    assert CAREER_REGISTRY["merchant"] is MERCHANT_CAREER
+
+
+def test_rogue_spacer_careers_not_draftable() -> None:
+    for key in ("belter", "mercenary", "pirate", "rogue", "merchant"):
+        assert key not in DRAFT_TABLE
+    assert len(DRAFT_TABLE) == 6
     assert len(DRAFT_TABLE) == 6
