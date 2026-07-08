@@ -427,6 +427,15 @@ def test_roll_material_benefit_rerolls_courier_vessel_when_already_granted() -> 
     assert name == "Mid Passage"
 
 
+def test_roll_material_benefit_terminates_with_fixed_roller_on_granted_unique() -> None:
+    # ConstantRoller(6) always lands on SCOUT_CAREER.material_benefits[5]
+    # ("Courier Vessel"). With it already granted, the reroll loop would spin
+    # forever without a cap; the fallback must return a non-duplicate benefit.
+    name = _roll_material_benefit(SCOUT_CAREER, 1, ConstantRoller(6), {"Courier Vessel"})
+    assert name != "Courier Vessel"
+    assert name in SCOUT_CAREER.material_benefits
+
+
 # --- Benefits non-empty ---
 
 
