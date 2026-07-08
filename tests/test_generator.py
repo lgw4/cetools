@@ -1047,3 +1047,16 @@ def test_muster_out_ship_shares_rolls_quantity() -> None:
     assert material[0].material_quantity == 3
     # ship shares do not touch characteristics
     assert all(value == 7 for value in characteristics.values())
+
+
+def test_muster_out_zero_cash_benefit() -> None:
+    from cetools.engine.careers.barbarian import BARBARIAN_CAREER
+    from cetools.engine.models import STAT_NAMES
+
+    characteristics = {stat: 7 for stat in STAT_NAMES}
+    # rank 0, terms=1 -> 1 total roll (cash). ConstantRoller(1) with no Gambling
+    # -> cash_dm=0 -> idx 0 -> cash_benefits[0] == 0.
+    benefits = _muster_out(BARBARIAN_CAREER, 1, 0, {}, characteristics, ConstantRoller(1))
+    cash = [b for b in benefits if b.kind == "cash"]
+    assert len(cash) == 1
+    assert cash[0].cash_amount == 0
