@@ -1,0 +1,35 @@
+from cetools.engine.careers.base import Career, RankEntry
+
+ENTERTAINER_CAREER = Career(
+    name="Entertainer",
+    qualification_stat="Social Standing",
+    qualification_target=8,
+    survival_stat="Intelligence",
+    survival_target=4,
+    commission_stat=None,
+    commission_target=None,
+    advancement_stat=None,
+    advancement_target=None,
+    reenlistment_target=6,
+    service_skills=("Athletics", "Admin", "Carousing", "Bribery", "Gambling", "Vehicle"),
+    personal_development=("+1 Dex", "+1 Int", "+1 Edu", "+1 Soc", "Carousing", "Melee Combat"),
+    specialist_skills=("Computer", "Carousing", "Bribery", "Liaison", "Gambling", "Recon"),
+    advanced_education=(
+        "Advocate",
+        "Computer",
+        "Carousing",
+        "Linguistics",
+        "Medicine",
+        "Sciences",
+    ),
+    ranks=(RankEntry(0, "Entertainer", ("Carousing",)),),
+    cash_benefits=(2000, 10000, 20000, 20000, 50000, 100000, 100000),
+    material_benefits=(
+        "Low Passage",
+        "+1 Edu",
+        "+1 Soc",
+        "High Passage",
+        "Explorers' Society",
+        "High Passage",
+    ),
+)

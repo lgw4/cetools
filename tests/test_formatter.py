@@ -446,3 +446,35 @@ def test_mishap_line_contract_example_medical_injury_crisis_debt() -> None:
         "Mishap: Medically discharged, injured (Dexterity -6), "
         "survived an injury crisis; Debt Cr40,000"
     )
+
+
+def test_ship_shares_quantities_summed() -> None:
+    from cetools.formatter import _combine_material_benefits
+
+    benefits = [
+        Benefit(kind="material", material_name="Ship Shares", material_quantity=3),
+        Benefit(kind="material", material_name="Ship Shares", material_quantity=4),
+    ]
+    assert _combine_material_benefits(benefits) == ["7 Ship Shares"]
+
+
+def test_single_ship_share_renders_without_pluralization() -> None:
+    from cetools.formatter import _combine_material_benefits
+
+    benefits = [Benefit(kind="material", material_name="Ship Shares", material_quantity=1)]
+    assert _combine_material_benefits(benefits) == ["1 Ship Shares"]
+
+
+def test_ship_shares_coexist_with_boosts_and_items() -> None:
+    from cetools.formatter import _combine_material_benefits
+
+    benefits = [
+        Benefit(kind="material", material_name="+1 Edu"),
+        Benefit(kind="material", material_name="High Passage"),
+        Benefit(kind="material", material_name="Ship Shares", material_quantity=2),
+    ]
+    assert _combine_material_benefits(benefits) == [
+        "+1 Edu",
+        "High Passage",
+        "2 Ship Shares",
+    ]

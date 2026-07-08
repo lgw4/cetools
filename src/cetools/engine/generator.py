@@ -57,6 +57,7 @@ _RANK_BONUS_ROLLS = {4: 1, 5: 2, 6: 3}
 _MAX_TERMS = 7
 _MAX_CASH_ROLLS = 3
 _UNIQUE_MATERIAL_BENEFIT = "Explorers' Society"
+_SHIP_SHARES_BENEFIT = "1D6 Ship Shares"
 
 
 def _dm(characteristics: dict[str, int], stat: str) -> int:
@@ -190,9 +191,20 @@ def _muster_out(
             cash_rolls_used += 1
         else:
             name = _roll_material_benefit(career, material_dm, roller, granted_material_names)
-            _apply_material_benefit(name, characteristics, skills)
-            granted_material_names.add(name)
-            benefits.append(Benefit(kind="material", material_name=name))
+            if name == _SHIP_SHARES_BENEFIT:
+                quantity = roller.roll(6)
+                benefits.append(
+                    Benefit(
+                        kind="material",
+                        material_name="Ship Shares",
+                        material_quantity=quantity,
+                    )
+                )
+                granted_material_names.add(name)
+            else:
+                _apply_material_benefit(name, characteristics, skills)
+                granted_material_names.add(name)
+                benefits.append(Benefit(kind="material", material_name=name))
 
     return benefits
 

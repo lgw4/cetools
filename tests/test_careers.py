@@ -431,3 +431,29 @@ def test_career_rejects_qualification_target_none_with_stat_set() -> None:
 
     with pytest.raises(ValueError, match="both be set or both be None"):
         _make_valid_career(name="Bad", qualification_target=None)
+
+
+from cetools.engine.careers.agent import AGENT_CAREER  # noqa: E402
+from cetools.engine.careers.bureaucrat import BUREAUCRAT_CAREER  # noqa: E402
+from cetools.engine.careers.diplomat import DIPLOMAT_CAREER  # noqa: E402
+from cetools.engine.careers.entertainer import ENTERTAINER_CAREER  # noqa: E402
+from cetools.engine.careers.noble import NOBLE_CAREER  # noqa: E402
+
+
+def test_registry_has_social_career_keys() -> None:
+    for key in ("agent", "bureaucrat", "diplomat", "entertainer", "noble"):
+        assert key in CAREER_REGISTRY
+
+
+def test_registry_social_career_values() -> None:
+    assert CAREER_REGISTRY["agent"] is AGENT_CAREER
+    assert CAREER_REGISTRY["bureaucrat"] is BUREAUCRAT_CAREER
+    assert CAREER_REGISTRY["diplomat"] is DIPLOMAT_CAREER
+    assert CAREER_REGISTRY["entertainer"] is ENTERTAINER_CAREER
+    assert CAREER_REGISTRY["noble"] is NOBLE_CAREER
+
+
+def test_social_careers_not_draftable() -> None:
+    for key in ("agent", "bureaucrat", "diplomat", "entertainer", "noble"):
+        assert key not in DRAFT_TABLE
+    assert len(DRAFT_TABLE) == 6

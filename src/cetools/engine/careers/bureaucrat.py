@@ -1,0 +1,37 @@
+from cetools.engine.careers.base import Career, RankEntry
+
+BUREAUCRAT_CAREER = Career(
+    name="Bureaucrat",
+    qualification_stat="Social Standing",
+    qualification_target=6,
+    survival_stat="Education",
+    survival_target=4,
+    commission_stat="Social Standing",
+    commission_target=5,
+    advancement_stat="Intelligence",
+    advancement_target=8,
+    reenlistment_target=5,
+    service_skills=("Admin", "Computer", "Carousing", "Bribery", "Leadership", "Vehicle"),
+    personal_development=("+1 Dex", "+1 End", "+1 Int", "+1 Edu", "Athletics", "Carousing"),
+    specialist_skills=("Admin", "Computer", "Perception", "Leadership", "Steward", "Vehicle"),
+    advanced_education=("Advocate", "Computer", "Liaison", "Linguistics", "Medicine", "Admin"),
+    ranks=(
+        RankEntry(0, "Assistant", ("Admin",)),
+        RankEntry(1, "Clerk", ()),
+        RankEntry(2, "Supervisor", ()),
+        RankEntry(3, "Manager", ()),
+        RankEntry(4, "Chief", ("Advocate",)),
+        RankEntry(5, "Director", ()),
+        RankEntry(6, "Minister", ()),
+    ),
+    cash_benefits=(1000, 5000, 10000, 10000, 20000, 50000, 50000),
+    material_benefits=(
+        "Low Passage",
+        "+1 Edu",
+        "+1 Int",
+        "Mid Passage",
+        "Mid Passage",
+        "High Passage",
+        "+1 Soc",
+    ),
+)
