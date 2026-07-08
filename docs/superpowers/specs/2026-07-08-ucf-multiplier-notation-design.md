@@ -49,10 +49,13 @@ Update the affected assertions in `tests/test_formatter.py` to expect the
 `(xN)` form instead of `x N`:
 
 - `test_material_benefits_sum_boosts_and_group_items`
-- `test_repeated_stat_boost_sums_into_single_entry`
 - `test_boosts_and_items_full_example`
 - `test_material_benefits_multiple_repeated_names_ordered_by_first_occurrence`
 - any golden full-string assertion that includes a repeated item
+
+Stat-boost tests such as `test_repeated_stat_boost_sums_into_single_entry`
+(which asserts `+2 Soc`) are unaffected — boosts are not multipliers and keep
+their `+N Label` form.
 
 Then run the full quality gate: `uv run black . && uv run flake8 src tests &&
 uv run pytest` (coverage must stay ≥ 85%).
