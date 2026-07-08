@@ -36,7 +36,7 @@ def _combine_material_benefits(benefits: list[Benefit]) -> list[str]:
         key=lambda name: item_first_index[name],
     )
 
-    return boosts + singles + [f"{name} x {item_counts[name]}" for name in repeats]
+    return boosts + singles + [f"{name} (x{item_counts[name]})" for name in repeats]
 
 
 def _mishap_line(character: Character) -> str:

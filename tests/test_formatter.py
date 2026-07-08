@@ -226,7 +226,7 @@ def test_material_benefits_sum_boosts_and_group_items() -> None:
     ]
     output = format_character(character)
     lines = output.split("\n")
-    assert lines[-1] == "+1 Edu, +1 Soc, High Passage, Weapon x 3"
+    assert lines[-1] == "+1 Edu, +1 Soc, High Passage, Weapon (x3)"
 
 
 def test_repeated_stat_boost_sums_into_single_entry() -> None:
@@ -272,7 +272,7 @@ def test_boosts_and_items_full_example() -> None:
         Benefit(kind="material", material_name="Weapon"),
     ]
     output = format_character(character)
-    assert output.split("\n")[-1] == "+1 Edu, +2 Soc, Mid Passage, Weapon x 2"
+    assert output.split("\n")[-1] == "+1 Edu, +2 Soc, Mid Passage, Weapon (x2)"
 
 
 def test_material_benefits_multiple_repeated_names_ordered_by_first_occurrence() -> None:
@@ -285,7 +285,7 @@ def test_material_benefits_multiple_repeated_names_ordered_by_first_occurrence()
     ]
     output = format_character(character)
     lines = output.split("\n")
-    assert lines[-1] == "High Passage x 2, Weapon x 2"
+    assert lines[-1] == "High Passage (x2), Weapon (x2)"
 
 
 # --- User Story 2: understand why a career ended early (Mishap line) ---
