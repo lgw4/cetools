@@ -4,6 +4,7 @@ import pytest
 
 from cetools.engine.careers.aerospace import AEROSPACE_CAREER
 from cetools.engine.careers.navy import NAVY_CAREER
+from cetools.engine.careers.scientist import SCIENTIST_CAREER
 from cetools.engine.careers.scout import SCOUT_CAREER
 from cetools.engine.generator import (
     _HOMEWORLD_SKILLS,
@@ -391,6 +392,66 @@ def test_roll_material_benefit_unaffected_for_career_without_explorers_society()
     # already contains that string. material_dm=1, so idx = clamp(6 + 1 - 1) = 6.
     name = _roll_material_benefit(AEROSPACE_CAREER, 1, ConstantRoller(6), {"Explorers' Society"})
     assert name == "+1 Soc"
+
+
+# --- Research Vessel (Scientist) and Courier Vessel (Scout): once-only ---
+
+
+def test_roll_material_benefit_grants_research_vessel_when_not_yet_granted() -> None:
+    # SCIENTIST_CAREER.material_benefits[6] = "Research Vessel". material_dm=1, so
+    # idx = clamp(6 + 1 - 1) = 6.
+    name = _roll_material_benefit(SCIENTIST_CAREER, 1, ConstantRoller(6), set())
+    assert name == "Research Vessel"
+
+
+def test_roll_material_benefit_rerolls_research_vessel_when_already_granted() -> None:
+    # First die = 6 -> "Research Vessel", already granted, so it rerolls:
+    # second die = 4 -> idx 4 -> "+1 Soc".
+    roller = SequenceRoller([6, 4], default=6)
+    name = _roll_material_benefit(SCIENTIST_CAREER, 1, roller, {"Research Vessel"})
+    assert name == "+1 Soc"
+
+
+def test_roll_material_benefit_grants_courier_vessel_when_not_yet_granted() -> None:
+    # SCOUT_CAREER.material_benefits has 6 entries; [5] = "Courier Vessel".
+    # material_dm=1, roll 6 -> idx = clamp(6, 0, 5) = 5.
+    name = _roll_material_benefit(SCOUT_CAREER, 1, ConstantRoller(6), set())
+    assert name == "Courier Vessel"
+
+
+def test_roll_material_benefit_rerolls_courier_vessel_when_already_granted() -> None:
+    # First die = 6 -> idx 5 -> "Courier Vessel", already granted, so it rerolls:
+    # second die = 3 -> idx 3 -> "Mid Passage".
+    roller = SequenceRoller([6, 3], default=6)
+    name = _roll_material_benefit(SCOUT_CAREER, 1, roller, {"Courier Vessel"})
+    assert name == "Mid Passage"
+
+
+def test_roll_material_benefit_terminates_with_fixed_roller_on_granted_unique() -> None:
+    # ConstantRoller(6) always lands on SCOUT_CAREER.material_benefits[5]
+    # ("Courier Vessel"). With it already granted, the reroll loop would spin
+    # forever without a cap; the fallback must return a non-duplicate benefit.
+    name = _roll_material_benefit(SCOUT_CAREER, 1, ConstantRoller(6), {"Courier Vessel"})
+    assert name != "Courier Vessel"
+    assert name in SCOUT_CAREER.material_benefits
+
+
+def test_roll_material_benefit_raises_when_no_eligible_benefit_remains() -> None:
+    import dataclasses
+
+    import pytest
+
+    # Degenerate career whose entire material table is once-only benefits that
+    # are all already granted: the reroll loop exhausts and the fallback finds
+    # nothing, so the guard raises a descriptive error instead of a bare
+    # StopIteration. Not reachable with any real career table.
+    degenerate = dataclasses.replace(
+        SCOUT_CAREER,
+        material_benefits=("Explorers' Society", "Research Vessel", "Courier Vessel"),
+    )
+    granted = {"Explorers' Society", "Research Vessel", "Courier Vessel"}
+    with pytest.raises(RuntimeError, match="no material benefit outside"):
+        _roll_material_benefit(degenerate, 0, ConstantRoller(1), granted)
 
 
 # --- Benefits non-empty ---

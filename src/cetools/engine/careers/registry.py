@@ -16,10 +16,13 @@ from cetools.engine.careers.mercenary import MERCENARY_CAREER
 from cetools.engine.careers.merchant import MERCHANT_CAREER
 from cetools.engine.careers.navy import NAVY_CAREER
 from cetools.engine.careers.noble import NOBLE_CAREER
+from cetools.engine.careers.physician import PHYSICIAN_CAREER
 from cetools.engine.careers.pirate import PIRATE_CAREER
 from cetools.engine.careers.rogue import ROGUE_CAREER
+from cetools.engine.careers.scientist import SCIENTIST_CAREER
 from cetools.engine.careers.scout import SCOUT_CAREER
 from cetools.engine.careers.surface import SURFACE_CAREER
+from cetools.engine.careers.technician import TECHNICIAN_CAREER
 
 CAREER_REGISTRY: dict[str, Career] = {
     "aerospace system defense": AEROSPACE_CAREER,
@@ -39,10 +42,13 @@ CAREER_REGISTRY: dict[str, Career] = {
     "merchant": MERCHANT_CAREER,
     "navy": NAVY_CAREER,
     "noble": NOBLE_CAREER,
+    "physician": PHYSICIAN_CAREER,
     "pirate": PIRATE_CAREER,
     "rogue": ROGUE_CAREER,
+    "scientist": SCIENTIST_CAREER,
     "scout": SCOUT_CAREER,
     "surface system defense": SURFACE_CAREER,
+    "technician": TECHNICIAN_CAREER,
 }
 
 DRAFT_TABLE: tuple[str, ...] = (

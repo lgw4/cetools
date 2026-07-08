@@ -199,8 +199,8 @@ def test_career_unknown_stderr_message_exact() -> None:
         "Unknown career 'smuggler'. Valid careers: Aerospace System Defense, "
         "Agent, Athlete, Barbarian, Belter, Bureaucrat, Colonist, Diplomat, "
         "Drifter, Entertainer, Hunter, Marine, Maritime System Defense, "
-        "Mercenary, Merchant, Navy, Noble, Pirate, Rogue, Scout, "
-        "Surface System Defense"
+        "Mercenary, Merchant, Navy, Noble, Physician, Pirate, Rogue, "
+        "Scientist, Scout, Surface System Defense, Technician"
     )
     assert result.stderr.strip() == expected
 
@@ -404,8 +404,8 @@ def test_career_no_match_valid_careers_format() -> None:
         "Unknown career 'xyzzy'. Valid careers: Aerospace System Defense, "
         "Agent, Athlete, Barbarian, Belter, Bureaucrat, Colonist, Diplomat, "
         "Drifter, Entertainer, Hunter, Marine, Maritime System Defense, "
-        "Mercenary, Merchant, Navy, Noble, Pirate, Rogue, Scout, "
-        "Surface System Defense"
+        "Mercenary, Merchant, Navy, Noble, Physician, Pirate, Rogue, "
+        "Scientist, Scout, Surface System Defense, Technician"
     )
     assert result.stderr.strip() == expected
 

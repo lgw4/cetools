@@ -509,3 +509,29 @@ def test_rogue_spacer_careers_not_draftable() -> None:
     for key in ("belter", "mercenary", "pirate", "rogue", "merchant"):
         assert key not in DRAFT_TABLE
     assert len(DRAFT_TABLE) == 6
+
+
+from cetools.engine.careers.physician import PHYSICIAN_CAREER  # noqa: E402
+from cetools.engine.careers.scientist import SCIENTIST_CAREER  # noqa: E402
+from cetools.engine.careers.technician import TECHNICIAN_CAREER  # noqa: E402
+
+
+def test_registry_has_learned_career_keys() -> None:
+    for key in ("physician", "scientist", "technician"):
+        assert key in CAREER_REGISTRY
+
+
+def test_registry_learned_career_values() -> None:
+    assert CAREER_REGISTRY["physician"] is PHYSICIAN_CAREER
+    assert CAREER_REGISTRY["scientist"] is SCIENTIST_CAREER
+    assert CAREER_REGISTRY["technician"] is TECHNICIAN_CAREER
+
+
+def test_learned_careers_not_draftable() -> None:
+    for key in ("physician", "scientist", "technician"):
+        assert key not in DRAFT_TABLE
+    assert len(DRAFT_TABLE) == 6
+
+
+def test_registry_has_all_24_careers() -> None:
+    assert len(CAREER_REGISTRY) == 24

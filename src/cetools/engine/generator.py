@@ -56,8 +56,9 @@ _RANK_BONUS_ROLLS = {4: 1, 5: 2, 6: 3}
 
 _MAX_TERMS = 7
 _MAX_CASH_ROLLS = 3
-_UNIQUE_MATERIAL_BENEFIT = "Explorers' Society"
+_UNIQUE_MATERIAL_BENEFITS = frozenset({"Explorers' Society", "Research Vessel", "Courier Vessel"})
 _SHIP_SHARES_BENEFIT = "1D6 Ship Shares"
+_MAX_MATERIAL_REROLLS = 100
 
 
 def _dm(characteristics: dict[str, int], stat: str) -> int:
@@ -216,12 +217,24 @@ def _roll_material_benefit(
     granted_names: set[str],
 ) -> str:
     mat_max = len(career.material_benefits) - 1
-    while True:
+    for _ in range(_MAX_MATERIAL_REROLLS):
         idx = max(0, min(mat_max, roller.roll(6) + material_dm - 1))
         name = career.material_benefits[idx]
-        if name == _UNIQUE_MATERIAL_BENEFIT and name in granted_names:
+        if name in _UNIQUE_MATERIAL_BENEFITS and name in granted_names:
             continue
         return name
+    # A degenerate roller (e.g. a fixed-value test roller) that keeps landing
+    # on an already-granted once-only benefit would otherwise loop forever.
+    # Fall back deterministically to the first table entry that is not an
+    # already-granted once-only benefit — every real career table has one.
+    for name in career.material_benefits:
+        if not (name in _UNIQUE_MATERIAL_BENEFITS and name in granted_names):
+            return name
+    raise RuntimeError(
+        f"Career '{career.name}' has no material benefit outside the"
+        f" already-granted once-only set"
+        f" {sorted(_UNIQUE_MATERIAL_BENEFITS & granted_names)}"
+    )
 
 
 def _apply_material_benefit(
