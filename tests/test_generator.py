@@ -1084,3 +1084,19 @@ def test_generate_career_character_drifter_no_qualification() -> None:
     result = generate_career_character(DRIFTER_CAREER, roller=SmartRoller(10, 1))
     assert isinstance(result, Character)
     assert result.career == "Drifter"
+
+
+def test_muster_out_belter_ship_shares() -> None:
+    from cetools.engine.careers.belter import BELTER_CAREER
+    from cetools.engine.models import STAT_NAMES
+
+    characteristics = {stat: 7 for stat in STAT_NAMES}
+    # rank 0 -> material_dm=0; terms=4 -> 4 total rolls (3 cash cap, 1 material).
+    # Cash rolls 1,1,1; material-select roll 5 -> idx 4 -> "1D6 Ship Shares";
+    # quantity roll 3.
+    roller = SequenceRoller([1, 1, 1, 5, 3])
+    benefits = _muster_out(BELTER_CAREER, 4, 0, {}, characteristics, roller)
+    material = [b for b in benefits if b.kind == "material"]
+    assert len(material) == 1
+    assert material[0].material_name == "Ship Shares"
+    assert material[0].material_quantity == 3
