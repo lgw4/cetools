@@ -104,16 +104,32 @@ def test_survival_fail_returns_character_with_mishap() -> None:
 
 
 def test_mishap_ended_character_still_rolls_psionics() -> None:
-    # Same term-1 mishap setup as test_survival_fail_returns_character_with_mishap.
-    # The SequenceRoller is exhausted before the psi roll, so the Psi 2D6 draw
-    # returns the default (1): psi_strength = max(0, 1 - terms_served). This
-    # confirms a mishap-ended career still rolls Psi (design-spec testing case).
-    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 1], default=1)
+    # A dishonorable discharge strips benefits, yet psionics is still rolled on
+    # the sole return path. This roller forces a term-1 dishonorable mishap
+    # (survival fail -> mishap roll 4), then supplies a passing gate roll
+    # (8 >= 8) and a Psi roll of 9: psi_strength = max(0, 9 - 0) = 9. Proves the
+    # eligibility gate and Psi roll run regardless of how the career ended — a
+    # skipped psionics step would leave psi_strength 0 and fail this test.
+    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 4, 6, 6, 8, 9], default=6)
     result = generate_character(NAVY_CAREER, roller=roller)
     assert isinstance(result, Character)
     assert result.mishap is not None
-    assert isinstance(result.talents, dict)
-    assert result.psi_strength == max(0, 1 - result.terms_served)
+    assert result.mishap.discharge_type == "dishonorable"
+    assert result.benefits == []
+    assert result.psi_strength == 9
+    assert result.talents == {"Telepathy": 0, "Clairvoyance": 0}
+
+
+def test_gate_failure_yields_non_psionic_character() -> None:
+    # Minimal pair with test_mishap_ended_character_still_rolls_psionics: identical
+    # roller except the gate roll is 7 (< 8) instead of 8, so the eligibility gate
+    # fails end-to-end and the character is non-psionic (psi 0, no talents) even
+    # though generation ran through the psionics step.
+    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 4, 6, 6, 7], default=6)
+    result = generate_character(NAVY_CAREER, roller=roller)
+    assert isinstance(result, Character)
+    assert result.psi_strength == 0
+    assert result.talents == {}
 
 
 # --- T010: one integration test per SURVIVAL_MISHAPS_TABLE roll ---
