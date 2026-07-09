@@ -75,7 +75,6 @@ A single pure function, roller-injected for deterministic tests (matching the
 ```python
 def roll_psionics(
     terms_served: int,
-    characteristics: dict[str, int],
     roller: DiceRoller,
 ) -> tuple[int, dict[str, int]]:
     """Return (psi_strength, talents).
@@ -84,6 +83,10 @@ def roll_psionics(
     talents maps learned talent name → 0, empty when psi_strength < 1.
     """
 ```
+
+The Psi characteristic DM is derived from the rolled Psi score itself
+(`characteristic_modifier(psi)`), so the six base characteristics are not
+needed here — the signature takes only `terms_served` and `roller`.
 
 - Rolls Psi via `roller.roll(6, count=2) - terms_served`, floored at 0.
 - If Psi < 1, returns `(psi, {})` with no talent rolls.
@@ -114,7 +117,7 @@ tail), after `name = generate_name(roller)` and before constructing the
 `Character`:
 
 ```python
-psi_strength, talents = roll_psionics(terms_served, characteristics, roller)
+psi_strength, talents = roll_psionics(terms_served, roller)
 ```
 
 and pass `psi_strength=psi_strength, talents=talents` into `Character(...)`.
