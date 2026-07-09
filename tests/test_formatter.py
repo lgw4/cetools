@@ -478,3 +478,30 @@ def test_ship_shares_coexist_with_boosts_and_items() -> None:
         "High Passage",
         "2 Ship Shares",
     ]
+
+
+def test_psionic_character_renders_upp_suffix_and_psionics_line() -> None:
+    char = _make_full_character()
+    char.psi_strength = 6
+    char.talents = {"Telepathy": 0, "Awareness": 0}
+    lines = format_character(char).split("\n")
+    # UPP token on line 0 carries the pseudo-hex suffix.
+    assert f"{char.upp}-6" in lines[0]
+    # Psionics line is alphabetical and sits immediately after the skills line.
+    assert "Psionics: Awareness-0, Telepathy-0" in lines
+    skills_index = 2
+    assert lines[skills_index + 1] == "Psionics: Awareness-0, Telepathy-0"
+
+
+def test_non_psionic_character_has_bare_upp_and_no_psionics_line() -> None:
+    char = _make_empty_character()  # psi_strength defaults to 0, talents to {}
+    output = format_character(char)
+    assert f"\t{char.upp}\t" in output  # bare UPP, no hyphen suffix
+    assert "Psionics:" not in output
+
+
+def test_high_psi_renders_pseudohex_suffix() -> None:
+    char = _make_full_character()
+    char.psi_strength = 10
+    char.talents = {"Telepathy": 0}
+    assert f"{char.upp}-A" in format_character(char)

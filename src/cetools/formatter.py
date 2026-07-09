@@ -1,4 +1,5 @@
 from cetools.engine.models import Benefit, Character
+from cetools.engine.pseudohex import to_pseudohex
 
 _DISCHARGE_TEXT = {
     "honorable": "Honorably discharged",
@@ -80,7 +81,10 @@ def _mishap_line(character: Character) -> str:
 
 def format_character(character: Character) -> str:
     rank_prefix = f"{character.rank_title} " if character.rank_title else ""
-    line1 = f"{rank_prefix}{character.name}\t{character.upp}\tAge {character.age}"
+    upp_display = character.upp
+    if character.psi_strength >= 1:
+        upp_display += f"-{to_pseudohex(character.psi_strength)}"
+    line1 = f"{rank_prefix}{character.name}\t{upp_display}\tAge {character.age}"
 
     funds = sum(b.cash_amount for b in character.benefits if b.kind == "cash")
     line2 = f"{character.career} ({character.terms_served} terms)\tCr{funds:,}"
@@ -89,6 +93,12 @@ def format_character(character: Character) -> str:
     line3 = ", ".join(skill_parts)
 
     lines = [line1, line2, line3]
+
+    if character.talents:
+        talent_parts = [
+            f"{name}-{level}" for name, level in sorted(character.talents.items())
+        ]
+        lines.append("Psionics: " + ", ".join(talent_parts))
 
     material_parts = _combine_material_benefits(character.benefits)
     if material_parts:
