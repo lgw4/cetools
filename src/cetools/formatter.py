@@ -95,9 +95,7 @@ def format_character(character: Character) -> str:
     lines = [line1, line2, line3]
 
     if character.talents:
-        talent_parts = [
-            f"{name}-{level}" for name, level in sorted(character.talents.items())
-        ]
+        talent_parts = [f"{name}-{level}" for name, level in sorted(character.talents.items())]
         lines.append("Psionics: " + ", ".join(talent_parts))
 
     material_parts = _combine_material_benefits(character.benefits)

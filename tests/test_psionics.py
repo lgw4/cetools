@@ -11,9 +11,7 @@ def test_psi_strength_is_two_d6_minus_terms() -> None:
 def test_psi_strength_floors_at_zero_and_skips_training() -> None:
     # 7 - 10 = -3, floored to 0. The high follow-up values (12) must never be
     # consumed, proving no talent checks are attempted when Psi < 1.
-    psi, talents = roll_psionics(
-        terms_served=10, roller=SequenceRoller([7, 12, 12, 12, 12, 12])
-    )
+    psi, talents = roll_psionics(terms_served=10, roller=SequenceRoller([7, 12, 12, 12, 12, 12]))
     assert psi == 0
     assert talents == {}
 
@@ -25,9 +23,7 @@ def test_training_order_and_cumulative_penalty() -> None:
     #   Telekinesis(+2, attempt 2): 8+2-2=8 >= 8   -> learned
     #   Awareness(+1, attempt 3): 8+1-3=6 < 8      -> not learned
     #   Teleportation(+0, attempt 4): 8+0-4=4 < 8  -> not learned
-    psi, talents = roll_psionics(
-        terms_served=0, roller=SequenceRoller([7, 8, 8, 8, 8, 8])
-    )
+    psi, talents = roll_psionics(terms_served=0, roller=SequenceRoller([7, 8, 8, 8, 8, 8]))
     assert psi == 7
     assert talents == {"Telepathy": 0, "Clairvoyance": 0, "Telekinesis": 0}
 

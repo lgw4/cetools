@@ -15,8 +15,8 @@ from cetools.engine.models import (
     characteristic_modifier,
 )
 from cetools.engine.names import generate_name
-from cetools.engine.psionics import roll_psionics
 from cetools.engine.pseudohex import encode_upp
+from cetools.engine.psionics import roll_psionics
 
 _PHYSICAL_STATS = ("Strength", "Dexterity", "Endurance")
 
