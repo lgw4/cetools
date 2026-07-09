@@ -239,3 +239,43 @@ def test_benefit_material_quantity_defaults_none() -> None:
 def test_benefit_carries_material_quantity() -> None:
     b = Benefit(kind="material", material_name="Ship Shares", material_quantity=4)
     assert b.material_quantity == 4
+
+
+def test_character_psionics_default_to_non_psionic() -> None:
+    char = Character(
+        characteristics={},
+        upp="000000",
+        age=18,
+        career="Scout",
+        rank=0,
+        rank_title="Scout",
+        terms_served=1,
+        name="Jane Doe",
+        skills={},
+        benefits=[],
+        pension=None,
+        terms=[],
+    )
+    assert char.psi_strength == 0
+    assert char.talents == {}
+
+
+def test_character_psionics_can_be_set() -> None:
+    char = Character(
+        characteristics={},
+        upp="000000",
+        age=18,
+        career="Scout",
+        rank=0,
+        rank_title="Scout",
+        terms_served=1,
+        name="Jane Doe",
+        skills={},
+        benefits=[],
+        pension=None,
+        terms=[],
+        psi_strength=6,
+        talents={"Telepathy": 0},
+    )
+    assert char.psi_strength == 6
+    assert char.talents == {"Telepathy": 0}
