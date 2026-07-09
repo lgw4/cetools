@@ -11,16 +11,23 @@ _TALENTS: tuple[tuple[str, int], ...] = (
 )
 
 _TRAINING_TARGET = 8
+_ELIGIBILITY_TARGET = 8
 
 
 def roll_psionics(terms_served: int, roller: DiceRoller) -> tuple[int, dict[str, int]]:
     """Roll Psi strength and learn talents.
 
-    Psi = 2D6 - terms_served, floored at 0. A character is psionic when Psi >= 1;
-    only then are talents attempted. Each talent is a check
+    A cetools house rule gates testing: the character must first pass a flat,
+    unmodified ``2D6 >= 8`` eligibility check. On failure this returns
+    ``(0, {})`` with no Psi or talent rolls. On success, Psi = 2D6 - terms_served,
+    floored at 0. A character is psionic when Psi >= 1; only then are talents
+    attempted. Each talent is a check
     ``2D6 + PsiDM + talentDM - (previous attempts) >= 8``; successes are granted
     at level 0. Talents are attempted highest-DM-first.
     """
+    if roller.roll(6, count=2) < _ELIGIBILITY_TARGET:
+        return 0, {}
+
     psi_strength = max(0, roller.roll(6, count=2) - terms_served)
     talents: dict[str, int] = {}
     if psi_strength < 1:
