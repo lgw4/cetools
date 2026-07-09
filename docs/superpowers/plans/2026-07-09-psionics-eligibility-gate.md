@@ -24,7 +24,7 @@
 
 - `src/cetools/engine/psionics.py` — add `_ELIGIBILITY_TARGET` constant and the gate branch at the top of `roll_psionics`; update the docstring. Sole behavioral change.
 - `tests/test_psionics.py` — add gate tests; prepend a passing gate roll to the four existing sequences.
-- `tests/test_generator.py` — correct the now-stale comment in `test_mishap_ended_character_still_rolls_psionics` (assertion is unchanged and still passes).
+- `tests/test_generator.py` — rework `test_mishap_ended_character_still_rolls_psionics` into a deterministic gate-*pass* case (dishonorable mishap, explicit passing gate → nonzero Psi) and add a gate-*fail* case (`test_gate_failure_yields_non_psionic_character`). See the post-implementation correction note in Task 2.
 - `README.md` — one paragraph edit: "every character rolls Psi" is no longer true.
 
 ---
@@ -181,41 +181,68 @@ git commit -m "feat: gate psionics testing behind a flat 2D6 8+ eligibility chec
 ### Task 2: Reconcile the generator comment and README, then run the full quality gate
 
 **Files:**
-- Modify: `tests/test_generator.py:106-116`
+- Modify: `tests/test_generator.py` (`test_mishap_ended_character_still_rolls_psionics`, plus a new `test_gate_failure_yields_non_psionic_character`)
 - Modify: `README.md:96`
 
 **Interfaces:**
 - Consumes: `roll_psionics` with the new gate behavior from Task 1.
-- Produces: nothing new — this task only corrects stale prose and verifies the whole suite is green.
+- Produces: two deterministic generator-level psionics cases (gate pass and gate fail) plus the README house-rule paragraph.
 
-Both generator tests that read Psi still pass as-is after Task 1:
-- `test_generated_character_has_psionics` uses `ConstantRoller(9)`: the gate draw is 9 (≥ 8, passes), then `Psi = 9 − terms_served` — assertion unchanged.
-- `test_mishap_ended_character_still_rolls_psionics` exhausts its `SequenceRoller` before the psionics draws, so the gate draw is the default `1` (< 8, fails) → `psi_strength == 0`, and `max(0, 1 − terms_served) == 0` for `terms_served >= 1`, so the assertion still holds. Only its comment is now stale.
+> **Post-implementation correction (this plan was wrong here).** The plan as first
+> written assumed `test_mishap_ended_character_still_rolls_psionics` "still passes
+> as-is" and only needed a comment tweak, with assertion
+> `psi_strength == max(0, 1 - terms_served)`. That is **incorrect**: a term-1 mishap
+> leaves `terms_served == 0`, so after Task 1's gate the default gate draw (`1`)
+> fails and forces `psi_strength == 0`, while the assertion's right-hand side
+> evaluates to `1` — the test would assert `0 == 1`. During execution the test was
+> reworked (below) into a stronger, deterministic pair, and a gate-*failure*
+> generator case was added. `test_generated_character_has_psionics`
+> (`ConstantRoller(9)`, gate passes at 9) is genuinely unchanged.
 
-- [ ] **Step 1: Correct the stale comment in the mishap psionics test**
+- [ ] **Step 1: Rework the mishap psionics test into a deterministic gate-pass case**
 
-In `tests/test_generator.py`, replace the comment block inside `test_mishap_ended_character_still_rolls_psionics` (the three comment lines beginning "The SequenceRoller is exhausted...") so it describes the gate. The test body becomes:
+`test_mishap_ended_character_still_rolls_psionics` must prove psionics genuinely runs after a mishap — a `psi_strength == 0` assertion would not (a skipped step also yields 0). Force a term-1 **dishonorable** mishap (benefits stripped) with a fully-explicit roller that supplies a passing gate roll (`8`) and a Psi roll (`9`). Replace the whole function with:
 
 ```python
 def test_mishap_ended_character_still_rolls_psionics() -> None:
-    # Same term-1 mishap setup as test_survival_fail_returns_character_with_mishap.
-    # The SequenceRoller is exhausted before the psionics draws, so the gate roll
-    # returns the default (1), which fails the 2D6 >= 8 eligibility check: the
-    # character is not psionic (psi_strength 0, no talents). This confirms the
-    # psionics path still runs after a mishap-ended career.
-    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 1], default=1)
+    # A dishonorable discharge strips benefits, yet psionics is still rolled on
+    # the sole return path. This roller forces a term-1 dishonorable mishap
+    # (survival fail -> mishap roll 4), then supplies a passing gate roll
+    # (8 >= 8) and a Psi roll of 9: psi_strength = max(0, 9 - 0) = 9. Proves the
+    # eligibility gate and Psi roll run regardless of how the career ended — a
+    # skipped psionics step would leave psi_strength 0 and fail this test.
+    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 4, 6, 6, 8, 9], default=6)
     result = generate_character(NAVY_CAREER, roller=roller)
     assert isinstance(result, Character)
     assert result.mishap is not None
-    assert isinstance(result.talents, dict)
-    assert result.psi_strength == max(0, 1 - result.terms_served)
+    assert result.mishap.discharge_type == "dishonorable"
+    assert result.benefits == []
+    assert result.psi_strength == 9
+    assert result.talents == {"Telepathy": 0, "Clairvoyance": 0}
+```
+
+- [ ] **Step 1b: Add a deterministic gate-*failure* generator case**
+
+Add this test immediately after the one above (a minimal pair — identical roller except the final gate draw is `7` instead of `8`):
+
+```python
+def test_gate_failure_yields_non_psionic_character() -> None:
+    # Minimal pair with test_mishap_ended_character_still_rolls_psionics: identical
+    # roller except the gate roll is 7 (< 8) instead of 8, so the eligibility gate
+    # fails end-to-end and the character is non-psionic (psi 0, no talents) even
+    # though generation ran through the psionics step.
+    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 4, 6, 6, 7], default=6)
+    result = generate_character(NAVY_CAREER, roller=roller)
+    assert isinstance(result, Character)
+    assert result.psi_strength == 0
+    assert result.talents == {}
 ```
 
 - [ ] **Step 2: Run the generator test file to confirm it is green**
 
 Run: `uv run pytest tests/test_generator.py -v --no-cov`
 
-Expected: PASS (no failures; the psionics-related assertions hold as described above).
+Expected: PASS (no failures; the reworked gate-pass test, the new gate-fail test, and the unchanged `test_generated_character_has_psionics` all hold).
 
 - [ ] **Step 3: Update the README psionics paragraph**
 
@@ -247,7 +274,7 @@ git commit -m "docs: document psionics eligibility gate house rule"
 - Gate failure returns `(0, {})` with no Psi/talent rolls → Task 1, Steps 1 & 3. ✓
 - Gate success runs unchanged mechanics → Task 1, Step 3 (rest of function untouched) + updated existing tests, Step 5. ✓
 - Roll order gate → Psi → talents → Task 1, Step 3. ✓
-- No model/generator/formatter change → confirmed: only `psionics.py` behavior changes; generator tests pass unchanged (Task 2, Step 2). ✓
+- No model/generator/formatter *behavior* change → confirmed: only `psionics.py` behavior changes. Generator *tests* were updated (one reworked, one added) to cover the gate-pass and gate-fail paths end-to-end (Task 2, Steps 1–1b). ✓
 - Boundary (8 passes, 7 fails) → Task 1, Step 1 (two boundary tests). ✓
 - Existing `SequenceRoller` tests get a passing gate roll prepended → Task 1, Step 5. ✓
 - Coverage ≥ 85% → Task 2, Step 4. ✓
