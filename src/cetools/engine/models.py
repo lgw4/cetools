@@ -98,6 +98,8 @@ class Character:
     drafted: bool = False
     mishap: MishapOutcome | None = None
     debt: int = 0
+    psi_strength: int = 0
+    talents: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass

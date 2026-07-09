@@ -16,6 +16,7 @@ from cetools.engine.models import (
 )
 from cetools.engine.names import generate_name
 from cetools.engine.pseudohex import encode_upp
+from cetools.engine.psionics import roll_psionics
 
 _PHYSICAL_STATS = ("Strength", "Dexterity", "Endurance")
 
@@ -400,6 +401,7 @@ def generate_character(
         benefits = _muster_out(career, terms_served, rank, skills, characteristics, roller)
         pension = _pension(terms_served)
     name = generate_name(roller)
+    psi_strength, talents = roll_psionics(terms_served, roller)
 
     return Character(
         characteristics=characteristics,
@@ -417,6 +419,8 @@ def generate_character(
         drafted=drafted,
         mishap=mishap,
         debt=debt,
+        psi_strength=psi_strength,
+        talents=talents,
     )
 
 

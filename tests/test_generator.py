@@ -103,6 +103,19 @@ def test_survival_fail_returns_character_with_mishap() -> None:
     assert result.terms[-1].survived is False
 
 
+def test_mishap_ended_character_still_rolls_psionics() -> None:
+    # Same term-1 mishap setup as test_survival_fail_returns_character_with_mishap.
+    # The SequenceRoller is exhausted before the psi roll, so the Psi 2D6 draw
+    # returns the default (1): psi_strength = max(0, 1 - terms_served). This
+    # confirms a mishap-ended career still rolls Psi (design-spec testing case).
+    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 1], default=1)
+    result = generate_character(NAVY_CAREER, roller=roller)
+    assert isinstance(result, Character)
+    assert result.mishap is not None
+    assert isinstance(result.talents, dict)
+    assert result.psi_strength == max(0, 1 - result.terms_served)
+
+
 # --- T010: one integration test per SURVIVAL_MISHAPS_TABLE roll ---
 
 
@@ -1161,3 +1174,16 @@ def test_muster_out_belter_ship_shares() -> None:
     assert len(material) == 1
     assert material[0].material_name == "Ship Shares"
     assert material[0].material_quantity == 3
+
+
+# --- Psionics ---
+
+
+def test_generated_character_has_psionics() -> None:
+    # ConstantRoller returns 9 for every roll, including the Psi 2D6 roll, so
+    # Psi = max(0, 9 - terms_served). terms_served is on the result, so the
+    # relationship holds without predicting the full generation.
+    result = generate_career_character(NAVY_CAREER, ConstantRoller(9))
+    assert isinstance(result, Character)
+    assert isinstance(result.talents, dict)
+    assert result.psi_strength == max(0, 9 - result.terms_served)

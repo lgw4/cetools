@@ -50,6 +50,7 @@ Each character prints as a compact block:
 - **Line 1** — `Rank Name`, the [UPP](https://evolvedexperiment.github.io/cepheus-srd/introduction.html#universal-personality-profile), and age, tab-separated.
 - **Line 2** — career and terms served, then total mustering-out cash, tab-separated.
 - **Line 3** — skills, alphabetical.
+- **Optional** — a `Psionics:` line of learned talents, alphabetical, when the character is psionic.
 - **Optional** — a line of material benefits (repeats collapsed as `Name x N`).
 - **Optional** — a final `Mishap:` line when a survival mishap ended the career.
 
@@ -80,7 +81,19 @@ Admin-0, Advocate-0, Animals-0, Battle Dress-0, Comms-0, Demolitions-0, Gun Comb
 Mishap: Injured in action, injured (Endurance -6), survived an injury crisis; Debt Cr40,000
 ```
 
+Example output (Navy, psionic):
+
+```text
+Starman Sam Voss	5A3B93-6	Age 38
+Navy (5 terms)	Cr52,000
+Admin-0, Advocate-1, Comms-0, Engineering-1, Melee Combat-2, Tactics-1, Vehicle-2, Zero-G-1
+Psionics: Awareness-0, Telepathy-0
++1 Edu, High Passage
+```
+
 Characters no longer die during generation. A failed survival roll resolves on the [Survival Mishaps table](https://evolvedexperiment.github.io/cepheus-srd/) and always yields a usable character: an injury, a discharge (honorable, dishonorable, or medical), and sometimes debt. The mishap is summarized on the `Mishap:` line.
+
+Every character rolls a Psi characteristic under the optional [SRD psionics rule](https://evolvedexperiment.github.io/cepheus-srd/). Non-psionic characters (`Psi` 0) show the bare UPP as before; psionic characters (`Psi ≥ 1`) append it as a hyphenated pseudo-hex suffix, e.g. `5A3B93-6`. Any talents learned during training appear on an optional `Psionics:` line, alphabetical, each at level 0. Psionic training's cash cost and time are abstracted away — mustering-out cash and age are unaffected.
 
 Output above is illustrative; generation is random, so your results will differ.
 
