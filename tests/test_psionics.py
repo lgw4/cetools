@@ -49,9 +49,11 @@ def test_eligibility_gate_failure_skips_all_rolls() -> None:
 
 
 def test_eligibility_gate_boundary_eight_passes() -> None:
-    # Gate roll exactly 8 passes; the next draw (9) is the Psi roll: 9 - 3 = 6.
-    psi, _ = roll_psionics(terms_served=3, roller=SequenceRoller([8, 9], default=2))
-    assert psi == 6
+    # Minimal pair with test_eligibility_gate_boundary_seven_fails: same terms (3)
+    # and same follow-up draw (12); gate 8 passes so the Psi roll (12) applies:
+    # 12 - 3 = 9. (Gate 7 with the identical follow-up yields Psi 0 there.)
+    psi, _ = roll_psionics(terms_served=3, roller=SequenceRoller([8, 12], default=2))
+    assert psi == 9
 
 
 def test_eligibility_gate_boundary_seven_fails() -> None:

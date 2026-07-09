@@ -120,6 +120,18 @@ def test_mishap_ended_character_still_rolls_psionics() -> None:
     assert result.talents == {"Telepathy": 0, "Clairvoyance": 0}
 
 
+def test_gate_failure_yields_non_psionic_character() -> None:
+    # Minimal pair with test_mishap_ended_character_still_rolls_psionics: identical
+    # roller except the gate roll is 7 (< 8) instead of 8, so the eligibility gate
+    # fails end-to-end and the character is non-psionic (psi 0, no talents) even
+    # though generation ran through the psionics step.
+    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 4, 6, 6, 7], default=6)
+    result = generate_character(NAVY_CAREER, roller=roller)
+    assert isinstance(result, Character)
+    assert result.psi_strength == 0
+    assert result.talents == {}
+
+
 # --- T010: one integration test per SURVIVAL_MISHAPS_TABLE roll ---
 
 
