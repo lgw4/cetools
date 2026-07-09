@@ -103,6 +103,19 @@ def test_survival_fail_returns_character_with_mishap() -> None:
     assert result.terms[-1].survived is False
 
 
+def test_mishap_ended_character_still_rolls_psionics() -> None:
+    # Same term-1 mishap setup as test_survival_fail_returns_character_with_mishap.
+    # The SequenceRoller is exhausted before the psi roll, so the Psi 2D6 draw
+    # returns the default (1): psi_strength = max(0, 1 - terms_served). This
+    # confirms a mishap-ended career still rolls Psi (design-spec testing case).
+    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 1], default=1)
+    result = generate_character(NAVY_CAREER, roller=roller)
+    assert isinstance(result, Character)
+    assert result.mishap is not None
+    assert isinstance(result.talents, dict)
+    assert result.psi_strength == max(0, 1 - result.terms_served)
+
+
 # --- T010: one integration test per SURVIVAL_MISHAPS_TABLE roll ---
 
 
