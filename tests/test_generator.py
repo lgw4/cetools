@@ -1161,3 +1161,16 @@ def test_muster_out_belter_ship_shares() -> None:
     assert len(material) == 1
     assert material[0].material_name == "Ship Shares"
     assert material[0].material_quantity == 3
+
+
+# --- Psionics ---
+
+
+def test_generated_character_has_psionics() -> None:
+    # ConstantRoller returns 9 for every roll, including the Psi 2D6 roll, so
+    # Psi = max(0, 9 - terms_served). terms_served is on the result, so the
+    # relationship holds without predicting the full generation.
+    result = generate_career_character(NAVY_CAREER, ConstantRoller(9))
+    assert isinstance(result, Character)
+    assert isinstance(result.talents, dict)
+    assert result.psi_strength == max(0, 9 - result.terms_served)
