@@ -263,3 +263,15 @@ def test_exactly_the_expected_careers_are_military() -> None:
         career.name for career in CAREER_REGISTRY.values() if is_military_career(career.name)
     }
     assert actual_military == expected_military
+
+
+def test_military_names_report_draft_keys_missing_from_registry() -> None:
+    import pytest
+
+    from cetools.engine.careers.registry import (
+        CAREER_REGISTRY,
+        _collect_military_career_names,
+    )
+
+    with pytest.raises(ValueError, match="ghost career"):
+        _collect_military_career_names(("navy", "ghost career"), CAREER_REGISTRY)

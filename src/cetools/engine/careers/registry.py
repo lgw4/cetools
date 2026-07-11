@@ -60,9 +60,27 @@ DRAFT_TABLE: tuple[str, ...] = (
     "surface system defense",  # 6
 )
 
-# The military careers are exactly the draftable uniformed services. Derive the
-# set from DRAFT_TABLE so there is a single source of truth for that grouping.
-MILITARY_CAREER_NAMES: frozenset[str] = frozenset(CAREER_REGISTRY[key].name for key in DRAFT_TABLE)
+
+def _collect_military_career_names(
+    draft_table: tuple[str, ...], registry: dict[str, Career]
+) -> frozenset[str]:
+    """Return the display names of the draftable military careers.
+
+    The military careers are exactly the draftable uniformed services, so
+    ``draft_table`` is the single source of truth for that grouping. Any key
+    without a matching registry career is reported explicitly, so a stray or
+    misspelled ``DRAFT_TABLE`` entry fails with a clear message rather than a
+    bare ``KeyError``.
+    """
+    missing = [key for key in draft_table if key not in registry]
+    if missing:
+        raise ValueError(f"DRAFT_TABLE references careers missing from CAREER_REGISTRY: {missing}")
+    return frozenset(registry[key].name for key in draft_table)
+
+
+MILITARY_CAREER_NAMES: frozenset[str] = _collect_military_career_names(
+    DRAFT_TABLE, CAREER_REGISTRY
+)
 
 
 def is_military_career(name: str) -> bool:
