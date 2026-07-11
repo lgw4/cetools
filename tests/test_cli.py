@@ -531,3 +531,71 @@ def test_career_marines_plural_did_you_mean_marine() -> None:
     result = runner.invoke(app, ["character", "generate", "--career", "Marines"])
     assert result.exit_code == 1
     assert result.stderr.strip() == "Unknown career 'Marines'. Did you mean: Marine?"
+
+
+# --- Batch generation: --count/-n and --random ---
+
+
+def test_count_generates_multiple_drafted_characters():
+    with patch(
+        "cetools.cli.character.draft_character", return_value=_make_character()
+    ) as mock_draft:
+        result = runner.invoke(app, ["character", "generate", "-n", "3"])
+    assert result.exit_code == 0
+    assert mock_draft.call_count == 3
+    assert result.stdout.count("Navy (7 terms)") == 3
+
+
+def test_count_with_career_generates_multiple_of_that_career():
+    with patch(
+        "cetools.cli.character.generate_career_character",
+        return_value=_SCOUT_CHARACTER,
+    ) as mock_gen:
+        result = runner.invoke(app, ["character", "generate", "--career", "scout", "-n", "2"])
+    assert result.exit_code == 0
+    assert mock_gen.call_count == 2
+    assert result.stdout.count("Scout (1 terms)") == 2
+
+
+def test_random_flag_uses_random_career_character():
+    with patch(
+        "cetools.cli.character.random_career_character",
+        return_value=_make_character(),
+    ) as mock_random:
+        result = runner.invoke(app, ["character", "generate", "--random", "-n", "2"])
+    assert result.exit_code == 0
+    assert mock_random.call_count == 2
+
+
+def test_default_generate_still_single_draft():
+    with patch(
+        "cetools.cli.character.draft_character", return_value=_make_character()
+    ) as mock_draft:
+        result = runner.invoke(app, ["character", "generate"])
+    assert result.exit_code == 0
+    assert mock_draft.call_count == 1
+    assert result.stdout.count("Navy (7 terms)") == 1
+
+
+def test_career_and_random_are_mutually_exclusive():
+    result = runner.invoke(app, ["character", "generate", "--career", "scout", "--random"])
+    assert result.exit_code == 1
+    assert "mutually exclusive" in result.stderr
+
+
+def test_count_below_one_is_rejected():
+    result = runner.invoke(app, ["character", "generate", "-n", "0"])
+    assert result.exit_code == 2  # Typer validation error
+
+
+def test_batch_reports_failure_and_continues():
+    failure = GenerationFailure(reason="boom")
+    with patch(
+        "cetools.cli.character.random_career_character",
+        side_effect=[_make_character(), failure, _make_character()],
+    ) as mock_random:
+        result = runner.invoke(app, ["character", "generate", "--random", "-n", "3"])
+    assert mock_random.call_count == 3
+    assert result.exit_code == 1
+    assert "boom" in result.stderr
+    assert result.stdout.count("Navy (7 terms)") == 2
