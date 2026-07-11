@@ -6,6 +6,10 @@ from cetools.engine.pseudohex import to_pseudohex
 # verbatim "discharged from the service" language; non-military careers get
 # parallel civilian phrasing for the same mechanical outcome. The "dishonorable"
 # case is resolved in _mishap_line because it also depends on imprisonment.
+#
+# Military status is not stored on the mishap; it is derived at render time from
+# the character's career via is_military_career(), whose source of truth is
+# DRAFT_TABLE (see engine/careers/registry.py).
 _MILITARY_DISCHARGE_TEXT = {
     "honorable": "Honorably discharged",
     "medical": "Medically discharged",
