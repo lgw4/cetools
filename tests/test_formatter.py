@@ -1,5 +1,5 @@
 from cetools.engine.models import Benefit, Character, MishapOutcome
-from cetools.formatter import format_character
+from cetools.formatter import format_character, format_characters
 
 
 def _base_characteristics() -> dict[str, int]:
@@ -505,3 +505,19 @@ def test_high_psi_renders_pseudohex_suffix() -> None:
     char.psi_strength = 10
     char.talents = {"Telepathy": 0}
     assert f"{char.upp}-A" in format_character(char)
+
+
+def test_format_characters_empty_list_is_empty_string() -> None:
+    assert format_characters([]) == ""
+
+
+def test_format_characters_single_matches_format_character() -> None:
+    character = _make_full_character()
+    assert format_characters([character]) == format_character(character)
+
+
+def test_format_characters_joins_blocks_with_blank_line() -> None:
+    a = _make_full_character()
+    b = _make_empty_character()
+    expected = f"{format_character(a)}\n\n{format_character(b)}"
+    assert format_characters([a, b]) == expected
