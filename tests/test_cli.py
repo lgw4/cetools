@@ -599,3 +599,16 @@ def test_batch_reports_failure_and_continues():
     assert result.exit_code == 1
     assert "boom" in result.stderr
     assert result.stdout.count("Navy (7 terms)") == 2
+
+
+def test_batch_all_failures_exits_1_with_empty_stdout():
+    failure = GenerationFailure(reason="all fail")
+    with patch(
+        "cetools.cli.character.random_career_character",
+        side_effect=[failure, failure],
+    ) as mock_random:
+        result = runner.invoke(app, ["character", "generate", "--random", "-n", "2"])
+    assert mock_random.call_count == 2
+    assert result.exit_code == 1
+    assert result.stdout.strip() == ""
+    assert "all fail" in result.stderr
