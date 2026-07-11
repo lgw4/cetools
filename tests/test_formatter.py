@@ -150,6 +150,7 @@ def test_output_gains_one_line_when_mishap_present() -> None:
         imprisoned=False,
         injury_reductions={},
         injury_crisis=False,
+        military=True,
     )
     full_output = format_character(_make_full_character(mishap=mishap))
     assert len(full_output.split("\n")) == 5
@@ -304,6 +305,7 @@ def test_mishap_line_honorable_discharge_no_debt_no_injury() -> None:
         imprisoned=False,
         injury_reductions={},
         injury_crisis=False,
+        military=True,
     )
     output = format_character(_make_empty_character(mishap=mishap))
     assert output.split("\n")[-1] == "Mishap: Honorably discharged"
@@ -316,6 +318,7 @@ def test_mishap_line_honorable_discharge_with_debt() -> None:
         imprisoned=False,
         injury_reductions={},
         injury_crisis=False,
+        military=True,
     )
     output = format_character(_make_empty_character(mishap=mishap, debt=10_000))
     assert output.split("\n")[-1] == "Mishap: Honorably discharged; Debt Cr10,000"
@@ -328,6 +331,7 @@ def test_mishap_line_dishonorable_discharge_not_imprisoned() -> None:
         imprisoned=False,
         injury_reductions={},
         injury_crisis=False,
+        military=True,
     )
     output = format_character(_make_empty_character(mishap=mishap))
     assert output.split("\n")[-1] == "Mishap: Dishonorably discharged"
@@ -340,6 +344,7 @@ def test_mishap_line_dishonorable_discharge_imprisoned() -> None:
         imprisoned=True,
         injury_reductions={},
         injury_crisis=False,
+        military=True,
     )
     output = format_character(_make_empty_character(mishap=mishap))
     assert output.split("\n")[-1] == "Mishap: Dishonorably discharged (imprisoned)"
@@ -352,6 +357,7 @@ def test_mishap_line_medical_discharge() -> None:
         imprisoned=False,
         injury_reductions={},
         injury_crisis=False,
+        military=True,
     )
     output = format_character(_make_empty_character(mishap=mishap))
     assert output.split("\n")[-1] == "Mishap: Medically discharged"
@@ -364,6 +370,7 @@ def test_mishap_line_injured_in_action() -> None:
         imprisoned=False,
         injury_reductions={},
         injury_crisis=False,
+        military=True,
     )
     output = format_character(_make_empty_character(mishap=mishap))
     assert output.split("\n")[-1] == "Mishap: Injured in action"
@@ -376,6 +383,7 @@ def test_mishap_line_injury_clause_sorted_alphabetically() -> None:
         imprisoned=False,
         injury_reductions={"Strength": 1, "Endurance": 2},
         injury_crisis=False,
+        military=True,
     )
     output = format_character(_make_empty_character(mishap=mishap))
     assert output.split("\n")[-1] == (
@@ -390,6 +398,7 @@ def test_mishap_line_crisis_clause_after_injury_clause() -> None:
         imprisoned=False,
         injury_reductions={"Strength": 3},
         injury_crisis=True,
+        military=True,
     )
     output = format_character(_make_empty_character(mishap=mishap))
     assert output.split("\n")[-1] == (
@@ -404,6 +413,7 @@ def test_mishap_line_contract_example_dishonorable_imprisoned_no_injury() -> Non
         imprisoned=True,
         injury_reductions={},
         injury_crisis=False,
+        military=True,
     )
     output = format_character(_make_empty_character(mishap=mishap))
     assert output.split("\n")[-1] == "Mishap: Dishonorably discharged (imprisoned)"
@@ -416,6 +426,7 @@ def test_mishap_line_contract_example_honorable_with_debt() -> None:
         imprisoned=False,
         injury_reductions={},
         injury_crisis=False,
+        military=True,
     )
     output = format_character(_make_empty_character(mishap=mishap, debt=10_000))
     assert output.split("\n")[-1] == "Mishap: Honorably discharged; Debt Cr10,000"
@@ -428,6 +439,7 @@ def test_mishap_line_contract_example_injured_no_crisis() -> None:
         imprisoned=False,
         injury_reductions={"Strength": 3},
         injury_crisis=False,
+        military=True,
     )
     output = format_character(_make_empty_character(mishap=mishap))
     assert output.split("\n")[-1] == "Mishap: Injured in action, injured (Strength -3)"
@@ -440,12 +452,70 @@ def test_mishap_line_contract_example_medical_injury_crisis_debt() -> None:
         imprisoned=False,
         injury_reductions={"Dexterity": 6},
         injury_crisis=True,
+        military=True,
     )
     output = format_character(_make_empty_character(mishap=mishap, debt=40_000))
     assert output.split("\n")[-1] == (
         "Mishap: Medically discharged, injured (Dexterity -6), "
         "survived an injury crisis; Debt Cr40,000"
     )
+
+
+# --- Non-military (civilian) careers get parallel wording, same mechanics ---
+
+
+def _civilian_mishap(
+    discharge_type: str,
+    *,
+    roll: int,
+    imprisoned: bool = False,
+    injury_reductions: dict[str, int] | None = None,
+    injury_crisis: bool = False,
+) -> MishapOutcome:
+    return MishapOutcome(
+        roll=roll,
+        discharge_type=discharge_type,
+        imprisoned=imprisoned,
+        injury_reductions=injury_reductions or {},
+        injury_crisis=injury_crisis,
+        military=False,
+    )
+
+
+def test_civilian_honorable_uses_left_in_good_standing() -> None:
+    mishap = _civilian_mishap("honorable", roll=2)
+    output = format_character(_make_empty_character(mishap=mishap))
+    assert output.split("\n")[-1] == "Mishap: Left the career in good standing"
+
+
+def test_civilian_honorable_with_debt_keeps_debt_suffix() -> None:
+    mishap = _civilian_mishap("honorable", roll=3)
+    output = format_character(_make_empty_character(mishap=mishap, debt=10_000))
+    assert output.split("\n")[-1] == "Mishap: Left the career in good standing; Debt Cr10,000"
+
+
+def test_civilian_dishonorable_uses_dismissed_in_disgrace() -> None:
+    mishap = _civilian_mishap("dishonorable", roll=4)
+    output = format_character(_make_empty_character(mishap=mishap))
+    assert output.split("\n")[-1] == "Mishap: Dismissed in disgrace"
+
+
+def test_civilian_dishonorable_imprisoned_keeps_imprisoned_suffix() -> None:
+    mishap = _civilian_mishap("dishonorable", roll=5, imprisoned=True)
+    output = format_character(_make_empty_character(mishap=mishap))
+    assert output.split("\n")[-1] == "Mishap: Dismissed in disgrace (imprisoned)"
+
+
+def test_civilian_medical_uses_left_due_to_injury() -> None:
+    mishap = _civilian_mishap("medical", roll=6)
+    output = format_character(_make_empty_character(mishap=mishap))
+    assert output.split("\n")[-1] == "Mishap: Left the career due to injury"
+
+
+def test_civilian_injured_in_action_wording_matches_military() -> None:
+    mishap = _civilian_mishap("none", roll=1, injury_reductions={"Strength": 3})
+    output = format_character(_make_empty_character(mishap=mishap))
+    assert output.split("\n")[-1] == "Mishap: Injured in action, injured (Strength -3)"
 
 
 def test_ship_shares_quantities_summed() -> None:

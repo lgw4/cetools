@@ -93,6 +93,7 @@ def _apply_injury(
 def resolve_survival_mishap(
     roller: DiceRoller,
     characteristics: dict[str, int],
+    military: bool = False,
 ) -> tuple[MishapOutcome, int]:
     mishap_roll = roller.roll(6)
     entry = SURVIVAL_MISHAPS_TABLE[mishap_roll - 1]
@@ -127,5 +128,6 @@ def resolve_survival_mishap(
         imprisoned=entry.imprisoned,
         injury_reductions=injury_reductions,
         injury_crisis=injury_crisis,
+        military=military,
     )
     return outcome, debt

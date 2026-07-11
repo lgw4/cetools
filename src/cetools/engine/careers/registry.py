@@ -59,3 +59,12 @@ DRAFT_TABLE: tuple[str, ...] = (
     "scout",  # 5
     "surface system defense",  # 6
 )
+
+# The military careers are exactly the draftable uniformed services. Derive the
+# set from DRAFT_TABLE so there is a single source of truth for that grouping.
+MILITARY_CAREER_NAMES: frozenset[str] = frozenset(CAREER_REGISTRY[key].name for key in DRAFT_TABLE)
+
+
+def is_military_career(name: str) -> bool:
+    """Whether a career (by display name) is one of the draftable military services."""
+    return name in MILITARY_CAREER_NAMES

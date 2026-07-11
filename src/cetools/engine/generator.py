@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from cetools.engine import mishaps
 from cetools.engine.careers.base import Career
-from cetools.engine.careers.registry import CAREER_REGISTRY, DRAFT_TABLE
+from cetools.engine.careers.registry import (
+    CAREER_REGISTRY,
+    DRAFT_TABLE,
+    is_military_career,
+)
 from cetools.engine.dice import DiceRoller, RandomDiceRoller
 from cetools.engine.models import (
     STAT_ABBREV,
@@ -317,7 +321,9 @@ def generate_character(
                     skills_gained=skills_gained_this_term,
                 )
             )
-            mishap, mishap_debt = mishaps.resolve_survival_mishap(roller, characteristics)
+            mishap, mishap_debt = mishaps.resolve_survival_mishap(
+                roller, characteristics, military=is_military_career(career.name)
+            )
             debt += mishap_debt
             age += 2
             if mishap.imprisoned:

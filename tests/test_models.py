@@ -175,12 +175,14 @@ def test_mishap_outcome_stores_all_fields() -> None:
         imprisoned=False,
         injury_reductions={"Strength": 3},
         injury_crisis=False,
+        military=True,
     )
     assert outcome.roll == 1
     assert outcome.discharge_type == "none"
     assert outcome.imprisoned is False
     assert outcome.injury_reductions == {"Strength": 3}
     assert outcome.injury_crisis is False
+    assert outcome.military is True
 
 
 # T002 — Character.mishap / Character.debt fields
@@ -210,6 +212,7 @@ def test_character_mishap_and_debt_can_be_set() -> None:
         imprisoned=False,
         injury_reductions={},
         injury_crisis=False,
+        military=True,
     )
     char = Character(
         characteristics={},
