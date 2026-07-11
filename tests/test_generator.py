@@ -19,6 +19,7 @@ from cetools.engine.generator import (
     draft_character,
     generate_career_character,
     generate_character,
+    random_career_character,
     roll_until_qualified,
 )
 from cetools.engine.models import STAT_NAMES, Character, GenerationFailure
@@ -1203,3 +1204,27 @@ def test_generated_character_has_psionics() -> None:
     assert isinstance(result, Character)
     assert isinstance(result.talents, dict)
     assert result.psi_strength == max(0, 9 - result.terms_served)
+
+
+# --- T018: random_career_character ---
+
+
+def test_random_career_character_selects_career_by_first_roll() -> None:
+    # SequenceRoller first value 9 -> pick index (9-1) % 24 = 8 -> Drifter
+    # (Drifter has no qualification, so generation completes with default rolls)
+    result = random_career_character(SequenceRoller([9], default=10))
+    assert isinstance(result, Character)
+    assert result.career == "Drifter"
+
+
+def test_random_career_character_varies_with_first_roll() -> None:
+    drifter = random_career_character(SequenceRoller([9], default=10))
+    aerospace = random_career_character(SequenceRoller([1], default=10))
+    assert aerospace.career == "Aerospace System Defense"
+    assert drifter.career != aerospace.career
+
+
+def test_random_career_character_passes_drafted_through() -> None:
+    result = random_career_character(SequenceRoller([9], default=10), drafted=True)
+    assert isinstance(result, Character)
+    assert result.drafted is True

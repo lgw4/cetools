@@ -462,3 +462,14 @@ def generate_career_character(
         hard_max_terms=True,
         drafted=drafted,
     )
+
+
+def random_career_character(
+    roller: DiceRoller | None = None,
+    drafted: bool = False,
+) -> Character | GenerationFailure:
+    if roller is None:
+        roller = RandomDiceRoller()
+    careers = sorted(CAREER_REGISTRY.values(), key=lambda c: c.name)
+    idx = (roller.roll(len(careers)) - 1) % len(careers)
+    return generate_career_character(careers[idx], roller, drafted=drafted)

@@ -106,3 +106,7 @@ def format_character(character: Character) -> str:
         lines.append(_mishap_line(character))
 
     return "\n".join(lines)
+
+
+def format_characters(characters: list[Character]) -> str:
+    return "\n\n".join(format_character(character) for character in characters)

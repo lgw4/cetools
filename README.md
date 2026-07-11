@@ -43,6 +43,20 @@ Omit `--career` to let the draft table assign one randomly:
 uv run cetools character generate
 ```
 
+Use `--random` to draw uniformly from all 24 careers instead of the draft table's six services:
+
+```bash
+uv run cetools character generate --random
+```
+
+Generate several characters at once with `--count`/`-n` (blocks are separated by a blank line):
+
+```bash
+uv run cetools character generate --career scout -n 3
+```
+
+`--career` and `--random` are mutually exclusive; passing both exits `1`.
+
 #### Output format
 
 Each character prints as a compact block:

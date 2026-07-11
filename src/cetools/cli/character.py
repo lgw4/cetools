@@ -4,9 +4,13 @@ from typing import Annotated
 import typer
 
 from cetools.engine.careers import CAREER_REGISTRY
-from cetools.engine.generator import draft_character, generate_career_character
+from cetools.engine.generator import (
+    draft_character,
+    generate_career_character,
+    random_career_character,
+)
 from cetools.engine.models import Character
-from cetools.formatter import format_character
+from cetools.formatter import format_characters
 
 app = typer.Typer()
 
@@ -21,11 +25,22 @@ def generate(
         str | None,
         typer.Option("--career", help=f"Career to generate. Valid careers: {_CANONICAL_CAREERS}"),
     ] = None,
+    random: Annotated[
+        bool,
+        typer.Option("--random", help="Draw each career uniformly at random from all careers."),
+    ] = False,
+    count: Annotated[
+        int,
+        typer.Option("--count", "-n", min=1, help="Number of characters to generate."),
+    ] = 1,
 ) -> None:
-    """Generate a character."""
-    if career is None:
-        result = draft_character()
-    else:
+    """Generate one or more characters."""
+    if career is not None and random:
+        typer.echo("Options --career and --random are mutually exclusive.", err=True)
+        raise typer.Exit(1)
+
+    resolved_career = None
+    if career is not None:
         original = career
         normalized = career.strip().lower().replace("-", " ")
         if normalized not in CAREER_REGISTRY:
@@ -44,10 +59,27 @@ def generate(
                     err=True,
                 )
             raise typer.Exit(1)
-        result = generate_career_character(CAREER_REGISTRY[normalized])
+        resolved_career = CAREER_REGISTRY[normalized]
 
-    if isinstance(result, Character):
-        typer.echo(format_character(result))
-    else:
-        typer.echo(result.reason, err=True)
-        raise typer.Exit(code=result.exit_code)
+    characters: list[Character] = []
+    failures = 0
+    failure_exit_code = 1
+    for _ in range(count):
+        if resolved_career is not None:
+            result = generate_career_character(resolved_career)
+        elif random:
+            result = random_career_character()
+        else:
+            result = draft_character()
+
+        if isinstance(result, Character):
+            characters.append(result)
+        else:
+            typer.echo(result.reason, err=True)
+            failures += 1
+            failure_exit_code = result.exit_code
+
+    if characters:
+        typer.echo(format_characters(characters))
+    if failures:
+        raise typer.Exit(failure_exit_code)
