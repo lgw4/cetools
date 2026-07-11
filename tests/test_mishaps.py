@@ -240,3 +240,38 @@ def test_mishap_roll_distribution_within_ten_percent_of_uniform() -> None:
     counts = Counter(outcome.roll for outcome, _debt in results)
     for roll in range(1, 7):
         assert 1500 <= counts[roll] <= 1834, f"roll {roll} count {counts[roll]} out of tolerance"
+
+
+# --- Career military classification (guards against silent drift) ---
+
+
+def test_exactly_the_expected_careers_are_military() -> None:
+    from cetools.engine.careers.registry import (
+        CAREER_REGISTRY,
+        is_military_career,
+    )
+
+    expected_military = {
+        "Aerospace System Defense",
+        "Marine",
+        "Maritime System Defense",
+        "Navy",
+        "Scout",
+        "Surface System Defense",
+    }
+    actual_military = {
+        career.name for career in CAREER_REGISTRY.values() if is_military_career(career.name)
+    }
+    assert actual_military == expected_military
+
+
+def test_military_names_report_draft_keys_missing_from_registry() -> None:
+    import pytest
+
+    from cetools.engine.careers.registry import (
+        CAREER_REGISTRY,
+        _collect_military_career_names,
+    )
+
+    with pytest.raises(ValueError, match="ghost career"):
+        _collect_military_career_names(("navy", "ghost career"), CAREER_REGISTRY)

@@ -40,13 +40,15 @@ def _make_full_character(mishap: MishapOutcome | None = None, debt: int = 0) -> 
     )
 
 
-def _make_empty_character(mishap: MishapOutcome | None = None, debt: int = 0) -> Character:
+def _make_empty_character(
+    mishap: MishapOutcome | None = None, debt: int = 0, career: str = "Navy"
+) -> Character:
     """Matches contracts/ucf-output.md's zero-cash/zero-material/zero-skills example."""
     return Character(
         characteristics=_base_characteristics(),
         upp="5A5555",
         age=22,
-        career="Navy",
+        career=career,
         rank=0,
         rank_title="Starman",
         terms_served=1,
@@ -446,6 +448,68 @@ def test_mishap_line_contract_example_medical_injury_crisis_debt() -> None:
         "Mishap: Medically discharged, injured (Dexterity -6), "
         "survived an injury crisis; Debt Cr40,000"
     )
+
+
+# --- Non-military (civilian) careers get parallel wording, same mechanics.
+# Wording is derived from the character's career, so these use a civilian career
+# (Drifter) rather than a flag on the mishap. ---
+
+
+def _civilian_mishap(
+    discharge_type: str,
+    *,
+    roll: int,
+    imprisoned: bool = False,
+    injury_reductions: dict[str, int] | None = None,
+    injury_crisis: bool = False,
+) -> MishapOutcome:
+    return MishapOutcome(
+        roll=roll,
+        discharge_type=discharge_type,
+        imprisoned=imprisoned,
+        injury_reductions=injury_reductions or {},
+        injury_crisis=injury_crisis,
+    )
+
+
+def _civilian_character(mishap: MishapOutcome, debt: int = 0) -> Character:
+    return _make_empty_character(mishap=mishap, debt=debt, career="Drifter")
+
+
+def test_civilian_honorable_uses_left_in_good_standing() -> None:
+    mishap = _civilian_mishap("honorable", roll=2)
+    output = format_character(_civilian_character(mishap))
+    assert output.split("\n")[-1] == "Mishap: Left the career in good standing"
+
+
+def test_civilian_honorable_with_debt_keeps_debt_suffix() -> None:
+    mishap = _civilian_mishap("honorable", roll=3)
+    output = format_character(_civilian_character(mishap, debt=10_000))
+    assert output.split("\n")[-1] == "Mishap: Left the career in good standing; Debt Cr10,000"
+
+
+def test_civilian_dishonorable_uses_dismissed_in_disgrace() -> None:
+    mishap = _civilian_mishap("dishonorable", roll=4)
+    output = format_character(_civilian_character(mishap))
+    assert output.split("\n")[-1] == "Mishap: Dismissed in disgrace"
+
+
+def test_civilian_dishonorable_imprisoned_keeps_imprisoned_suffix() -> None:
+    mishap = _civilian_mishap("dishonorable", roll=5, imprisoned=True)
+    output = format_character(_civilian_character(mishap))
+    assert output.split("\n")[-1] == "Mishap: Dismissed in disgrace (imprisoned)"
+
+
+def test_civilian_medical_uses_left_due_to_injury() -> None:
+    mishap = _civilian_mishap("medical", roll=6)
+    output = format_character(_civilian_character(mishap))
+    assert output.split("\n")[-1] == "Mishap: Left the career due to injury"
+
+
+def test_civilian_injured_in_action_wording_matches_military() -> None:
+    mishap = _civilian_mishap("none", roll=1, injury_reductions={"Strength": 3})
+    output = format_character(_civilian_character(mishap))
+    assert output.split("\n")[-1] == "Mishap: Injured in action, injured (Strength -3)"
 
 
 def test_ship_shares_quantities_summed() -> None:

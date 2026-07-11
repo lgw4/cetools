@@ -1,9 +1,24 @@
+from cetools.engine.careers.registry import is_military_career
 from cetools.engine.models import Benefit, Character
 from cetools.engine.pseudohex import to_pseudohex
 
-_DISCHARGE_TEXT = {
+# Mishap wording by (military, discharge_type). Military careers keep the SRD's
+# verbatim "discharged from the service" language; non-military careers get
+# parallel civilian phrasing for the same mechanical outcome. The "dishonorable"
+# case is resolved in _mishap_line because it also depends on imprisonment.
+#
+# Military status is not stored on the mishap; it is derived at render time from
+# the character's career via is_military_career(), whose source of truth is
+# DRAFT_TABLE (see engine/careers/registry.py).
+_MILITARY_DISCHARGE_TEXT = {
     "honorable": "Honorably discharged",
     "medical": "Medically discharged",
+    "none": "Injured in action",
+}
+
+_CIVILIAN_DISCHARGE_TEXT = {
+    "honorable": "Left the career in good standing",
+    "medical": "Left the career due to injury",
     "none": "Injured in action",
 }
 
@@ -55,14 +70,14 @@ def _combine_material_benefits(benefits: list[Benefit]) -> list[str]:
 
 def _mishap_line(character: Character) -> str:
     mishap = character.mishap
+    military = is_military_career(character.career)
     if mishap.discharge_type == "dishonorable":
-        text = (
-            "Dishonorably discharged (imprisoned)"
-            if mishap.imprisoned
-            else "Dishonorably discharged"
-        )
+        base = "Dishonorably discharged" if military else "Dismissed in disgrace"
+        text = f"{base} (imprisoned)" if mishap.imprisoned else base
+    elif military:
+        text = _MILITARY_DISCHARGE_TEXT[mishap.discharge_type]
     else:
-        text = _DISCHARGE_TEXT[mishap.discharge_type]
+        text = _CIVILIAN_DISCHARGE_TEXT[mishap.discharge_type]
 
     if mishap.injury_reductions:
         injury_parts = [
