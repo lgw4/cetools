@@ -108,10 +108,10 @@ def test_mishap_ended_character_still_rolls_psionics() -> None:
     # A dishonorable discharge strips benefits, yet psionics is still rolled on
     # the sole return path. This roller forces a term-1 dishonorable mishap
     # (survival fail -> mishap roll 4), then supplies a passing gate roll
-    # (8 >= 8) and a Psi roll of 9: psi_strength = max(0, 9 - 0) = 9. Proves the
+    # (11 >= 11) and a Psi roll of 9: psi_strength = max(0, 9 - 0) = 9. Proves the
     # eligibility gate and Psi roll run regardless of how the career ended — a
     # skipped psionics step would leave psi_strength 0 and fail this test.
-    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 4, 6, 6, 8, 9], default=6)
+    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 4, 6, 6, 11, 9], default=6)
     result = generate_character(NAVY_CAREER, roller=roller)
     assert isinstance(result, Character)
     assert result.mishap is not None
@@ -123,10 +123,10 @@ def test_mishap_ended_character_still_rolls_psionics() -> None:
 
 def test_gate_failure_yields_non_psionic_character() -> None:
     # Minimal pair with test_mishap_ended_character_still_rolls_psionics: identical
-    # roller except the gate roll is 7 (< 8) instead of 8, so the eligibility gate
-    # fails end-to-end and the character is non-psionic (psi 0, no talents) even
-    # though generation ran through the psionics step.
-    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 4, 6, 6, 7], default=6)
+    # roller except the gate roll is 10 (< 11) instead of 11, so the eligibility
+    # gate fails end-to-end and the character is non-psionic (psi 0, no talents)
+    # even though generation ran through the psionics step.
+    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 4, 6, 6, 10], default=6)
     result = generate_character(NAVY_CAREER, roller=roller)
     assert isinstance(result, Character)
     assert result.psi_strength == 0
@@ -1197,13 +1197,14 @@ def test_muster_out_belter_ship_shares() -> None:
 
 
 def test_generated_character_has_psionics() -> None:
-    # ConstantRoller returns 9 for every roll, including the Psi 2D6 roll, so
-    # Psi = max(0, 9 - terms_served). terms_served is on the result, so the
-    # relationship holds without predicting the full generation.
-    result = generate_career_character(NAVY_CAREER, ConstantRoller(9))
+    # ConstantRoller returns 11 for every roll: the gate roll (11 >= 11) passes,
+    # and the Psi 2D6 roll is also 11, so Psi = max(0, 11 - terms_served).
+    # terms_served is on the result, so the relationship holds without predicting
+    # the full generation.
+    result = generate_career_character(NAVY_CAREER, ConstantRoller(11))
     assert isinstance(result, Character)
     assert isinstance(result.talents, dict)
-    assert result.psi_strength == max(0, 9 - result.terms_served)
+    assert result.psi_strength == max(0, 11 - result.terms_served)
 
 
 # --- T018: random_career_character ---
