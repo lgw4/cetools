@@ -1,3 +1,4 @@
+from cetools.engine.careers.registry import is_military_career
 from cetools.engine.models import Benefit, Character
 from cetools.engine.pseudohex import to_pseudohex
 
@@ -65,10 +66,11 @@ def _combine_material_benefits(benefits: list[Benefit]) -> list[str]:
 
 def _mishap_line(character: Character) -> str:
     mishap = character.mishap
+    military = is_military_career(character.career)
     if mishap.discharge_type == "dishonorable":
-        base = "Dishonorably discharged" if mishap.military else "Dismissed in disgrace"
+        base = "Dishonorably discharged" if military else "Dismissed in disgrace"
         text = f"{base} (imprisoned)" if mishap.imprisoned else base
-    elif mishap.military:
+    elif military:
         text = _MILITARY_DISCHARGE_TEXT[mishap.discharge_type]
     else:
         text = _CIVILIAN_DISCHARGE_TEXT[mishap.discharge_type]

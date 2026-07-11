@@ -242,23 +242,6 @@ def test_mishap_roll_distribution_within_ten_percent_of_uniform() -> None:
         assert 1500 <= counts[roll] <= 1834, f"roll {roll} count {counts[roll]} out of tolerance"
 
 
-# --- Military flag threads into the outcome ---
-
-
-def test_resolve_survival_mishap_defaults_to_non_military() -> None:
-    roller = SequenceRoller([2], default=6)
-    characteristics = {"Strength": 8, "Dexterity": 8, "Endurance": 8}
-    outcome, _debt = resolve_survival_mishap(roller, characteristics)
-    assert outcome.military is False
-
-
-def test_resolve_survival_mishap_sets_military_flag() -> None:
-    roller = SequenceRoller([2], default=6)
-    characteristics = {"Strength": 8, "Dexterity": 8, "Endurance": 8}
-    outcome, _debt = resolve_survival_mishap(roller, characteristics, military=True)
-    assert outcome.military is True
-
-
 # --- Career military classification (guards against silent drift) ---
 
 

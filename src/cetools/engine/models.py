@@ -79,7 +79,6 @@ class MishapOutcome:
     imprisoned: bool
     injury_reductions: dict[str, int]
     injury_crisis: bool
-    military: bool = False
 
 
 @dataclass
