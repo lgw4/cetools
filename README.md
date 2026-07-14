@@ -68,43 +68,45 @@ Each character prints as a compact block:
 - **Optional**—a line of material benefits (repeats collapsed as `Name x N`).
 - **Optional**—a final `Mishap:` line when a survival mishap ended the career.
 
-Skills are shown with their level. A skill first gained from a Skills and Training roll starts at level 1; level 0 means the character has the skill but has never rolled it—it came from basic training or from their background.
+Skills are shown with their level. A skill first gained from a Skills and Training roll starts at level 1; level 0 means the character has the skill but has never rolled it: it came from basic training or from their background.
 
-Example output (Navy, full career):
+A term is worth one Skills and Training roll, plus an extra for a commission and another for an advancement. The seven careers with neither check (Athlete, Barbarian, Belter, Drifter, Entertainer, Hunter, Scout) take two rolls every term instead of one.
+
+Example output (Navy, full career; note stat boosts summed as `+2 Edu`):
 
 ```text
-Commodore Sam Voss	7796D5	Age 46
-Navy (7 terms)	Cr61,000
-Advocate-0, Comms-1, Computer-0, Engineering-0, Gravitics-1, Gun Combat-1, Gunnery-1, Leadership-2, Linguistics-0, Melee Combat-0, Navigation-2, Streetwise-0, Tactics-1, Vehicle-1, Zero-G-1
-+2 Edu, Explorers' Society, Weapon, High Passage, Mid Passage (x2)
+Captain Taylor Nakamura	364889	Age 46
+Navy (7 terms)	Cr25,000
+Comms-1, Engineering-1, Gravitics-1, Gun Combat-1, Gunnery-2, Melee Combat-1, Navigation-1, Piloting-1, Streetwise-0, Tactics-1, Vehicle-0, Watercraft-0, Zero-G-1
++1 Soc, +2 Edu, High Passage, Explorers' Society, Weapon
 ```
 
-Example output (drafted; note repeated benefits collapsed to `(x2)`, and stat boosts summed):
+Example output (drafted; note repeated benefits collapsed to `(x2)`):
 
 ```text
-General Drew Kade	798979	Age 46
-Surface System Defense (7 terms)	Cr50,000
-Animals-0, Battle Dress-0, Carousing-0, Gun Combat-2, Gunnery-0, Leadership-1, Mechanics-1, Melee Combat-4, Recon-2, Vehicle-1
-+3 Soc, Weapon, High Passage, Mid Passage (x2)
+Scout Sam Voss	56B878	Age 46
+Scout (7 terms)	Cr70,000
+Comms-0, Demolitions-1, Electronics-1, Gun Combat-1, Gunnery-2, Jack o' Trades-1, Medicine-1, Melee Combat-1, Navigation-1, Piloting-1, Recon-0, Survival-0
+Courier Vessel, Explorers' Society, Mid Passage (x2)
 ```
 
 Example output (Marine, career cut short by a mishap):
 
 ```text
-Trooper Taylor Voss	216668	Age 20
+Trooper Sam Brennan	68185A	Age 20
 Marine (0 terms)	Cr0
-Battle Dress-0, Comms-0, Demolitions-0, Engineering-0, Gun Combat-0, Gunnery-0, Melee Combat-0, Watercraft-0, Zero-G-1
-Mishap: Medically discharged, injured (Dexterity -6, Endurance -2, Strength -2), survived an injury crisis; Debt Cr10,000
+Battle Dress-0, Comms-0, Demolitions-0, Gun Combat-0, Gunnery-0, Melee Combat-0, Survival-0, Watercraft-0, Zero-G-1
+Mishap: Medically discharged, injured (Dexterity -2, Endurance -4, Strength -2), survived an injury crisis; Debt Cr60,000
 ```
 
 Example output (Navy, psionic):
 
 ```text
-Captain Drew Solis	69575C-2	Age 42
-Navy (6 terms)	Cr21,000
-Comms-0, Engineering-2, Gravitics-1, Gun Combat-0, Gunnery-2, Melee Combat-0, Streetwise-0, Survival-0, Tactics-1, Vehicle-0, Zero-G-1
-Psionics: Telekinesis-0
-+1 Soc, Mid Passage, High Passage, Weapon (x2)
+Commander Taylor Reyes	43AAA6-5	Age 46
+Navy (7 terms)	Cr12,000
+Advocate-1, Comms-1, Computer-0, Engineering-0, Gun Combat-1, Gunnery-0, Melee Combat-2, Piloting-2, Space Sciences-0, Tactics-1, Vehicle-0, Watercraft-0, Zero-G-1
+Psionics: Clairvoyance-0, Telekinesis-0
++1 Edu, +2 Soc, Mid Passage (x2)
 ```
 
 Characters no longer die during generation. A failed survival roll resolves on the [Survival Mishaps table](https://evolvedexperiment.github.io/cepheus-srd/) and always yields a usable character: an injury, a discharge (honorable, dishonorable, or medical), and sometimes debt. The mishap is summarized on the `Mishap:` line.
@@ -113,7 +115,7 @@ Characters are tested for psionics under a cetools house rule layered on the opt
 
 Output above is illustrative; generation is random, so your results will differ.
 
-**Exit codes**: `0` on success; `1` if generation failed or an unknown `--career` value was given (reason written to stderr).
+**Exit codes**: `0` on success; `1` on a usage error (an unknown `--career` value, or `--career` and `--random` together), with the reason on stderr. The CLI generates under the house rules, where generation itself cannot fail.
 
 Characteristic values above 9 are shown in [pseudo-hex notation](https://evolvedexperiment.github.io/cepheus-srd/introduction.html#pseudo-hexadecimal-notation)—`A`=10, `B`=11, … skipping `I` and `O`.
 
@@ -170,7 +172,7 @@ generate(NAVY_CAREER, rules=SRD)
 | qualification | characteristics are re-rolled until the career's target is met as a raw number; enlistment cannot fail | rolled once, then a `2D6 + DM ≥ target` check that can fail |
 | natural 12 at the 7-term cap | ignored—seven terms is the end | honoured—the character serves an eighth term |
 
-Under `HOUSE`, a `GenerationFailure` can only mean that the draft landed on a career cetools has not implemented.
+Under `HOUSE`, `generate()` **cannot fail**: characteristics are re-rolled until the career accepts them, and the draft table holds careers rather than names, so there is nothing left to fail at. `GenerationFailure` is an `SRD`-only outcome.
 
 #### Deterministic results
 

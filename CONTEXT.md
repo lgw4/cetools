@@ -37,9 +37,14 @@ rather than as loose flags:
 | natural 12 at the 7-term cap | ignored: seven terms is the end | honoured: the character serves an eighth term |
 
 `HOUSE` is what cetools has always done. Two consequences worth knowing: under
-`HOUSE`, a **GenerationFailure** can only ever mean "the draft assigned a career
-cetools has not implemented", and the worst rung of the ageing ladder is
-unreachable, because it needs the eighth term that only `SRD` allows.
+`HOUSE`, `generate()` **cannot fail at all**, so a **GenerationFailure** is an
+`SRD`-only outcome; and the worst rung of the ageing ladder is unreachable,
+because it needs the eighth term that only `SRD` allows.
+
+`HOUSE`'s re-roll gives up after 100 attempts and raises. Real dice never reach
+that: the highest target any career sets is 8, which `2D6` clears about 42% of the
+time. It is there so that a **ScriptedRolls** pinned below a career's target fails
+loudly instead of hanging for ever.
 
 **Draft table**—the six careers a drafted character can land in. It holds
 `Career` objects, so a draft can never land on a career that does not exist. It
@@ -48,7 +53,8 @@ no separate list.
 
 **Term**—four years of service. A term is survived or not; it may bring a
 **commission**, an **advancement**, skills, and ageing. A character serves up to
-seven terms, and a natural 12 on re-enlistment can force one more.
+seven terms. Under `SRD` **rules** a natural 12 on re-enlistment forces an eighth;
+under `HOUSE`, the default, the cap is hard and the 12 is ignored.
 
 **Check**—the engine's one universal rule: `2D6 + DM ≥ target`. Qualification,
 survival, commission, advancement, the psionics gate and psionic training are
@@ -63,6 +69,16 @@ knows the number.
 level **1**; one the character already has goes up a level. Level **0** means the
 character has the skill but has never rolled it: basic training grants every
 service skill at 0, and background skills come in at 0.
+
+**Skills and Training rolls**—a **term** is worth **one** roll, plus an *extra*
+for a **commission** and *another* for an **advancement**. So a Navy term is worth
+1 quiet, 2 commissioned, 3 commissioned-and-promoted.
+
+The exception is the seven careers with neither check (Athlete, Barbarian, Belter,
+Drifter, Entertainer, Hunter, Scout): they take **two** rolls every term. That is
+a property of the *career*, not of what happened this term. A character who merely
+failed their commission gets the base one roll, not two—the two are not the same
+thing, and conflating them was a real bug (`training.rolls_this_term`).
 
 **Mishap**—what happens when a **term** is not survived: a discharge (honorable,
 dishonorable, medical, or none), possibly imprisonment, possibly injury, possibly
@@ -110,7 +126,7 @@ None of them mutates its arguments.
 | --- | --- | --- |
 | `background.py` | `background_skills(characteristics, rolls)` | the skills a character brings to their first career |
 | `ranks.py` | `progress(career, rank, characteristics, skills, rolls)` | Commission and Advancement |
-| `training.py` | `roll_skill(career, characteristics, skills, rolls)` | Skills and Training |
+| `training.py` | `roll_skill(career, characteristics, skills, rolls)`, `rolls_this_term(career, commissioned, promoted)` | Skills and Training |
 | `aging.py` | `apply_aging(characteristics, terms_served, rolls)` | Ageing |
 | `benefits.py` | `muster_out(career, …, rolls)` | Benefits (**muster-out**) |
 | `mishaps.py` | `resolve_survival_mishap(rolls, characteristics)` | Survival Mishaps |
