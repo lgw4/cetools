@@ -94,7 +94,7 @@ def test_generation_failure_stores_reason() -> None:
     assert failure.reason == "Navy enlistment failed"
 
 
-# T002 — Character.drafted field
+# T002—Character.drafted field
 def test_character_drafted_defaults_to_false() -> None:
     char = Character(
         characteristics={},
@@ -131,7 +131,7 @@ def test_character_drafted_can_be_set_true() -> None:
     assert char.drafted is True
 
 
-# T002 — Character.name field
+# T002—Character.name field
 def test_character_name_field_is_stored() -> None:
     char = Character(
         characteristics={},
@@ -163,7 +163,7 @@ def test_item_carries_a_name() -> None:
     assert Item(name="Blade").name == "Blade"
 
 
-# T002 — MishapOutcome dataclass
+# T002—MishapOutcome dataclass
 def test_mishap_outcome_stores_all_fields() -> None:
     outcome = MishapOutcome(
         roll=1,
@@ -179,7 +179,7 @@ def test_mishap_outcome_stores_all_fields() -> None:
     assert outcome.injury_crisis is False
 
 
-# T002 — Character.mishap / Character.debt fields
+# T002—Character.mishap / Character.debt fields
 def test_character_mishap_and_debt_default() -> None:
     char = Character(
         characteristics={},
@@ -231,7 +231,7 @@ def test_shares_carry_a_quantity() -> None:
 
 def test_a_benefit_is_one_of_the_four_variants() -> None:
     # Ship shares used to be told apart from other material benefits by
-    # `material_quantity is not None` — a sentinel. Now each benefit simply is
+    # `material_quantity is not None`—a sentinel. Now each benefit simply is
     # what it is.
     for benefit in (Cash(1000), StatBoost("Edu"), Item("Weapon"), Shares(4)):
         assert isinstance(benefit, Benefit)
@@ -289,7 +289,7 @@ def test_parse_returns_none_for_a_plain_skill_name() -> None:
 
 
 def test_parse_accepts_an_unknown_abbreviation() -> None:
-    # Still a boost, so it is never granted as a skill named "+1 Xyz" — it just
+    # Still a boost, so it is never granted as a skill named "+1 Xyz"—it just
     # has nothing to apply.
     assert parse_stat_boost("+1 Xyz") == StatBoost(label="Xyz")
 

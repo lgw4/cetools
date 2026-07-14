@@ -8,7 +8,7 @@ from cetools.engine.rolls import RollName, Rolls
 # The last rung needs an eighth term: 2D6 bottoms out at 2 and the term cap is 7,
 # so the worst a seven-term career can roll is 2 - 7 = -5. An eighth term only
 # happens on a natural 12 at re-enlistment, which SRD rules honour and HOUSE rules
-# ignore (see engine/rules.py) — so under the default rules this rung is
+# ignore (see engine/rules.py)—so under the default rules this rung is
 # unreachable. It is kept because the rule is real; only cetools declines to.
 _LADDER: dict[int, tuple[tuple[str, int], ...]] = {
     0: (("Strength", 1),),

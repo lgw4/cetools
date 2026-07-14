@@ -171,7 +171,7 @@ from cetools.engine.careers.registry import (  # noqa: E402
     resolve,
 )
 
-# T003 — SCOUT_CAREER field validation
+# T003—SCOUT_CAREER field validation
 from cetools.engine.careers.scout import SCOUT_CAREER  # noqa: E402
 from cetools.engine.careers.surface import SURFACE_CAREER  # noqa: E402
 

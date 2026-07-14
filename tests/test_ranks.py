@@ -65,7 +65,7 @@ def test_the_top_rank_is_a_ceiling() -> None:
 
 
 def test_a_career_without_a_commission_never_leaves_rank_0() -> None:
-    # Scout has no commission, so it has no route off rank 0 — which is why its
+    # Scout has no commission, so it has no route off rank 0—which is why its
     # characters get two skill rolls a term instead of one.
     result = progress(SCOUT_CAREER, 0, _STATS, {}, scripted())
     assert result.rank == 0

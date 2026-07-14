@@ -17,7 +17,7 @@ class Rules:
     """How a character gets into the career they asked for.
 
     True: reroll the whole set of characteristics until the qualification
-    characteristic meets the career's target as a raw number — no dice check, and
+    characteristic meets the career's target as a raw number—no dice check, and
     enlistment can never fail. False: roll characteristics once, then make the
     SRD's `2D6 + DM >= target` enlistment check, which can fail.
     """

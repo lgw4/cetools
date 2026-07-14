@@ -268,7 +268,7 @@ def test_injury_on_already_zero_stat_does_not_trigger_crisis() -> None:
 def test_resolve_survival_mishap_returns_the_injured_character_without_mutating() -> None:
     # This test used to assert the opposite: that the caller's dict was mutated in
     # place. Every other step of the engine returns what changed, and this one now
-    # does too — the injury comes back on the result and the argument is untouched.
+    # does too—the injury comes back on the result and the argument is untouched.
     # MISHAP=6 -> INJURY=2 -> Strength (INJURY_STAT index 0) loses INJURY_AMOUNT=3.
     characteristics = {"Strength": 8, "Dexterity": 8, "Endurance": 8}
     rolls = ScriptedRolls(

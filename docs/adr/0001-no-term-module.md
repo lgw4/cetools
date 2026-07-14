@@ -1,4 +1,4 @@
-# ADR 0001 — The term loop stays in the generator
+# ADR 0001—The term loop stays in the generator
 
 **Date:** 2026-07-13
 **Status:** Accepted
@@ -14,9 +14,9 @@ concept with no module of its own, that the loop mutated `characteristics` and
 The review deliberately parked it behind two other changes and said to reassess
 afterwards. Those changes landed:
 
-- The **Rolls** seam (`engine/rolls.py`) — tests script rolls by name, so any
+- The **Rolls** seam (`engine/rolls.py`)—tests script rolls by name, so any
   scenario a term can be in is expressible from outside.
-- The named steps (`background`, `training`, `aging`, `benefits`, `ranks`) — each
+- The named steps (`background`, `training`, `aging`, `benefits`, `ranks`)—each
   returns what changed rather than mutating.
 
 ## Decision
@@ -33,7 +33,7 @@ afterwards. Those changes landed:
 - **It would have exactly one caller.** Depth is leverage per unit of interface;
   one call site is no leverage. Apply the deletion test to the proposed module:
   deleting it would push the loop straight back into `generate()`. Complexity
-  would *move*, not *concentrate* — which is the signal not to build it.
+  would *move*, not *concentrate*—which is the signal not to build it.
 - **Sequencing the steps and deciding when to stop is the coordinator's job.**
   `generate()` reads as assign → qualify → background → terms → muster out. A
   Term module would still have to hand the loop back its exits (survived? another
@@ -43,7 +43,7 @@ afterwards. Those changes landed:
 
 The reassessment surfaced two real problems, and those were fixed:
 
-1. **The advancement rule was written twice** — once on the post-commission path
+1. **The advancement rule was written twice**—once on the post-commission path
    and once for a standing rank. Extracted to `engine/ranks.py` (`progress`), so
    the rule exists once. Two call sites became one, which is leverage a Term
    module would not have provided.
@@ -55,6 +55,6 @@ The reassessment surfaced two real problems, and those were fixed:
 
 - `generate()` remains the one place that knows the order of a career.
 - A future review that proposes a Term module should read this first. Reopen it
-  only if a **second caller** appears — a term simulator, a "what if" tool, an
+  only if a **second caller** appears—a term simulator, a "what if" tool, an
   incremental character builder. That would give the interface leverage it does
   not have today.

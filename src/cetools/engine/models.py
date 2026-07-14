@@ -64,7 +64,7 @@ def characteristic_check(
 
     Qualification, survival, commission and advancement are all this. The seam
     knows about chance and not about characteristics, so the DM lookup happens
-    here — in the module that owns the DM rule — rather than in each caller.
+    here—in the module that owns the DM rule—rather than in each caller.
     """
     return rolls.check(characteristic_modifier(characteristics[stat]), target, name)
 
@@ -116,7 +116,7 @@ def parse_stat_boost(entry: str) -> StatBoost | None:
 
     Career skill tables and material benefit tables both use this notation, so
     both come through here and neither knows what the prefix means. An unknown
-    abbreviation is still a boost — it just has nothing to apply — which keeps a
+    abbreviation is still a boost—it just has nothing to apply—which keeps a
     typo in a career table from being granted as a skill named "+1 Xyz".
     """
     if not entry.startswith(_BOOST_PREFIX):

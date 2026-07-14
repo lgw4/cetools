@@ -4,7 +4,7 @@ from cetools.engine.careers.base import RankEntry
 from cetools.engine.rolls import RollName, ScriptedRolls
 
 # ---------------------------------------------------------------------------
-# T002 — Qualification, survival, commission, advancement, reenlistment fields
+# T002—Qualification, survival, commission, advancement, reenlistment fields
 # ---------------------------------------------------------------------------
 
 
@@ -69,7 +69,7 @@ def test_aerospace_name() -> None:
 
 
 # ---------------------------------------------------------------------------
-# T003 — Skill tables (24 exact positions)
+# T003—Skill tables (24 exact positions)
 # ---------------------------------------------------------------------------
 
 
@@ -135,7 +135,7 @@ def test_aerospace_all_skill_tables_have_six_entries() -> None:
 
 
 # ---------------------------------------------------------------------------
-# T004 — Rank entries (7 ranks, correct bonus skills at 0 and 3)
+# T004—Rank entries (7 ranks, correct bonus skills at 0 and 3)
 # ---------------------------------------------------------------------------
 
 
@@ -192,7 +192,7 @@ def test_aerospace_ranks_without_bonus_skills() -> None:
 
 
 # ---------------------------------------------------------------------------
-# T005 — Mustering-out tables (7 cash, 7 material)
+# T005—Mustering-out tables (7 cash, 7 material)
 # ---------------------------------------------------------------------------
 
 
@@ -255,7 +255,7 @@ def test_aerospace_material_benefit_index_6_is_plus1_soc() -> None:
 
 
 # ---------------------------------------------------------------------------
-# T011 — Commission and advancement behavior (US2)
+# T011—Commission and advancement behavior (US2)
 # ---------------------------------------------------------------------------
 
 VALID_RANK_TITLES = {
@@ -314,7 +314,7 @@ def test_aerospace_advancement_increments_rank() -> None:
 
 
 # ---------------------------------------------------------------------------
-# T011b — Rank cap at 6 (Air Commodore)
+# T011b—Rank cap at 6 (Air Commodore)
 # ---------------------------------------------------------------------------
 
 
@@ -328,7 +328,7 @@ def test_aerospace_rank_cap_at_6() -> None:
 
 
 # ---------------------------------------------------------------------------
-# T012 — Bonus skill application behavior
+# T012—Bonus skill application behavior
 # ---------------------------------------------------------------------------
 
 

@@ -58,7 +58,7 @@ class Rolls(Protocol):
     """
 
     def check(self, dm: int, target: int, name: RollName) -> bool:
-        """Whether `2D6 + dm >= target` — the rule the whole engine runs on."""
+        """Whether `2D6 + dm >= target`—the rule the whole engine runs on."""
         ...
 
     def two_d6(self, name: RollName) -> int:

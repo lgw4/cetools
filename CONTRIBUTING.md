@@ -14,10 +14,10 @@ uv sync
 
 ```
 src/cetools/
-├── cli/            # Typer CLI — thin I/O wrapper only, no game logic
+├── cli/            # Typer CLI—thin I/O wrapper only, no game logic
 │   ├── main.py     # Root app; registers sub-apps
 │   └── character.py
-├── engine/         # Pure generation engine — no CLI dependency
+├── engine/         # Pure generation engine—no CLI dependency
 │   ├── careers/
 │   │   ├── base.py       # Career + RankEntry frozen dataclasses
 │   │   ├── aerospace.py  # AEROSPACE_CAREER instance
@@ -26,15 +26,17 @@ src/cetools/
 │   │   └── registry.py   # CAREERS, DRAFT_TABLE, resolve(), is_military()
 │   ├── rolls.py        # Rolls seam: RollName, RandomRolls, ScriptedRolls
 │   ├── rules.py        # Rules policy: HOUSE (default) and SRD
-│   ├── generator.py    # generate(assignment, rolls, rules) — the coordinator
+│   ├── generator.py    # generate(assignment, rolls, rules): the coordinator
 │   ├── background.py   # background_skills()
-│   ├── training.py     # roll_skill()  — Skills and Training
+│   ├── ranks.py        # progress(): Commission and Advancement
+│   ├── training.py     # roll_skill(), rolls_this_term(): Skills and Training
 │   ├── aging.py        # apply_aging()
 │   ├── benefits.py     # muster_out()
 │   ├── mishaps.py      # resolve_survival_mishap()
 │   ├── psionics.py     # roll_psionics()
 │   ├── names.py        # generate_name()
-│   ├── models.py       # Character, Benefit, Term, GenerationFailure, boost()
+│   ├── models.py       # Character, Benefit variants, Term, GenerationFailure,
+│   │                   # characteristic_check(), parse/apply_stat_boost()
 │   └── pseudohex.py    # Pseudo-hex encode/decode
 └── formatter.py    # Plain-text character formatter
 

@@ -13,7 +13,7 @@ def scripted(**overrides) -> ScriptedRolls:
     head of the list, every 2D6 is 10. Psionics is opted out (the gate fails) so
     that tests about careers are not perturbed by psionic rolls.
 
-    Override any of it by name — a test says only what it is actually about.
+    Override any of it by name—a test says only what it is actually about.
     """
     checks = {RollName.PSI_GATE: False}
     checks.update(overrides.pop("checks", {}))

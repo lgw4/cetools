@@ -56,7 +56,7 @@ def roll_material_benefit(
 
     # A degenerate script (e.g. a ScriptedRolls fixed on one value) that keeps
     # landing on an already-granted once-only benefit would otherwise loop
-    # forever. Fall back to the first entry that is not one — every real career
+    # forever. Fall back to the first entry that is not one—every real career
     # table has one.
     for name in career.material_benefits:
         if not (name in ONCE_ONLY and name in granted):
