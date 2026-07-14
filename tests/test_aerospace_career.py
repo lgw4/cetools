@@ -272,11 +272,11 @@ VALID_RANK_TITLES = {
 def test_aerospace_commission_roll_success_advances_to_rank_1() -> None:
     """When commission roll succeeds, character advances from rank 0 to rank 1."""
     from cetools.engine.careers.aerospace import AEROSPACE_CAREER
-    from cetools.engine.generator import generate_character
+    from cetools.engine.generator import generate
     from cetools.engine.models import Character
 
     rolls = ScriptedRolls(checks={RollName.COMMISSION: True})
-    result = generate_character(AEROSPACE_CAREER, rolls=rolls)
+    result = generate(AEROSPACE_CAREER, rolls)
     # The commission succeeds, so the character should be an officer (rank >= 1)
     assert isinstance(result, Character)
     assert result.rank >= 1
@@ -285,30 +285,18 @@ def test_aerospace_commission_roll_success_advances_to_rank_1() -> None:
 def test_aerospace_commission_roll_failure_stays_at_rank_0() -> None:
     """When commission roll fails, enlisted character stays at rank 0."""
     from cetools.engine.careers.aerospace import AEROSPACE_CAREER
-    from cetools.engine.generator import generate_character
+    from cetools.engine.generator import generate
     from cetools.engine.models import Character
 
-    _PRESET = {
-        "Strength": 7,
-        "Dexterity": 7,
-        "Endurance": 7,
-        "Intelligence": 7,
-        "Education": 7,
-        "Social Standing": 7,
-    }
-
     # Survive the term but fail the commission, then fail reenlistment (2 is
-    # below the target of 5) so the career ends at rank 0 after one term.
+    # below the target of 5) so the career ends at rank 0 after one term. Every
+    # characteristic is 7: no DMs, and the qualification target is cleared on
+    # the first roll.
     rolls = ScriptedRolls(
         checks={RollName.SURVIVAL: True, RollName.COMMISSION: False},
-        two_d6={RollName.REENLISTMENT: 2},
+        two_d6={RollName.CHARACTERISTIC: 7, RollName.REENLISTMENT: 2},
     )
-    result = generate_character(
-        AEROSPACE_CAREER,
-        rolls=rolls,
-        preset_characteristics=_PRESET,
-        bypass_qualification=True,
-    )
+    result = generate(AEROSPACE_CAREER, rolls)
     assert isinstance(result, Character)
     assert result.rank == 0
 
@@ -316,11 +304,11 @@ def test_aerospace_commission_roll_failure_stays_at_rank_0() -> None:
 def test_aerospace_advancement_increments_rank() -> None:
     """A commissioned character who passes advancement gains rank."""
     from cetools.engine.careers.aerospace import AEROSPACE_CAREER
-    from cetools.engine.generator import generate_character
+    from cetools.engine.generator import generate
     from cetools.engine.models import Character
 
     rolls = ScriptedRolls(checks={RollName.COMMISSION: True, RollName.ADVANCEMENT: True})
-    result = generate_character(AEROSPACE_CAREER, rolls=rolls)
+    result = generate(AEROSPACE_CAREER, rolls)
     assert isinstance(result, Character)
     assert result.rank >= 1
 
@@ -347,10 +335,10 @@ def test_aerospace_rank_cap_at_6() -> None:
 def test_aerospace_rank_0_aircraft_applied_at_enlistment() -> None:
     """A freshly generated Aerospace character has Aircraft in their skill list."""
     from cetools.engine.careers.aerospace import AEROSPACE_CAREER
-    from cetools.engine.generator import generate_character
+    from cetools.engine.generator import generate
     from cetools.engine.models import Character
 
-    result = generate_character(AEROSPACE_CAREER, rolls=ScriptedRolls())
+    result = generate(AEROSPACE_CAREER, ScriptedRolls())
     assert isinstance(result, Character)
     assert "Aircraft" in result.skills
 
@@ -358,12 +346,12 @@ def test_aerospace_rank_0_aircraft_applied_at_enlistment() -> None:
 def test_aerospace_rank_3_leadership_applied() -> None:
     """A character who reaches rank 3 has Leadership in their skill list."""
     from cetools.engine.careers.aerospace import AEROSPACE_CAREER
-    from cetools.engine.generator import generate_character
+    from cetools.engine.generator import generate
     from cetools.engine.models import Character
 
     # Every check passes by default, so commission and advancement fire and the
     # character climbs past rank 3.
-    result = generate_character(AEROSPACE_CAREER, rolls=ScriptedRolls())
+    result = generate(AEROSPACE_CAREER, ScriptedRolls())
     assert isinstance(result, Character)
     if result.rank >= 3:
         assert "Leadership" in result.skills

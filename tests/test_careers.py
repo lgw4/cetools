@@ -2,23 +2,26 @@ import dataclasses
 import os
 
 from cetools.engine.careers.navy import NAVY_CAREER
-from cetools.engine.generator import generate_character
+from cetools.engine.generator import generate
 from cetools.engine.models import Character, GenerationFailure
 from cetools.engine.rolls import RollName, ScriptedRolls
+from cetools.engine.rules import SRD
 
 
 def test_extensibility_stub_career_returns_character_or_failure() -> None:
-    """A non-Navy Career passes through generate_character unchanged."""
+    """A non-Navy Career passes through generate unchanged."""
     stub = dataclasses.replace(NAVY_CAREER, name="Scout")
-    result = generate_character(stub, rolls=ScriptedRolls())
+    result = generate(stub, ScriptedRolls())
     assert isinstance(result, (Character, GenerationFailure))
 
 
 def test_extensibility_failure_path_with_stub_career() -> None:
     """A stub career whose qualification check fails triggers enlistment failure."""
     stub = dataclasses.replace(NAVY_CAREER, name="Scout")
+    # Only SRD rules make an enlistment check at all: under HOUSE rules the
+    # characteristics are rerolled until they qualify and enlistment cannot fail.
     rolls = ScriptedRolls(checks={RollName.QUALIFICATION: False})
-    result = generate_character(stub, rolls=rolls)
+    result = generate(stub, rolls, rules=SRD)
     assert isinstance(result, GenerationFailure)
 
 
@@ -26,7 +29,7 @@ def test_extensibility_result_uses_stub_career_name() -> None:
     """Character or failure reason reflects the stub career name, not 'Navy'."""
     stub = dataclasses.replace(NAVY_CAREER, name="Scout")
     rolls = ScriptedRolls(checks={RollName.QUALIFICATION: False})
-    result = generate_character(stub, rolls=rolls)
+    result = generate(stub, rolls, rules=SRD)
     assert isinstance(result, GenerationFailure)
     assert "Scout" in result.reason
     assert "Navy" not in result.reason
@@ -35,9 +38,9 @@ def test_extensibility_result_uses_stub_career_name() -> None:
 def test_extensibility_success_character_career_name() -> None:
     """Successful generation reflects the stub career name."""
     stub = dataclasses.replace(NAVY_CAREER, name="Scout")
-    # Default checks all pass, so qualification and survival succeed and the
-    # run always ends in a Character.
-    result = generate_character(stub, rolls=ScriptedRolls())
+    # Default checks all pass, so survival succeeds and the run always ends in a
+    # Character.
+    result = generate(stub, ScriptedRolls())
     assert isinstance(result, Character)
     assert result.career == "Scout"
 

@@ -4,15 +4,10 @@ import pytest
 
 from cetools.engine.careers.navy import NAVY_CAREER
 from cetools.engine.careers.scout import SCOUT_CAREER
-from cetools.engine.generator import (
-    draft_character,
-    generate_career_character,
-    generate_character,
-    random_career_character,
-    roll_until_qualified,
-)
+from cetools.engine.generator import DRAFT, RANDOM, generate
 from cetools.engine.models import STAT_NAMES, Character, GenerationFailure
 from cetools.engine.rolls import RollName, ScriptedRolls
+from cetools.engine.rules import SRD
 from conftest import scripted
 
 _rolls = scripted  # every check passes; see tests/conftest.py
@@ -28,14 +23,15 @@ _rolls = scripted  # every check passes; see tests/conftest.py
 
 
 def test_enlistment_failure_returns_generation_failure() -> None:
-    result = generate_character(NAVY_CAREER, rolls=_rolls(checks={RollName.QUALIFICATION: False}))
+    # Only SRD rules roll for enlistment at all, so only they can fail it.
+    result = generate(NAVY_CAREER, _rolls(checks={RollName.QUALIFICATION: False}), rules=SRD)
     assert isinstance(result, GenerationFailure)
     assert result.exit_code == 1
     assert "enlist" in result.reason.lower() or "navy" in result.reason.lower()
 
 
 def test_enlistment_pass_returns_character() -> None:
-    result = generate_character(NAVY_CAREER, rolls=_rolls())
+    result = generate(NAVY_CAREER, _rolls())
     assert isinstance(result, Character)
 
 
@@ -43,7 +39,7 @@ def test_enlistment_pass_returns_character() -> None:
 
 
 def test_character_upp_is_six_pseudohex_chars() -> None:
-    result = generate_character(NAVY_CAREER, rolls=_rolls())
+    result = generate(NAVY_CAREER, _rolls())
     assert isinstance(result, Character)
     assert len(result.upp) == 6
     assert "I" not in result.upp
@@ -54,7 +50,7 @@ def test_character_upp_is_six_pseudohex_chars() -> None:
 
 
 def test_generated_character_has_non_empty_two_word_name() -> None:
-    result = generate_character(NAVY_CAREER, rolls=_rolls())
+    result = generate(NAVY_CAREER, _rolls())
     assert isinstance(result, Character)
     assert result.name
     assert len(result.name.split(" ")) >= 2
@@ -64,7 +60,7 @@ def test_generated_character_has_non_empty_two_word_name() -> None:
 
 
 def test_survival_fail_returns_character_with_mishap() -> None:
-    result = generate_character(NAVY_CAREER, rolls=_rolls(checks={RollName.SURVIVAL: False}))
+    result = generate(NAVY_CAREER, _rolls(checks={RollName.SURVIVAL: False}))
     assert isinstance(result, Character)
     assert result.mishap is not None
     assert result.terms[-1].survived is False
@@ -75,7 +71,7 @@ def test_mishap_ended_character_still_rolls_psionics() -> None:
     # rolled on the sole return path. Psi 9 gives PsiDM +1, and the talent checks
     # are scripted highest-DM-first: Telepathy and Clairvoyance land, the rest do
     # not. A skipped psionics step would leave psi_strength 0 and fail this test.
-    result = generate_character(
+    result = generate(
         NAVY_CAREER,
         rolls=_rolls(
             checks={
@@ -99,7 +95,7 @@ def test_gate_failure_yields_non_psionic_character() -> None:
     # Minimal pair with the test above: same dishonorable mishap, but the
     # eligibility gate fails, so the character is non-psionic even though
     # generation ran through the psionics step.
-    result = generate_character(
+    result = generate(
         NAVY_CAREER,
         rolls=_rolls(
             checks={RollName.SURVIVAL: False, RollName.PSI_GATE: False},
@@ -120,9 +116,7 @@ def _mishap_character(mishap: int, injury: int | None = None) -> Character:
     d6 = {RollName.MISHAP: mishap}
     if injury is not None:
         d6[RollName.INJURY] = injury
-    result = generate_character(
-        NAVY_CAREER, rolls=_rolls(checks={RollName.SURVIVAL: False}, d6=d6)
-    )
+    result = generate(NAVY_CAREER, rolls=_rolls(checks={RollName.SURVIVAL: False}, d6=d6))
     assert isinstance(result, Character)
     return result
 
@@ -193,11 +187,12 @@ def test_mishap_roll_6_medical_discharge_with_injury() -> None:
 def test_draft_character_survival_failure_returns_character_not_failure() -> None:
     # Proves FR-011: draft_character funnels through the same mishap-resolution
     # path as generate_character/generate_career_character, never GenerationFailure.
-    result = draft_character(
+    result = generate(
+        DRAFT,
         rolls=_rolls(
             checks={RollName.SURVIVAL: False},
             d6={RollName.DRAFT: 5, RollName.MISHAP: 2},
-        )
+        ),
     )
     assert isinstance(result, Character)
     assert result.mishap is not None
@@ -209,7 +204,7 @@ def test_draft_character_survival_failure_returns_character_not_failure() -> Non
 def test_seven_term_cap_voluntary_musterout() -> None:
     # Re-enlistment of 10 passes Navy's target of 5 every term but is never a
     # natural 12, so the career ends by voluntary muster-out at the 7-term cap.
-    result = generate_character(NAVY_CAREER, rolls=_rolls())
+    result = generate(NAVY_CAREER, _rolls())
     assert isinstance(result, Character)
     assert result.terms_served == 7
 
@@ -218,7 +213,8 @@ def test_seven_term_cap_voluntary_musterout() -> None:
 
 
 def test_natural_12_at_term_7_forces_term_8() -> None:
-    result = generate_character(NAVY_CAREER, rolls=_rolls(two_d6={RollName.REENLISTMENT: 12}))
+    # SRD rules honour the natural 12; HOUSE rules hold the cap (tested above).
+    result = generate(NAVY_CAREER, _rolls(two_d6={RollName.REENLISTMENT: 12}), rules=SRD)
     assert isinstance(result, Character)
     assert result.terms_served == 8
 
@@ -227,7 +223,7 @@ def test_natural_12_at_term_7_forces_term_8() -> None:
 
 
 def test_first_term_basic_training_grants_all_six_service_skills() -> None:
-    result = generate_character(NAVY_CAREER, rolls=_rolls())
+    result = generate(NAVY_CAREER, _rolls())
     assert isinstance(result, Character)
     for skill_name in NAVY_CAREER.service_skills:
         assert (
@@ -239,7 +235,7 @@ def test_first_term_basic_training_grants_all_six_service_skills() -> None:
 
 
 def test_character_has_non_empty_skills() -> None:
-    result = generate_character(NAVY_CAREER, rolls=_rolls())
+    result = generate(NAVY_CAREER, _rolls())
     assert isinstance(result, Character)
     assert len(result.skills) > 0
 
@@ -275,7 +271,7 @@ def test_aging_ladder_reduces_characteristics(
     #
     # The last rung is only reachable in a 8th term: 2D6 bottoms out at 2, and
     # 2 - 7 is only -5. A natural 12 on re-enlistment forces that extra term.
-    result = generate_character(
+    result = generate(
         NAVY_CAREER,
         rolls=_rolls(
             two_d6={
@@ -284,6 +280,7 @@ def test_aging_ladder_reduces_characteristics(
                 RollName.REENLISTMENT: reenlistment,
             }
         ),
+        rules=SRD,
     )
     assert isinstance(result, Character)
     assert result.characteristics["Dexterity"] == dexterity
@@ -295,7 +292,7 @@ def test_aging_check_triggers_at_term_4_or_later() -> None:
     # Aging starts once age reaches 34, i.e. from term 4. With a 2D6 of 10 the
     # aging roll (10 - terms_served) never drops below 1, so nothing is reduced —
     # this confirms the aging step runs without disturbing the character.
-    result = generate_character(NAVY_CAREER, rolls=_rolls())
+    result = generate(NAVY_CAREER, _rolls())
     assert isinstance(result, Character)
     assert result.terms_served >= 4
     assert result.age >= 34
@@ -305,7 +302,7 @@ def test_aging_check_triggers_at_term_4_or_later() -> None:
 
 
 def test_pension_present_at_5_or_more_terms() -> None:
-    result = generate_character(NAVY_CAREER, rolls=_rolls())
+    result = generate(NAVY_CAREER, _rolls())
     assert isinstance(result, Character)
     assert result.terms_served >= 5
     assert result.pension is not None
@@ -313,7 +310,7 @@ def test_pension_present_at_5_or_more_terms() -> None:
 
 
 def test_pension_amount_for_seven_terms() -> None:
-    result = generate_character(NAVY_CAREER, rolls=_rolls())
+    result = generate(NAVY_CAREER, _rolls())
     assert isinstance(result, Character)
     assert result.terms_served == 7
     assert result.pension == 14000
@@ -323,7 +320,7 @@ def test_pension_amount_for_seven_terms() -> None:
 
 
 def test_cash_roll_cap_at_3() -> None:
-    result = generate_character(NAVY_CAREER, rolls=_rolls())
+    result = generate(NAVY_CAREER, _rolls())
     assert isinstance(result, Character)
     cash_benefits = [b for b in result.benefits if b.kind == "cash"]
     assert len(cash_benefits) <= 3
@@ -335,7 +332,7 @@ def test_cash_roll_cap_at_3() -> None:
 def test_rank_bonus_muster_rolls_applied() -> None:
     # Every check passing carries the character to rank 6 (Commodore), which is
     # worth +3 muster rolls on top of one per term.
-    result = generate_character(NAVY_CAREER, rolls=_rolls())
+    result = generate(NAVY_CAREER, _rolls())
     assert isinstance(result, Character)
     assert result.rank == 6
     expected_total = result.terms_served + 3  # O6 bonus = 3
@@ -346,7 +343,7 @@ def test_rank_bonus_muster_rolls_applied() -> None:
 
 
 def test_character_has_non_empty_benefits() -> None:
-    result = generate_character(NAVY_CAREER, rolls=_rolls())
+    result = generate(NAVY_CAREER, _rolls())
     assert isinstance(result, Character)
     assert len(result.benefits) > 0
 
@@ -355,7 +352,7 @@ def test_character_has_non_empty_benefits() -> None:
 
 
 def test_successful_character_served_at_least_one_term() -> None:
-    result = generate_character(NAVY_CAREER, rolls=_rolls())
+    result = generate(NAVY_CAREER, _rolls())
     assert isinstance(result, Character)
     assert result.terms_served >= 1
 
@@ -379,7 +376,7 @@ def _failed_commission_navy() -> ScriptedRolls:
 def test_failed_commission_grants_two_skill_rolls() -> None:
     # Comms is level 0 after basic training; two skill rolls push it to level 2.
     # With only 1 roll it would stay at 1.
-    result = generate_character(NAVY_CAREER, rolls=_failed_commission_navy())
+    result = generate(NAVY_CAREER, _failed_commission_navy())
     assert isinstance(result, Character)
     assert result.terms_served == 1
     assert result.rank == 0
@@ -387,7 +384,7 @@ def test_failed_commission_grants_two_skill_rolls() -> None:
 
 
 def test_per_term_skill_rolls_recorded_in_term_history() -> None:
-    result = generate_character(NAVY_CAREER, rolls=_failed_commission_navy())
+    result = generate(NAVY_CAREER, _failed_commission_navy())
     assert isinstance(result, Character)
     term = result.terms[0]
     # 6 from basic training + 2 from skill rolls
@@ -409,7 +406,7 @@ def test_rank_bonus_skills_granted_at_level_1() -> None:
     # Every skill roll lands on personal_development[0] = "+1 Str", a stat boost
     # rather than a skill, so Zero-G (rank 0) and Tactics (rank 3) can only have
     # come from rank bonuses — and must start at level 1, not 0.
-    result = generate_character(NAVY_CAREER, rolls=_rolls())
+    result = generate(NAVY_CAREER, _rolls())
     assert isinstance(result, Character)
     assert result.skills.get("Zero-G") == 1, "rank-0 bonus should grant Zero-G-1"
     assert result.skills.get("Tactics") == 1, "rank-3 bonus should grant Tactics-1"
@@ -420,7 +417,7 @@ def test_rank_bonus_skills_granted_at_level_1() -> None:
 
 def test_generate_character_accepts_any_career_without_navy_hardcoding() -> None:
     stub_career = dataclasses.replace(NAVY_CAREER, name="Scout")
-    result = generate_character(stub_career, rolls=_rolls())
+    result = generate(stub_career, _rolls())
     assert isinstance(result, (Character, GenerationFailure))
 
 
@@ -434,7 +431,7 @@ def test_skill_rolled_from_a_table_is_granted_at_level_1_end_to_end() -> None:
     # Gravitics is Navy's first Specialist skill (table index 2) and is not in the
     # service skills a Navy character gets from basic training, so a roll on it is
     # the character's first level in it: level 1, not 0.
-    result = generate_character(
+    result = generate(
         NAVY_CAREER,
         rolls=_rolls(
             choices={RollName.SKILL_TABLE: 2},
@@ -447,99 +444,82 @@ def test_skill_rolled_from_a_table_is_granted_at_level_1_end_to_end() -> None:
     assert result.skills["Gravitics"] == 1
 
 
-# --- T008: roll_until_qualified ---
+# --- HOUSE rules: you get the career you asked for ---
 
 
-def test_roll_until_qualified_returns_qualifying_characteristics() -> None:
+def test_house_rules_reroll_characteristics_until_the_career_qualifies() -> None:
     # First set of six characteristics is all 2s (Intelligence 2 < 6, fails);
-    # the second is all 8s and qualifies.
-    rolls = _rolls(two_d6={RollName.CHARACTERISTIC: [2] * 6 + [8] * 6})
-    chars = roll_until_qualified(SCOUT_CAREER, rolls)
-    assert chars[SCOUT_CAREER.qualification_stat] >= SCOUT_CAREER.qualification_target
+    # the second is all 8s and qualifies. The character is built from the second.
+    result = generate(SCOUT_CAREER, _rolls(two_d6={RollName.CHARACTERISTIC: [2] * 6 + [8] * 6}))
+    assert isinstance(result, Character)
+    assert (
+        result.characteristics[SCOUT_CAREER.qualification_stat]
+        >= SCOUT_CAREER.qualification_target
+    )
 
 
-def test_roll_until_qualified_loops_until_qualified() -> None:
+def test_house_rules_keep_rerolling_until_qualified() -> None:
     # Three failing sets of characteristics (Intelligence 3 < 6), then a passing
     # one. Every stat coming back as 8 — the fourth block — is only possible if
-    # the loop discarded the first three.
-    rolls = _rolls(two_d6={RollName.CHARACTERISTIC: [3] * 18 + [8] * 6})
-    chars = roll_until_qualified(SCOUT_CAREER, rolls)
-    assert chars["Intelligence"] >= 6
-    assert set(chars.values()) == {8}
-
-
-# --- T009: generate_character new params ---
-
-
-def test_preset_characteristics_missing_stat_raises() -> None:
-    incomplete = {
-        "Strength": 9,
-        "Dexterity": 9,
-        "Endurance": 9,
-        "Intelligence": 9,
-        # Education and Social Standing intentionally omitted
-    }
-    with pytest.raises(ValueError, match="missing required stats"):
-        generate_character(NAVY_CAREER, preset_characteristics=incomplete)
-
-
-def test_preset_characteristics_are_used_not_rolled() -> None:
-    # The scripted CHARACTERISTIC roll is 10; the preset says 9, and the preset wins.
-    preset = {
-        "Strength": 9,
-        "Dexterity": 9,
-        "Endurance": 9,
-        "Intelligence": 9,
-        "Education": 9,
-        "Social Standing": 9,
-    }
-    result = generate_character(
-        NAVY_CAREER,
-        rolls=_rolls(),
-        preset_characteristics=preset,
-        bypass_qualification=True,
+    # the loop discarded the first three. Re-enlistment of 1 ends the career after
+    # one term, before ageing can touch anything.
+    result = generate(
+        SCOUT_CAREER,
+        _rolls(
+            two_d6={
+                RollName.CHARACTERISTIC: [3] * 18 + [8] * 6,
+                RollName.REENLISTMENT: 1,
+            }
+        ),
     )
     assert isinstance(result, Character)
-    assert result.characteristics["Intelligence"] == 9
+    # Intelligence and Education are untouched by this career's skill rolls, which
+    # only ever grant "+1 Str". An 8 in them is the fourth block: the third would
+    # have left a 3.
+    assert result.characteristics["Intelligence"] == 8
+    assert result.characteristics["Education"] == 8
 
 
-def test_bypass_qualification_skips_enlistment() -> None:
-    # Qualification would fail, but bypass_qualification must skip the check
-    # entirely. Survival then also fails, which resolves via the mishap table
-    # rather than a GenerationFailure.
-    result = generate_character(
+def test_house_rules_never_fail_enlistment() -> None:
+    # The qualification check is scripted to fail, but HOUSE rules never make it:
+    # characteristics are rerolled until the career accepts them. Survival then
+    # fails, which resolves via the mishap table rather than a GenerationFailure.
+    result = generate(
         NAVY_CAREER,
-        rolls=_rolls(checks={RollName.QUALIFICATION: False, RollName.SURVIVAL: False}),
-        bypass_qualification=True,
+        _rolls(checks={RollName.QUALIFICATION: False, RollName.SURVIVAL: False}),
     )
     assert isinstance(result, Character)
 
 
-def test_hard_max_terms_prevents_forced_8th_term() -> None:
-    # A natural 12 at term 7 would normally force term 8; hard_max_terms forbids it.
-    result = generate_character(
-        NAVY_CAREER,
-        rolls=_rolls(two_d6={RollName.REENLISTMENT: 12}),
-        bypass_qualification=True,
-        hard_max_terms=True,
-    )
+def test_house_rules_hold_the_seven_term_cap_against_a_natural_12() -> None:
+    # A natural 12 on re-enlistment would force an eighth term under SRD rules.
+    # HOUSE rules hold the cap: the character musters out at seven.
+    result = generate(NAVY_CAREER, _rolls(two_d6={RollName.REENLISTMENT: 12}))
     assert isinstance(result, Character)
     assert result.terms_served == 7
 
 
-def test_drafted_param_sets_character_drafted_true() -> None:
-    result = generate_character(
+def test_scripted_characteristics_are_taken_in_stat_order() -> None:
+    # Re-enlistment of 1 ends the career after one term, so nothing has boosted or
+    # aged the characteristics away from what was rolled.
+    result = generate(
         NAVY_CAREER,
-        rolls=_rolls(),
-        bypass_qualification=True,
-        drafted=True,
+        _rolls(
+            two_d6={
+                RollName.CHARACTERISTIC: [10, 10, 8, 12, 7, 9],
+                RollName.REENLISTMENT: 1,
+            },
+            choices={RollName.SKILL_TABLE: 1},  # a skill, not a "+1 Str" boost
+        ),
     )
     assert isinstance(result, Character)
-    assert result.drafted is True
+    assert result.characteristics["Intelligence"] == 12
+    assert result.characteristics["Education"] == 7
+    assert result.characteristics["Social Standing"] == 9
 
 
-def test_drafted_defaults_to_false_in_generate_character() -> None:
-    result = generate_character(NAVY_CAREER, rolls=_rolls())
+def test_drafted_defaults_to_false_for_a_chosen_career() -> None:
+    result = generate(NAVY_CAREER, _rolls())
     assert isinstance(result, Character)
     assert result.drafted is False
 
@@ -548,26 +528,26 @@ def test_drafted_defaults_to_false_in_generate_character() -> None:
 
 
 def test_generate_career_character_returns_character() -> None:
-    result = generate_career_character(SCOUT_CAREER, rolls=_rolls())
+    result = generate(SCOUT_CAREER, _rolls())
     assert isinstance(result, Character)
 
 
 def test_generate_career_character_intelligence_at_least_6() -> None:
-    result = generate_career_character(SCOUT_CAREER, rolls=_rolls())
+    result = generate(SCOUT_CAREER, _rolls())
     assert isinstance(result, Character)
     assert result.characteristics["Intelligence"] >= 6
 
 
 def test_generate_career_character_piloting_at_level_1() -> None:
     # rank-0 bonus grants Piloting+1 before basic training; basic training skips setting it to 0
-    result = generate_career_character(SCOUT_CAREER, rolls=_rolls())
+    result = generate(SCOUT_CAREER, _rolls())
     assert isinstance(result, Character)
     assert result.skills.get("Piloting", 0) >= 1
 
 
 def test_generate_career_character_two_skill_rolls_per_term() -> None:
     # Scout has no commission/advancement → always 2 skill rolls per term
-    result = generate_career_character(SCOUT_CAREER, rolls=_rolls())
+    result = generate(SCOUT_CAREER, _rolls())
     assert isinstance(result, Character)
     for i, term in enumerate(result.terms):
         non_bt = term.skills_gained if i > 0 else term.skills_gained[6:]
@@ -580,9 +560,7 @@ def test_generate_career_character_two_skill_rolls_per_term() -> None:
 def test_education_below_8_excludes_advanced_education_skills() -> None:
     # Education 7 (< 8) leaves only 3 skill tables — no Advanced Education.
     # Navigation and Tactics live only in that table, so they must never appear.
-    result = generate_career_character(
-        SCOUT_CAREER, rolls=_rolls(two_d6={RollName.CHARACTERISTIC: 7})
-    )
+    result = generate(SCOUT_CAREER, rolls=_rolls(two_d6={RollName.CHARACTERISTIC: 7}))
     assert isinstance(result, Character)
     exclusively_advanced = {"Navigation", "Tactics"}
     for skill in exclusively_advanced:
@@ -594,7 +572,7 @@ def test_education_below_8_excludes_advanced_education_skills() -> None:
 def test_education_8_or_above_can_access_advanced_education() -> None:
     # Education 10 (>= 8) opens the 4th table, index 3: advanced_education, whose
     # 4th entry is "Medicine".
-    result = generate_career_character(
+    result = generate(
         SCOUT_CAREER,
         rolls=_rolls(
             choices={RollName.SKILL_TABLE: 3},
@@ -611,7 +589,7 @@ def test_education_8_or_above_can_access_advanced_education() -> None:
 def test_single_term_scout_muster_out() -> None:
     # Re-enlistment of 4 misses Scout's target of 6, so the career ends after one
     # term: 1 term + rank-0 bonus (0) = a single benefit roll.
-    result = generate_career_character(
+    result = generate(
         SCOUT_CAREER,
         rolls=_rolls(two_d6={RollName.CHARACTERISTIC: 8, RollName.REENLISTMENT: 4}),
     )
@@ -629,7 +607,7 @@ def test_single_term_scout_muster_out() -> None:
 
 def test_draft_character_roll_5_gives_scout() -> None:
     # DRAFT_TABLE[4] = "scout"; a draft roll of 5 -> index 4.
-    result = draft_character(rolls=_rolls(d6={RollName.DRAFT: 5}))
+    result = generate(DRAFT, _rolls(d6={RollName.DRAFT: 5}))
     assert isinstance(result, Character)
     assert result.drafted is True
     assert result.career == "Scout"
@@ -637,21 +615,21 @@ def test_draft_character_roll_5_gives_scout() -> None:
 
 def test_draft_character_roll_1_gives_aerospace() -> None:
     # DRAFT_TABLE[0] = "aerospace system defense"; a draft roll of 1 -> index 0.
-    result = draft_character(rolls=_rolls(d6={RollName.DRAFT: 1}))
+    result = generate(DRAFT, _rolls(d6={RollName.DRAFT: 1}))
     assert isinstance(result, Character)
     assert result.drafted is True
     assert result.career == "Aerospace System Defense"
 
 
 def test_draft_character_sets_drafted_true() -> None:
-    result = draft_character(rolls=_rolls(d6={RollName.DRAFT: 3}))
+    result = generate(DRAFT, _rolls(d6={RollName.DRAFT: 3}))
     assert isinstance(result, Character)
     assert result.drafted is True
 
 
 def test_draft_character_roll_2_gives_marine() -> None:
     # DRAFT_TABLE[1] = "marine"; a draft roll of 2 -> index 1.
-    result = draft_character(rolls=_rolls(d6={RollName.DRAFT: 2}))
+    result = generate(DRAFT, _rolls(d6={RollName.DRAFT: 2}))
     assert isinstance(result, Character)
     assert result.drafted is True
     assert result.career == "Marine"
@@ -665,7 +643,7 @@ def test_draft_character_unimplemented_career_returns_failure() -> None:
 
     # Patch DRAFT_TABLE in generator so index 0 is "smuggler" (not in CAREER_REGISTRY)
     with patch("cetools.engine.generator.DRAFT_TABLE", ("smuggler",) + ("navy",) * 5):
-        result = draft_character(rolls=_rolls(d6={RollName.DRAFT: 1}))
+        result = generate(DRAFT, _rolls(d6={RollName.DRAFT: 1}))
     assert isinstance(result, GenerationFailure)
     assert "smuggler" in result.reason
 
@@ -687,11 +665,9 @@ def _generate_scout_mishap_after_five_terms(mishap: int, injury: int | None = No
     d6 = {RollName.MISHAP: mishap}
     if injury is not None:
         d6[RollName.INJURY] = injury
-    result = generate_character(
+    result = generate(
         SCOUT_CAREER,
         rolls=_rolls(checks={RollName.SURVIVAL: [True] * 5 + [False]}, d6=d6),
-        preset_characteristics=_SCOUT_PRESET,
-        bypass_qualification=True,
     )
     assert isinstance(result, Character)
     return result
@@ -752,11 +728,9 @@ def _generate_scout_first_term_mishap(mishap: int, injury: int | None = None) ->
     d6 = {RollName.MISHAP: mishap}
     if injury is not None:
         d6[RollName.INJURY] = injury
-    result = generate_character(
+    result = generate(
         SCOUT_CAREER,
         rolls=_rolls(checks={RollName.SURVIVAL: False}, d6=d6),
-        preset_characteristics=_SCOUT_PRESET,
-        bypass_qualification=True,
     )
     assert isinstance(result, Character)
     return result
@@ -778,7 +752,7 @@ def test_first_term_mishap_yields_no_benefits_or_pension(mishap: int, injury: in
 
 
 def test_two_skill_rolls_per_term_in_term_history() -> None:
-    result = generate_career_character(SCOUT_CAREER, rolls=_rolls())
+    result = generate(SCOUT_CAREER, _rolls())
     assert isinstance(result, Character)
     assert result.terms_served >= 2
     # Term 1: 6 basic training entries + 2 skill roll entries
@@ -789,59 +763,48 @@ def test_two_skill_rolls_per_term_in_term_history() -> None:
 
 
 def test_generate_character_grants_background_skills() -> None:
-    # Preset Education 10 → 4 background skills, each drawn at index 0:
-    # homeworld Animals, Broker; education Admin, Advocate. None of these are
-    # Scout service, rank, or skill-roll outputs under this script, so they can
-    # only have come from background granting.
-    preset = {
-        "Strength": 10,
-        "Dexterity": 10,
-        "Endurance": 10,
-        "Intelligence": 10,
-        "Education": 10,
-        "Social Standing": 10,
-    }
-    result = generate_character(
-        SCOUT_CAREER,
-        rolls=_rolls(),
-        preset_characteristics=preset,
-        bypass_qualification=True,
-    )
+    # Education 10 → 4 background skills, each drawn at index 0: homeworld Animals,
+    # Broker; education Admin, Advocate. None of these are Scout service, rank, or
+    # skill-roll outputs under this script, so they can only have come from
+    # background granting.
+    result = generate(SCOUT_CAREER, _rolls(two_d6={RollName.CHARACTERISTIC: 10}))
     assert isinstance(result, Character)
     for skill in ("Animals", "Broker", "Admin", "Advocate"):
         assert skill in result.skills
     assert result.skills["Broker"] == 0
 
 
-def test_generate_character_none_qualification_skips_enlistment_failure() -> None:
+def test_srd_rules_skip_enlistment_for_a_career_without_qualification() -> None:
     no_qual = dataclasses.replace(
         NAVY_CAREER, name="Drifter", qualification_stat=None, qualification_target=None
     )
     # The qualification check would fail, but a career with no qualification must
-    # never run it — so no enlistment failure.
-    result = generate_character(no_qual, rolls=_rolls(checks={RollName.QUALIFICATION: False}))
+    # never run it — so no enlistment failure, even under SRD rules.
+    result = generate(no_qual, _rolls(checks={RollName.QUALIFICATION: False}), rules=SRD)
     assert isinstance(result, Character)
 
 
-def test_generate_character_concrete_qualification_still_gates() -> None:
-    result = generate_character(NAVY_CAREER, rolls=_rolls(checks={RollName.QUALIFICATION: False}))
+def test_srd_rules_gate_a_career_that_has_a_qualification() -> None:
+    result = generate(NAVY_CAREER, _rolls(checks={RollName.QUALIFICATION: False}), rules=SRD)
     assert isinstance(result, GenerationFailure)
     assert "enlistment failed" in result.reason
 
 
-def test_roll_until_qualified_none_qualification_returns_immediately() -> None:
+def test_house_rules_do_not_loop_for_a_career_without_qualification() -> None:
     no_qual = dataclasses.replace(
         NAVY_CAREER, name="Drifter", qualification_stat=None, qualification_target=None
     )
-    # Every stat rolls a 1 — Navy would loop forever; no-qual returns at once.
-    result = roll_until_qualified(no_qual, rolls=_rolls(two_d6={RollName.CHARACTERISTIC: 1}))
-    assert set(result.keys()) == set(STAT_NAMES)
+    # Every stat rolls a 1. Navy would reroll for ever chasing Intelligence 6+;
+    # a career with no qualification accepts the first set and generation finishes.
+    result = generate(no_qual, _rolls(two_d6={RollName.CHARACTERISTIC: 1}))
+    assert isinstance(result, Character)
+    assert set(result.characteristics.keys()) == set(STAT_NAMES)
 
 
 def test_generate_career_character_drifter_no_qualification() -> None:
     from cetools.engine.careers.drifter import DRIFTER_CAREER
 
-    result = generate_career_character(DRIFTER_CAREER, rolls=_rolls())
+    result = generate(DRIFTER_CAREER, _rolls())
     assert isinstance(result, Character)
     assert result.career == "Drifter"
 
@@ -853,7 +816,7 @@ def test_generated_character_has_psionics() -> None:
     # The gate passes and the Psi roll is 11, so Psi = max(0, 11 - terms_served).
     # terms_served is on the result, so the relationship holds without predicting
     # the whole generation.
-    result = generate_career_character(
+    result = generate(
         NAVY_CAREER,
         _rolls(
             checks={RollName.PSI_GATE: True},
@@ -871,19 +834,22 @@ def test_generated_character_has_psionics() -> None:
 def test_random_career_character_selects_career_by_first_roll() -> None:
     # Careers are offered in name order; index 8 is Drifter (which has no
     # qualification, so generation completes on the defaults).
-    result = random_career_character(_rolls(choices={RollName.CAREER: 8}))
+    result = generate(RANDOM, _rolls(choices={RollName.CAREER: 8}))
     assert isinstance(result, Character)
     assert result.career == "Drifter"
 
 
 def test_random_career_character_varies_with_first_roll() -> None:
-    drifter = random_career_character(_rolls(choices={RollName.CAREER: 8}))
-    aerospace = random_career_character(_rolls(choices={RollName.CAREER: 0}))
+    drifter = generate(RANDOM, _rolls(choices={RollName.CAREER: 8}))
+    aerospace = generate(RANDOM, _rolls(choices={RollName.CAREER: 0}))
     assert aerospace.career == "Aerospace System Defense"
     assert drifter.career != aerospace.career
 
 
-def test_random_career_character_passes_drafted_through() -> None:
-    result = random_career_character(_rolls(choices={RollName.CAREER: 8}), drafted=True)
+def test_random_career_is_not_drafted() -> None:
+    # `drafted` is no longer a parameter — the assignment says so. A random career
+    # is chosen, not drafted, and the old "drafted random" combination can no
+    # longer be asked for.
+    result = generate(RANDOM, _rolls(choices={RollName.CAREER: 8}))
     assert isinstance(result, Character)
-    assert result.drafted is True
+    assert result.drafted is False

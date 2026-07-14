@@ -119,18 +119,14 @@ Characteristic values above 9 are shown in [pseudo-hex notation](https://evolved
 
 ### Library
 
-The generation engine is usable directly without the CLI.
-
-Generate a character for a specific career (re-rolls characteristics until the career qualifies, enforces a hard 7-term cap):
+The generation engine is usable directly without the CLI. There is one entry point:
 
 ```python
-from cetools.engine.generator import generate_career_character
-from cetools.engine.careers.aerospace import AEROSPACE_CAREER
+from cetools.engine.generator import DRAFT, RANDOM, generate
 from cetools.engine.careers.navy import NAVY_CAREER
-from cetools.engine.careers.scout import SCOUT_CAREER
-from cetools.engine.models import Character, GenerationFailure
+from cetools.engine.models import Character
 
-result = generate_career_character(NAVY_CAREER)
+result = generate(NAVY_CAREER)   # or generate(DRAFT), or generate(RANDOM)
 
 if isinstance(result, Character):
     print(f"UPP: {result.upp}  Career: {result.career}  Terms: {result.terms_served}")
@@ -138,35 +134,49 @@ else:
     print(f"Generation failed: {result.reason}")
 ```
 
-Both `generate_career_character` and `draft_character` return `Character | GenerationFailure`. A `Character` carries the fields surfaced in output — `name`, `rank_title`, `upp`, `age`, `skills`, `benefits`, and (when a survival mishap ended the career) `mishap` and `debt`.
+The first argument is the **assignment**: a career, `DRAFT` (a 1D6 against the draft table), or `RANDOM` (any career, uniformly). It is also the only thing that decides whether the character is `drafted`.
 
-Generate a draft character (career assigned by 1D6 roll against the draft table):
+`generate` returns `Character | GenerationFailure`. A `Character` carries the fields surfaced in output — `name`, `rank_title`, `upp`, `age`, `skills`, `benefits`, and (when a survival mishap ended the career) `mishap` and `debt`.
 
-```python
-from cetools.engine.generator import draft_character
-
-result = draft_character()
-if isinstance(result, Character):
-    print(f"Career: {result.career}  Drafted: {result.drafted}")
-```
-
-Use the career registry to look up a career by name:
+Look a career up by name with the registry:
 
 ```python
 from cetools.engine.careers import CAREER_REGISTRY
 
-career = CAREER_REGISTRY["scout"]  # or "navy", "marine", "maritime system defense", "aerospace system defense"
+career = CAREER_REGISTRY["scout"]  # keys are lowercase, e.g. "aerospace system defense"
 ```
 
-Inject a custom `DiceRoller` for deterministic results:
+#### Rules
+
+cetools departs from the SRD in two places, and they travel together as a policy:
 
 ```python
-from cetools.engine.generator import generate_career_character
-from cetools.engine.careers.scout import SCOUT_CAREER
+from cetools.engine.rules import HOUSE, SRD
 
-class FixedRoller:
-    def roll(self, sides: int, count: int = 1) -> int:
-        return count * 4  # always rolls 4 per die
-
-result = generate_career_character(SCOUT_CAREER, roller=FixedRoller())
+generate(NAVY_CAREER)                    # HOUSE, the default
+generate(NAVY_CAREER, rules=SRD)
 ```
+
+| | `HOUSE` (default) | `SRD` |
+| --- | --- | --- |
+| qualification | characteristics are re-rolled until the career's target is met as a raw number; enlistment cannot fail | rolled once, then a `2D6 + DM ≥ target` check that can fail |
+| natural 12 at the 7-term cap | ignored — seven terms is the end | honoured — the character serves an eighth term |
+
+Under `HOUSE`, a `GenerationFailure` can only mean that the draft landed on a career cetools has not implemented.
+
+#### Deterministic results
+
+Everything the rules leave to chance goes through one seam. Script rolls by name for reproducible characters:
+
+```python
+from cetools.engine.rolls import RollName, ScriptedRolls
+
+rolls = ScriptedRolls(
+    checks={RollName.SURVIVAL: [True, False]},   # survive term 1, fail term 2
+    two_d6={RollName.CHARACTERISTIC: 10},
+    d6={RollName.MISHAP: 4},
+)
+result = generate(NAVY_CAREER, rolls)
+```
+
+Anything left unscripted takes a per-verb default. `RandomRolls` is the production adapter, and `RollName` is the index of every random decision the rules make.

@@ -13,9 +13,25 @@ Where cetools departs from the SRD, the entry says so.
 …). A career is pure data: the targets a character must roll against, its four
 skill tables, its ranks, and its benefit tables. Careers never contain logic.
 
-**Assignment** — how a character came to be in a career: chosen by name, taken
-from the **draft table**, or drawn at random. The distinction is visible on the
-finished character (`drafted`), and nowhere else.
+**Assignment** — how a character came to be in a career: a **Career** (chosen by
+name), `DRAFT`, or `RANDOM`. It is the first argument to `generate()`, and it is
+the only thing that decides whether a character is `drafted` — so a "drafted
+random" character cannot be asked for.
+
+**Rules** — which rules a character is generated under. cetools departs from the
+SRD in exactly two places, both settled in
+`specs/002-scout-career-character/spec.md`, and they travel together as a policy
+rather than as loose flags:
+
+| | `HOUSE` (the default) | `SRD` |
+| --- | --- | --- |
+| qualification | reroll characteristics until the career's target is met as a raw number; enlistment **cannot** fail | roll once, then a `2D6 + DM ≥ target` check that **can** fail |
+| natural 12 at the 7-term cap | ignored: seven terms is the end | honoured: the character serves an eighth term |
+
+`HOUSE` is what cetools has always done. Two consequences worth knowing: under
+`HOUSE`, a **GenerationFailure** can only ever mean "the draft assigned a career
+cetools has not implemented", and the worst rung of the ageing ladder is
+unreachable, because it needs the eighth term that only `SRD` allows.
 
 **Draft table** — the six careers a drafted character can land in. It is also
 the single source of truth for which careers are **military**; there is no

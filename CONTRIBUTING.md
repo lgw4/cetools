@@ -24,10 +24,17 @@ src/cetools/
 │   │   ├── navy.py       # NAVY_CAREER instance
 │   │   ├── scout.py      # SCOUT_CAREER instance
 │   │   └── registry.py   # CAREER_REGISTRY dict + DRAFT_TABLE tuple
-│   ├── dice.py         # DiceRoller protocol + RandomDiceRoller
-│   ├── generator.py    # generate_career_character(), draft_character(),
-│   │                   # generate_character(), roll_until_qualified()
-│   ├── models.py       # Character, Skill, Benefit, Term, GenerationFailure
+│   ├── rolls.py        # Rolls seam: RollName, RandomRolls, ScriptedRolls
+│   ├── rules.py        # Rules policy: HOUSE (default) and SRD
+│   ├── generator.py    # generate(assignment, rolls, rules) — the coordinator
+│   ├── background.py   # background_skills()
+│   ├── training.py     # roll_skill()  — Skills and Training
+│   ├── aging.py        # apply_aging()
+│   ├── benefits.py     # muster_out()
+│   ├── mishaps.py      # resolve_survival_mishap()
+│   ├── psionics.py     # roll_psionics()
+│   ├── names.py        # generate_name()
+│   ├── models.py       # Character, Benefit, Term, GenerationFailure, boost()
 │   └── pseudohex.py    # Pseudo-hex encode/decode
 └── formatter.py    # Plain-text character formatter
 

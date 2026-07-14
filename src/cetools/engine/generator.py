@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from cetools.engine import mishaps
 from cetools.engine.aging import AGING_STARTS_AT_AGE, apply_aging
 from cetools.engine.background import background_skills
@@ -19,6 +21,7 @@ from cetools.engine.names import generate_name
 from cetools.engine.pseudohex import encode_upp
 from cetools.engine.psionics import roll_psionics
 from cetools.engine.rolls import RandomRolls, RollName, Rolls
+from cetools.engine.rules import HOUSE, Rules
 from cetools.engine.training import roll_skill
 
 _PENSION = {5: 10000, 6: 12000, 7: 14000, 8: 16000}
@@ -54,28 +57,84 @@ def _pension(terms_served: int) -> int | None:
     return 16000 + (terms_served - 8) * 2000
 
 
-def generate_character(
-    career: Career,
+@dataclass(frozen=True)
+class Draft:
+    """Assignment: take whatever career the draft table hands out."""
+
+
+@dataclass(frozen=True)
+class RandomCareer:
+    """Assignment: any career, drawn uniformly."""
+
+
+DRAFT = Draft()
+RANDOM = RandomCareer()
+
+Assignment = Career | Draft | RandomCareer
+"""How a character comes to be in a career: a Career means "this one"."""
+
+
+def _roll_characteristics(rolls: Rolls) -> dict[str, int]:
+    return {stat: rolls.two_d6(RollName.CHARACTERISTIC) for stat in STAT_NAMES}
+
+
+def _roll_until_qualified(career: Career, rolls: Rolls) -> dict[str, int]:
+    """Reroll characteristics until the career will have them.
+
+    A raw comparison against the career's target, not a dice check: under HOUSE
+    rules a character gets the career they asked for, so enlistment cannot fail.
+    """
+    while True:
+        characteristics = _roll_characteristics(rolls)
+        if career.qualification_stat is None or career.qualification_target is None:
+            return characteristics
+        if characteristics[career.qualification_stat] >= career.qualification_target:
+            return characteristics
+
+
+def _assign(assignment: Assignment, rolls: Rolls) -> tuple[Career, bool] | GenerationFailure:
+    """The career, and whether the character was drafted into it."""
+    if isinstance(assignment, Draft):
+        key = DRAFT_TABLE[rolls.d6(RollName.DRAFT) - 1]
+        career = CAREER_REGISTRY.get(key)
+        if career is None:
+            return GenerationFailure(reason=f"Draft assigned unimplemented career '{key}'")
+        return career, True
+
+    if isinstance(assignment, RandomCareer):
+        careers = sorted(CAREER_REGISTRY.values(), key=lambda c: c.name)
+        return rolls.choose(careers, RollName.CAREER), False
+
+    return assignment, False
+
+
+def generate(
+    assignment: Assignment,
     rolls: Rolls | None = None,
-    preset_characteristics: dict[str, int] | None = None,
-    bypass_qualification: bool = False,
-    hard_max_terms: bool = False,
-    drafted: bool = False,
+    rules: Rules = HOUSE,
 ) -> Character | GenerationFailure:
+    """A whole character: pick the career, serve the terms, muster out.
+
+    `assignment` is a Career, or DRAFT, or RANDOM. Under HOUSE rules the only
+    failure is a draft landing on a career cetools has not implemented; under SRD
+    rules enlistment can fail too.
+    """
     rolls = rolls or RandomRolls()
 
-    if preset_characteristics is not None:
-        missing = [s for s in STAT_NAMES if s not in preset_characteristics]
-        if missing:
-            raise ValueError(f"preset_characteristics missing required stats: {missing}")
-        characteristics: dict[str, int] = dict(preset_characteristics)
+    assigned = _assign(assignment, rolls)
+    if isinstance(assigned, GenerationFailure):
+        return assigned
+    career, drafted = assigned
+
+    if rules.reroll_until_qualified:
+        characteristics = _roll_until_qualified(career, rolls)
     else:
-        characteristics = {stat: rolls.two_d6(RollName.CHARACTERISTIC) for stat in STAT_NAMES}
+        characteristics = _roll_characteristics(rolls)
 
     skills: dict[str, int] = background_skills(characteristics, rolls)
 
     if (
-        not bypass_qualification
+        not rules.reroll_until_qualified
         and career.qualification_stat is not None
         and career.qualification_target is not None
     ):
@@ -215,7 +274,7 @@ def generate_character(
 
         reenlist_roll = rolls.two_d6(RollName.REENLISTMENT)
         if terms_served >= _MAX_TERMS:
-            if reenlist_roll == 12 and not hard_max_terms:
+            if reenlist_roll == 12 and rules.natural_12_forces_extra_term:
                 mandatory_extra = True
             else:
                 break
@@ -253,49 +312,3 @@ def generate_character(
         psi_strength=psi_strength,
         talents=talents,
     )
-
-
-def roll_until_qualified(career: Career, rolls: Rolls | None = None) -> dict[str, int]:
-    rolls = rolls or RandomRolls()
-    while True:
-        characteristics = {stat: rolls.two_d6(RollName.CHARACTERISTIC) for stat in STAT_NAMES}
-        if career.qualification_stat is None or career.qualification_target is None:
-            return characteristics
-        if characteristics[career.qualification_stat] >= career.qualification_target:
-            return characteristics
-
-
-def draft_character(rolls: Rolls | None = None) -> Character | GenerationFailure:
-    rolls = rolls or RandomRolls()
-    name = DRAFT_TABLE[rolls.d6(RollName.DRAFT) - 1]
-    career = CAREER_REGISTRY.get(name)
-    if career is None:
-        return GenerationFailure(reason=f"Draft assigned unimplemented career '{name}'")
-    return generate_career_character(career, rolls, drafted=True)
-
-
-def generate_career_character(
-    career: Career,
-    rolls: Rolls | None = None,
-    drafted: bool = False,
-) -> Character | GenerationFailure:
-    rolls = rolls or RandomRolls()
-    characteristics = roll_until_qualified(career, rolls)
-    return generate_character(
-        career,
-        rolls=rolls,
-        preset_characteristics=characteristics,
-        bypass_qualification=True,
-        hard_max_terms=True,
-        drafted=drafted,
-    )
-
-
-def random_career_character(
-    rolls: Rolls | None = None,
-    drafted: bool = False,
-) -> Character | GenerationFailure:
-    rolls = rolls or RandomRolls()
-    careers = sorted(CAREER_REGISTRY.values(), key=lambda c: c.name)
-    career = rolls.choose(careers, RollName.CAREER)
-    return generate_career_character(career, rolls, drafted=drafted)

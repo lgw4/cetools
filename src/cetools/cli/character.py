@@ -4,11 +4,7 @@ from typing import Annotated
 import typer
 
 from cetools.engine.careers import CAREER_REGISTRY
-from cetools.engine.generator import (
-    draft_character,
-    generate_career_character,
-    random_career_character,
-)
+from cetools.engine.generator import DRAFT, RANDOM, generate
 from cetools.engine.models import Character
 from cetools.formatter import format_characters
 
@@ -19,8 +15,8 @@ _CANONICAL_CAREERS = ", ".join(
 )
 
 
-@app.command()
-def generate(
+@app.command("generate")
+def generate_characters(
     career: Annotated[
         str | None,
         typer.Option("--career", help=f"Career to generate. Valid careers: {_CANONICAL_CAREERS}"),
@@ -61,16 +57,13 @@ def generate(
             raise typer.Exit(1)
         resolved_career = CAREER_REGISTRY[normalized]
 
+    assignment = resolved_career or (RANDOM if random else DRAFT)
+
     characters: list[Character] = []
     failures = 0
     failure_exit_code = 1
     for _ in range(count):
-        if resolved_career is not None:
-            result = generate_career_character(resolved_career)
-        elif random:
-            result = random_career_character()
-        else:
-            result = draft_character()
+        result = generate(assignment)
 
         if isinstance(result, Character):
             characters.append(result)
