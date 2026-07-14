@@ -1,3 +1,8 @@
+from dataclasses import replace
+
+from cetools.engine.careers.base import Career, RankEntry
+from cetools.engine.careers.drifter import DRIFTER_CAREER
+from cetools.engine.careers.navy import NAVY_CAREER
 from cetools.engine.models import Benefit, Character, MishapOutcome
 from cetools.formatter import format_character, format_characters
 
@@ -19,9 +24,8 @@ def _make_full_character(mishap: MishapOutcome | None = None, debt: int = 0) -> 
         characteristics=_base_characteristics(),
         upp="7A6B85",
         age=46,
-        career="Navy",
-        rank=6,
-        rank_title="Commodore",
+        career=NAVY_CAREER,
+        rank=6,  # Navy rank 6 -> "Commodore"
         terms_served=7,
         name="Bruce Ayala",
         skills={"Engineering": 2, "Gunnery": 1, "Navigation": 2, "Tactics": 1, "Zero-G": 1},
@@ -41,7 +45,7 @@ def _make_full_character(mishap: MishapOutcome | None = None, debt: int = 0) -> 
 
 
 def _make_empty_character(
-    mishap: MishapOutcome | None = None, debt: int = 0, career: str = "Navy"
+    mishap: MishapOutcome | None = None, debt: int = 0, career: Career = NAVY_CAREER
 ) -> Character:
     """Matches contracts/ucf-output.md's zero-cash/zero-material/zero-skills example."""
     return Character(
@@ -49,8 +53,7 @@ def _make_empty_character(
         upp="5A5555",
         age=22,
         career=career,
-        rank=0,
-        rank_title="Starman",
+        rank=0,  # Navy rank 0 -> "Starman"
         terms_served=1,
         name="Alex Kade",
         skills={},
@@ -85,8 +88,11 @@ def test_line1_includes_rank_title_with_trailing_space() -> None:
 
 
 def test_line1_omits_rank_title_when_empty() -> None:
+    # rank_title is derived from the career's rank table, so an empty title comes
+    # from a career whose rank carries no title rather than from a blank field.
     character = _make_full_character()
-    character.rank_title = ""
+    character.career = replace(NAVY_CAREER, ranks=(RankEntry(0, "", ()),))
+    character.rank = 0
     output = format_character(character)
     line1 = output.split("\n")[0]
     assert line1 == "Bruce Ayala\t7A6B85\tAge 46"
@@ -473,7 +479,7 @@ def _civilian_mishap(
 
 
 def _civilian_character(mishap: MishapOutcome, debt: int = 0) -> Character:
-    return _make_empty_character(mishap=mishap, debt=debt, career="Drifter")
+    return _make_empty_character(mishap=mishap, debt=debt, career=DRIFTER_CAREER)
 
 
 def test_civilian_honorable_uses_left_in_good_standing() -> None:

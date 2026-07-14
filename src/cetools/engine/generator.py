@@ -7,7 +7,7 @@ from cetools.engine.aging import AGING_STARTS_AT_AGE, apply_aging
 from cetools.engine.background import background_skills
 from cetools.engine.benefits import muster_out
 from cetools.engine.careers.base import Career
-from cetools.engine.careers.registry import CAREER_REGISTRY, DRAFT_TABLE
+from cetools.engine.careers.registry import CAREERS, DRAFT_TABLE
 from cetools.engine.models import (
     STAT_NAMES,
     Benefit,
@@ -92,18 +92,17 @@ def _roll_until_qualified(career: Career, rolls: Rolls) -> dict[str, int]:
             return characteristics
 
 
-def _assign(assignment: Assignment, rolls: Rolls) -> tuple[Career, bool] | GenerationFailure:
-    """The career, and whether the character was drafted into it."""
+def _assign(assignment: Assignment, rolls: Rolls) -> tuple[Career, bool]:
+    """The career, and whether the character was drafted into it.
+
+    The draft table holds careers, not names, so a draft can never land on a
+    career that does not exist.
+    """
     if isinstance(assignment, Draft):
-        key = DRAFT_TABLE[rolls.d6(RollName.DRAFT) - 1]
-        career = CAREER_REGISTRY.get(key)
-        if career is None:
-            return GenerationFailure(reason=f"Draft assigned unimplemented career '{key}'")
-        return career, True
+        return DRAFT_TABLE[rolls.d6(RollName.DRAFT) - 1], True
 
     if isinstance(assignment, RandomCareer):
-        careers = sorted(CAREER_REGISTRY.values(), key=lambda c: c.name)
-        return rolls.choose(careers, RollName.CAREER), False
+        return rolls.choose(CAREERS, RollName.CAREER), False
 
     return assignment, False
 
@@ -121,10 +120,7 @@ def generate(
     """
     rolls = rolls or RandomRolls()
 
-    assigned = _assign(assignment, rolls)
-    if isinstance(assigned, GenerationFailure):
-        return assigned
-    career, drafted = assigned
+    career, drafted = _assign(assignment, rolls)
 
     if rules.reroll_until_qualified:
         characteristics = _roll_until_qualified(career, rolls)
@@ -297,9 +293,8 @@ def generate(
         characteristics=characteristics,
         upp=encode_upp(characteristics),
         age=age,
-        career=career.name,
+        career=career,
         rank=rank,
-        rank_title=career.ranks[rank].title,
         terms_served=terms_served,
         name=name,
         skills=skills,

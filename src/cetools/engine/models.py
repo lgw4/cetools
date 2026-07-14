@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:  # careers.base imports this module, so only import it for types
+    from cetools.engine.careers.base import Career
 
 STAT_NAMES: tuple[str, ...] = (
     "Strength",
@@ -107,9 +110,8 @@ class Character:
     characteristics: dict[str, int]
     upp: str
     age: int
-    career: str
+    career: Career
     rank: int
-    rank_title: str
     terms_served: int
     name: str
     skills: dict[str, int]
@@ -121,6 +123,15 @@ class Character:
     debt: int = 0
     psi_strength: int = 0
     talents: dict[str, int] = field(default_factory=dict)
+
+    @property
+    def rank_title(self) -> str:
+        """The character's title at their current rank.
+
+        Derived, not stored: the career knows it, and a character carries its
+        career.
+        """
+        return self.career.ranks[self.rank].title
 
 
 @dataclass

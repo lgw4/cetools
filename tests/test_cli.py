@@ -3,14 +3,17 @@ from unittest.mock import patch
 from typer.testing import CliRunner
 
 from cetools.cli.main import app
-from cetools.engine.careers import CAREER_REGISTRY
+from cetools.engine.careers.aerospace import AEROSPACE_CAREER
+from cetools.engine.careers.marine import MARINE_CAREER
+from cetools.engine.careers.navy import NAVY_CAREER
+from cetools.engine.careers.scout import SCOUT_CAREER
 from cetools.engine.generator import DRAFT, RANDOM
 from cetools.engine.models import Benefit, Character, GenerationFailure
 
-_SCOUT = CAREER_REGISTRY["scout"]
-_NAVY = CAREER_REGISTRY["navy"]
-_MARINE = CAREER_REGISTRY["marine"]
-_AEROSPACE = CAREER_REGISTRY["aerospace system defense"]
+_SCOUT = SCOUT_CAREER
+_NAVY = NAVY_CAREER
+_MARINE = MARINE_CAREER
+_AEROSPACE = AEROSPACE_CAREER
 
 # Scout character for --career tests
 _SCOUT_CHARACTER = Character(
@@ -24,9 +27,8 @@ _SCOUT_CHARACTER = Character(
     },
     upp="687976",
     age=22,
-    career="Scout",
+    career=SCOUT_CAREER,
     rank=0,
-    rank_title="Scout",
     terms_served=1,
     name="Jane Doe",
     skills={"Piloting": 1, "Navigation": 0},
@@ -51,9 +53,8 @@ def _make_character(drafted: bool = False) -> Character:
         },
         upp="7A6B85",
         age=46,
-        career="Navy",
+        career=NAVY_CAREER,
         rank=6,
-        rank_title="Commodore",
         terms_served=7,
         name="Jane Doe",
         skills={"Navigation": 2, "Zero-G": 1},
@@ -272,9 +273,8 @@ def _make_aerospace_character() -> "Character":
         },
         upp="798675",
         age=26,
-        career="Aerospace System Defense",
+        career=AEROSPACE_CAREER,
         rank=1,
-        rank_title="Flight Officer",
         terms_served=1,
         name="Jane Doe",
         skills={"Aircraft": 1, "Electronics": 0},
@@ -466,9 +466,8 @@ def _make_marine_character() -> Character:
         },
         upp="879876",
         age=22,
-        career="Marine",
+        career=MARINE_CAREER,
         rank=0,
-        rank_title="Trooper",
         terms_served=1,
         name="Jane Doe",
         skills={"Zero-G": 1, "Gun Combat": 0},

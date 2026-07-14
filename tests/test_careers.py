@@ -42,7 +42,7 @@ def test_extensibility_success_character_career_name() -> None:
     # Character.
     result = generate(stub, ScriptedRolls())
     assert isinstance(result, Character)
-    assert result.career == "Scout"
+    assert result.career.name == "Scout"
 
 
 def test_generator_has_no_navy_literal() -> None:
@@ -160,8 +160,16 @@ def test_navy_name() -> None:
     assert NAVY_CAREER.name == "Navy"
 
 
+from cetools.engine.careers.aerospace import AEROSPACE_CAREER  # noqa: E402
+from cetools.engine.careers.marine import MARINE_CAREER  # noqa: E402
 from cetools.engine.careers.maritime import MARITIME_CAREER  # noqa: E402
-from cetools.engine.careers.registry import CAREER_REGISTRY, DRAFT_TABLE  # noqa: E402
+from cetools.engine.careers.registry import (  # noqa: E402
+    CAREERS,
+    DRAFT_TABLE,
+    UnknownCareer,
+    is_military,
+    resolve,
+)
 
 # T003 — SCOUT_CAREER field validation
 from cetools.engine.careers.scout import SCOUT_CAREER  # noqa: E402
@@ -275,32 +283,32 @@ def test_scout_material_benefits_has_six_entries() -> None:
 
 
 def test_career_registry_has_navy_and_scout_keys() -> None:
-    assert "navy" in CAREER_REGISTRY
-    assert "scout" in CAREER_REGISTRY
+    assert resolve("navy") is NAVY_CAREER
+    assert resolve("scout") is SCOUT_CAREER
 
 
 def test_career_registry_navy_value() -> None:
-    assert CAREER_REGISTRY["navy"] is NAVY_CAREER
+    assert resolve("navy") is NAVY_CAREER
 
 
 def test_career_registry_scout_value() -> None:
-    assert CAREER_REGISTRY["scout"] is SCOUT_CAREER
+    assert resolve("scout") is SCOUT_CAREER
 
 
 def test_career_registry_has_maritime_key() -> None:
-    assert "maritime system defense" in CAREER_REGISTRY
+    assert resolve("maritime system defense") is MARITIME_CAREER
 
 
 def test_career_registry_maritime_value() -> None:
-    assert CAREER_REGISTRY["maritime system defense"] is MARITIME_CAREER
+    assert resolve("maritime system defense") is MARITIME_CAREER
 
 
 def test_career_registry_has_surface_key() -> None:
-    assert "surface system defense" in CAREER_REGISTRY
+    assert resolve("surface system defense") is SURFACE_CAREER
 
 
 def test_career_registry_surface_value() -> None:
-    assert CAREER_REGISTRY["surface system defense"] is SURFACE_CAREER
+    assert resolve("surface system defense") is SURFACE_CAREER
 
 
 def test_draft_table_length_is_six() -> None:
@@ -308,35 +316,35 @@ def test_draft_table_length_is_six() -> None:
 
 
 def test_draft_table_index_4_is_scout() -> None:
-    assert DRAFT_TABLE[4] == "scout"
+    assert DRAFT_TABLE[4] is SCOUT_CAREER
 
 
 def test_draft_table_index_0_is_aerospace() -> None:
-    assert DRAFT_TABLE[0] == "aerospace system defense"
+    assert DRAFT_TABLE[0] is AEROSPACE_CAREER
 
 
 def test_draft_table_index_1_is_marine() -> None:
-    assert DRAFT_TABLE[1] == "marine"
+    assert DRAFT_TABLE[1] is MARINE_CAREER
 
 
 def test_draft_table_index_2_is_maritime() -> None:
-    assert DRAFT_TABLE[2] == "maritime system defense"
+    assert DRAFT_TABLE[2] is MARITIME_CAREER
 
 
 def test_draft_table_index_3_is_navy() -> None:
-    assert DRAFT_TABLE[3] == "navy"
+    assert DRAFT_TABLE[3] is NAVY_CAREER
 
 
 def test_draft_table_index_5_is_surface() -> None:
-    assert DRAFT_TABLE[5] == "surface system defense"
+    assert DRAFT_TABLE[5] is SURFACE_CAREER
 
 
 def test_draft_table_only_slot_3_is_navy() -> None:
     for i, entry in enumerate(DRAFT_TABLE):
         if i == 3:
-            assert entry == "navy", f"DRAFT_TABLE[3] expected 'navy', got {entry!r}"
+            assert entry is NAVY_CAREER, f"DRAFT_TABLE[3] expected Navy, got {entry.name!r}"
         else:
-            assert entry != "navy", f"DRAFT_TABLE[{i}] unexpectedly 'navy'"
+            assert entry is not NAVY_CAREER, f"DRAFT_TABLE[{i}] unexpectedly Navy"
 
 
 # ── Career.__post_init__ validation ──────────────────────────────────────────
@@ -445,20 +453,20 @@ from cetools.engine.careers.noble import NOBLE_CAREER  # noqa: E402
 
 def test_registry_has_social_career_keys() -> None:
     for key in ("agent", "bureaucrat", "diplomat", "entertainer", "noble"):
-        assert key in CAREER_REGISTRY
+        assert not isinstance(resolve(key), UnknownCareer)
 
 
 def test_registry_social_career_values() -> None:
-    assert CAREER_REGISTRY["agent"] is AGENT_CAREER
-    assert CAREER_REGISTRY["bureaucrat"] is BUREAUCRAT_CAREER
-    assert CAREER_REGISTRY["diplomat"] is DIPLOMAT_CAREER
-    assert CAREER_REGISTRY["entertainer"] is ENTERTAINER_CAREER
-    assert CAREER_REGISTRY["noble"] is NOBLE_CAREER
+    assert resolve("agent") is AGENT_CAREER
+    assert resolve("bureaucrat") is BUREAUCRAT_CAREER
+    assert resolve("diplomat") is DIPLOMAT_CAREER
+    assert resolve("entertainer") is ENTERTAINER_CAREER
+    assert resolve("noble") is NOBLE_CAREER
 
 
 def test_social_careers_not_draftable() -> None:
     for key in ("agent", "bureaucrat", "diplomat", "entertainer", "noble"):
-        assert key not in DRAFT_TABLE
+        assert resolve(key) not in DRAFT_TABLE
     assert len(DRAFT_TABLE) == 6
 
 
@@ -471,20 +479,20 @@ from cetools.engine.careers.hunter import HUNTER_CAREER  # noqa: E402
 
 def test_registry_has_frontier_career_keys() -> None:
     for key in ("athlete", "barbarian", "colonist", "hunter", "drifter"):
-        assert key in CAREER_REGISTRY
+        assert not isinstance(resolve(key), UnknownCareer)
 
 
 def test_registry_frontier_career_values() -> None:
-    assert CAREER_REGISTRY["athlete"] is ATHLETE_CAREER
-    assert CAREER_REGISTRY["barbarian"] is BARBARIAN_CAREER
-    assert CAREER_REGISTRY["colonist"] is COLONIST_CAREER
-    assert CAREER_REGISTRY["hunter"] is HUNTER_CAREER
-    assert CAREER_REGISTRY["drifter"] is DRIFTER_CAREER
+    assert resolve("athlete") is ATHLETE_CAREER
+    assert resolve("barbarian") is BARBARIAN_CAREER
+    assert resolve("colonist") is COLONIST_CAREER
+    assert resolve("hunter") is HUNTER_CAREER
+    assert resolve("drifter") is DRIFTER_CAREER
 
 
 def test_frontier_careers_not_draftable() -> None:
     for key in ("athlete", "barbarian", "colonist", "hunter", "drifter"):
-        assert key not in DRAFT_TABLE
+        assert resolve(key) not in DRAFT_TABLE
     assert len(DRAFT_TABLE) == 6
 
 
@@ -497,20 +505,20 @@ from cetools.engine.careers.rogue import ROGUE_CAREER  # noqa: E402
 
 def test_registry_has_rogue_spacer_career_keys() -> None:
     for key in ("belter", "mercenary", "pirate", "rogue", "merchant"):
-        assert key in CAREER_REGISTRY
+        assert not isinstance(resolve(key), UnknownCareer)
 
 
 def test_registry_rogue_spacer_career_values() -> None:
-    assert CAREER_REGISTRY["belter"] is BELTER_CAREER
-    assert CAREER_REGISTRY["mercenary"] is MERCENARY_CAREER
-    assert CAREER_REGISTRY["pirate"] is PIRATE_CAREER
-    assert CAREER_REGISTRY["rogue"] is ROGUE_CAREER
-    assert CAREER_REGISTRY["merchant"] is MERCHANT_CAREER
+    assert resolve("belter") is BELTER_CAREER
+    assert resolve("mercenary") is MERCENARY_CAREER
+    assert resolve("pirate") is PIRATE_CAREER
+    assert resolve("rogue") is ROGUE_CAREER
+    assert resolve("merchant") is MERCHANT_CAREER
 
 
 def test_rogue_spacer_careers_not_draftable() -> None:
     for key in ("belter", "mercenary", "pirate", "rogue", "merchant"):
-        assert key not in DRAFT_TABLE
+        assert resolve(key) not in DRAFT_TABLE
     assert len(DRAFT_TABLE) == 6
 
 
@@ -521,20 +529,99 @@ from cetools.engine.careers.technician import TECHNICIAN_CAREER  # noqa: E402
 
 def test_registry_has_learned_career_keys() -> None:
     for key in ("physician", "scientist", "technician"):
-        assert key in CAREER_REGISTRY
+        assert not isinstance(resolve(key), UnknownCareer)
 
 
 def test_registry_learned_career_values() -> None:
-    assert CAREER_REGISTRY["physician"] is PHYSICIAN_CAREER
-    assert CAREER_REGISTRY["scientist"] is SCIENTIST_CAREER
-    assert CAREER_REGISTRY["technician"] is TECHNICIAN_CAREER
+    assert resolve("physician") is PHYSICIAN_CAREER
+    assert resolve("scientist") is SCIENTIST_CAREER
+    assert resolve("technician") is TECHNICIAN_CAREER
 
 
 def test_learned_careers_not_draftable() -> None:
     for key in ("physician", "scientist", "technician"):
-        assert key not in DRAFT_TABLE
+        assert resolve(key) not in DRAFT_TABLE
     assert len(DRAFT_TABLE) == 6
 
 
 def test_registry_has_all_24_careers() -> None:
-    assert len(CAREER_REGISTRY) == 24
+    assert len(CAREERS) == 24
+
+
+# ── resolve() ────────────────────────────────────────────────────────────────
+
+
+def test_resolve_exact_lowercase_name() -> None:
+    assert resolve("navy") is NAVY_CAREER
+
+
+def test_resolve_mixed_case_name() -> None:
+    assert resolve("NaVy") is NAVY_CAREER
+    assert resolve("Aerospace System Defense") is AEROSPACE_CAREER
+
+
+def test_resolve_ignores_surrounding_whitespace() -> None:
+    assert resolve("  scout  ") is SCOUT_CAREER
+    assert resolve("\tmaritime system defense\n") is MARITIME_CAREER
+
+
+def test_resolve_reads_hyphens_as_spaces() -> None:
+    assert resolve("Aerospace-System-Defense") is AEROSPACE_CAREER
+    assert resolve("surface-system-defense") is SURFACE_CAREER
+
+
+def test_resolve_every_career_by_its_own_name() -> None:
+    for career in CAREERS:
+        assert resolve(career.name) is career
+
+
+def test_resolve_near_miss_returns_unknown_with_suggestion() -> None:
+    result = resolve("nvy")
+    assert isinstance(result, UnknownCareer)
+    assert result.suggestion is NAVY_CAREER
+
+
+def test_resolve_gibberish_returns_unknown_without_suggestion() -> None:
+    result = resolve("xyzzy")
+    assert isinstance(result, UnknownCareer)
+    assert result.suggestion is None
+
+
+def test_resolve_unknown_preserves_original_spec() -> None:
+    result = resolve("  Smuggler-Prince  ")
+    assert isinstance(result, UnknownCareer)
+    assert result.spec == "  Smuggler-Prince  "
+
+
+# ── is_military() ────────────────────────────────────────────────────────────
+
+
+def test_is_military_true_for_every_draft_table_career() -> None:
+    for career in DRAFT_TABLE:
+        assert is_military(career), f"{career.name} should be military"
+
+
+def test_is_military_false_for_civilian_careers() -> None:
+    assert not is_military(ROGUE_CAREER)
+    assert not is_military(MERCHANT_CAREER)
+
+
+def test_is_military_true_for_exactly_the_six_draft_careers() -> None:
+    military = [career for career in CAREERS if is_military(career)]
+    assert len(military) == 6
+    assert set(military) == set(DRAFT_TABLE)
+
+
+# ── CAREERS / DRAFT_TABLE shape ──────────────────────────────────────────────
+
+
+def test_draft_table_has_six_entries_all_in_careers() -> None:
+    assert len(DRAFT_TABLE) == 6
+    for career in DRAFT_TABLE:
+        assert career in CAREERS
+
+
+def test_careers_holds_all_24_in_name_order() -> None:
+    assert len(CAREERS) == 24
+    names = [career.name for career in CAREERS]
+    assert names == sorted(names)

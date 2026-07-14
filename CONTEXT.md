@@ -13,6 +13,14 @@ Where cetools departs from the SRD, the entry says so.
 …). A career is pure data: the targets a character must roll against, its four
 skill tables, its ranks, and its benefit tables. Careers never contain logic.
 
+A career has **one** identity: its name. There is no slug: the lookup key is
+`name.lower()`, derived and never authored. `engine/careers` is the only module
+that knows what a career is called — it exposes `CAREERS` (all of them, in name
+order), `DRAFT_TABLE`, `is_military(career)`, and `resolve(spec)`, which turns
+whatever a user typed into a **Career** or an `UnknownCareer` carrying the nearest
+suggestion. Callers hold `Career` objects, never names: a **Character** carries
+its `Career`, so nothing ever has to turn a name back into a career.
+
 **Assignment** — how a character came to be in a career: a **Career** (chosen by
 name), `DRAFT`, or `RANDOM`. It is the first argument to `generate()`, and it is
 the only thing that decides whether a character is `drafted` — so a "drafted
@@ -33,9 +41,10 @@ rather than as loose flags:
 cetools has not implemented", and the worst rung of the ageing ladder is
 unreachable, because it needs the eighth term that only `SRD` allows.
 
-**Draft table** — the six careers a drafted character can land in. It is also
-the single source of truth for which careers are **military**; there is no
-separate list.
+**Draft table** — the six careers a drafted character can land in. It holds
+`Career` objects, so a draft can never land on a career that does not exist. It
+is also the single source of truth for which careers are **military**; there is
+no separate list.
 
 **Term** — four years of service. A term is survived or not; it may bring a
 **commission**, an **advancement**, skills, and ageing. A character serves up to

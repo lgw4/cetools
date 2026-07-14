@@ -129,22 +129,30 @@ from cetools.engine.models import Character
 result = generate(NAVY_CAREER)   # or generate(DRAFT), or generate(RANDOM)
 
 if isinstance(result, Character):
-    print(f"UPP: {result.upp}  Career: {result.career}  Terms: {result.terms_served}")
+    print(f"UPP: {result.upp}  Career: {result.career.name}  Terms: {result.terms_served}")
 else:
     print(f"Generation failed: {result.reason}")
 ```
 
 The first argument is the **assignment**: a career, `DRAFT` (a 1D6 against the draft table), or `RANDOM` (any career, uniformly). It is also the only thing that decides whether the character is `drafted`.
 
-`generate` returns `Character | GenerationFailure`. A `Character` carries the fields surfaced in output — `name`, `rank_title`, `upp`, `age`, `skills`, `benefits`, and (when a survival mishap ended the career) `mishap` and `debt`.
+`generate` returns `Character | GenerationFailure`. A `Character` carries the fields surfaced in output — `name`, `upp`, `age`, `skills`, `benefits`, and (when a survival mishap ended the career) `mishap` and `debt`. It also carries its `Career`, so `character.career.name` and `character.rank_title` come from the career rather than from copies.
 
-Look a career up by name with the registry:
+Look a career up by whatever a user typed — case, surrounding space, and hyphens-for-spaces all work:
 
 ```python
-from cetools.engine.careers import CAREER_REGISTRY
+from cetools.engine.careers import CAREERS, UnknownCareer, resolve
 
-career = CAREER_REGISTRY["scout"]  # keys are lowercase, e.g. "aerospace system defense"
+career = resolve("Aerospace-System-Defense")
+
+match resolve("nvy"):
+    case UnknownCareer(spec, suggestion):
+        print(f"No career {spec!r}. Did you mean {suggestion.name}?")   # Navy
+    case found:
+        print(found.name)
 ```
+
+`CAREERS` is all 24, in name order. A career has one identity — its name; the lookup key is derived from it.
 
 #### Rules
 

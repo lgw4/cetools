@@ -285,10 +285,7 @@ def test_mishap_roll_distribution_within_ten_percent_of_uniform() -> None:
 
 
 def test_exactly_the_expected_careers_are_military() -> None:
-    from cetools.engine.careers.registry import (
-        CAREER_REGISTRY,
-        is_military_career,
-    )
+    from cetools.engine.careers.registry import CAREERS, is_military
 
     expected_military = {
         "Aerospace System Defense",
@@ -298,19 +295,15 @@ def test_exactly_the_expected_careers_are_military() -> None:
         "Scout",
         "Surface System Defense",
     }
-    actual_military = {
-        career.name for career in CAREER_REGISTRY.values() if is_military_career(career.name)
-    }
+    actual_military = {career.name for career in CAREERS if is_military(career)}
     assert actual_military == expected_military
 
 
 def test_military_names_report_draft_keys_missing_from_registry() -> None:
-    import pytest
+    # DRAFT_TABLE now holds Career objects rather than string keys, so a draft entry
+    # naming a career the registry does not know is unrepresentable. The invariant
+    # the old key-lookup error guarded is now checked directly: every draftable
+    # (hence military) career is a career the registry ships.
+    from cetools.engine.careers.registry import CAREERS, DRAFT_TABLE
 
-    from cetools.engine.careers.registry import (
-        CAREER_REGISTRY,
-        _collect_military_career_names,
-    )
-
-    with pytest.raises(ValueError, match="ghost career"):
-        _collect_military_career_names(("navy", "ghost career"), CAREER_REGISTRY)
+    assert set(DRAFT_TABLE) <= set(CAREERS)

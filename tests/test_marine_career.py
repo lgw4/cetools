@@ -169,7 +169,7 @@ def test_generate_career_character_marine_100_runs_no_unhandled_exceptions() -> 
     for _ in range(100):
         result = generate(MARINE_CAREER, RandomRolls())
         assert isinstance(result, Character)
-        assert result.career == "Marine"
+        assert result.career.name == "Marine"
         assert result.rank_title in _MARINE_RANK_TITLES
 
 

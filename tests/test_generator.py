@@ -610,7 +610,7 @@ def test_draft_character_roll_5_gives_scout() -> None:
     result = generate(DRAFT, _rolls(d6={RollName.DRAFT: 5}))
     assert isinstance(result, Character)
     assert result.drafted is True
-    assert result.career == "Scout"
+    assert result.career.name == "Scout"
 
 
 def test_draft_character_roll_1_gives_aerospace() -> None:
@@ -618,7 +618,7 @@ def test_draft_character_roll_1_gives_aerospace() -> None:
     result = generate(DRAFT, _rolls(d6={RollName.DRAFT: 1}))
     assert isinstance(result, Character)
     assert result.drafted is True
-    assert result.career == "Aerospace System Defense"
+    assert result.career.name == "Aerospace System Defense"
 
 
 def test_draft_character_sets_drafted_true() -> None:
@@ -632,20 +632,20 @@ def test_draft_character_roll_2_gives_marine() -> None:
     result = generate(DRAFT, _rolls(d6={RollName.DRAFT: 2}))
     assert isinstance(result, Character)
     assert result.drafted is True
-    assert result.career == "Marine"
+    assert result.career.name == "Marine"
 
 
-# --- T016: draft_character with unimplemented career ---
+# --- The draft can no longer miss ---
+# DRAFT_TABLE holds Career objects, not names, so "the draft assigned a career
+# cetools has not implemented" is now unrepresentable rather than merely untested.
+# The old test for it monkeypatched a bare string into the table.
 
 
-def test_draft_character_unimplemented_career_returns_failure() -> None:
-    from unittest.mock import patch
-
-    # Patch DRAFT_TABLE in generator so index 0 is "smuggler" (not in CAREER_REGISTRY)
-    with patch("cetools.engine.generator.DRAFT_TABLE", ("smuggler",) + ("navy",) * 5):
-        result = generate(DRAFT, _rolls(d6={RollName.DRAFT: 1}))
-    assert isinstance(result, GenerationFailure)
-    assert "smuggler" in result.reason
+def test_every_draft_roll_yields_a_character() -> None:
+    for roll in range(1, 7):
+        result = generate(DRAFT, _rolls(d6={RollName.DRAFT: roll}))
+        assert isinstance(result, Character), f"draft roll {roll} did not produce a character"
+        assert result.drafted is True
 
 
 # --- T017: benefits/pension/debt matrix after 5+ completed terms (US3) ---
@@ -806,7 +806,7 @@ def test_generate_career_character_drifter_no_qualification() -> None:
 
     result = generate(DRIFTER_CAREER, _rolls())
     assert isinstance(result, Character)
-    assert result.career == "Drifter"
+    assert result.career.name == "Drifter"
 
 
 # --- Psionics ---
@@ -836,13 +836,13 @@ def test_random_career_character_selects_career_by_first_roll() -> None:
     # qualification, so generation completes on the defaults).
     result = generate(RANDOM, _rolls(choices={RollName.CAREER: 8}))
     assert isinstance(result, Character)
-    assert result.career == "Drifter"
+    assert result.career.name == "Drifter"
 
 
 def test_random_career_character_varies_with_first_roll() -> None:
     drifter = generate(RANDOM, _rolls(choices={RollName.CAREER: 8}))
     aerospace = generate(RANDOM, _rolls(choices={RollName.CAREER: 0}))
-    assert aerospace.career == "Aerospace System Defense"
+    assert aerospace.career.name == "Aerospace System Defense"
     assert drifter.career != aerospace.career
 
 
