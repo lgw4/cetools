@@ -1,35 +1,22 @@
-class ConstantRoller:
-    """Returns the same value for all dice rolls."""
+from cetools.engine.rolls import RollName, ScriptedRolls
 
-    def __init__(self, value: int):
-        self._value = value
-
-    def roll(self, sides: int, count: int = 1) -> int:
-        return self._value
+# Fake rollers used to live here (ConstantRoller, SmartRoller, SequenceRoller).
+# They scripted raw die sequences positionally, so a test had to know the exact
+# order and arity of every roll the engine made. Tests now script rolls by name
+# through cetools.engine.rolls.ScriptedRolls instead.
 
 
-class SmartRoller:
-    """Returns one value for 2-dice rolls (checks) and another for 1-die rolls (tables)."""
+def scripted(**overrides) -> ScriptedRolls:
+    """A career where nothing goes wrong.
 
-    def __init__(self, two_dice_value: int, one_die_value: int):
-        self._two = two_dice_value
-        self._one = one_die_value
+    Every check passes, every table roll lands on row 1, every choice takes the
+    head of the list, every 2D6 is 10. Psionics is opted out (the gate fails) so
+    that tests about careers are not perturbed by psionic rolls.
 
-    def roll(self, sides: int, count: int = 1) -> int:
-        return self._two if count >= 2 else self._one
-
-
-class SequenceRoller:
-    """Returns values from a sequence, then falls back to a default."""
-
-    def __init__(self, values: list[int], default: int = 6):
-        self._values = list(values)
-        self._pos = 0
-        self._default = default
-
-    def roll(self, sides: int, count: int = 1) -> int:
-        if self._pos < len(self._values):
-            val = self._values[self._pos]
-            self._pos += 1
-            return val
-        return self._default
+    Override any of it by name—a test says only what it is actually about.
+    """
+    checks = {RollName.PSI_GATE: False}
+    checks.update(overrides.pop("checks", {}))
+    params = dict(default_check=True, default_two_d6=10, default_d6=1, default_choice=0)
+    params.update(overrides)
+    return ScriptedRolls(checks=checks, **params)

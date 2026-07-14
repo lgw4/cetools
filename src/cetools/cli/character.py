@@ -1,26 +1,19 @@
-import difflib
 from typing import Annotated
 
 import typer
 
-from cetools.engine.careers import CAREER_REGISTRY
-from cetools.engine.generator import (
-    draft_character,
-    generate_career_character,
-    random_career_character,
-)
+from cetools.engine.careers import CAREERS, UnknownCareer, resolve
+from cetools.engine.generator import DRAFT, RANDOM, generate
 from cetools.engine.models import Character
 from cetools.formatter import format_characters
 
 app = typer.Typer()
 
-_CANONICAL_CAREERS = ", ".join(
-    c.name for c in sorted(CAREER_REGISTRY.values(), key=lambda c: c.name)
-)
+_CANONICAL_CAREERS = ", ".join(career.name for career in CAREERS)
 
 
-@app.command()
-def generate(
+@app.command("generate")
+def generate_characters(
     career: Annotated[
         str | None,
         typer.Option("--career", help=f"Career to generate. Valid careers: {_CANONICAL_CAREERS}"),
@@ -41,36 +34,22 @@ def generate(
 
     resolved_career = None
     if career is not None:
-        original = career
-        normalized = career.strip().lower().replace("-", " ")
-        if normalized not in CAREER_REGISTRY:
-            matches = difflib.get_close_matches(
-                normalized, CAREER_REGISTRY.keys(), n=1, cutoff=0.6
-            )
-            if matches:
-                canonical = CAREER_REGISTRY[matches[0]].name
-                typer.echo(
-                    f"Unknown career '{original}'. Did you mean: {canonical}?",
-                    err=True,
-                )
+        resolved_career = resolve(career)
+        if isinstance(resolved_career, UnknownCareer):
+            if resolved_career.suggestion is not None:
+                hint = f"Did you mean: {resolved_career.suggestion.name}?"
             else:
-                typer.echo(
-                    f"Unknown career '{original}'. Valid careers: {_CANONICAL_CAREERS}",
-                    err=True,
-                )
+                hint = f"Valid careers: {_CANONICAL_CAREERS}"
+            typer.echo(f"Unknown career '{resolved_career.spec}'. {hint}", err=True)
             raise typer.Exit(1)
-        resolved_career = CAREER_REGISTRY[normalized]
+
+    assignment = resolved_career or (RANDOM if random else DRAFT)
 
     characters: list[Character] = []
     failures = 0
     failure_exit_code = 1
     for _ in range(count):
-        if resolved_career is not None:
-            result = generate_career_character(resolved_career)
-        elif random:
-            result = random_career_character()
-        else:
-            result = draft_character()
+        result = generate(assignment)
 
         if isinstance(result, Character):
             characters.append(result)

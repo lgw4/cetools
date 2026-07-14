@@ -1,8 +1,7 @@
 from cetools.engine.careers.marine import MARINE_CAREER
-from cetools.engine.dice import RandomDiceRoller
-from cetools.engine.generator import generate_career_character, generate_character
+from cetools.engine.generator import generate
 from cetools.engine.models import Character
-from conftest import SequenceRoller, SmartRoller
+from cetools.engine.rolls import RandomRolls, RollName, ScriptedRolls
 
 _MARINE_RANK_TITLES = {
     "Trooper",
@@ -135,7 +134,7 @@ def test_marine_ranks_without_bonus_skills() -> None:
         ), f"Rank {rank_idx} should have no bonus skills"
 
 
-# --- T005: mustering-out tables — 7 cash entries, 7 material entries ---
+# --- T005: mustering-out tables—7 cash entries, 7 material entries ---
 
 
 def test_marine_cash_benefits_values() -> None:
@@ -163,14 +162,14 @@ def test_marine_benefit_tables_have_seven_entries() -> None:
     assert len(MARINE_CAREER.material_benefits) == 7
 
 
-# --- T007A: statistical stability over 100 runs with RandomDiceRoller ---
+# --- T007A: statistical stability over 100 runs with real dice ---
 
 
 def test_generate_career_character_marine_100_runs_no_unhandled_exceptions() -> None:
     for _ in range(100):
-        result = generate_career_character(MARINE_CAREER, roller=RandomDiceRoller())
+        result = generate(MARINE_CAREER, RandomRolls())
         assert isinstance(result, Character)
-        assert result.career == "Marine"
+        assert result.career.name == "Marine"
         assert result.rank_title in _MARINE_RANK_TITLES
 
 
@@ -180,53 +179,53 @@ def test_generate_career_character_marine_100_runs_no_unhandled_exceptions() -> 
 # ---------------------------------------------------------------------------
 
 
-# All stats = 7 → characteristic_modifier(7) = 0 for every check, so each 2D6
-# roll below can be reasoned about against the raw target number.
-_PRESET = {
-    "Strength": 7,
-    "Dexterity": 7,
-    "Endurance": 7,
-    "Intelligence": 7,
-    "Education": 7,
-    "Social Standing": 7,
-}
+# Every characteristic rolls 7: every characteristic_modifier is 0, Education 7
+# keeps the Advanced Education skill table out of play, and 7 clears the Marine
+# qualification target on the first try.
+_FLAT_CHARACTERISTICS = 7
 
 
 # --- T013: commission roll success/failure at rank 0 ---
 
 
 def test_marine_commission_success_advances_rank_0_to_1() -> None:
-    # Survival (End 6, dm0): 8 ✓. Commission (Edu 6, dm0): 6 ✓ → rank 1.
-    # Advancement (Soc 7, dm0), rolled immediately on commission: 2 ✗ → stays rank 1.
-    # Commissioned this term → exactly 1 skill roll (table, entry).
-    # Reenlistment (target 6): 2 ✗ → stop after 1 term.
-    roller = SequenceRoller([6, 6, 6] + [8, 6, 2, 1, 1, 2], default=1)
-    result = generate_character(
-        MARINE_CAREER,
-        roller=roller,
-        preset_characteristics=_PRESET,
-        bypass_qualification=True,
+    # Survive, commission (→ rank 1), then fail the advancement roll that a
+    # fresh commission triggers, so the character holds at rank 1. A
+    # reenlistment of 2 (below the target of 6) ends the career after one term.
+    rolls = ScriptedRolls(
+        checks={
+            RollName.SURVIVAL: True,
+            RollName.COMMISSION: True,
+            RollName.ADVANCEMENT: False,
+        },
+        two_d6={
+            RollName.CHARACTERISTIC: _FLAT_CHARACTERISTICS,
+            RollName.REENLISTMENT: 2,
+        },
     )
+    result = generate(MARINE_CAREER, rolls)
     assert isinstance(result, Character)
     assert result.rank == 1
     assert result.rank_title == "Lieutenant"
     term = result.terms[0]
     assert term.commissioned is True
-    assert len(term.skills_gained[6:]) == 1, "a commissioned term grants exactly 1 skill roll"
+    # The SRD gives one roll a term plus an *extra* for the commission. This
+    # assertion used to read "exactly 1", which had the rule backwards.
+    assert len(term.skills_gained[6:]) == 2, "a commissioned term grants 1 base + 1 extra roll"
 
 
 def test_marine_commission_failure_stays_rank_0() -> None:
-    # Survival: 8 ✓. Commission: 2 ✗ → stays rank 0 (never reaches the
-    # advancement roll, which is only attempted after a successful commission).
-    # Not commissioned/promoted this term → 2 skill rolls (table, entry) x2.
-    # Reenlistment: 2 ✗ → stop after 1 term.
-    roller = SequenceRoller([6, 6, 6] + [8, 2, 1, 1, 1, 1, 2], default=1)
-    result = generate_character(
-        MARINE_CAREER,
-        roller=roller,
-        preset_characteristics=_PRESET,
-        bypass_qualification=True,
+    # Survive, then fail the commission: the character stays rank 0 and never
+    # reaches an advancement roll, which is only attempted once commissioned.
+    # A reenlistment of 2 (below the target of 6) ends the career after one term.
+    rolls = ScriptedRolls(
+        checks={RollName.SURVIVAL: True, RollName.COMMISSION: False},
+        two_d6={
+            RollName.CHARACTERISTIC: _FLAT_CHARACTERISTICS,
+            RollName.REENLISTMENT: 2,
+        },
     )
+    result = generate(MARINE_CAREER, rolls)
     assert isinstance(result, Character)
     assert result.rank == 0
     assert result.rank_title == "Trooper"
@@ -236,17 +235,22 @@ def test_marine_commission_failure_stays_rank_0() -> None:
 
 
 def test_marine_advancement_increments_commissioned_officer_rank() -> None:
-    # Term 1: survival 8 ✓, commission 6 ✓ → rank 1; advancement 2 ✗ → stays
-    # rank 1; 1 skill roll; reenlist 8 (≥6) → continue.
-    # Term 2 (rank 1, no further commission attempt): survival 8 ✓;
-    # advancement 8 ✓ (≥7) → rank 2; 1 skill roll; reenlist 2 ✗ → stop.
-    roller = SequenceRoller([6, 6, 6] + [8, 6, 2, 1, 1, 8, 8, 8, 1, 1, 2], default=1)
-    result = generate_character(
-        MARINE_CAREER,
-        roller=roller,
-        preset_characteristics=_PRESET,
-        bypass_qualification=True,
+    # Term 1: survive, commission (→ rank 1), fail the advancement that follows
+    # the commission; reenlist with 8 (≥ 6) to serve a second term.
+    # Term 2: already an officer, so no commission is attempted; survive and
+    # pass advancement → rank 2. Reenlist with 2 (< 6) → stop.
+    rolls = ScriptedRolls(
+        checks={
+            RollName.SURVIVAL: True,
+            RollName.COMMISSION: True,
+            RollName.ADVANCEMENT: [False, True],
+        },
+        two_d6={
+            RollName.CHARACTERISTIC: _FLAT_CHARACTERISTICS,
+            RollName.REENLISTMENT: [8, 2],
+        },
     )
+    result = generate(MARINE_CAREER, rolls)
     assert isinstance(result, Character)
     assert result.rank == 2
     assert result.rank_title == "Captain"
@@ -256,12 +260,29 @@ def test_marine_advancement_increments_commissioned_officer_rank() -> None:
 # --- T015: rank cap at 6 (Brigadier) ---
 
 
+def _maximal_career_rolls() -> ScriptedRolls:
+    """Every check passes and every reenlistment succeeds: a full 7-term career.
+
+    Commission fires in term 1 and advancement every term after, so rank climbs
+    0→2 in term 1 and +1 per term until it hits the cap. Every characteristic is
+    7, which clears the qualification target on the first roll.
+    """
+    return ScriptedRolls(
+        checks={
+            RollName.SURVIVAL: True,
+            RollName.COMMISSION: True,
+            RollName.ADVANCEMENT: True,
+        },
+        two_d6={
+            RollName.CHARACTERISTIC: _FLAT_CHARACTERISTICS,
+            RollName.REENLISTMENT: 8,  # ≥ the target of 6
+        },
+    )
+
+
 def test_marine_rank_capped_at_6() -> None:
-    # SmartRoller(10, 1): every 2D6 check passes (Marine's highest target is
-    # 7), so commission + advancement fire every eligible term. Rank climbs
-    # 0→2 in term 1 (commission then advancement) and +1 per subsequent term,
-    # reaching the rank-6 cap by term 5 and holding there through term 7.
-    result = generate_character(MARINE_CAREER, roller=SmartRoller(10, 1))
+    # Rank reaches the cap by term 5 and must hold there through term 7.
+    result = generate(MARINE_CAREER, _maximal_career_rolls())
     assert isinstance(result, Character)
     assert result.rank == 6
     assert result.rank_title == "Brigadier"
@@ -271,29 +292,34 @@ def test_marine_rank_capped_at_6() -> None:
 
 
 def test_marine_rank_0_zero_g_applied_at_enlistment() -> None:
-    result = generate_character(MARINE_CAREER, roller=SmartRoller(10, 1))
+    result = generate(MARINE_CAREER, _maximal_career_rolls())
     assert isinstance(result, Character)
     assert result.skills.get("Zero-G") == 1, "rank-0 bonus should grant Zero-G-1"
 
 
 def test_marine_rank_3_tactics_applied() -> None:
-    result = generate_character(MARINE_CAREER, roller=SmartRoller(10, 1))
+    result = generate(MARINE_CAREER, _maximal_career_rolls())
     assert isinstance(result, Character)
     assert result.rank >= 3
     assert result.skills.get("Tactics") == 1, "rank-3 bonus should grant Tactics-1"
 
 
 def test_marine_commissioned_officer_retains_rank_0_zero_g_bonus() -> None:
-    # Same script as test_marine_commission_success_advances_rank_0_to_1:
-    # commissioned to rank 1, never demoted — the rank-0 Zero-G bonus must
+    # Same rolls as test_marine_commission_success_advances_rank_0_to_1:
+    # commissioned to rank 1, never demoted—the rank-0 Zero-G bonus must
     # persist since skills accumulate and are never cleared.
-    roller = SequenceRoller([6, 6, 6] + [8, 6, 2, 1, 1, 2], default=1)
-    result = generate_character(
-        MARINE_CAREER,
-        roller=roller,
-        preset_characteristics=_PRESET,
-        bypass_qualification=True,
+    rolls = ScriptedRolls(
+        checks={
+            RollName.SURVIVAL: True,
+            RollName.COMMISSION: True,
+            RollName.ADVANCEMENT: False,
+        },
+        two_d6={
+            RollName.CHARACTERISTIC: _FLAT_CHARACTERISTICS,
+            RollName.REENLISTMENT: 2,
+        },
     )
+    result = generate(MARINE_CAREER, rolls)
     assert isinstance(result, Character)
     assert result.rank == 1
     assert result.skills.get("Zero-G") == 1
@@ -303,10 +329,10 @@ def test_marine_commissioned_officer_retains_rank_0_zero_g_bonus() -> None:
 
 
 def test_marine_rank_6_bonus_muster_rolls_applied() -> None:
-    # SmartRoller(10, 1) reaches rank 6 (Brigadier) over 7 terms (see
+    # A maximal career reaches rank 6 (Brigadier) over 7 terms (see
     # test_marine_rank_capped_at_6). Rank 6 grants +3 bonus mustering-out
     # rolls on top of the 1-per-term-served baseline (7 + 3 = 10).
-    result = generate_character(MARINE_CAREER, roller=SmartRoller(10, 1))
+    result = generate(MARINE_CAREER, _maximal_career_rolls())
     assert isinstance(result, Character)
     assert result.rank == 6
     assert result.terms_served == 7

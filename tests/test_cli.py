@@ -3,7 +3,17 @@ from unittest.mock import patch
 from typer.testing import CliRunner
 
 from cetools.cli.main import app
-from cetools.engine.models import Benefit, Character, GenerationFailure
+from cetools.engine.careers.aerospace import AEROSPACE_CAREER
+from cetools.engine.careers.marine import MARINE_CAREER
+from cetools.engine.careers.navy import NAVY_CAREER
+from cetools.engine.careers.scout import SCOUT_CAREER
+from cetools.engine.generator import DRAFT, RANDOM
+from cetools.engine.models import Cash, Character, GenerationFailure
+
+_SCOUT = SCOUT_CAREER
+_NAVY = NAVY_CAREER
+_MARINE = MARINE_CAREER
+_AEROSPACE = AEROSPACE_CAREER
 
 # Scout character for --career tests
 _SCOUT_CHARACTER = Character(
@@ -17,13 +27,12 @@ _SCOUT_CHARACTER = Character(
     },
     upp="687976",
     age=22,
-    career="Scout",
+    career=SCOUT_CAREER,
     rank=0,
-    rank_title="Scout",
     terms_served=1,
     name="Jane Doe",
     skills={"Piloting": 1, "Navigation": 0},
-    benefits=[Benefit(kind="cash", cash_amount=1000)],
+    benefits=[Cash(amount=1000)],
     pension=0,
     terms=[],
     drafted=False,
@@ -44,13 +53,12 @@ def _make_character(drafted: bool = False) -> Character:
         },
         upp="7A6B85",
         age=46,
-        career="Navy",
+        career=NAVY_CAREER,
         rank=6,
-        rank_title="Commodore",
         terms_served=7,
         name="Jane Doe",
         skills={"Navigation": 2, "Zero-G": 1},
-        benefits=[Benefit(kind="cash", cash_amount=10000)],
+        benefits=[Cash(amount=10000)],
         pension=14000,
         terms=[],
         drafted=drafted,
@@ -58,69 +66,79 @@ def _make_character(drafted: bool = False) -> Character:
 
 
 def test_success_exit_code_0():
-    with patch("cetools.cli.character.draft_character", return_value=_make_character()):
+    with patch("cetools.cli.character.generate", return_value=_make_character()) as mock_generate:
         result = runner.invoke(app, ["character", "generate"])
+    assert mock_generate.call_args.args[0] is DRAFT
     assert result.exit_code == 0
 
 
 def test_success_stdout_nonempty():
-    with patch("cetools.cli.character.draft_character", return_value=_make_character()):
+    with patch("cetools.cli.character.generate", return_value=_make_character()) as mock_generate:
         result = runner.invoke(app, ["character", "generate"])
+    assert mock_generate.call_args.args[0] is DRAFT
     assert result.stdout.strip()
 
 
 def test_success_stderr_empty():
-    with patch("cetools.cli.character.draft_character", return_value=_make_character()):
+    with patch("cetools.cli.character.generate", return_value=_make_character()) as mock_generate:
         result = runner.invoke(app, ["character", "generate"])
+    assert mock_generate.call_args.args[0] is DRAFT
     assert result.stderr == ""
 
 
 def test_enlistment_failure_exit_code_1():
     failure = GenerationFailure(reason="Navy enlistment failed")
-    with patch("cetools.cli.character.draft_character", return_value=failure):
+    with patch("cetools.cli.character.generate", return_value=failure) as mock_generate:
         result = runner.invoke(app, ["character", "generate"])
+    assert mock_generate.call_args.args[0] is DRAFT
     assert result.exit_code == 1
 
 
 def test_enlistment_failure_stdout_empty():
     failure = GenerationFailure(reason="Navy enlistment failed")
-    with patch("cetools.cli.character.draft_character", return_value=failure):
+    with patch("cetools.cli.character.generate", return_value=failure) as mock_generate:
         result = runner.invoke(app, ["character", "generate"])
+    assert mock_generate.call_args.args[0] is DRAFT
     assert result.stdout == ""
 
 
 def test_enlistment_failure_stderr_nonempty():
     failure = GenerationFailure(reason="Navy enlistment failed")
-    with patch("cetools.cli.character.draft_character", return_value=failure):
+    with patch("cetools.cli.character.generate", return_value=failure) as mock_generate:
         result = runner.invoke(app, ["character", "generate"])
+    assert mock_generate.call_args.args[0] is DRAFT
     assert result.stderr.strip()
 
 
 def test_survival_failure_exit_code_1():
     failure = GenerationFailure(reason="Marine enlistment failed")
-    with patch("cetools.cli.character.draft_character", return_value=failure):
+    with patch("cetools.cli.character.generate", return_value=failure) as mock_generate:
         result = runner.invoke(app, ["character", "generate"])
+    assert mock_generate.call_args.args[0] is DRAFT
     assert result.exit_code == 1
 
 
 def test_survival_failure_stdout_empty():
     failure = GenerationFailure(reason="Marine enlistment failed")
-    with patch("cetools.cli.character.draft_character", return_value=failure):
+    with patch("cetools.cli.character.generate", return_value=failure) as mock_generate:
         result = runner.invoke(app, ["character", "generate"])
+    assert mock_generate.call_args.args[0] is DRAFT
     assert result.stdout == ""
 
 
 def test_survival_failure_stderr_nonempty():
     failure = GenerationFailure(reason="Marine enlistment failed")
-    with patch("cetools.cli.character.draft_character", return_value=failure):
+    with patch("cetools.cli.character.generate", return_value=failure) as mock_generate:
         result = runner.invoke(app, ["character", "generate"])
+    assert mock_generate.call_args.args[0] is DRAFT
     assert result.stderr.strip()
 
 
 def test_failure_exit_code_propagated_from_generation_failure() -> None:
     failure = GenerationFailure(reason="Custom failure", exit_code=2)
-    with patch("cetools.cli.character.draft_character", return_value=failure):
+    with patch("cetools.cli.character.generate", return_value=failure) as mock_generate:
         result = runner.invoke(app, ["character", "generate"])
+    assert mock_generate.call_args.args[0] is DRAFT
     assert result.exit_code == 2
 
 
@@ -129,16 +147,18 @@ def test_failure_exit_code_propagated_from_generation_failure() -> None:
 
 def test_cli_no_career_generates_character_successfully() -> None:
     drafted_char = _make_character(drafted=True)
-    with patch("cetools.cli.character.draft_character", return_value=drafted_char):
+    with patch("cetools.cli.character.generate", return_value=drafted_char) as mock_generate:
         result = runner.invoke(app, ["character", "generate"])
+    assert mock_generate.call_args.args[0] is DRAFT
     assert result.exit_code == 0
     assert "(Drafted)" not in result.stdout
 
 
 def test_cli_no_career_career_line_omits_drafted() -> None:
     drafted_char = _make_character(drafted=True)
-    with patch("cetools.cli.character.draft_character", return_value=drafted_char):
+    with patch("cetools.cli.character.generate", return_value=drafted_char) as mock_generate:
         result = runner.invoke(app, ["character", "generate"])
+    assert mock_generate.call_args.args[0] is DRAFT
     career_line = next(ln for ln in result.stdout.splitlines() if "Navy" in ln)
     assert "(Drafted)" not in career_line
 
@@ -147,40 +167,32 @@ def test_cli_no_career_career_line_omits_drafted() -> None:
 
 
 def test_career_scout_exits_0() -> None:
-    with patch(
-        "cetools.cli.character.generate_career_character",
-        return_value=_SCOUT_CHARACTER,
-    ):
+    with patch("cetools.cli.character.generate", return_value=_SCOUT_CHARACTER) as mock_generate:
         result = runner.invoke(app, ["character", "generate", "--career", "scout"])
+    assert mock_generate.call_args.args[0] is _SCOUT
     assert result.exit_code == 0
 
 
 def test_career_scout_no_drafted_marker() -> None:
-    with patch(
-        "cetools.cli.character.generate_career_character",
-        return_value=_SCOUT_CHARACTER,
-    ):
+    with patch("cetools.cli.character.generate", return_value=_SCOUT_CHARACTER) as mock_generate:
         result = runner.invoke(app, ["character", "generate", "--career", "scout"])
+    assert mock_generate.call_args.args[0] is _SCOUT
     assert "(Drafted)" not in result.stdout
 
 
 def test_career_navy_exits_0() -> None:
     navy_char = _make_character(drafted=False)
-    with patch(
-        "cetools.cli.character.generate_career_character",
-        return_value=navy_char,
-    ):
+    with patch("cetools.cli.character.generate", return_value=navy_char) as mock_generate:
         result = runner.invoke(app, ["character", "generate", "--career", "navy"])
+    assert mock_generate.call_args.args[0] is _NAVY
     assert result.exit_code == 0
 
 
 def test_career_navy_no_drafted_marker() -> None:
     navy_char = _make_character(drafted=False)
-    with patch(
-        "cetools.cli.character.generate_career_character",
-        return_value=navy_char,
-    ):
+    with patch("cetools.cli.character.generate", return_value=navy_char) as mock_generate:
         result = runner.invoke(app, ["character", "generate", "--career", "navy"])
+    assert mock_generate.call_args.args[0] is _NAVY
     assert "(Drafted)" not in result.stdout
 
 
@@ -214,29 +226,23 @@ def test_career_unknown_original_value_in_message() -> None:
 
 
 def test_career_title_case_exits_0() -> None:
-    with patch(
-        "cetools.cli.character.generate_career_character",
-        return_value=_SCOUT_CHARACTER,
-    ):
+    with patch("cetools.cli.character.generate", return_value=_SCOUT_CHARACTER) as mock_generate:
         result = runner.invoke(app, ["character", "generate", "--career", "Scout"])
+    assert mock_generate.call_args.args[0] is _SCOUT
     assert result.exit_code == 0
 
 
 def test_career_upper_case_exits_0() -> None:
-    with patch(
-        "cetools.cli.character.generate_career_character",
-        return_value=_SCOUT_CHARACTER,
-    ):
+    with patch("cetools.cli.character.generate", return_value=_SCOUT_CHARACTER) as mock_generate:
         result = runner.invoke(app, ["character", "generate", "--career", "SCOUT"])
+    assert mock_generate.call_args.args[0] is _SCOUT
     assert result.exit_code == 0
 
 
 def test_career_with_whitespace_exits_0() -> None:
-    with patch(
-        "cetools.cli.character.generate_career_character",
-        return_value=_SCOUT_CHARACTER,
-    ):
+    with patch("cetools.cli.character.generate", return_value=_SCOUT_CHARACTER) as mock_generate:
         result = runner.invoke(app, ["character", "generate", "--career", "  scout  "])
+    assert mock_generate.call_args.args[0] is _SCOUT
     assert result.exit_code == 0
 
 
@@ -254,7 +260,7 @@ _AEROSPACE_RANK_TITLES = {
 
 
 def _make_aerospace_character() -> "Character":
-    from cetools.engine.models import Benefit, Character
+    from cetools.engine.models import Cash, Character
 
     return Character(
         characteristics={
@@ -267,13 +273,12 @@ def _make_aerospace_character() -> "Character":
         },
         upp="798675",
         age=26,
-        career="Aerospace System Defense",
+        career=AEROSPACE_CAREER,
         rank=1,
-        rank_title="Flight Officer",
         terms_served=1,
         name="Jane Doe",
         skills={"Aircraft": 1, "Electronics": 0},
-        benefits=[Benefit(kind="cash", cash_amount=1000)],
+        benefits=[Cash(amount=1000)],
         pension=0,
         terms=[],
         drafted=False,
@@ -282,34 +287,37 @@ def _make_aerospace_character() -> "Character":
 
 def test_aerospace_career_exact_name_exits_0() -> None:
     with patch(
-        "cetools.cli.character.generate_career_character",
+        "cetools.cli.character.generate",
         return_value=_make_aerospace_character(),
-    ):
+    ) as mock_generate:
         result = runner.invoke(
             app, ["character", "generate", "--career", "Aerospace System Defense"]
         )
+    assert mock_generate.call_args.args[0] is _AEROSPACE
     assert result.exit_code == 0
 
 
 def test_aerospace_career_exact_name_output_contains_career_name() -> None:
     with patch(
-        "cetools.cli.character.generate_career_character",
+        "cetools.cli.character.generate",
         return_value=_make_aerospace_character(),
-    ):
+    ) as mock_generate:
         result = runner.invoke(
             app, ["character", "generate", "--career", "Aerospace System Defense"]
         )
+    assert mock_generate.call_args.args[0] is _AEROSPACE
     assert "Aerospace System Defense" in result.stdout
 
 
 def test_aerospace_career_output_contains_valid_rank_title() -> None:
     with patch(
-        "cetools.cli.character.generate_career_character",
+        "cetools.cli.character.generate",
         return_value=_make_aerospace_character(),
-    ):
+    ) as mock_generate:
         result = runner.invoke(
             app, ["character", "generate", "--career", "Aerospace System Defense"]
         )
+    assert mock_generate.call_args.args[0] is _AEROSPACE
     assert any(title in result.stdout for title in _AEROSPACE_RANK_TITLES)
 
 
@@ -318,45 +326,49 @@ def test_aerospace_career_output_contains_valid_rank_title() -> None:
 
 def test_aerospace_career_lowercase_exits_0() -> None:
     with patch(
-        "cetools.cli.character.generate_career_character",
+        "cetools.cli.character.generate",
         return_value=_make_aerospace_character(),
-    ):
+    ) as mock_generate:
         result = runner.invoke(
             app, ["character", "generate", "--career", "aerospace system defense"]
         )
+    assert mock_generate.call_args.args[0] is _AEROSPACE
     assert result.exit_code == 0
 
 
 def test_aerospace_career_uppercase_exits_0() -> None:
     with patch(
-        "cetools.cli.character.generate_career_character",
+        "cetools.cli.character.generate",
         return_value=_make_aerospace_character(),
-    ):
+    ) as mock_generate:
         result = runner.invoke(
             app, ["character", "generate", "--career", "AEROSPACE SYSTEM DEFENSE"]
         )
+    assert mock_generate.call_args.args[0] is _AEROSPACE
     assert result.exit_code == 0
 
 
 def test_aerospace_career_hyphenated_exits_0() -> None:
     with patch(
-        "cetools.cli.character.generate_career_character",
+        "cetools.cli.character.generate",
         return_value=_make_aerospace_character(),
-    ):
+    ) as mock_generate:
         result = runner.invoke(
             app, ["character", "generate", "--career", "aerospace-system-defense"]
         )
+    assert mock_generate.call_args.args[0] is _AEROSPACE
     assert result.exit_code == 0
 
 
 def test_aerospace_career_hyphenated_mixed_case_exits_0() -> None:
     with patch(
-        "cetools.cli.character.generate_career_character",
+        "cetools.cli.character.generate",
         return_value=_make_aerospace_character(),
-    ):
+    ) as mock_generate:
         result = runner.invoke(
             app, ["character", "generate", "--career", "Aerospace-System-Defense"]
         )
+    assert mock_generate.call_args.args[0] is _AEROSPACE
     assert result.exit_code == 0
 
 
@@ -454,13 +466,12 @@ def _make_marine_character() -> Character:
         },
         upp="879876",
         age=22,
-        career="Marine",
+        career=MARINE_CAREER,
         rank=0,
-        rank_title="Trooper",
         terms_served=1,
         name="Jane Doe",
         skills={"Zero-G": 1, "Gun Combat": 0},
-        benefits=[Benefit(kind="cash", cash_amount=1000)],
+        benefits=[Cash(amount=1000)],
         pension=0,
         terms=[],
         drafted=False,
@@ -469,37 +480,41 @@ def _make_marine_character() -> Character:
 
 def test_career_marine_exits_0() -> None:
     with patch(
-        "cetools.cli.character.generate_career_character",
+        "cetools.cli.character.generate",
         return_value=_make_marine_character(),
-    ):
+    ) as mock_generate:
         result = runner.invoke(app, ["character", "generate", "--career", "Marine"])
+    assert mock_generate.call_args.args[0] is _MARINE
     assert result.exit_code == 0
 
 
 def test_career_marine_output_contains_career_name() -> None:
     with patch(
-        "cetools.cli.character.generate_career_character",
+        "cetools.cli.character.generate",
         return_value=_make_marine_character(),
-    ):
+    ) as mock_generate:
         result = runner.invoke(app, ["character", "generate", "--career", "Marine"])
+    assert mock_generate.call_args.args[0] is _MARINE
     assert "Marine" in result.stdout
 
 
 def test_career_marine_output_contains_valid_rank_title() -> None:
     with patch(
-        "cetools.cli.character.generate_career_character",
+        "cetools.cli.character.generate",
         return_value=_make_marine_character(),
-    ):
+    ) as mock_generate:
         result = runner.invoke(app, ["character", "generate", "--career", "Marine"])
+    assert mock_generate.call_args.args[0] is _MARINE
     assert any(title in result.stdout for title in _MARINE_RANK_TITLES)
 
 
 def test_career_marine_no_drafted_marker() -> None:
     with patch(
-        "cetools.cli.character.generate_career_character",
+        "cetools.cli.character.generate",
         return_value=_make_marine_character(),
-    ):
+    ) as mock_generate:
         result = runner.invoke(app, ["character", "generate", "--career", "Marine"])
+    assert mock_generate.call_args.args[0] is _MARINE
     assert "(Drafted)" not in result.stdout
 
 
@@ -508,19 +523,21 @@ def test_career_marine_no_drafted_marker() -> None:
 
 def test_career_marine_lowercase_exits_0() -> None:
     with patch(
-        "cetools.cli.character.generate_career_character",
+        "cetools.cli.character.generate",
         return_value=_make_marine_character(),
-    ):
+    ) as mock_generate:
         result = runner.invoke(app, ["character", "generate", "--career", "marine"])
+    assert mock_generate.call_args.args[0] is _MARINE
     assert result.exit_code == 0
 
 
 def test_career_marine_uppercase_exits_0() -> None:
     with patch(
-        "cetools.cli.character.generate_career_character",
+        "cetools.cli.character.generate",
         return_value=_make_marine_character(),
-    ):
+    ) as mock_generate:
         result = runner.invoke(app, ["character", "generate", "--career", "MARINE"])
+    assert mock_generate.call_args.args[0] is _MARINE
     assert result.exit_code == 0
 
 
@@ -537,43 +554,37 @@ def test_career_marines_plural_did_you_mean_marine() -> None:
 
 
 def test_count_generates_multiple_drafted_characters():
-    with patch(
-        "cetools.cli.character.draft_character", return_value=_make_character()
-    ) as mock_draft:
+    with patch("cetools.cli.character.generate", return_value=_make_character()) as mock_generate:
         result = runner.invoke(app, ["character", "generate", "-n", "3"])
     assert result.exit_code == 0
-    assert mock_draft.call_count == 3
+    assert mock_generate.call_count == 3
+    assert all(call.args[0] is DRAFT for call in mock_generate.call_args_list)
     assert result.stdout.count("Navy (7 terms)") == 3
 
 
 def test_count_with_career_generates_multiple_of_that_career():
-    with patch(
-        "cetools.cli.character.generate_career_character",
-        return_value=_SCOUT_CHARACTER,
-    ) as mock_gen:
+    with patch("cetools.cli.character.generate", return_value=_SCOUT_CHARACTER) as mock_generate:
         result = runner.invoke(app, ["character", "generate", "--career", "scout", "-n", "2"])
     assert result.exit_code == 0
-    assert mock_gen.call_count == 2
+    assert mock_generate.call_count == 2
+    assert all(call.args[0] is _SCOUT for call in mock_generate.call_args_list)
     assert result.stdout.count("Scout (1 terms)") == 2
 
 
 def test_random_flag_uses_random_career_character():
-    with patch(
-        "cetools.cli.character.random_career_character",
-        return_value=_make_character(),
-    ) as mock_random:
+    with patch("cetools.cli.character.generate", return_value=_make_character()) as mock_generate:
         result = runner.invoke(app, ["character", "generate", "--random", "-n", "2"])
     assert result.exit_code == 0
-    assert mock_random.call_count == 2
+    assert mock_generate.call_count == 2
+    assert all(call.args[0] is RANDOM for call in mock_generate.call_args_list)
 
 
 def test_default_generate_still_single_draft():
-    with patch(
-        "cetools.cli.character.draft_character", return_value=_make_character()
-    ) as mock_draft:
+    with patch("cetools.cli.character.generate", return_value=_make_character()) as mock_generate:
         result = runner.invoke(app, ["character", "generate"])
     assert result.exit_code == 0
-    assert mock_draft.call_count == 1
+    assert mock_generate.call_count == 1
+    assert mock_generate.call_args.args[0] is DRAFT
     assert result.stdout.count("Navy (7 terms)") == 1
 
 
@@ -591,11 +602,12 @@ def test_count_below_one_is_rejected():
 def test_batch_reports_failure_and_continues():
     failure = GenerationFailure(reason="boom")
     with patch(
-        "cetools.cli.character.random_career_character",
+        "cetools.cli.character.generate",
         side_effect=[_make_character(), failure, _make_character()],
-    ) as mock_random:
+    ) as mock_generate:
         result = runner.invoke(app, ["character", "generate", "--random", "-n", "3"])
-    assert mock_random.call_count == 3
+    assert mock_generate.call_count == 3
+    assert all(call.args[0] is RANDOM for call in mock_generate.call_args_list)
     assert result.exit_code == 1
     assert "boom" in result.stderr
     assert result.stdout.count("Navy (7 terms)") == 2
@@ -604,11 +616,12 @@ def test_batch_reports_failure_and_continues():
 def test_batch_all_failures_exits_1_with_empty_stdout():
     failure = GenerationFailure(reason="all fail")
     with patch(
-        "cetools.cli.character.random_career_character",
+        "cetools.cli.character.generate",
         side_effect=[failure, failure],
-    ) as mock_random:
+    ) as mock_generate:
         result = runner.invoke(app, ["character", "generate", "--random", "-n", "2"])
-    assert mock_random.call_count == 2
+    assert mock_generate.call_count == 2
+    assert all(call.args[0] is RANDOM for call in mock_generate.call_args_list)
     assert result.exit_code == 1
     assert result.stdout.strip() == ""
     assert "all fail" in result.stderr

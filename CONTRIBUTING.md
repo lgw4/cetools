@@ -14,20 +14,29 @@ uv sync
 
 ```
 src/cetools/
-├── cli/            # Typer CLI — thin I/O wrapper only, no game logic
+├── cli/            # Typer CLI—thin I/O wrapper only, no game logic
 │   ├── main.py     # Root app; registers sub-apps
 │   └── character.py
-├── engine/         # Pure generation engine — no CLI dependency
+├── engine/         # Pure generation engine—no CLI dependency
 │   ├── careers/
 │   │   ├── base.py       # Career + RankEntry frozen dataclasses
 │   │   ├── aerospace.py  # AEROSPACE_CAREER instance
 │   │   ├── navy.py       # NAVY_CAREER instance
 │   │   ├── scout.py      # SCOUT_CAREER instance
-│   │   └── registry.py   # CAREER_REGISTRY dict + DRAFT_TABLE tuple
-│   ├── dice.py         # DiceRoller protocol + RandomDiceRoller
-│   ├── generator.py    # generate_career_character(), draft_character(),
-│   │                   # generate_character(), roll_until_qualified()
-│   ├── models.py       # Character, Skill, Benefit, Term, GenerationFailure
+│   │   └── registry.py   # CAREERS, DRAFT_TABLE, resolve(), is_military()
+│   ├── rolls.py        # Rolls seam: RollName, RandomRolls, ScriptedRolls
+│   ├── rules.py        # Rules policy: HOUSE (default) and SRD
+│   ├── generator.py    # generate(assignment, rolls, rules): the coordinator
+│   ├── background.py   # background_skills()
+│   ├── ranks.py        # progress(): Commission and Advancement
+│   ├── training.py     # roll_skill(), rolls_this_term(): Skills and Training
+│   ├── aging.py        # apply_aging()
+│   ├── benefits.py     # muster_out()
+│   ├── mishaps.py      # resolve_survival_mishap()
+│   ├── psionics.py     # roll_psionics()
+│   ├── names.py        # generate_name()
+│   ├── models.py       # Character, Benefit variants, Term, GenerationFailure,
+│   │                   # characteristic_check(), parse/apply_stat_boost()
 │   └── pseudohex.py    # Pseudo-hex encode/decode
 └── formatter.py    # Plain-text character formatter
 
@@ -55,7 +64,7 @@ uv run pytest tests/test_foo.py --no-cov
 ## Adding a new career
 
 1. Create `src/cetools/engine/careers/<name>.py` with a `Career` instance built from the `Career` frozen dataclass in `base.py`.
-2. Register it in `src/cetools/engine/careers/registry.py` by adding an entry to `CAREER_REGISTRY` (and updating `DRAFT_TABLE` if appropriate).
+2. Register it in `src/cetools/engine/careers/registry.py` by adding it to `CAREERS` (and to `DRAFT_TABLE` if it is a draftable military service). The lookup key is derived from the career's name, so there is nothing else to keep in sync.
 3. Add a corresponding test in `tests/test_careers.py` asserting data-structure integrity (table lengths, stat names, target values).
 4. Wire a new CLI command in `src/cetools/cli/` if you want it exposed at the command line.
 

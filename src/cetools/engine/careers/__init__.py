@@ -1,4 +1,18 @@
-from cetools.engine.careers.registry import CAREER_REGISTRY, DRAFT_TABLE
-from cetools.engine.careers.scout import SCOUT_CAREER
+from cetools.engine.careers.base import Career, RankEntry
+from cetools.engine.careers.registry import (
+    CAREERS,
+    DRAFT_TABLE,
+    UnknownCareer,
+    is_military,
+    resolve,
+)
 
-__all__ = ["CAREER_REGISTRY", "DRAFT_TABLE", "SCOUT_CAREER"]
+__all__ = [
+    "CAREERS",
+    "DRAFT_TABLE",
+    "Career",
+    "RankEntry",
+    "UnknownCareer",
+    "is_military",
+    "resolve",
+]
