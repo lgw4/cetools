@@ -75,9 +75,24 @@ characteristic is restored to 1 and the character takes debt instead.
 most three draws) and **material benefits**. A dishonorable discharge forfeits
 both.
 
-**Benefit** — one item drawn at muster-out. Cash, a stat boost, an item, or ship
-shares. Some material benefits are **once-only** (Explorers' Society, Research
-Vessel, Courier Vessel): a career can grant them at most once.
+**Benefit** — one thing drawn at muster-out. It is one of exactly four:
+
+| | |
+| --- | --- |
+| `Cash(amount)` | money |
+| `StatBoost(label)` | a `"+1 X"` entry, by the abbreviation it is written with ("Edu"). Always one level — no table says `"+2 X"` — so two boosts of a stat are two of these, and summing them for display is the formatter's job |
+| `Item(name)` | a thing: a Weapon, a High Passage, a ship |
+| `Shares(quantity)` | ship shares, whose count is rolled when granted |
+
+Each variant carries exactly what it is, so a benefit that means nothing cannot
+be built. Some **items** are **once-only** (Explorers' Society, Research Vessel,
+Courier Vessel): a career can grant them at most once.
+
+**The `"+1 X"` notation** — used by both career skill tables and material benefit
+tables. It is parsed in exactly one place (`models.parse_stat_boost`) and applied
+in exactly one place (`models.apply_stat_boost`). `training` asks "boost or
+skill?", `benefits` asks "boost or item?", and the formatter never asks: benefits
+arrive already knowing what they are.
 
 **UPP** — the six characteristics encoded in pseudo-hex. A psionic character's
 Psi strength is appended after a hyphen.

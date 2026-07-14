@@ -3,7 +3,7 @@ from dataclasses import replace
 from cetools.engine.careers.base import Career, RankEntry
 from cetools.engine.careers.drifter import DRIFTER_CAREER
 from cetools.engine.careers.navy import NAVY_CAREER
-from cetools.engine.models import Benefit, Character, MishapOutcome
+from cetools.engine.models import Cash, Character, Item, MishapOutcome, Shares, StatBoost
 from cetools.formatter import format_character, format_characters
 
 
@@ -30,11 +30,11 @@ def _make_full_character(mishap: MishapOutcome | None = None, debt: int = 0) -> 
         name="Bruce Ayala",
         skills={"Engineering": 2, "Gunnery": 1, "Navigation": 2, "Tactics": 1, "Zero-G": 1},
         benefits=[
-            Benefit(kind="cash", cash_amount=50000),
-            Benefit(kind="cash", cash_amount=20000),
-            Benefit(kind="cash", cash_amount=10000),
-            Benefit(kind="material", material_name="High Passage"),
-            Benefit(kind="material", material_name="Explorers' Society"),
+            Cash(amount=50000),
+            Cash(amount=20000),
+            Cash(amount=10000),
+            Item(name="High Passage"),
+            Item(name="Explorers' Society"),
         ],
         pension=14000,
         terms=[],
@@ -134,7 +134,7 @@ def test_equipment_line_present_only_when_material_benefits_exist() -> None:
 
 def test_equipment_line_omitted_entirely_when_no_material_benefits() -> None:
     character = _make_full_character()
-    character.benefits = [b for b in character.benefits if b.kind != "material"]
+    character.benefits = [b for b in character.benefits if isinstance(b, Cash)]
     output = format_character(character)
     lines = output.split("\n")
     assert len(lines) == 3
@@ -189,9 +189,9 @@ def test_us3_multiple_cash_benefits_sum_to_single_total() -> None:
     """Acceptance scenario 1: several cash benefits combine into one Cr<amount> total."""
     character = _make_empty_character()
     character.benefits = [
-        Benefit(kind="cash", cash_amount=50000),
-        Benefit(kind="cash", cash_amount=20000),
-        Benefit(kind="cash", cash_amount=10000),
+        Cash(amount=50000),
+        Cash(amount=20000),
+        Cash(amount=10000),
     ]
     output = format_character(character)
     line2 = output.split("\n")[1]
@@ -201,7 +201,7 @@ def test_us3_multiple_cash_benefits_sum_to_single_total() -> None:
 def test_us3_zero_cash_benefits_shows_cr0_not_omitted() -> None:
     """Acceptance scenario 2: no cash benefits renders "Cr0" rather than dropping the figure."""
     character = _make_full_character()
-    character.benefits = [b for b in character.benefits if b.kind != "cash"]
+    character.benefits = [b for b in character.benefits if not isinstance(b, Cash)]
     output = format_character(character)
     line2 = output.split("\n")[1]
     assert line2 == "Navy (7 terms)\tCr0"
@@ -211,9 +211,9 @@ def test_us3_material_benefits_listed_by_name_in_order() -> None:
     """Acceptance scenario 3: each material benefit is named, comma-separated, in list order."""
     character = _make_empty_character()
     character.benefits = [
-        Benefit(kind="material", material_name="Weapon"),
-        Benefit(kind="material", material_name="Travellers' Aid Society"),
-        Benefit(kind="material", material_name="Ship Share"),
+        Item(name="Weapon"),
+        Item(name="Travellers' Aid Society"),
+        Item(name="Ship Share"),
     ]
     output = format_character(character)
     lines = output.split("\n")
@@ -225,12 +225,12 @@ def test_material_benefits_sum_boosts_and_group_items() -> None:
     repeats ordering, each group ordered by first occurrence."""
     character = _make_empty_character()
     character.benefits = [
-        Benefit(kind="material", material_name="Weapon"),
-        Benefit(kind="material", material_name="+1 Edu"),
-        Benefit(kind="material", material_name="High Passage"),
-        Benefit(kind="material", material_name="Weapon"),
-        Benefit(kind="material", material_name="+1 Soc"),
-        Benefit(kind="material", material_name="Weapon"),
+        Item(name="Weapon"),
+        StatBoost(label="Edu"),
+        Item(name="High Passage"),
+        Item(name="Weapon"),
+        StatBoost(label="Soc"),
+        Item(name="Weapon"),
     ]
     output = format_character(character)
     lines = output.split("\n")
@@ -241,8 +241,8 @@ def test_repeated_stat_boost_sums_into_single_entry() -> None:
     """Two "+1 Soc" rolls render as "+2 Soc", not "+1 Soc x 2"."""
     character = _make_empty_character()
     character.benefits = [
-        Benefit(kind="material", material_name="+1 Soc"),
-        Benefit(kind="material", material_name="+1 Soc"),
+        StatBoost(label="Soc"),
+        StatBoost(label="Soc"),
     ]
     output = format_character(character)
     assert output.split("\n")[-1] == "+2 Soc"
@@ -251,7 +251,7 @@ def test_repeated_stat_boost_sums_into_single_entry() -> None:
 def test_single_stat_boost_renders_as_plus_one() -> None:
     """A stat boost rolled once stays "+1 Edu" (no "x 1")."""
     character = _make_empty_character()
-    character.benefits = [Benefit(kind="material", material_name="+1 Edu")]
+    character.benefits = [StatBoost(label="Edu")]
     output = format_character(character)
     assert output.split("\n")[-1] == "+1 Edu"
 
@@ -259,9 +259,9 @@ def test_single_stat_boost_renders_as_plus_one() -> None:
 def test_triple_stat_boost_sums_to_plus_three() -> None:
     character = _make_empty_character()
     character.benefits = [
-        Benefit(kind="material", material_name="+1 Str"),
-        Benefit(kind="material", material_name="+1 Str"),
-        Benefit(kind="material", material_name="+1 Str"),
+        StatBoost(label="Str"),
+        StatBoost(label="Str"),
+        StatBoost(label="Str"),
     ]
     output = format_character(character)
     assert output.split("\n")[-1] == "+3 Str"
@@ -272,12 +272,12 @@ def test_boosts_and_items_full_example() -> None:
     must render with Soc summed and boosts first."""
     character = _make_empty_character()
     character.benefits = [
-        Benefit(kind="material", material_name="+1 Edu"),
-        Benefit(kind="material", material_name="Mid Passage"),
-        Benefit(kind="material", material_name="+1 Soc"),
-        Benefit(kind="material", material_name="+1 Soc"),
-        Benefit(kind="material", material_name="Weapon"),
-        Benefit(kind="material", material_name="Weapon"),
+        StatBoost(label="Edu"),
+        Item(name="Mid Passage"),
+        StatBoost(label="Soc"),
+        StatBoost(label="Soc"),
+        Item(name="Weapon"),
+        Item(name="Weapon"),
     ]
     output = format_character(character)
     assert output.split("\n")[-1] == "+1 Edu, +2 Soc, Mid Passage, Weapon (x2)"
@@ -286,10 +286,10 @@ def test_boosts_and_items_full_example() -> None:
 def test_material_benefits_multiple_repeated_names_ordered_by_first_occurrence() -> None:
     character = _make_empty_character()
     character.benefits = [
-        Benefit(kind="material", material_name="High Passage"),
-        Benefit(kind="material", material_name="Weapon"),
-        Benefit(kind="material", material_name="High Passage"),
-        Benefit(kind="material", material_name="Weapon"),
+        Item(name="High Passage"),
+        Item(name="Weapon"),
+        Item(name="High Passage"),
+        Item(name="Weapon"),
     ]
     output = format_character(character)
     lines = output.split("\n")
@@ -519,35 +519,26 @@ def test_civilian_injured_in_action_wording_matches_military() -> None:
 
 
 def test_ship_shares_quantities_summed() -> None:
-    from cetools.formatter import _combine_material_benefits
-
-    benefits = [
-        Benefit(kind="material", material_name="Ship Shares", material_quantity=3),
-        Benefit(kind="material", material_name="Ship Shares", material_quantity=4),
-    ]
-    assert _combine_material_benefits(benefits) == ["7 Ship Shares"]
+    character = _make_empty_character()
+    character.benefits = [Shares(quantity=3), Shares(quantity=4)]
+    assert format_character(character).split("\n")[-1] == "7 Ship Shares"
 
 
 def test_single_ship_share_renders_without_pluralization() -> None:
-    from cetools.formatter import _combine_material_benefits
-
-    benefits = [Benefit(kind="material", material_name="Ship Shares", material_quantity=1)]
-    assert _combine_material_benefits(benefits) == ["1 Ship Shares"]
+    character = _make_empty_character()
+    character.benefits = [Shares(quantity=1)]
+    assert format_character(character).split("\n")[-1] == "1 Ship Shares"
 
 
 def test_ship_shares_coexist_with_boosts_and_items() -> None:
-    from cetools.formatter import _combine_material_benefits
-
-    benefits = [
-        Benefit(kind="material", material_name="+1 Edu"),
-        Benefit(kind="material", material_name="High Passage"),
-        Benefit(kind="material", material_name="Ship Shares", material_quantity=2),
+    character = _make_empty_character()
+    character.benefits = [
+        StatBoost(label="Edu"),
+        Item(name="High Passage"),
+        Shares(quantity=2),
     ]
-    assert _combine_material_benefits(benefits) == [
-        "+1 Edu",
-        "High Passage",
-        "2 Ship Shares",
-    ]
+    output = format_character(character)
+    assert output.split("\n")[-1] == "+1 Edu, High Passage, 2 Ship Shares"
 
 
 def test_psionic_character_renders_upp_suffix_and_psionics_line() -> None:

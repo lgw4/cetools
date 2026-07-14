@@ -3,7 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from cetools.engine.careers.base import Career
-from cetools.engine.models import Benefit, boost
+from cetools.engine.models import (
+    Benefit,
+    Cash,
+    Item,
+    Shares,
+    apply_stat_boost,
+    parse_stat_boost,
+)
 from cetools.engine.rolls import RollName, Rolls
 
 # Extra benefit rolls granted by rank on leaving a career.
@@ -85,26 +92,24 @@ def muster_out(
     for _ in range(total_rolls):
         if cash_rolls_used < MAX_CASH_ROLLS:
             idx = max(0, min(6, rolls.d6(RollName.CASH_BENEFIT) + cash_dm - 1))
-            benefits.append(Benefit(kind="cash", cash_amount=career.cash_benefits[idx]))
+            benefits.append(Cash(amount=career.cash_benefits[idx]))
             cash_rolls_used += 1
             continue
 
-        name = roll_material_benefit(career, material_dm, rolls, granted)
-        granted.add(name)
+        entry = roll_material_benefit(career, material_dm, rolls, granted)
+        granted.add(entry)
 
-        if name == SHIP_SHARES:
-            benefits.append(
-                Benefit(
-                    kind="material",
-                    material_name="Ship Shares",
-                    material_quantity=rolls.d6(RollName.SHIP_SHARES),
-                )
-            )
+        # This is the one place a material table entry stops being a string.
+        if entry == SHIP_SHARES:
+            benefits.append(Shares(quantity=rolls.d6(RollName.SHIP_SHARES)))
             continue
 
-        boosted = boost(characteristics, name)
-        if boosted is not None:
-            characteristics = boosted
-        benefits.append(Benefit(kind="material", material_name=name))
+        boost = parse_stat_boost(entry)
+        if boost is not None:
+            characteristics = apply_stat_boost(characteristics, boost)
+            benefits.append(boost)
+            continue
+
+        benefits.append(Item(name=entry))
 
     return MusterOut(benefits=benefits, characteristics=dict(characteristics))

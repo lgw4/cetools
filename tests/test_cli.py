@@ -8,7 +8,7 @@ from cetools.engine.careers.marine import MARINE_CAREER
 from cetools.engine.careers.navy import NAVY_CAREER
 from cetools.engine.careers.scout import SCOUT_CAREER
 from cetools.engine.generator import DRAFT, RANDOM
-from cetools.engine.models import Benefit, Character, GenerationFailure
+from cetools.engine.models import Cash, Character, GenerationFailure
 
 _SCOUT = SCOUT_CAREER
 _NAVY = NAVY_CAREER
@@ -32,7 +32,7 @@ _SCOUT_CHARACTER = Character(
     terms_served=1,
     name="Jane Doe",
     skills={"Piloting": 1, "Navigation": 0},
-    benefits=[Benefit(kind="cash", cash_amount=1000)],
+    benefits=[Cash(amount=1000)],
     pension=0,
     terms=[],
     drafted=False,
@@ -58,7 +58,7 @@ def _make_character(drafted: bool = False) -> Character:
         terms_served=7,
         name="Jane Doe",
         skills={"Navigation": 2, "Zero-G": 1},
-        benefits=[Benefit(kind="cash", cash_amount=10000)],
+        benefits=[Cash(amount=10000)],
         pension=14000,
         terms=[],
         drafted=drafted,
@@ -260,7 +260,7 @@ _AEROSPACE_RANK_TITLES = {
 
 
 def _make_aerospace_character() -> "Character":
-    from cetools.engine.models import Benefit, Character
+    from cetools.engine.models import Cash, Character
 
     return Character(
         characteristics={
@@ -278,7 +278,7 @@ def _make_aerospace_character() -> "Character":
         terms_served=1,
         name="Jane Doe",
         skills={"Aircraft": 1, "Electronics": 0},
-        benefits=[Benefit(kind="cash", cash_amount=1000)],
+        benefits=[Cash(amount=1000)],
         pension=0,
         terms=[],
         drafted=False,
@@ -471,7 +471,7 @@ def _make_marine_character() -> Character:
         terms_served=1,
         name="Jane Doe",
         skills={"Zero-G": 1, "Gun Combat": 0},
-        benefits=[Benefit(kind="cash", cash_amount=1000)],
+        benefits=[Cash(amount=1000)],
         pension=0,
         terms=[],
         drafted=False,

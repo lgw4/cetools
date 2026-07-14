@@ -1,5 +1,5 @@
 from cetools.engine.careers.registry import is_military
-from cetools.engine.models import Benefit, Character
+from cetools.engine.models import Benefit, Cash, Character, Item, Shares, StatBoost
 from cetools.engine.pseudohex import to_pseudohex
 
 # Mishap wording by (military, discharge_type). Military careers keep the SRD's
@@ -24,48 +24,34 @@ _CIVILIAN_DISCHARGE_TEXT = {
 
 
 def _combine_material_benefits(benefits: list[Benefit]) -> list[str]:
-    boost_totals: dict[str, int] = {}
-    boost_first_index: dict[str, int] = {}
-    item_counts: dict[str, int] = {}
-    item_first_index: dict[str, int] = {}
-    quantity_totals: dict[str, int] = {}
-    quantity_first_index: dict[str, int] = {}
+    """Material benefits as display strings, repeats collapsed.
 
-    index = 0
+    Benefits arrive already knowing what they are, so this only groups and counts.
+    Each category keeps first-granted order, and the categories are laid out
+    boosts, then single items, then repeated items, then ship shares.
+    """
+    boosts: dict[str, int] = {}
+    items: dict[str, int] = {}
+    shares = 0
+
     for benefit in benefits:
-        if benefit.kind != "material":
-            continue
-        name = benefit.material_name
-        if benefit.material_quantity is not None:
-            quantity_totals[name] = quantity_totals.get(name, 0) + benefit.material_quantity
-            quantity_first_index.setdefault(name, index)
-        elif name.startswith("+1 "):
-            label = name[3:]
-            boost_totals[label] = boost_totals.get(label, 0) + 1
-            boost_first_index.setdefault(label, index)
-        else:
-            item_counts[name] = item_counts.get(name, 0) + 1
-            item_first_index.setdefault(name, index)
-        index += 1
+        match benefit:
+            case StatBoost(label):
+                boosts[label] = boosts.get(label, 0) + 1
+            case Item(name):
+                items[name] = items.get(name, 0) + 1
+            case Shares(quantity):
+                shares += quantity
 
-    boosts = [
-        f"+{boost_totals[label]} {label}"
-        for label in sorted(boost_totals, key=lambda label: boost_first_index[label])
-    ]
-    singles = sorted(
-        (name for name, count in item_counts.items() if count == 1),
-        key=lambda name: item_first_index[name],
-    )
-    repeats = sorted(
-        (name for name, count in item_counts.items() if count > 1),
-        key=lambda name: item_first_index[name],
-    )
-    quantities = [
-        f"{quantity_totals[name]} {name}"
-        for name in sorted(quantity_totals, key=lambda name: quantity_first_index[name])
-    ]
+    singles = [name for name, count in items.items() if count == 1]
+    repeats = [f"{name} (x{count})" for name, count in items.items() if count > 1]
 
-    return boosts + singles + [f"{name} (x{item_counts[name]})" for name in repeats] + quantities
+    return (
+        [f"+{levels} {label}" for label, levels in boosts.items()]
+        + singles
+        + repeats
+        + ([f"{shares} Ship Shares"] if shares else [])
+    )
 
 
 def _mishap_line(character: Character) -> str:
@@ -101,7 +87,7 @@ def format_character(character: Character) -> str:
         upp_display += f"-{to_pseudohex(character.psi_strength)}"
     line1 = f"{rank_prefix}{character.name}\t{upp_display}\tAge {character.age}"
 
-    funds = sum(b.cash_amount for b in character.benefits if b.kind == "cash")
+    funds = sum(b.amount for b in character.benefits if isinstance(b, Cash))
     line2 = f"{character.career.name} ({character.terms_served} terms)\tCr{funds:,}"
 
     skill_parts = [f"{name}-{level}" for name, level in sorted(character.skills.items())]

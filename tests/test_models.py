@@ -1,13 +1,16 @@
-import pytest
-
 from cetools.engine.careers.scout import SCOUT_CAREER
 from cetools.engine.models import (
     Benefit,
+    Cash,
     Character,
     GenerationFailure,
+    Item,
     MishapOutcome,
-    boost,
+    Shares,
+    StatBoost,
+    apply_stat_boost,
     characteristic_modifier,
+    parse_stat_boost,
 )
 from cetools.engine.pseudohex import encode_upp
 
@@ -146,24 +149,18 @@ def test_character_name_field_is_stored() -> None:
     assert char.name == "Jane Doe"
 
 
-def test_benefit_cash_requires_cash_amount() -> None:
-    with pytest.raises(ValueError, match="cash_amount"):
-        Benefit(kind="cash")
+# The old Benefit had a `kind` and three optional fields, so it needed
+# __post_init__ to reject "cash with no amount" and "material with no name". Each
+# variant now carries exactly its own fields: those states are unconstructable, so
+# the tests that asserted their ValueErrors are gone rather than weakened.
 
 
-def test_benefit_material_requires_material_name() -> None:
-    with pytest.raises(ValueError, match="material_name"):
-        Benefit(kind="material")
+def test_cash_carries_an_amount() -> None:
+    assert Cash(amount=5000).amount == 5000
 
 
-def test_benefit_cash_with_amount_is_valid() -> None:
-    benefit = Benefit(kind="cash", cash_amount=5000)
-    assert benefit.cash_amount == 5000
-
-
-def test_benefit_material_with_name_is_valid() -> None:
-    benefit = Benefit(kind="material", material_name="Blade")
-    assert benefit.material_name == "Blade"
+def test_item_carries_a_name() -> None:
+    assert Item(name="Blade").name == "Blade"
 
 
 # T002 — MishapOutcome dataclass
@@ -228,14 +225,16 @@ def test_character_mishap_and_debt_can_be_set() -> None:
     assert char.debt == 15000
 
 
-def test_benefit_material_quantity_defaults_none() -> None:
-    b = Benefit(kind="material", material_name="Weapon")
-    assert b.material_quantity is None
+def test_shares_carry_a_quantity() -> None:
+    assert Shares(quantity=4).quantity == 4
 
 
-def test_benefit_carries_material_quantity() -> None:
-    b = Benefit(kind="material", material_name="Ship Shares", material_quantity=4)
-    assert b.material_quantity == 4
+def test_a_benefit_is_one_of_the_four_variants() -> None:
+    # Ship shares used to be told apart from other material benefits by
+    # `material_quantity is not None` — a sentinel. Now each benefit simply is
+    # what it is.
+    for benefit in (Cash(1000), StatBoost("Edu"), Item("Weapon"), Shares(4)):
+        assert isinstance(benefit, Benefit)
 
 
 def test_character_psionics_default_to_non_psionic() -> None:
@@ -276,30 +275,38 @@ def test_character_psionics_can_be_set() -> None:
     assert char.talents == {"Telepathy": 0}
 
 
-# --- boost: the "+1 X" rule ---
-# Shared by Skills and Training entries and by material benefits, so it lives
-# with the other characteristics rules rather than in either caller.
+# --- the "+1 X" notation: parsed in one place, applied in one place ---
+# Career skill tables and material benefit tables both use it, so both come
+# through here and neither knows what the prefix means.
 
 
-def test_boost_applies_a_stat_boost() -> None:
-    assert boost({"Strength": 7}, "+1 Str")["Strength"] == 8
+def test_parse_reads_a_stat_boost_entry() -> None:
+    assert parse_stat_boost("+1 Str") == StatBoost(label="Str")
 
 
-def test_boost_returns_none_for_a_plain_skill_name() -> None:
-    assert boost({"Strength": 7}, "Melee Combat") is None
+def test_parse_returns_none_for_a_plain_skill_name() -> None:
+    assert parse_stat_boost("Melee Combat") is None
 
 
-def test_boost_recognises_an_unknown_abbreviation_without_applying_it() -> None:
+def test_parse_accepts_an_unknown_abbreviation() -> None:
     # Still a boost, so it is never granted as a skill named "+1 Xyz" — it just
     # has nothing to apply.
-    assert boost({"Strength": 7}, "+1 Xyz") == {"Strength": 7}
+    assert parse_stat_boost("+1 Xyz") == StatBoost(label="Xyz")
 
 
-def test_boost_caps_a_characteristic_at_33() -> None:
-    assert boost({"Strength": 33}, "+1 Str")["Strength"] == 33
+def test_apply_boosts_the_characteristic() -> None:
+    assert apply_stat_boost({"Strength": 7}, StatBoost("Str"))["Strength"] == 8
 
 
-def test_boost_does_not_mutate_its_argument() -> None:
+def test_apply_ignores_an_unknown_abbreviation() -> None:
+    assert apply_stat_boost({"Strength": 7}, StatBoost("Xyz")) == {"Strength": 7}
+
+
+def test_apply_caps_a_characteristic_at_33() -> None:
+    assert apply_stat_boost({"Strength": 33}, StatBoost("Str"))["Strength"] == 33
+
+
+def test_apply_does_not_mutate_its_argument() -> None:
     characteristics = {"Strength": 7}
-    boost(characteristics, "+1 Str")
+    apply_stat_boost(characteristics, StatBoost("Str"))
     assert characteristics == {"Strength": 7}

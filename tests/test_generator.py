@@ -5,7 +5,7 @@ import pytest
 from cetools.engine.careers.navy import NAVY_CAREER
 from cetools.engine.careers.scout import SCOUT_CAREER
 from cetools.engine.generator import DRAFT, RANDOM, generate
-from cetools.engine.models import STAT_NAMES, Character, GenerationFailure
+from cetools.engine.models import STAT_NAMES, Cash, Character, GenerationFailure
 from cetools.engine.rolls import RollName, ScriptedRolls
 from cetools.engine.rules import SRD
 from conftest import scripted
@@ -322,7 +322,7 @@ def test_pension_amount_for_seven_terms() -> None:
 def test_cash_roll_cap_at_3() -> None:
     result = generate(NAVY_CAREER, _rolls())
     assert isinstance(result, Character)
-    cash_benefits = [b for b in result.benefits if b.kind == "cash"]
+    cash_benefits = [b for b in result.benefits if isinstance(b, Cash)]
     assert len(cash_benefits) <= 3
 
 

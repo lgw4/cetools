@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from cetools.engine.careers.base import Career
-from cetools.engine.models import boost
+from cetools.engine.models import apply_stat_boost, parse_stat_boost
 from cetools.engine.rolls import RollName, Rolls
 
 ADVANCED_EDUCATION_MINIMUM = 8
@@ -38,9 +38,9 @@ def apply_entry(
     have goes up a level. Level 0 comes only from basic training and background
     skills, and a roll takes such a skill to 1 either way.
     """
-    boosted = boost(characteristics, entry)
-    if boosted is not None:
-        return boosted, dict(skills)
+    boost = parse_stat_boost(entry)
+    if boost is not None:
+        return apply_stat_boost(characteristics, boost), dict(skills)
 
     trained = dict(skills)
     trained[entry] = trained.get(entry, 0) + 1

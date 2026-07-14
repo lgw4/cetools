@@ -10,7 +10,7 @@ from cetools.engine.careers.hunter import HUNTER_CAREER
 from cetools.engine.careers.navy import NAVY_CAREER
 from cetools.engine.careers.scientist import SCIENTIST_CAREER
 from cetools.engine.careers.scout import SCOUT_CAREER
-from cetools.engine.models import STAT_NAMES
+from cetools.engine.models import STAT_NAMES, Cash, Item, Shares
 from cetools.engine.rolls import RollName
 from conftest import scripted
 
@@ -31,9 +31,9 @@ def test_material_benefit_row_7_reachable_at_rank_5_plus() -> None:
         rolls=scripted(d6={RollName.CASH_BENEFIT: 6, RollName.MATERIAL_BENEFIT: 6}),
     )
     assert len(result.benefits) == 4
-    material = [b for b in result.benefits if b.kind == "material"]
+    material = [b for b in result.benefits if not isinstance(b, Cash)]
     assert any(
-        b.material_name == "Explorers' Society" for b in material
+        b == Item("Explorers' Society") for b in material
     ), "rank 5+ DM should make material benefit row 7 (Explorers' Society) reachable"
 
 
@@ -50,7 +50,7 @@ def test_muster_out_grants_explorers_society_once_and_rerolls_repeat() -> None:
         rolls=scripted(d6={RollName.MATERIAL_BENEFIT: [6, 6, 2]}),
     )
     assert len(result.benefits) == 5  # reroll must not add an extra roll (FR-008)
-    material = [b.material_name for b in result.benefits if b.kind == "material"]
+    material = [b.name for b in result.benefits if isinstance(b, Item)]
     assert material == ["Explorers' Society", "Weapon"]
 
 
@@ -72,8 +72,8 @@ def test_gambling_skill_grants_cash_dm_on_muster_out() -> None:
     with_dm = muster_out(**common, skills={"Gambling": 0})
     assert len(without_dm.benefits) == 1
     assert len(with_dm.benefits) == 1
-    assert without_dm.benefits[0].cash_amount == 20000
-    assert with_dm.benefits[0].cash_amount == 50000
+    assert without_dm.benefits[0] == Cash(20000)
+    assert with_dm.benefits[0] == Cash(50000)
 
 
 # --- Once-only benefits: reroll on repeat ---
@@ -226,10 +226,9 @@ def test_muster_out_ship_shares_rolls_quantity() -> None:
             }
         ),
     )
-    material = [b for b in result.benefits if b.kind == "material"]
+    material = [b for b in result.benefits if not isinstance(b, Cash)]
     assert len(material) == 1
-    assert material[0].material_name == "Ship Shares"
-    assert material[0].material_quantity == 3
+    assert material[0] == Shares(quantity=3)
     # ship shares do not touch characteristics
     assert all(value == 7 for value in result.characteristics.values())
 
@@ -252,10 +251,9 @@ def test_muster_out_hunter_ship_shares() -> None:
             }
         ),
     )
-    material = [b for b in result.benefits if b.kind == "material"]
+    material = [b for b in result.benefits if not isinstance(b, Cash)]
     assert len(material) == 1
-    assert material[0].material_name == "Ship Shares"
-    assert material[0].material_quantity == 3
+    assert material[0] == Shares(quantity=3)
 
 
 def test_muster_out_belter_ship_shares() -> None:
@@ -274,10 +272,9 @@ def test_muster_out_belter_ship_shares() -> None:
             }
         ),
     )
-    material = [b for b in result.benefits if b.kind == "material"]
+    material = [b for b in result.benefits if not isinstance(b, Cash)]
     assert len(material) == 1
-    assert material[0].material_name == "Ship Shares"
-    assert material[0].material_quantity == 3
+    assert material[0] == Shares(quantity=3)
 
 
 # --- Cash ---
@@ -290,9 +287,9 @@ def test_muster_out_zero_cash_benefit() -> None:
     result = muster_out(
         BARBARIAN_CAREER, 1, 0, {}, characteristics, scripted(d6={RollName.CASH_BENEFIT: 1})
     )
-    cash = [b for b in result.benefits if b.kind == "cash"]
+    cash = [b for b in result.benefits if isinstance(b, Cash)]
     assert len(cash) == 1
-    assert cash[0].cash_amount == 0
+    assert cash[0] == Cash(0)
 
 
 def test_scout_material_roll_5_gives_explorers_society() -> None:
@@ -309,8 +306,8 @@ def test_scout_material_roll_5_gives_explorers_society() -> None:
         rolls=scripted(d6={RollName.CASH_BENEFIT: 5, RollName.MATERIAL_BENEFIT: 5}),
     )
     assert len(result.benefits) == 4
-    material = [b for b in result.benefits if b.kind == "material"]
-    assert any(b.material_name == "Explorers' Society" for b in material)
+    material = [b for b in result.benefits if not isinstance(b, Cash)]
+    assert any(b == Item("Explorers' Society") for b in material)
 
 
 # --- The interface returns; it does not mutate ---
