@@ -1,4 +1,5 @@
-from cetools.engine.dice import DiceRoller
+from cetools.engine.dice import DiceRoller, as_rolls
+from cetools.engine.rolls import RollName, Rolls
 
 FIRST_NAMES: tuple[str, ...] = (
     "Alex",
@@ -31,7 +32,8 @@ LAST_NAMES: tuple[str, ...] = (
 )
 
 
-def generate_name(roller: DiceRoller) -> str:
-    first = FIRST_NAMES[roller.roll(len(FIRST_NAMES)) - 1]
-    last = LAST_NAMES[roller.roll(len(LAST_NAMES)) - 1]
+def generate_name(roller: "DiceRoller | Rolls") -> str:
+    rolls = as_rolls(roller)
+    first = rolls.choose(FIRST_NAMES, RollName.FIRST_NAME)
+    last = rolls.choose(LAST_NAMES, RollName.LAST_NAME)
     return f"{first} {last}"

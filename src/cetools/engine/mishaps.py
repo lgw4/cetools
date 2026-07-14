@@ -3,8 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from cetools.engine.dice import DiceRoller
+from cetools.engine.dice import DiceRoller, as_rolls
 from cetools.engine.models import MishapOutcome
+from cetools.engine.rolls import RollName, Rolls
 
 _PHYSICAL_STATS = ("Strength", "Dexterity", "Endurance")
 
@@ -64,19 +65,17 @@ if len(SURVIVAL_MISHAPS_TABLE) != 6:
 
 
 def _apply_injury(
-    entry: InjuryEntry, characteristics: dict[str, int], roller: DiceRoller
+    entry: InjuryEntry, characteristics: dict[str, int], rolls: Rolls
 ) -> dict[str, int]:
     if not entry.candidate_stats:
         return {}
 
     if len(entry.candidate_stats) > 1:
-        primary_stat = entry.candidate_stats[roller.roll(len(entry.candidate_stats)) - 1]
+        primary_stat = rolls.choose(entry.candidate_stats, RollName.INJURY_STAT)
     else:
         primary_stat = entry.candidate_stats[0]
 
-    amount = (
-        roller.roll(6, count=entry.primary_dice) if entry.primary_dice > 0 else entry.primary_fixed
-    )
+    amount = rolls.d6(RollName.INJURY_AMOUNT) if entry.primary_dice > 0 else entry.primary_fixed
     reductions = {primary_stat: amount}
     characteristics[primary_stat] = max(0, characteristics[primary_stat] - amount)
 
@@ -91,21 +90,23 @@ def _apply_injury(
 
 
 def resolve_survival_mishap(
-    roller: DiceRoller,
+    roller: "DiceRoller | Rolls",
     characteristics: dict[str, int],
 ) -> tuple[MishapOutcome, int]:
-    mishap_roll = roller.roll(6)
+    rolls = as_rolls(roller)
+
+    mishap_roll = rolls.d6(RollName.MISHAP)
     entry = SURVIVAL_MISHAPS_TABLE[mishap_roll - 1]
 
     injury_reductions: dict[str, int] = {}
     zeroed_stats: list[str] = []
     if entry.injury_rolls > 0:
         if entry.injury_rolls == 1:
-            injury_roll = roller.roll(6)
+            injury_roll = rolls.d6(RollName.INJURY)
         else:
-            injury_roll = min(roller.roll(6), roller.roll(6))
+            injury_roll = min(rolls.d6(RollName.INJURY), rolls.d6(RollName.INJURY))
         before = dict(characteristics)
-        injury_reductions = _apply_injury(INJURY_TABLE[injury_roll - 1], characteristics, roller)
+        injury_reductions = _apply_injury(INJURY_TABLE[injury_roll - 1], characteristics, rolls)
         zeroed_stats = [
             stat for stat in injury_reductions if before[stat] > 0 and characteristics[stat] <= 0
         ]
@@ -114,7 +115,7 @@ def resolve_survival_mishap(
     debt = 0
     if zeroed_stats:
         injury_crisis = True
-        debt = roller.roll(6) * 10_000
+        debt = rolls.d6(RollName.INJURY_DEBT) * 10_000
         for stat in zeroed_stats:
             characteristics[stat] = 1
 

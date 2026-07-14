@@ -11,7 +11,6 @@ from cetools.engine.generator import (
     _apply_material_benefit,
     _apply_skill_entry,
     _apply_stat_boost,
-    _check,
     _draw_distinct,
     _grant_background_skills,
     _muster_out,
@@ -34,22 +33,9 @@ class _MaxFaceRoller:
 
 
 # --- Check helper ---
-
-
-def test_check_succeeds_when_roll_plus_modifier_meets_target() -> None:
-    # ConstantRoller(6): 2D6=6, Intelligence=8 → dm=0 → 6+0=6 >= target 6
-    assert _check(ConstantRoller(6), {"Intelligence": 8}, "Intelligence", 6) is True
-
-
-def test_check_fails_when_roll_plus_modifier_below_target() -> None:
-    # ConstantRoller(5): 2D6=5, Intelligence=8 → dm=0 → 5+0=5 < target 6
-    assert _check(ConstantRoller(5), {"Intelligence": 8}, "Intelligence", 6) is False
-
-
-def test_check_applies_characteristic_modifier() -> None:
-    # ConstantRoller(4): 2D6=4, Intelligence=12 → dm=+2 → 4+2=6 >= target 6
-    # Without the modifier, 4 < 6 would fail.
-    assert _check(ConstantRoller(4), {"Intelligence": 12}, "Intelligence", 6) is True
+# The 2D6 + DM >= target rule now lives on the Rolls seam; its tests moved to
+# tests/test_rolls.py. What remains here is the generator's own DM lookup, which
+# is exercised end-to-end by the qualification and survival tests below.
 
 
 # --- Enlistment ---
