@@ -63,34 +63,37 @@ def test_mishap_roll_2_is_honorable_discharge_no_debt() -> None:
     characteristics = {"Strength": 8, "Dexterity": 8, "Endurance": 8}
     before = dict(characteristics)
     rolls = ScriptedRolls(d6={RollName.MISHAP: 2})
-    outcome, debt = resolve_survival_mishap(rolls, characteristics)
+    result = resolve_survival_mishap(rolls, characteristics)
+    outcome, debt = result.outcome, result.debt
     assert outcome.roll == 2
     assert outcome.discharge_type == "honorable"
     assert outcome.imprisoned is False
     assert outcome.injury_reductions == {}
     assert outcome.injury_crisis is False
     assert debt == 0
-    assert characteristics == before
+    assert result.characteristics == before
 
 
 def test_mishap_roll_3_is_honorable_discharge_with_legal_debt() -> None:
     characteristics = {"Strength": 8, "Dexterity": 8, "Endurance": 8}
     before = dict(characteristics)
     rolls = ScriptedRolls(d6={RollName.MISHAP: 3})
-    outcome, debt = resolve_survival_mishap(rolls, characteristics)
+    result = resolve_survival_mishap(rolls, characteristics)
+    outcome, debt = result.outcome, result.debt
     assert outcome.roll == 3
     assert outcome.discharge_type == "honorable"
     assert outcome.imprisoned is False
     assert outcome.injury_reductions == {}
     assert outcome.injury_crisis is False
     assert debt == 10_000
-    assert characteristics == before
+    assert result.characteristics == before
 
 
 def test_mishap_roll_4_is_dishonorable_discharge_not_imprisoned() -> None:
     characteristics = {"Strength": 8, "Dexterity": 8, "Endurance": 8}
     rolls = ScriptedRolls(d6={RollName.MISHAP: 4})
-    outcome, debt = resolve_survival_mishap(rolls, characteristics)
+    result = resolve_survival_mishap(rolls, characteristics)
+    outcome, debt = result.outcome, result.debt
     assert outcome.roll == 4
     assert outcome.discharge_type == "dishonorable"
     assert outcome.imprisoned is False
@@ -100,7 +103,8 @@ def test_mishap_roll_4_is_dishonorable_discharge_not_imprisoned() -> None:
 def test_mishap_roll_5_is_dishonorable_discharge_imprisoned() -> None:
     characteristics = {"Strength": 8, "Dexterity": 8, "Endurance": 8}
     rolls = ScriptedRolls(d6={RollName.MISHAP: 5})
-    outcome, debt = resolve_survival_mishap(rolls, characteristics)
+    result = resolve_survival_mishap(rolls, characteristics)
+    outcome, debt = result.outcome, result.debt
     assert outcome.roll == 5
     assert outcome.discharge_type == "dishonorable"
     assert outcome.imprisoned is True
@@ -119,13 +123,14 @@ def test_mishap_roll_6_injury_row_2_reduces_one_physical_stat_only() -> None:
         d6={RollName.MISHAP: 6, RollName.INJURY: 2, RollName.INJURY_AMOUNT: 3},
         choices={RollName.INJURY_STAT: 0},
     )
-    outcome, debt = resolve_survival_mishap(rolls, characteristics)
+    result = resolve_survival_mishap(rolls, characteristics)
+    outcome, debt = result.outcome, result.debt
     assert outcome.roll == 6
     assert outcome.discharge_type == "medical"
     assert outcome.injury_reductions == {"Strength": 3}
-    assert characteristics["Strength"] == 5
-    assert characteristics["Dexterity"] == 8
-    assert characteristics["Endurance"] == 8
+    assert result.characteristics["Strength"] == 5
+    assert result.characteristics["Dexterity"] == 8
+    assert result.characteristics["Endurance"] == 8
     assert outcome.injury_crisis is False
     assert debt == 0
 
@@ -139,11 +144,12 @@ def test_mishap_roll_6_injury_row_1_reduces_secondary_stats_by_2() -> None:
         d6={RollName.MISHAP: 6, RollName.INJURY: 1, RollName.INJURY_AMOUNT: 3},
         choices={RollName.INJURY_STAT: 0},
     )
-    outcome, debt = resolve_survival_mishap(rolls, characteristics)
+    result = resolve_survival_mishap(rolls, characteristics)
+    outcome = result.outcome
     assert outcome.injury_reductions == {"Strength": 3, "Dexterity": 2, "Endurance": 2}
-    assert characteristics["Strength"] == 5
-    assert characteristics["Dexterity"] == 6
-    assert characteristics["Endurance"] == 6
+    assert result.characteristics["Strength"] == 5
+    assert result.characteristics["Dexterity"] == 6
+    assert result.characteristics["Endurance"] == 6
 
 
 def test_mishap_roll_6_injury_row_3_candidate_pick_excludes_endurance() -> None:
@@ -155,11 +161,12 @@ def test_mishap_roll_6_injury_row_3_candidate_pick_excludes_endurance() -> None:
         d6={RollName.MISHAP: 6, RollName.INJURY: 3},
         choices={RollName.INJURY_STAT: 1},
     )
-    outcome, debt = resolve_survival_mishap(rolls, characteristics)
+    result = resolve_survival_mishap(rolls, characteristics)
+    outcome = result.outcome
     assert outcome.injury_reductions == {"Dexterity": 2}
-    assert characteristics["Dexterity"] == 6
-    assert characteristics["Strength"] == 8
-    assert characteristics["Endurance"] == 8
+    assert result.characteristics["Dexterity"] == 6
+    assert result.characteristics["Strength"] == 8
+    assert result.characteristics["Endurance"] == 8
 
 
 # --- T006(a): roll twice, take the lower (more severe) result ---
@@ -173,13 +180,14 @@ def test_mishap_roll_1_applies_lower_of_two_injury_rolls() -> None:
         d6={RollName.MISHAP: 1, RollName.INJURY: [5, 2], RollName.INJURY_AMOUNT: 4},
         choices={RollName.INJURY_STAT: 0},
     )
-    outcome, debt = resolve_survival_mishap(rolls, characteristics)
+    result = resolve_survival_mishap(rolls, characteristics)
+    outcome = result.outcome
     assert outcome.roll == 1
     assert outcome.discharge_type == "none"
     assert outcome.injury_reductions == {"Strength": 4}
-    assert characteristics["Strength"] == 4
-    assert characteristics["Dexterity"] == 8
-    assert characteristics["Endurance"] == 8
+    assert result.characteristics["Strength"] == 4
+    assert result.characteristics["Dexterity"] == 8
+    assert result.characteristics["Endurance"] == 8
 
 
 # --- T006(b): injury crisis charges debt and restores the stat to 1 ---
@@ -199,8 +207,9 @@ def test_injury_crisis_restores_zeroed_stat_to_one_and_charges_debt() -> None:
         },
         choices={RollName.INJURY_STAT: 0},
     )
-    outcome, debt = resolve_survival_mishap(rolls, characteristics)
-    assert characteristics["Strength"] == 1
+    result = resolve_survival_mishap(rolls, characteristics)
+    outcome, debt = result.outcome, result.debt
+    assert result.characteristics["Strength"] == 1
     assert outcome.injury_crisis is True
     assert debt == 30_000
 
@@ -223,9 +232,10 @@ def test_injury_crisis_zeroing_two_stats_charges_only_one_debt() -> None:
         },
         choices={RollName.INJURY_STAT: 0},
     )
-    outcome, debt = resolve_survival_mishap(rolls, characteristics)
-    assert characteristics["Dexterity"] == 1
-    assert characteristics["Endurance"] == 1
+    result = resolve_survival_mishap(rolls, characteristics)
+    outcome, debt = result.outcome, result.debt
+    assert result.characteristics["Dexterity"] == 1
+    assert result.characteristics["Endurance"] == 1
     assert outcome.injury_crisis is True
     assert debt == 10_000
 
@@ -244,9 +254,10 @@ def test_injury_on_already_zero_stat_does_not_trigger_crisis() -> None:
         d6={RollName.MISHAP: 6, RollName.INJURY: 2, RollName.INJURY_AMOUNT: 3},
         choices={RollName.INJURY_STAT: 0},
     )
-    outcome, debt = resolve_survival_mishap(rolls, characteristics)
+    result = resolve_survival_mishap(rolls, characteristics)
+    outcome, debt = result.outcome, result.debt
     assert outcome.injury_reductions == {"Strength": 3}
-    assert characteristics["Strength"] == 0
+    assert result.characteristics["Strength"] == 0
     assert outcome.injury_crisis is False
     assert debt == 0
 
@@ -254,17 +265,19 @@ def test_injury_on_already_zero_stat_does_not_trigger_crisis() -> None:
 # --- T006(d): mutates characteristics in place ---
 
 
-def test_resolve_survival_mishap_mutates_characteristics_in_place() -> None:
+def test_resolve_survival_mishap_returns_the_injured_character_without_mutating() -> None:
+    # This test used to assert the opposite: that the caller's dict was mutated in
+    # place. Every other step of the engine returns what changed, and this one now
+    # does too — the injury comes back on the result and the argument is untouched.
     # MISHAP=6 -> INJURY=2 -> Strength (INJURY_STAT index 0) loses INJURY_AMOUNT=3.
     characteristics = {"Strength": 8, "Dexterity": 8, "Endurance": 8}
     rolls = ScriptedRolls(
         d6={RollName.MISHAP: 6, RollName.INJURY: 2, RollName.INJURY_AMOUNT: 3},
         choices={RollName.INJURY_STAT: 0},
     )
-    same_dict = characteristics
-    resolve_survival_mishap(rolls, characteristics)
-    assert characteristics is same_dict
-    assert characteristics["Strength"] == 5
+    result = resolve_survival_mishap(rolls, characteristics)
+    assert result.characteristics["Strength"] == 5
+    assert characteristics == {"Strength": 8, "Dexterity": 8, "Endurance": 8}
 
 
 # --- T007: SC-004 statistical distribution ---
@@ -276,7 +289,7 @@ def test_mishap_roll_distribution_within_ten_percent_of_uniform() -> None:
     for _ in range(10_000):
         characteristics = {"Strength": 10, "Dexterity": 10, "Endurance": 10}
         results.append(resolve_survival_mishap(rolls, characteristics))
-    counts = Counter(outcome.roll for outcome, _debt in results)
+    counts = Counter(mishap.outcome.roll for mishap in results)
     for roll in range(1, 7):
         assert 1500 <= counts[roll] <= 1834, f"roll {roll} count {counts[roll]} out of tolerance"
 

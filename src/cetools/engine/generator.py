@@ -15,11 +15,12 @@ from cetools.engine.models import (
     GenerationFailure,
     MishapOutcome,
     Term,
-    characteristic_modifier,
+    characteristic_check,
 )
 from cetools.engine.names import generate_name
 from cetools.engine.pseudohex import encode_upp
 from cetools.engine.psionics import roll_psionics
+from cetools.engine.ranks import grant_rank_bonus, progress
 from cetools.engine.rolls import RandomRolls, RollName, Rolls
 from cetools.engine.rules import HOUSE, Rules
 from cetools.engine.training import roll_skill
@@ -27,26 +28,6 @@ from cetools.engine.training import roll_skill
 _PENSION = {5: 10000, 6: 12000, 7: 14000, 8: 16000}
 
 _MAX_TERMS = 7
-_MAX_RANK = 6
-
-
-def _dm(characteristics: dict[str, int], stat: str) -> int:
-    return characteristic_modifier(characteristics[stat])
-
-
-def _check(
-    rolls: Rolls,
-    characteristics: dict[str, int],
-    stat: str,
-    target: int,
-    name: RollName,
-) -> bool:
-    return rolls.check(_dm(characteristics, stat), target, name)
-
-
-def _grant_rank_bonus(rank_entry, characteristics: dict[str, int], skills: dict[str, int]) -> None:
-    for skill_name in rank_entry.bonus_skills:
-        skills[skill_name] = skills.get(skill_name, 0) + 1
 
 
 def _pension(terms_served: int) -> int | None:
@@ -134,7 +115,7 @@ def generate(
         and career.qualification_stat is not None
         and career.qualification_target is not None
     ):
-        if not _check(
+        if not characteristic_check(
             rolls,
             characteristics,
             career.qualification_stat,
@@ -144,7 +125,7 @@ def generate(
             return GenerationFailure(reason=f"{career.name} enlistment failed")
 
     rank = 0
-    _grant_rank_bonus(career.ranks[rank], characteristics, skills)
+    skills = grant_rank_bonus(career.ranks[rank], skills)
 
     age = 18
     terms_served = 0
@@ -165,7 +146,7 @@ def generate(
                     skills[skill_name] = 0
                 skills_gained_this_term.append(skill_name)
 
-        if not _check(
+        if not characteristic_check(
             rolls,
             characteristics,
             career.survival_stat,
@@ -182,61 +163,20 @@ def generate(
                     skills_gained=skills_gained_this_term,
                 )
             )
-            mishap, mishap_debt = mishaps.resolve_survival_mishap(rolls, characteristics)
-            debt += mishap_debt
+            resolved = mishaps.resolve_survival_mishap(rolls, characteristics)
+            mishap = resolved.outcome
+            characteristics = resolved.characteristics
+            debt += resolved.debt
             age += 2
             if mishap.imprisoned:
                 age += 4
             break
 
-        commission_attempted = False
-
-        if (
-            rank == 0
-            and career.commission_stat is not None
-            and career.commission_target is not None
-        ):
-            commission_attempted = True
-            if _check(
-                rolls,
-                characteristics,
-                career.commission_stat,
-                career.commission_target,
-                RollName.COMMISSION,
-            ):
-                rank = 1
-                commissioned_this_term = True
-                _grant_rank_bonus(career.ranks[rank], characteristics, skills)
-                if career.advancement_stat is not None and career.advancement_target is not None:
-                    if _check(
-                        rolls,
-                        characteristics,
-                        career.advancement_stat,
-                        career.advancement_target,
-                        RollName.ADVANCEMENT,
-                    ):
-                        if rank < _MAX_RANK:
-                            rank += 1
-                            promoted_this_term = True
-                            _grant_rank_bonus(career.ranks[rank], characteristics, skills)
-
-        if (
-            not commission_attempted
-            and rank >= 1
-            and career.advancement_stat is not None
-            and career.advancement_target is not None
-        ):
-            if _check(
-                rolls,
-                characteristics,
-                career.advancement_stat,
-                career.advancement_target,
-                RollName.ADVANCEMENT,
-            ):
-                if rank < _MAX_RANK:
-                    rank += 1
-                    promoted_this_term = True
-                    _grant_rank_bonus(career.ranks[rank], characteristics, skills)
+        advanced = progress(career, rank, characteristics, skills, rolls)
+        rank = advanced.rank
+        skills = advanced.skills
+        commissioned_this_term = advanced.commissioned
+        promoted_this_term = advanced.promoted
 
         skill_rolls = 1
         if not commissioned_this_term and not promoted_this_term:

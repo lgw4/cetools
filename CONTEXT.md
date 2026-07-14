@@ -109,15 +109,23 @@ None of them mutates its arguments.
 | module | interface | the SRD step |
 | --- | --- | --- |
 | `background.py` | `background_skills(characteristics, rolls)` | the skills a character brings to their first career |
+| `ranks.py` | `progress(career, rank, characteristics, skills, rolls)` | Commission and Advancement |
 | `training.py` | `roll_skill(career, characteristics, skills, rolls)` | Skills and Training |
 | `aging.py` | `apply_aging(characteristics, terms_served, rolls)` | Ageing |
 | `benefits.py` | `muster_out(career, …, rolls)` | Benefits (**muster-out**) |
 | `mishaps.py` | `resolve_survival_mishap(rolls, characteristics)` | Survival Mishaps |
 | `psionics.py` | `roll_psionics(terms_served, rolls)` | Psionics |
 
-`generator.py` is the **coordinator**: it owns qualification, survival, commission,
-advancement, re-enlistment, and the **term** loop, and calls the steps above. It
-holds no rules content that belongs to a named step.
+A **check** is made in one place, `models.characteristic_check` — the module that
+owns the DM rule.
+
+`generator.py` is the **coordinator**: it owns qualification, survival,
+re-enlistment, and the **term** loop, and calls the steps above. It holds no rules
+content that belongs to a named step.
+
+**There is no Term module, deliberately.** See `docs/adr/0001-no-term-module.md`:
+it would have exactly one caller, so it would relocate the loop rather than deepen
+anything. Reopen only if a second caller appears.
 
 The `"+1 X"` **stat boost** rule is shared by Skills and Training entries and by
 material benefits, so it lives with the other characteristics rules in

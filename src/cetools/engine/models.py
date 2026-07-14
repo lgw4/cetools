@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
+from cetools.engine.rolls import RollName, Rolls
+
 if TYPE_CHECKING:  # careers.base imports this module, so only import it for types
     from cetools.engine.careers.base import Career
 
@@ -49,6 +51,22 @@ def characteristic_modifier(score: int) -> int:
     if score <= 32:
         return 8
     return 9
+
+
+def characteristic_check(
+    rolls: Rolls,
+    characteristics: dict[str, int],
+    stat: str,
+    target: int,
+    name: RollName,
+) -> bool:
+    """A check against a characteristic: 2D6 + its DM >= target.
+
+    Qualification, survival, commission and advancement are all this. The seam
+    knows about chance and not about characteristics, so the DM lookup happens
+    here — in the module that owns the DM rule — rather than in each caller.
+    """
+    return rolls.check(characteristic_modifier(characteristics[stat]), target, name)
 
 
 MAX_CHARACTERISTIC = 33
