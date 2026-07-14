@@ -1,4 +1,3 @@
-from cetools.engine.dice import DiceRoller, as_rolls
 from cetools.engine.models import characteristic_modifier
 from cetools.engine.rolls import RollName, Rolls
 
@@ -15,7 +14,7 @@ _TRAINING_TARGET = 8
 _ELIGIBILITY_TARGET = 11
 
 
-def roll_psionics(terms_served: int, roller: "DiceRoller | Rolls") -> tuple[int, dict[str, int]]:
+def roll_psionics(terms_served: int, rolls: Rolls) -> tuple[int, dict[str, int]]:
     """Roll Psi strength and learn talents.
 
     A cetools house rule gates testing: the character must first pass a flat,
@@ -26,8 +25,6 @@ def roll_psionics(terms_served: int, roller: "DiceRoller | Rolls") -> tuple[int,
     ``2D6 + PsiDM + talentDM - (previous attempts) >= 8``; successes are granted
     at level 0. Talents are attempted highest-DM-first.
     """
-    rolls = as_rolls(roller)
-
     if not rolls.check(0, _ELIGIBILITY_TARGET, RollName.PSI_GATE):
         return 0, {}
 

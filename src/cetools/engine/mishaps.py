@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from cetools.engine.dice import DiceRoller, as_rolls
 from cetools.engine.models import MishapOutcome
 from cetools.engine.rolls import RollName, Rolls
 
@@ -90,11 +89,9 @@ def _apply_injury(
 
 
 def resolve_survival_mishap(
-    roller: "DiceRoller | Rolls",
+    rolls: Rolls,
     characteristics: dict[str, int],
 ) -> tuple[MishapOutcome, int]:
-    rolls = as_rolls(roller)
-
     mishap_roll = rolls.d6(RollName.MISHAP)
     entry = SURVIVAL_MISHAPS_TABLE[mishap_roll - 1]
 

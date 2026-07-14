@@ -107,12 +107,22 @@ Note `REENLISTMENT` is a `two_d6`, **not** a check — it needs the raw value, b
 
 ## Phase B — replace the scripted die sequences
 
-Not started until phase A is green and committed. Sketch only; it gets its own detailed pass.
+- [x] `RandomRolls` (production) and `ScriptedRolls` (tests) in `rolls.py`.
+- [x] Migrate the 10 roller-using test files.
+- [x] Delete `dice.py`, `LegacyDiceRolls`, `as_rolls`, the `DiceRoller | Rolls` unions, and the three fake rollers in `conftest.py`. The `roller` parameter is renamed `rolls` throughout.
+- [x] Add the aging-ladder tests (see below).
 
-- [ ] `RandomRolls` (production) and `ScriptedRolls` (tests) in `rolls.py`.
-- [ ] Migrate the 9 roller-using test files, worst first: `test_generator.py` (38 sequences), `test_mishaps.py` (13), `test_psionics.py` (8), `test_marine_career.py` (5), `test_names.py` (3), `test_aerospace/maritime/surface_career.py` (2 each).
-- [ ] Delete `dice.py`, `LegacyDiceRolls`, `_as_rolls`, the `DiceRoller | Rolls` unions, and the three fake rollers in `conftest.py`.
-- [ ] The engine is not touched in phase B.
+### What phase B found
+
+Two things surfaced only because the tests stopped counting dice.
+
+**Three tests were passing for the wrong reason.** `test_{maritime,surface,aerospace}_commission_roll_failure_stays_at_rank_0` used `SequenceRoller([12], default=1)`, and their comments claimed the leading `12` was the survival check. It was not: it was consumed by the first *background-skill draw*. Survival therefore rolled a 1 and **failed**, the commission roll was never made at all, and the tests passed via the survival-mishap path — asserting `rank == 0` for entirely the wrong reason. Rewritten as `checks={SURVIVAL: True, COMMISSION: False}`, they now exercise the path their names describe. This is precisely the failure mode the seam exists to prevent: a positional die sequence silently means something other than what its comment says.
+
+**The aging ladder was only covered by accident.** Old die sequences wandered into the `-3`…`-6` rungs incidentally; scripting by name stopped that, and generator coverage fell to 94%. It is now covered on purpose, one test per rung, and generator coverage is 99% — above where it started. Writing those tests turned up a rules fact worth recording: **the `-6 or worse` rung is unreachable in a normal career.** `2D6` bottoms out at 2 and the term cap is 7, so the worst reachable roll is `2 - 7 = -5`. Only a natural 12 on re-enlistment, which forces an 8th term, reaches `2 - 8 = -6`.
+
+### Known rules bug, deliberately NOT fixed here
+
+`_roll_skill` selects a skill table with `(d6 - 1) % len(tables)`. With Education ≥ 8 there are four tables, so a d6 modulo 4 makes Personal Development and Service Skills **twice as likely** as Specialist and Advanced Education. Switching that site to `choose` would fix it — and would change production behaviour, which would have destroyed phase A's behaviour-preservation proof. The modulo is preserved as-is with a comment at `generator.py`. It deserves its own change, checked against the SRD.
 
 ## Self-Review
 

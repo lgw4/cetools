@@ -1,6 +1,5 @@
 from collections import Counter
 
-from cetools.engine.dice import RandomDiceRoller
 from cetools.engine.mishaps import (
     INJURY_TABLE,
     SURVIVAL_MISHAPS_TABLE,
@@ -8,7 +7,7 @@ from cetools.engine.mishaps import (
     MishapEntry,
     resolve_survival_mishap,
 )
-from conftest import SequenceRoller
+from cetools.engine.rolls import RandomRolls, RollName, ScriptedRolls
 
 # --- T004: table shape ---
 
@@ -63,8 +62,8 @@ def test_injury_table_rows_match_data_model() -> None:
 def test_mishap_roll_2_is_honorable_discharge_no_debt() -> None:
     characteristics = {"Strength": 8, "Dexterity": 8, "Endurance": 8}
     before = dict(characteristics)
-    roller = SequenceRoller([2], default=6)
-    outcome, debt = resolve_survival_mishap(roller, characteristics)
+    rolls = ScriptedRolls(d6={RollName.MISHAP: 2})
+    outcome, debt = resolve_survival_mishap(rolls, characteristics)
     assert outcome.roll == 2
     assert outcome.discharge_type == "honorable"
     assert outcome.imprisoned is False
@@ -77,8 +76,8 @@ def test_mishap_roll_2_is_honorable_discharge_no_debt() -> None:
 def test_mishap_roll_3_is_honorable_discharge_with_legal_debt() -> None:
     characteristics = {"Strength": 8, "Dexterity": 8, "Endurance": 8}
     before = dict(characteristics)
-    roller = SequenceRoller([3], default=6)
-    outcome, debt = resolve_survival_mishap(roller, characteristics)
+    rolls = ScriptedRolls(d6={RollName.MISHAP: 3})
+    outcome, debt = resolve_survival_mishap(rolls, characteristics)
     assert outcome.roll == 3
     assert outcome.discharge_type == "honorable"
     assert outcome.imprisoned is False
@@ -90,8 +89,8 @@ def test_mishap_roll_3_is_honorable_discharge_with_legal_debt() -> None:
 
 def test_mishap_roll_4_is_dishonorable_discharge_not_imprisoned() -> None:
     characteristics = {"Strength": 8, "Dexterity": 8, "Endurance": 8}
-    roller = SequenceRoller([4], default=6)
-    outcome, debt = resolve_survival_mishap(roller, characteristics)
+    rolls = ScriptedRolls(d6={RollName.MISHAP: 4})
+    outcome, debt = resolve_survival_mishap(rolls, characteristics)
     assert outcome.roll == 4
     assert outcome.discharge_type == "dishonorable"
     assert outcome.imprisoned is False
@@ -100,8 +99,8 @@ def test_mishap_roll_4_is_dishonorable_discharge_not_imprisoned() -> None:
 
 def test_mishap_roll_5_is_dishonorable_discharge_imprisoned() -> None:
     characteristics = {"Strength": 8, "Dexterity": 8, "Endurance": 8}
-    roller = SequenceRoller([5], default=6)
-    outcome, debt = resolve_survival_mishap(roller, characteristics)
+    rolls = ScriptedRolls(d6={RollName.MISHAP: 5})
+    outcome, debt = resolve_survival_mishap(rolls, characteristics)
     assert outcome.roll == 5
     assert outcome.discharge_type == "dishonorable"
     assert outcome.imprisoned is True
@@ -112,11 +111,15 @@ def test_mishap_roll_5_is_dishonorable_discharge_imprisoned() -> None:
 
 
 def test_mishap_roll_6_injury_row_2_reduces_one_physical_stat_only() -> None:
-    # mishap roll=6 -> 1 injury roll; injury roll=2 (all-3 candidates, primary_dice=1,
-    # secondary_amount=0); candidate pick=1 -> Strength; 1D6 primary amount=3
+    # MISHAP=6 (medical, one injury roll); INJURY=2 -> row 2 (all three physical
+    # stats are candidates, primary_dice=1, secondary_amount=0); INJURY_STAT picks
+    # index 0 -> Strength; INJURY_AMOUNT=3.
     characteristics = {"Strength": 8, "Dexterity": 8, "Endurance": 8}
-    roller = SequenceRoller([6, 2, 1, 3], default=6)
-    outcome, debt = resolve_survival_mishap(roller, characteristics)
+    rolls = ScriptedRolls(
+        d6={RollName.MISHAP: 6, RollName.INJURY: 2, RollName.INJURY_AMOUNT: 3},
+        choices={RollName.INJURY_STAT: 0},
+    )
+    outcome, debt = resolve_survival_mishap(rolls, characteristics)
     assert outcome.roll == 6
     assert outcome.discharge_type == "medical"
     assert outcome.injury_reductions == {"Strength": 3}
@@ -128,11 +131,15 @@ def test_mishap_roll_6_injury_row_2_reduces_one_physical_stat_only() -> None:
 
 
 def test_mishap_roll_6_injury_row_1_reduces_secondary_stats_by_2() -> None:
-    # injury roll=1 (all-3 candidates, primary_dice=1, secondary_amount=2);
-    # candidate pick=1 -> Strength; 1D6 primary amount=3
+    # INJURY=1 -> row 1 (all three physical stats are candidates, primary_dice=1,
+    # secondary_amount=2); INJURY_STAT picks index 0 -> Strength; INJURY_AMOUNT=3,
+    # so Dexterity and Endurance are the secondaries and each lose 2.
     characteristics = {"Strength": 8, "Dexterity": 8, "Endurance": 8}
-    roller = SequenceRoller([6, 1, 1, 3], default=6)
-    outcome, debt = resolve_survival_mishap(roller, characteristics)
+    rolls = ScriptedRolls(
+        d6={RollName.MISHAP: 6, RollName.INJURY: 1, RollName.INJURY_AMOUNT: 3},
+        choices={RollName.INJURY_STAT: 0},
+    )
+    outcome, debt = resolve_survival_mishap(rolls, characteristics)
     assert outcome.injury_reductions == {"Strength": 3, "Dexterity": 2, "Endurance": 2}
     assert characteristics["Strength"] == 5
     assert characteristics["Dexterity"] == 6
@@ -140,11 +147,15 @@ def test_mishap_roll_6_injury_row_1_reduces_secondary_stats_by_2() -> None:
 
 
 def test_mishap_roll_6_injury_row_3_candidate_pick_excludes_endurance() -> None:
-    # injury roll=3 (candidates=Strength/Dexterity only, primary_fixed=2, no roll for amount);
-    # candidate pick roll(2)=2 -> Dexterity (never Endurance, since it's not a candidate)
+    # INJURY=3 -> row 3 (candidates are Strength/Dexterity only, primary_fixed=2,
+    # so no INJURY_AMOUNT roll); INJURY_STAT picks index 1 of that two-item list ->
+    # Dexterity. Endurance can never be picked here: it is not a candidate.
     characteristics = {"Strength": 8, "Dexterity": 8, "Endurance": 8}
-    roller = SequenceRoller([6, 3, 2], default=6)
-    outcome, debt = resolve_survival_mishap(roller, characteristics)
+    rolls = ScriptedRolls(
+        d6={RollName.MISHAP: 6, RollName.INJURY: 3},
+        choices={RollName.INJURY_STAT: 1},
+    )
+    outcome, debt = resolve_survival_mishap(rolls, characteristics)
     assert outcome.injury_reductions == {"Dexterity": 2}
     assert characteristics["Dexterity"] == 6
     assert characteristics["Strength"] == 8
@@ -155,11 +166,14 @@ def test_mishap_roll_6_injury_row_3_candidate_pick_excludes_endurance() -> None:
 
 
 def test_mishap_roll_1_applies_lower_of_two_injury_rolls() -> None:
-    # mishap roll=1 -> 2 injury rolls: 5 then 2 -> min=2 -> row 2 applies, not row 5
-    # candidate pick=1 -> Strength; 1D6 primary amount=4
+    # MISHAP=1 -> two INJURY rolls: 5 then 2, so the lower (2) applies, not row 5.
+    # INJURY_STAT picks index 0 -> Strength; INJURY_AMOUNT=4.
     characteristics = {"Strength": 8, "Dexterity": 8, "Endurance": 8}
-    roller = SequenceRoller([1, 5, 2, 1, 4], default=6)
-    outcome, debt = resolve_survival_mishap(roller, characteristics)
+    rolls = ScriptedRolls(
+        d6={RollName.MISHAP: 1, RollName.INJURY: [5, 2], RollName.INJURY_AMOUNT: 4},
+        choices={RollName.INJURY_STAT: 0},
+    )
+    outcome, debt = resolve_survival_mishap(rolls, characteristics)
     assert outcome.roll == 1
     assert outcome.discharge_type == "none"
     assert outcome.injury_reductions == {"Strength": 4}
@@ -172,11 +186,20 @@ def test_mishap_roll_1_applies_lower_of_two_injury_rolls() -> None:
 
 
 def test_injury_crisis_restores_zeroed_stat_to_one_and_charges_debt() -> None:
-    # injury roll=2 (primary_dice=1, secondary=0); candidate pick=1 -> Strength;
-    # 1D6 primary amount=6 -> Strength 2 - 6 -> clamped to 0 -> crisis; crisis roll=3 -> Cr30,000
+    # INJURY=2 -> row 2 (primary_dice=1, secondary_amount=0); INJURY_STAT picks
+    # index 0 -> Strength; INJURY_AMOUNT=6 drives Strength 2 - 6 to 0 -> crisis;
+    # INJURY_DEBT=3 -> Cr30,000.
     characteristics = {"Strength": 2, "Dexterity": 8, "Endurance": 8}
-    roller = SequenceRoller([6, 2, 1, 6, 3], default=6)
-    outcome, debt = resolve_survival_mishap(roller, characteristics)
+    rolls = ScriptedRolls(
+        d6={
+            RollName.MISHAP: 6,
+            RollName.INJURY: 2,
+            RollName.INJURY_AMOUNT: 6,
+            RollName.INJURY_DEBT: 3,
+        },
+        choices={RollName.INJURY_STAT: 0},
+    )
+    outcome, debt = resolve_survival_mishap(rolls, characteristics)
     assert characteristics["Strength"] == 1
     assert outcome.injury_crisis is True
     assert debt == 30_000
@@ -186,12 +209,21 @@ def test_injury_crisis_restores_zeroed_stat_to_one_and_charges_debt() -> None:
 
 
 def test_injury_crisis_zeroing_two_stats_charges_only_one_debt() -> None:
-    # injury roll=1 (primary_dice=1, secondary_amount=2); candidate pick=1 -> Strength
-    # (so Dexterity/Endurance are the secondaries); both already low enough to be zeroed
-    # by the -2 secondary reduction. crisis roll=1 -> Cr10,000 (charged once, not twice).
+    # INJURY=1 -> row 1 (primary_dice=1, secondary_amount=2); INJURY_STAT picks
+    # index 0 -> Strength, so Dexterity/Endurance are the secondaries and both are
+    # already low enough to be zeroed by the -2. INJURY_DEBT=1 -> Cr10,000, charged
+    # once and not twice.
     characteristics = {"Strength": 8, "Dexterity": 1, "Endurance": 1}
-    roller = SequenceRoller([6, 1, 1, 3, 1], default=6)
-    outcome, debt = resolve_survival_mishap(roller, characteristics)
+    rolls = ScriptedRolls(
+        d6={
+            RollName.MISHAP: 6,
+            RollName.INJURY: 1,
+            RollName.INJURY_AMOUNT: 3,
+            RollName.INJURY_DEBT: 1,
+        },
+        choices={RollName.INJURY_STAT: 0},
+    )
+    outcome, debt = resolve_survival_mishap(rolls, characteristics)
     assert characteristics["Dexterity"] == 1
     assert characteristics["Endurance"] == 1
     assert outcome.injury_crisis is True
@@ -204,12 +236,15 @@ def test_injury_crisis_zeroing_two_stats_charges_only_one_debt() -> None:
 
 def test_injury_on_already_zero_stat_does_not_trigger_crisis() -> None:
     # Strength is already 0 (e.g. from prior _apply_aging) before this mishap's
-    # injury; injury roll=2 (primary_dice=1, secondary=0); candidate pick=1 ->
-    # Strength; 1D6 primary amount=3 -> Strength stays at 0 (not driven there by
-    # this injury), so no crisis should fire and the stat is left as-is.
+    # injury. INJURY=2 -> row 2 (primary_dice=1, secondary_amount=0); INJURY_STAT
+    # picks index 0 -> Strength; INJURY_AMOUNT=3 leaves Strength at 0 (this injury
+    # did not drive it there), so no crisis fires and the stat is left as-is.
     characteristics = {"Strength": 0, "Dexterity": 8, "Endurance": 8}
-    roller = SequenceRoller([6, 2, 1, 3], default=6)
-    outcome, debt = resolve_survival_mishap(roller, characteristics)
+    rolls = ScriptedRolls(
+        d6={RollName.MISHAP: 6, RollName.INJURY: 2, RollName.INJURY_AMOUNT: 3},
+        choices={RollName.INJURY_STAT: 0},
+    )
+    outcome, debt = resolve_survival_mishap(rolls, characteristics)
     assert outcome.injury_reductions == {"Strength": 3}
     assert characteristics["Strength"] == 0
     assert outcome.injury_crisis is False
@@ -220,10 +255,14 @@ def test_injury_on_already_zero_stat_does_not_trigger_crisis() -> None:
 
 
 def test_resolve_survival_mishap_mutates_characteristics_in_place() -> None:
+    # MISHAP=6 -> INJURY=2 -> Strength (INJURY_STAT index 0) loses INJURY_AMOUNT=3.
     characteristics = {"Strength": 8, "Dexterity": 8, "Endurance": 8}
-    roller = SequenceRoller([6, 2, 1, 3], default=6)
+    rolls = ScriptedRolls(
+        d6={RollName.MISHAP: 6, RollName.INJURY: 2, RollName.INJURY_AMOUNT: 3},
+        choices={RollName.INJURY_STAT: 0},
+    )
     same_dict = characteristics
-    resolve_survival_mishap(roller, characteristics)
+    resolve_survival_mishap(rolls, characteristics)
     assert characteristics is same_dict
     assert characteristics["Strength"] == 5
 
@@ -232,11 +271,11 @@ def test_resolve_survival_mishap_mutates_characteristics_in_place() -> None:
 
 
 def test_mishap_roll_distribution_within_ten_percent_of_uniform() -> None:
-    roller = RandomDiceRoller()
+    rolls = RandomRolls()
     results = []
     for _ in range(10_000):
         characteristics = {"Strength": 10, "Dexterity": 10, "Endurance": 10}
-        results.append(resolve_survival_mishap(roller, characteristics))
+        results.append(resolve_survival_mishap(rolls, characteristics))
     counts = Counter(outcome.roll for outcome, _debt in results)
     for roll in range(1, 7):
         assert 1500 <= counts[roll] <= 1834, f"roll {roll} count {counts[roll]} out of tolerance"

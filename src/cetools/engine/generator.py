@@ -3,7 +3,6 @@ from __future__ import annotations
 from cetools.engine import mishaps
 from cetools.engine.careers.base import Career
 from cetools.engine.careers.registry import CAREER_REGISTRY, DRAFT_TABLE
-from cetools.engine.dice import DiceRoller, as_rolls
 from cetools.engine.models import (
     STAT_ABBREV,
     STAT_NAMES,
@@ -17,7 +16,7 @@ from cetools.engine.models import (
 from cetools.engine.names import generate_name
 from cetools.engine.pseudohex import encode_upp
 from cetools.engine.psionics import roll_psionics
-from cetools.engine.rolls import RollName, Rolls
+from cetools.engine.rolls import RandomRolls, RollName, Rolls
 
 _PHYSICAL_STATS = ("Strength", "Dexterity", "Endurance")
 
@@ -70,10 +69,9 @@ def _dm(characteristics: dict[str, int], stat: str) -> int:
 def _draw_distinct(
     pool: tuple[str, ...],
     count: int,
-    roller: "DiceRoller | Rolls",
+    rolls: Rolls,
     exclude: tuple[str, ...] = (),
 ) -> list[str]:
-    rolls = as_rolls(roller)
     remaining = [skill for skill in pool if skill not in exclude]
     chosen: list[str] = []
     for _ in range(min(count, len(remaining))):
@@ -84,9 +82,8 @@ def _draw_distinct(
 
 
 def _grant_background_skills(
-    characteristics: dict[str, int], skills: dict[str, int], roller: "DiceRoller | Rolls"
+    characteristics: dict[str, int], skills: dict[str, int], rolls: Rolls
 ) -> None:
-    rolls = as_rolls(roller)
     count = max(0, 3 + characteristic_modifier(characteristics.get("Education", 0)))
     homeworld_count = min(2, count)
     education_count = count - homeworld_count
@@ -184,9 +181,8 @@ def _muster_out(
     rank: int,
     skills: dict[str, int],
     characteristics: dict[str, int],
-    roller: "DiceRoller | Rolls",
+    rolls: Rolls,
 ) -> list[Benefit]:
-    rolls = as_rolls(roller)
     bonus_rolls = _RANK_BONUS_ROLLS.get(rank, 0)
     total_rolls = terms_served + bonus_rolls
     cash_rolls_used = 0
@@ -226,10 +222,9 @@ def _muster_out(
 def _roll_material_benefit(
     career: Career,
     material_dm: int,
-    roller: "DiceRoller | Rolls",
+    rolls: Rolls,
     granted_names: set[str],
 ) -> str:
-    rolls = as_rolls(roller)
     mat_max = len(career.material_benefits) - 1
     for _ in range(_MAX_MATERIAL_REROLLS):
         idx = max(0, min(mat_max, rolls.d6(RollName.MATERIAL_BENEFIT) + material_dm - 1))
@@ -237,7 +232,7 @@ def _roll_material_benefit(
         if name in _UNIQUE_MATERIAL_BENEFITS and name in granted_names:
             continue
         return name
-    # A degenerate roller (e.g. a fixed-value test roller) that keeps landing
+    # A degenerate script (e.g. a ScriptedRolls fixed on one value) that keeps landing
     # on an already-granted once-only benefit would otherwise loop forever.
     # Fall back deterministically to the first table entry that is not an
     # already-granted once-only benefit — every real career table has one.
@@ -267,13 +262,13 @@ def _pension(terms_served: int) -> int | None:
 
 def generate_character(
     career: Career,
-    roller: "DiceRoller | Rolls | None" = None,
+    rolls: Rolls | None = None,
     preset_characteristics: dict[str, int] | None = None,
     bypass_qualification: bool = False,
     hard_max_terms: bool = False,
     drafted: bool = False,
 ) -> Character | GenerationFailure:
-    rolls = as_rolls(roller)
+    rolls = rolls or RandomRolls()
 
     if preset_characteristics is not None:
         missing = [s for s in STAT_NAMES if s not in preset_characteristics]
@@ -462,10 +457,8 @@ def generate_character(
     )
 
 
-def roll_until_qualified(
-    career: Career, roller: "DiceRoller | Rolls | None" = None
-) -> dict[str, int]:
-    rolls = as_rolls(roller)
+def roll_until_qualified(career: Career, rolls: Rolls | None = None) -> dict[str, int]:
+    rolls = rolls or RandomRolls()
     while True:
         characteristics = {stat: rolls.two_d6(RollName.CHARACTERISTIC) for stat in STAT_NAMES}
         if career.qualification_stat is None or career.qualification_target is None:
@@ -474,8 +467,8 @@ def roll_until_qualified(
             return characteristics
 
 
-def draft_character(roller: "DiceRoller | Rolls | None" = None) -> Character | GenerationFailure:
-    rolls = as_rolls(roller)
+def draft_character(rolls: Rolls | None = None) -> Character | GenerationFailure:
+    rolls = rolls or RandomRolls()
     name = DRAFT_TABLE[rolls.d6(RollName.DRAFT) - 1]
     career = CAREER_REGISTRY.get(name)
     if career is None:
@@ -485,14 +478,14 @@ def draft_character(roller: "DiceRoller | Rolls | None" = None) -> Character | G
 
 def generate_career_character(
     career: Career,
-    roller: "DiceRoller | Rolls | None" = None,
+    rolls: Rolls | None = None,
     drafted: bool = False,
 ) -> Character | GenerationFailure:
-    rolls = as_rolls(roller)
+    rolls = rolls or RandomRolls()
     characteristics = roll_until_qualified(career, rolls)
     return generate_character(
         career,
-        roller=rolls,
+        rolls=rolls,
         preset_characteristics=characteristics,
         bypass_qualification=True,
         hard_max_terms=True,
@@ -501,10 +494,10 @@ def generate_career_character(
 
 
 def random_career_character(
-    roller: "DiceRoller | Rolls | None" = None,
+    rolls: Rolls | None = None,
     drafted: bool = False,
 ) -> Character | GenerationFailure:
-    rolls = as_rolls(roller)
+    rolls = rolls or RandomRolls()
     careers = sorted(CAREER_REGISTRY.values(), key=lambda c: c.name)
     career = rolls.choose(careers, RollName.CAREER)
     return generate_career_character(career, rolls, drafted=drafted)

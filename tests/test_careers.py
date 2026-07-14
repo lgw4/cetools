@@ -4,30 +4,29 @@ import os
 from cetools.engine.careers.navy import NAVY_CAREER
 from cetools.engine.generator import generate_character
 from cetools.engine.models import Character, GenerationFailure
-from conftest import ConstantRoller, SmartRoller
+from cetools.engine.rolls import RollName, ScriptedRolls
 
 
 def test_extensibility_stub_career_returns_character_or_failure() -> None:
     """A non-Navy Career passes through generate_character unchanged."""
     stub = dataclasses.replace(NAVY_CAREER, name="Scout")
-    roller = SmartRoller(two_dice_value=12, one_die_value=1)
-    result = generate_character(stub, roller=roller)
+    result = generate_character(stub, rolls=ScriptedRolls())
     assert isinstance(result, (Character, GenerationFailure))
 
 
 def test_extensibility_failure_path_with_stub_career() -> None:
-    """A stub career with always-low rolls triggers enlistment failure."""
+    """A stub career whose qualification check fails triggers enlistment failure."""
     stub = dataclasses.replace(NAVY_CAREER, name="Scout")
-    roller = ConstantRoller(1)
-    result = generate_character(stub, roller=roller)
+    rolls = ScriptedRolls(checks={RollName.QUALIFICATION: False})
+    result = generate_character(stub, rolls=rolls)
     assert isinstance(result, GenerationFailure)
 
 
 def test_extensibility_result_uses_stub_career_name() -> None:
     """Character or failure reason reflects the stub career name, not 'Navy'."""
     stub = dataclasses.replace(NAVY_CAREER, name="Scout")
-    roller = ConstantRoller(1)
-    result = generate_character(stub, roller=roller)
+    rolls = ScriptedRolls(checks={RollName.QUALIFICATION: False})
+    result = generate_character(stub, rolls=rolls)
     assert isinstance(result, GenerationFailure)
     assert "Scout" in result.reason
     assert "Navy" not in result.reason
@@ -36,8 +35,9 @@ def test_extensibility_result_uses_stub_career_name() -> None:
 def test_extensibility_success_character_career_name() -> None:
     """Successful generation reflects the stub career name."""
     stub = dataclasses.replace(NAVY_CAREER, name="Scout")
-    roller = SmartRoller(two_dice_value=12, one_die_value=1)
-    result = generate_character(stub, roller=roller)
+    # Default checks all pass, so qualification and survival succeed and the
+    # run always ends in a Character.
+    result = generate_character(stub, rolls=ScriptedRolls())
     assert isinstance(result, Character)
     assert result.career == "Scout"
 

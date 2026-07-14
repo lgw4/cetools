@@ -22,18 +22,27 @@ from cetools.engine.generator import (
     roll_until_qualified,
 )
 from cetools.engine.models import STAT_NAMES, Character, GenerationFailure
-from conftest import ConstantRoller, SequenceRoller, SmartRoller
+from cetools.engine.rolls import RollName, ScriptedRolls
 
 
-class _MaxFaceRoller:
-    """Always rolls the top face of whatever die it is asked for."""
+def _rolls(**overrides) -> ScriptedRolls:
+    """A career where nothing goes wrong.
 
-    def roll(self, sides: int, count: int = 1) -> int:
-        return sides
+    Every check passes, every table roll lands on row 1, every choice takes the
+    head of the list, every 2D6 is 10. Psionics is opted out (the gate fails) so
+    that tests about careers are not perturbed by psionic rolls.
+
+    Override any of it by name — a test says only what it is actually about.
+    """
+    checks = {RollName.PSI_GATE: False}
+    checks.update(overrides.pop("checks", {}))
+    params = dict(default_check=True, default_two_d6=10, default_d6=1, default_choice=0)
+    params.update(overrides)
+    return ScriptedRolls(checks=checks, **params)
 
 
 # --- Check helper ---
-# The 2D6 + DM >= target rule now lives on the Rolls seam; its tests moved to
+# The 2D6 + DM >= target rule now lives on the Rolls seam; its tests are in
 # tests/test_rolls.py. What remains here is the generator's own DM lookup, which
 # is exercised end-to-end by the qualification and survival tests below.
 
@@ -42,17 +51,14 @@ class _MaxFaceRoller:
 
 
 def test_enlistment_failure_returns_generation_failure() -> None:
-    # ConstantRoller(1): all characteristics = 1, Int modifier = -2,
-    # qualification roll = 1 + (-2) = -1 < 6 → fail
-    result = generate_character(NAVY_CAREER, roller=ConstantRoller(1))
+    result = generate_character(NAVY_CAREER, rolls=_rolls(checks={RollName.QUALIFICATION: False}))
     assert isinstance(result, GenerationFailure)
     assert result.exit_code == 1
     assert "enlist" in result.reason.lower() or "navy" in result.reason.lower()
 
 
 def test_enlistment_pass_returns_character() -> None:
-    # SmartRoller(10, 1): 2D6 = 10 (passes all checks), 1D6 = 1 (index 0 of tables)
-    result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 1))
+    result = generate_character(NAVY_CAREER, rolls=_rolls())
     assert isinstance(result, Character)
 
 
@@ -60,7 +66,7 @@ def test_enlistment_pass_returns_character() -> None:
 
 
 def test_character_upp_is_six_pseudohex_chars() -> None:
-    result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 1))
+    result = generate_character(NAVY_CAREER, rolls=_rolls())
     assert isinstance(result, Character)
     assert len(result.upp) == 6
     assert "I" not in result.upp
@@ -71,7 +77,7 @@ def test_character_upp_is_six_pseudohex_chars() -> None:
 
 
 def test_generated_character_has_non_empty_two_word_name() -> None:
-    result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 1))
+    result = generate_character(NAVY_CAREER, rolls=_rolls())
     assert isinstance(result, Character)
     assert result.name
     assert len(result.name.split(" ")) >= 2
@@ -81,24 +87,29 @@ def test_generated_character_has_non_empty_two_word_name() -> None:
 
 
 def test_survival_fail_returns_character_with_mishap() -> None:
-    # 6 characteristics (10 each) + 1 qualification (10) → pass enlistment
-    # then survival roll = 1 → 1 + Int_dm(10) = 1 + 1 = 2 < 5 → mishap in term 1
-    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 1], default=1)
-    result = generate_character(NAVY_CAREER, roller=roller)
+    result = generate_character(NAVY_CAREER, rolls=_rolls(checks={RollName.SURVIVAL: False}))
     assert isinstance(result, Character)
     assert result.mishap is not None
     assert result.terms[-1].survived is False
 
 
 def test_mishap_ended_character_still_rolls_psionics() -> None:
-    # A dishonorable discharge strips benefits, yet psionics is still rolled on
-    # the sole return path. This roller forces a term-1 dishonorable mishap
-    # (survival fail -> mishap roll 4), then supplies a passing gate roll
-    # (11 >= 11) and a Psi roll of 9: psi_strength = max(0, 9 - 0) = 9. Proves the
-    # eligibility gate and Psi roll run regardless of how the career ended — a
-    # skipped psionics step would leave psi_strength 0 and fail this test.
-    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 4, 6, 6, 11, 9], default=6)
-    result = generate_character(NAVY_CAREER, roller=roller)
+    # A dishonorable discharge (mishap 4) strips benefits, yet psionics is still
+    # rolled on the sole return path. Psi 9 gives PsiDM +1, and the talent checks
+    # are scripted highest-DM-first: Telepathy and Clairvoyance land, the rest do
+    # not. A skipped psionics step would leave psi_strength 0 and fail this test.
+    result = generate_character(
+        NAVY_CAREER,
+        rolls=_rolls(
+            checks={
+                RollName.SURVIVAL: False,
+                RollName.PSI_GATE: True,
+                RollName.PSI_TALENT: [True, True, False, False, False],
+            },
+            two_d6={RollName.PSI_STRENGTH: 9},
+            d6={RollName.MISHAP: 4},
+        ),
+    )
     assert isinstance(result, Character)
     assert result.mishap is not None
     assert result.mishap.discharge_type == "dishonorable"
@@ -108,12 +119,17 @@ def test_mishap_ended_character_still_rolls_psionics() -> None:
 
 
 def test_gate_failure_yields_non_psionic_character() -> None:
-    # Minimal pair with test_mishap_ended_character_still_rolls_psionics: identical
-    # roller except the gate roll is 10 (< 11) instead of 11, so the eligibility
-    # gate fails end-to-end and the character is non-psionic (psi 0, no talents)
-    # even though generation ran through the psionics step.
-    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 4, 6, 6, 10], default=6)
-    result = generate_character(NAVY_CAREER, roller=roller)
+    # Minimal pair with the test above: same dishonorable mishap, but the
+    # eligibility gate fails, so the character is non-psionic even though
+    # generation ran through the psionics step.
+    result = generate_character(
+        NAVY_CAREER,
+        rolls=_rolls(
+            checks={RollName.SURVIVAL: False, RollName.PSI_GATE: False},
+            two_d6={RollName.PSI_STRENGTH: 9},
+            d6={RollName.MISHAP: 4},
+        ),
+    )
     assert isinstance(result, Character)
     assert result.psi_strength == 0
     assert result.talents == {}
@@ -122,13 +138,22 @@ def test_gate_failure_yields_non_psionic_character() -> None:
 # --- T010: one integration test per SURVIVAL_MISHAPS_TABLE roll ---
 
 
-def test_mishap_roll_1_injury_no_discharge() -> None:
-    # 7 passing values (6 characteristics + qualification, all 10) then a failing
-    # survival roll (2), mishap-table roll (1), two injury rolls (6, 6 -> both land
-    # on injury row 6, "no permanent effect", so no candidate/amount roll follows).
-    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 1, 6, 6], default=6)
-    result = generate_character(NAVY_CAREER, roller=roller)
+def _mishap_character(mishap: int, injury: int | None = None) -> Character:
+    """A Navy character whose first term ends in the given mishap-table roll."""
+    d6 = {RollName.MISHAP: mishap}
+    if injury is not None:
+        d6[RollName.INJURY] = injury
+    result = generate_character(
+        NAVY_CAREER, rolls=_rolls(checks={RollName.SURVIVAL: False}, d6=d6)
+    )
     assert isinstance(result, Character)
+    return result
+
+
+def test_mishap_roll_1_injury_no_discharge() -> None:
+    # Mishap 1 takes two injury rolls and uses the lower; both land on injury row
+    # 6, "no permanent effect".
+    result = _mishap_character(mishap=1, injury=6)
     assert result.mishap.roll == 1
     assert result.mishap.discharge_type == "none"
     assert result.mishap.imprisoned is False
@@ -139,9 +164,7 @@ def test_mishap_roll_1_injury_no_discharge() -> None:
 
 
 def test_mishap_roll_2_honorable_discharge() -> None:
-    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 2], default=6)
-    result = generate_character(NAVY_CAREER, roller=roller)
-    assert isinstance(result, Character)
+    result = _mishap_character(mishap=2)
     assert result.mishap.roll == 2
     assert result.mishap.discharge_type == "honorable"
     assert result.mishap.imprisoned is False
@@ -150,9 +173,7 @@ def test_mishap_roll_2_honorable_discharge() -> None:
 
 
 def test_mishap_roll_3_honorable_discharge_with_legal_debt() -> None:
-    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 3], default=6)
-    result = generate_character(NAVY_CAREER, roller=roller)
-    assert isinstance(result, Character)
+    result = _mishap_character(mishap=3)
     assert result.mishap.roll == 3
     assert result.mishap.discharge_type == "honorable"
     assert result.mishap.imprisoned is False
@@ -161,9 +182,7 @@ def test_mishap_roll_3_honorable_discharge_with_legal_debt() -> None:
 
 
 def test_mishap_roll_4_dishonorable_discharge_not_imprisoned() -> None:
-    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 4], default=6)
-    result = generate_character(NAVY_CAREER, roller=roller)
-    assert isinstance(result, Character)
+    result = _mishap_character(mishap=4)
     assert result.mishap.roll == 4
     assert result.mishap.discharge_type == "dishonorable"
     assert result.mishap.imprisoned is False
@@ -174,9 +193,7 @@ def test_mishap_roll_4_dishonorable_discharge_not_imprisoned() -> None:
 def test_mishap_roll_5_dishonorable_discharge_imprisoned() -> None:
     # Outcome 5 adds an extra 4 years for imprisonment on top of the mishap
     # term's usual +2 (research.md D9): age == 18 + 2 + 4 == 24.
-    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 5], default=6)
-    result = generate_character(NAVY_CAREER, roller=roller)
-    assert isinstance(result, Character)
+    result = _mishap_character(mishap=5)
     assert result.mishap.roll == 5
     assert result.mishap.discharge_type == "dishonorable"
     assert result.mishap.imprisoned is True
@@ -185,10 +202,8 @@ def test_mishap_roll_5_dishonorable_discharge_imprisoned() -> None:
 
 
 def test_mishap_roll_6_medical_discharge_with_injury() -> None:
-    # Mishap-table roll 6, single injury roll of 6 -> injury row 6, no effect.
-    roller = SequenceRoller([10] * 6 + [6] * 4 + [10, 2, 6, 6], default=6)
-    result = generate_character(NAVY_CAREER, roller=roller)
-    assert isinstance(result, Character)
+    # Mishap 6 takes a single injury roll; row 6 is "no permanent effect".
+    result = _mishap_character(mishap=6, injury=6)
     assert result.mishap.roll == 6
     assert result.mishap.discharge_type == "medical"
     assert result.mishap.imprisoned is False
@@ -201,11 +216,12 @@ def test_mishap_roll_6_medical_discharge_with_injury() -> None:
 def test_draft_character_survival_failure_returns_character_not_failure() -> None:
     # Proves FR-011: draft_character funnels through the same mishap-resolution
     # path as generate_character/generate_career_character, never GenerationFailure.
-    # Draft roll 5 -> Scout; 6 characteristics of 10 qualify immediately
-    # (Intelligence 10 >= 6); survival roll 2 -> 2 + End_dm(10)=1 = 3 < 7 -> fails;
-    # mishap-table roll 2 -> honorable discharge, no injury.
-    roller = SequenceRoller([5, 10, 10, 10, 10, 10, 10] + [6] * 4 + [2, 2], default=6)
-    result = draft_character(roller=roller)
+    result = draft_character(
+        rolls=_rolls(
+            checks={RollName.SURVIVAL: False},
+            d6={RollName.DRAFT: 5, RollName.MISHAP: 2},
+        )
+    )
     assert isinstance(result, Character)
     assert result.mishap is not None
 
@@ -214,8 +230,9 @@ def test_draft_character_survival_failure_returns_character_not_failure() -> Non
 
 
 def test_seven_term_cap_voluntary_musterout() -> None:
-    # SmartRoller(10, 1): re-enlistment = 10 (passes 5+, not 12) → voluntary muster at term 7
-    result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 1))
+    # Re-enlistment of 10 passes Navy's target of 5 every term but is never a
+    # natural 12, so the career ends by voluntary muster-out at the 7-term cap.
+    result = generate_character(NAVY_CAREER, rolls=_rolls())
     assert isinstance(result, Character)
     assert result.terms_served == 7
 
@@ -224,9 +241,7 @@ def test_seven_term_cap_voluntary_musterout() -> None:
 
 
 def test_natural_12_at_term_7_forces_term_8() -> None:
-    # SmartRoller(12, 1): re-enlistment at term 7 = 12 → mandatory term 8,
-    # then always muster out after term 8
-    result = generate_character(NAVY_CAREER, roller=SmartRoller(12, 1))
+    result = generate_character(NAVY_CAREER, rolls=_rolls(two_d6={RollName.REENLISTMENT: 12}))
     assert isinstance(result, Character)
     assert result.terms_served == 8
 
@@ -235,7 +250,7 @@ def test_natural_12_at_term_7_forces_term_8() -> None:
 
 
 def test_first_term_basic_training_grants_all_six_service_skills() -> None:
-    result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 1))
+    result = generate_character(NAVY_CAREER, rolls=_rolls())
     assert isinstance(result, Character)
     for skill_name in NAVY_CAREER.service_skills:
         assert (
@@ -247,7 +262,7 @@ def test_first_term_basic_training_grants_all_six_service_skills() -> None:
 
 
 def test_character_has_non_empty_skills() -> None:
-    result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 1))
+    result = generate_character(NAVY_CAREER, rolls=_rolls())
     assert isinstance(result, Character)
     assert len(result.skills) > 0
 
@@ -255,11 +270,55 @@ def test_character_has_non_empty_skills() -> None:
 # --- Aging ---
 
 
+@pytest.mark.parametrize(
+    ("aging", "reenlistment", "dexterity", "endurance", "intelligence"),
+    [
+        ([4], 10, 12, 12, 12),  # term 4: 4-4 = 0   -> Str-1
+        ([3], 10, 11, 12, 12),  # term 4: 3-4 = -1  -> Str-1, Dex-1
+        ([2], 10, 11, 11, 12),  # term 4: 2-4 = -2  -> Str/Dex/End -1
+        ([12, 2], 10, 11, 11, 12),  # term 5: 2-5 = -3  -> Str-2, Dex-1, End-1
+        ([12, 12, 2], 10, 10, 11, 12),  # term 6: 2-6 = -4  -> Str-2, Dex-2, End-1
+        ([12, 12, 12, 2], 10, 10, 10, 12),  # term 7: 2-7 = -5  -> Str/Dex/End -2
+        ([12, 12, 12, 12, 2], 12, 10, 10, 11),  # term 8: 2-8 = -6  -> and Int-1
+    ],
+    ids=["0", "-1", "-2", "-3", "-4", "-5", "-6"],
+)
+def test_aging_ladder_reduces_characteristics(
+    aging: list[int],
+    reenlistment: int,
+    dexterity: int,
+    endurance: int,
+    intelligence: int,
+) -> None:
+    # Ageing starts once age reaches 34, i.e. at the end of term 4, and the rung
+    # of the ladder is (2D6 - terms_served). Every characteristic starts at 12;
+    # ageing is the only thing that touches Dexterity, Endurance and Intelligence
+    # under this script (skill rolls only ever grant "+1 Str", so Strength is not
+    # asserted on here). A 2D6 of 12 in the earlier terms reduces nothing.
+    #
+    # The last rung is only reachable in a 8th term: 2D6 bottoms out at 2, and
+    # 2 - 7 is only -5. A natural 12 on re-enlistment forces that extra term.
+    result = generate_character(
+        NAVY_CAREER,
+        rolls=_rolls(
+            two_d6={
+                RollName.CHARACTERISTIC: 12,
+                RollName.AGING: aging,
+                RollName.REENLISTMENT: reenlistment,
+            }
+        ),
+    )
+    assert isinstance(result, Character)
+    assert result.characteristics["Dexterity"] == dexterity
+    assert result.characteristics["Endurance"] == endurance
+    assert result.characteristics["Intelligence"] == intelligence
+
+
 def test_aging_check_triggers_at_term_4_or_later() -> None:
-    # SmartRoller(10, 1) → 7 terms served, aging starts at term 4
-    # With 2D6=10: aging roll = 10 - terms_served; at term 7 it's 10-7=3 ≥ 1, no reduction
-    # but we confirm the character completes successfully (aging doesn't crash)
-    result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 1))
+    # Aging starts once age reaches 34, i.e. from term 4. With a 2D6 of 10 the
+    # aging roll (10 - terms_served) never drops below 1, so nothing is reduced —
+    # this confirms the aging step runs without disturbing the character.
+    result = generate_character(NAVY_CAREER, rolls=_rolls())
     assert isinstance(result, Character)
     assert result.terms_served >= 4
     assert result.age >= 34
@@ -269,7 +328,7 @@ def test_aging_check_triggers_at_term_4_or_later() -> None:
 
 
 def test_pension_present_at_5_or_more_terms() -> None:
-    result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 1))
+    result = generate_character(NAVY_CAREER, rolls=_rolls())
     assert isinstance(result, Character)
     assert result.terms_served >= 5
     assert result.pension is not None
@@ -277,7 +336,7 @@ def test_pension_present_at_5_or_more_terms() -> None:
 
 
 def test_pension_amount_for_seven_terms() -> None:
-    result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 1))
+    result = generate_character(NAVY_CAREER, rolls=_rolls())
     assert isinstance(result, Character)
     assert result.terms_served == 7
     assert result.pension == 14000
@@ -287,7 +346,7 @@ def test_pension_amount_for_seven_terms() -> None:
 
 
 def test_cash_roll_cap_at_3() -> None:
-    result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 1))
+    result = generate_character(NAVY_CAREER, rolls=_rolls())
     assert isinstance(result, Character)
     cash_benefits = [b for b in result.benefits if b.kind == "cash"]
     assert len(cash_benefits) <= 3
@@ -297,9 +356,9 @@ def test_cash_roll_cap_at_3() -> None:
 
 
 def test_rank_bonus_muster_rolls_applied() -> None:
-    # SmartRoller(10, 1): reaches rank 6 (Commodore) → +3 muster rolls
-    # 7 terms + 3 rank bonus = 10 total benefit rolls
-    result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 1))
+    # Every check passing carries the character to rank 6 (Commodore), which is
+    # worth +3 muster rolls on top of one per term.
+    result = generate_character(NAVY_CAREER, rolls=_rolls())
     assert isinstance(result, Character)
     assert result.rank == 6
     expected_total = result.terms_served + 3  # O6 bonus = 3
@@ -310,20 +369,17 @@ def test_rank_bonus_muster_rolls_applied() -> None:
 
 
 def test_material_benefit_row_7_reachable_at_rank_5_plus() -> None:
-    # Direct unit test of _muster_out (a full generate_character run with a
-    # fixed-value roller would hang once reroll-on-repeat is wired in below, since
-    # a fixed roller can never produce a "different" result). rank=5 -> material_dm=1,
-    # so idx = clamp(roll + 1 - 1) = roll. terms_served=2 + rank-5 bonus_rolls (2) = 4
-    # total rolls: 3 cash (cap) + 1 material. ConstantRoller(6): material die=6 ->
-    # idx=6 -> material_benefits[6] = "Explorers' Society". Without the rank-5+ DM,
+    # rank 5 -> material_dm=1, so idx = clamp(roll + 1 - 1) = roll. A material
+    # roll of 6 lands on idx 6 -> "Explorers' Society". Without the rank-5+ DM,
     # idx would clamp to 5 (High Passage), so this confirms row 7 is reachable.
+    # terms_served=2 + rank-5 bonus (2) = 4 rolls: 3 cash (the cap), 1 material.
     result = _muster_out(
         career=NAVY_CAREER,
         terms_served=2,
         rank=5,
         skills={},
         characteristics={},
-        roller=ConstantRoller(6),
+        rolls=_rolls(d6={RollName.CASH_BENEFIT: 6, RollName.MATERIAL_BENEFIT: 6}),
     )
     assert len(result) == 4
     material_benefits = [b for b in result if b.kind == "material"]
@@ -333,20 +389,16 @@ def test_material_benefit_row_7_reachable_at_rank_5_plus() -> None:
 
 
 def test_muster_out_grants_explorers_society_once_and_rerolls_repeat() -> None:
-    # NAVY_CAREER.material_benefits[6] = "Explorers' Society". rank=5 -> material_dm=1,
-    # so idx = clamp(roll + 1 - 1) = roll. terms_served=3 + rank-5 bonus_rolls (2) = 5
-    # total rolls: 3 cash (any values) + 2 material.
-    # Material roll 1: die=6 -> idx 6 -> "Explorers' Society" (granted).
-    # Material roll 2: die=6 -> idx 6 -> "Explorers' Society" again, but it's already
-    # granted, so it rerolls: die=2 -> idx 2 -> "Weapon" (accepted).
-    roller = SequenceRoller([1, 1, 1, 6, 6, 2], default=6)
+    # rank 5 -> material_dm=1, so idx = roll. Two material rolls: the first 6
+    # grants "Explorers' Society"; the second 6 would repeat it, so the once-only
+    # rule rerolls, and the 2 lands on "Weapon".
     result = _muster_out(
         career=NAVY_CAREER,
         terms_served=3,
         rank=5,
         skills={},
         characteristics={},
-        roller=roller,
+        rolls=_rolls(d6={RollName.MATERIAL_BENEFIT: [6, 6, 2]}),
     )
     assert len(result) == 5  # reroll must not add an extra roll (FR-008)
     material = [b.material_name for b in result if b.kind == "material"]
@@ -357,15 +409,15 @@ def test_muster_out_grants_explorers_society_once_and_rerolls_repeat() -> None:
 
 
 def test_gambling_skill_grants_cash_dm_on_muster_out() -> None:
-    # Direct unit test of _muster_out with a controlled 1D6 roll of 5.
-    # Without Gambling: idx = max(0, min(6, 5+0-1)) = 4 → cash_benefits[4] = 20,000
-    # With Gambling:    idx = max(0, min(6, 5+1-1)) = 5 → cash_benefits[5] = 50,000
+    # A cash roll of 5:
+    #   without Gambling: idx = max(0, min(6, 5+0-1)) = 4 -> cash_benefits[4] = 20,000
+    #   with Gambling:    idx = max(0, min(6, 5+1-1)) = 5 -> cash_benefits[5] = 50,000
     common = dict(
         career=NAVY_CAREER,
         terms_served=1,
         rank=0,
         characteristics={},
-        roller=ConstantRoller(5),
+        rolls=_rolls(d6={RollName.CASH_BENEFIT: 5}),
     )
     without_dm = _muster_out(**common, skills={})
     with_dm = _muster_out(**common, skills={"Gambling": 0})
@@ -380,24 +432,32 @@ def test_gambling_skill_grants_cash_dm_on_muster_out() -> None:
 
 def test_roll_material_benefit_grants_explorers_society_when_not_yet_granted() -> None:
     # NAVY_CAREER.material_benefits[6] = "Explorers' Society". material_dm=1, so
-    # idx = clamp(roll + 1 - 1) = roll; ConstantRoller(6) -> idx 6.
-    name = _roll_material_benefit(NAVY_CAREER, 1, ConstantRoller(6), set())
+    # idx = clamp(roll + 1 - 1) = roll; a roll of 6 -> idx 6.
+    name = _roll_material_benefit(NAVY_CAREER, 1, _rolls(d6={RollName.MATERIAL_BENEFIT: 6}), set())
     assert name == "Explorers' Society"
 
 
 def test_roll_material_benefit_rerolls_once_when_already_granted() -> None:
-    # First die = 6 -> "Explorers' Society", but it's already granted, so it
-    # rerolls: second die = 3 -> idx 3 -> "Mid Passage".
-    roller = SequenceRoller([6, 3], default=6)
-    name = _roll_material_benefit(NAVY_CAREER, 1, roller, {"Explorers' Society"})
+    # First roll 6 -> "Explorers' Society", already granted, so it rerolls:
+    # 3 -> idx 3 -> "Mid Passage".
+    name = _roll_material_benefit(
+        NAVY_CAREER,
+        1,
+        _rolls(d6={RollName.MATERIAL_BENEFIT: [6, 3]}),
+        {"Explorers' Society"},
+    )
     assert name == "Mid Passage"
 
 
 def test_roll_material_benefit_rerolls_repeatedly_until_non_duplicate() -> None:
     # Three more 6s in a row (each still "Explorers' Society", already granted)
     # before a 2 finally lands on idx 2 -> "Weapon".
-    roller = SequenceRoller([6, 6, 6, 2], default=6)
-    name = _roll_material_benefit(NAVY_CAREER, 1, roller, {"Explorers' Society"})
+    name = _roll_material_benefit(
+        NAVY_CAREER,
+        1,
+        _rolls(d6={RollName.MATERIAL_BENEFIT: [6, 6, 6, 2]}),
+        {"Explorers' Society"},
+    )
     assert name == "Weapon"
 
 
@@ -406,7 +466,12 @@ def test_roll_material_benefit_unaffected_for_career_without_explorers_society()
     # exists in this table at all), so the uniqueness check can never match —
     # behavior is identical to before this feature, even when `granted_names`
     # already contains that string. material_dm=1, so idx = clamp(6 + 1 - 1) = 6.
-    name = _roll_material_benefit(AEROSPACE_CAREER, 1, ConstantRoller(6), {"Explorers' Society"})
+    name = _roll_material_benefit(
+        AEROSPACE_CAREER,
+        1,
+        _rolls(d6={RollName.MATERIAL_BENEFIT: 6}),
+        {"Explorers' Society"},
+    )
     assert name == "+1 Soc"
 
 
@@ -414,49 +479,58 @@ def test_roll_material_benefit_unaffected_for_career_without_explorers_society()
 
 
 def test_roll_material_benefit_grants_research_vessel_when_not_yet_granted() -> None:
-    # SCIENTIST_CAREER.material_benefits[6] = "Research Vessel". material_dm=1, so
-    # idx = clamp(6 + 1 - 1) = 6.
-    name = _roll_material_benefit(SCIENTIST_CAREER, 1, ConstantRoller(6), set())
+    name = _roll_material_benefit(
+        SCIENTIST_CAREER, 1, _rolls(d6={RollName.MATERIAL_BENEFIT: 6}), set()
+    )
     assert name == "Research Vessel"
 
 
 def test_roll_material_benefit_rerolls_research_vessel_when_already_granted() -> None:
-    # First die = 6 -> "Research Vessel", already granted, so it rerolls:
-    # second die = 4 -> idx 4 -> "+1 Soc".
-    roller = SequenceRoller([6, 4], default=6)
-    name = _roll_material_benefit(SCIENTIST_CAREER, 1, roller, {"Research Vessel"})
+    # First roll 6 -> "Research Vessel", already granted, so it rerolls:
+    # 4 -> idx 4 -> "+1 Soc".
+    name = _roll_material_benefit(
+        SCIENTIST_CAREER,
+        1,
+        _rolls(d6={RollName.MATERIAL_BENEFIT: [6, 4]}),
+        {"Research Vessel"},
+    )
     assert name == "+1 Soc"
 
 
 def test_roll_material_benefit_grants_courier_vessel_when_not_yet_granted() -> None:
     # SCOUT_CAREER.material_benefits has 6 entries; [5] = "Courier Vessel".
     # material_dm=1, roll 6 -> idx = clamp(6, 0, 5) = 5.
-    name = _roll_material_benefit(SCOUT_CAREER, 1, ConstantRoller(6), set())
+    name = _roll_material_benefit(
+        SCOUT_CAREER, 1, _rolls(d6={RollName.MATERIAL_BENEFIT: 6}), set()
+    )
     assert name == "Courier Vessel"
 
 
 def test_roll_material_benefit_rerolls_courier_vessel_when_already_granted() -> None:
-    # First die = 6 -> idx 5 -> "Courier Vessel", already granted, so it rerolls:
-    # second die = 3 -> idx 3 -> "Mid Passage".
-    roller = SequenceRoller([6, 3], default=6)
-    name = _roll_material_benefit(SCOUT_CAREER, 1, roller, {"Courier Vessel"})
+    name = _roll_material_benefit(
+        SCOUT_CAREER,
+        1,
+        _rolls(d6={RollName.MATERIAL_BENEFIT: [6, 3]}),
+        {"Courier Vessel"},
+    )
     assert name == "Mid Passage"
 
 
-def test_roll_material_benefit_terminates_with_fixed_roller_on_granted_unique() -> None:
-    # ConstantRoller(6) always lands on SCOUT_CAREER.material_benefits[5]
+def test_roll_material_benefit_terminates_with_fixed_script_on_granted_unique() -> None:
+    # A material roll of 6 always lands on SCOUT_CAREER.material_benefits[5]
     # ("Courier Vessel"). With it already granted, the reroll loop would spin
     # forever without a cap; the fallback must return a non-duplicate benefit.
-    name = _roll_material_benefit(SCOUT_CAREER, 1, ConstantRoller(6), {"Courier Vessel"})
+    name = _roll_material_benefit(
+        SCOUT_CAREER,
+        1,
+        _rolls(d6={RollName.MATERIAL_BENEFIT: 6}),
+        {"Courier Vessel"},
+    )
     assert name != "Courier Vessel"
     assert name in SCOUT_CAREER.material_benefits
 
 
 def test_roll_material_benefit_raises_when_no_eligible_benefit_remains() -> None:
-    import dataclasses
-
-    import pytest
-
     # Degenerate career whose entire material table is once-only benefits that
     # are all already granted: the reroll loop exhausts and the fallback finds
     # nothing, so the guard raises a descriptive error instead of a bare
@@ -467,23 +541,23 @@ def test_roll_material_benefit_raises_when_no_eligible_benefit_remains() -> None
     )
     granted = {"Explorers' Society", "Research Vessel", "Courier Vessel"}
     with pytest.raises(RuntimeError, match="no material benefit outside"):
-        _roll_material_benefit(degenerate, 0, ConstantRoller(1), granted)
+        _roll_material_benefit(degenerate, 0, _rolls(), granted)
 
 
 # --- Benefits non-empty ---
 
 
 def test_character_has_non_empty_benefits() -> None:
-    result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 1))
+    result = generate_character(NAVY_CAREER, rolls=_rolls())
     assert isinstance(result, Character)
     assert len(result.benefits) > 0
 
 
-# --- terms_served ≥ 1 ---
+# --- terms_served >= 1 ---
 
 
 def test_successful_character_served_at_least_one_term() -> None:
-    result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 1))
+    result = generate_character(NAVY_CAREER, rolls=_rolls())
     assert isinstance(result, Character)
     assert result.terms_served >= 1
 
@@ -491,15 +565,22 @@ def test_successful_character_served_at_least_one_term() -> None:
 # --- Skill rolls per term ---
 
 
+def _failed_commission_navy() -> ScriptedRolls:
+    # Commission fails, so neither commission nor advancement is received and two
+    # skill rolls must follow. Education 8 opens the Advanced Education table, so
+    # there are 4 tables: skill-table roll 2 -> (2-1)%4 = 1 -> service skills;
+    # entry roll 1 -> "Comms". Re-enlistment of 1 ends the career after one term.
+    return _rolls(
+        checks={RollName.COMMISSION: False},
+        two_d6={RollName.CHARACTERISTIC: 8, RollName.REENLISTMENT: 1},
+        d6={RollName.SKILL_TABLE: 2, RollName.SKILL_ENTRY: 1},
+    )
+
+
 def test_failed_commission_grants_two_skill_rolls() -> None:
-    # Stats=8 (modifier 0); qualify 8≥6 ✓, survive 8≥5 ✓, commission 4+0=4<7 ✗.
-    # Neither commission nor advancement was received, so 2 skill rolls must follow.
-    # Each skill roll consumes 2 dice: table select then entry select.
-    # Edu=8 → 4 tables; 1D6=2 → (2-1)%4=1 → service_skills; 1D6=1 → "Comms".
-    # Comms is level 0 after basic training; two rolls push it to level 2.
+    # Comms is level 0 after basic training; two skill rolls push it to level 2.
     # With only 1 roll it would stay at 1.
-    roller = SequenceRoller([8] * 6 + [6, 6, 6] + [8, 8, 4, 2, 1, 2], default=1)
-    result = generate_character(NAVY_CAREER, roller=roller)
+    result = generate_character(NAVY_CAREER, rolls=_failed_commission_navy())
     assert isinstance(result, Character)
     assert result.terms_served == 1
     assert result.rank == 0
@@ -507,11 +588,7 @@ def test_failed_commission_grants_two_skill_rolls() -> None:
 
 
 def test_per_term_skill_rolls_recorded_in_term_history() -> None:
-    # Same roller: 2 skill rolls after failed commission, both land on "Comms".
-    # Basic training records 6 service skills; each skill roll appends its entry.
-    # Edu=8 → 4 tables; 1D6=2 → service_skills[0] = "Comms".
-    roller = SequenceRoller([8] * 6 + [6, 6, 6] + [8, 8, 4, 2, 1, 2], default=1)
-    result = generate_character(NAVY_CAREER, roller=roller)
+    result = generate_character(NAVY_CAREER, rolls=_failed_commission_navy())
     assert isinstance(result, Character)
     term = result.terms[0]
     # 6 from basic training + 2 from skill rolls
@@ -524,10 +601,10 @@ def test_per_term_skill_rolls_recorded_in_term_history() -> None:
 
 
 def test_rank_bonus_skills_granted_at_level_1() -> None:
-    # SmartRoller(10, 1): 1D6=1 → table index (1-1)%4=0 → personal_development[0]
-    # = "+1 Str" for every skill roll, so Zero-G (rank 0) and Tactics (rank 3)
-    # can only appear via rank bonuses and must start at level 1, not 0.
-    result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 1))
+    # Every skill roll lands on personal_development[0] = "+1 Str", a stat boost
+    # rather than a skill, so Zero-G (rank 0) and Tactics (rank 3) can only have
+    # come from rank bonuses — and must start at level 1, not 0.
+    result = generate_character(NAVY_CAREER, rolls=_rolls())
     assert isinstance(result, Character)
     assert result.skills.get("Zero-G") == 1, "rank-0 bonus should grant Zero-G-1"
     assert result.skills.get("Tactics") == 1, "rank-3 bonus should grant Tactics-1"
@@ -537,10 +614,8 @@ def test_rank_bonus_skills_granted_at_level_1() -> None:
 
 
 def test_generate_character_accepts_any_career_without_navy_hardcoding() -> None:
-    import dataclasses
-
     stub_career = dataclasses.replace(NAVY_CAREER, name="Scout")
-    result = generate_character(stub_career, roller=SmartRoller(10, 1))
+    result = generate_character(stub_career, rolls=_rolls())
     assert isinstance(result, (Character, GenerationFailure))
 
 
@@ -584,20 +659,21 @@ def test_apply_material_benefit_caps_stat_at_33() -> None:
 
 
 def test_roll_until_qualified_returns_qualifying_characteristics() -> None:
-    # First iteration: all stats=2, Intelligence=2 < 6 → fail
-    # Second iteration: all stats=8, Intelligence=8 >= 6 → return
-    roller = SequenceRoller([2] * 6 + [8] * 6, default=8)
-    chars = roll_until_qualified(SCOUT_CAREER, roller)
+    # First set of six characteristics is all 2s (Intelligence 2 < 6, fails);
+    # the second is all 8s and qualifies.
+    rolls = _rolls(two_d6={RollName.CHARACTERISTIC: [2] * 6 + [8] * 6})
+    chars = roll_until_qualified(SCOUT_CAREER, rolls)
     assert chars[SCOUT_CAREER.qualification_stat] >= SCOUT_CAREER.qualification_target
 
 
 def test_roll_until_qualified_loops_until_qualified() -> None:
-    # Three failing iterations (Int=3 < 6), then one passing (Int=8)
-    roller = SequenceRoller([3] * 18 + [8] * 6, default=8)
-    chars = roll_until_qualified(SCOUT_CAREER, roller)
+    # Three failing sets of characteristics (Intelligence 3 < 6), then a passing
+    # one. Every stat coming back as 8 — the fourth block — is only possible if
+    # the loop discarded the first three.
+    rolls = _rolls(two_d6={RollName.CHARACTERISTIC: [3] * 18 + [8] * 6})
+    chars = roll_until_qualified(SCOUT_CAREER, rolls)
     assert chars["Intelligence"] >= 6
-    # Roller consumed more than 6 values → actually looped multiple times
-    assert roller._pos > 6
+    assert set(chars.values()) == {8}
 
 
 # --- T009: generate_character new params ---
@@ -616,7 +692,7 @@ def test_preset_characteristics_missing_stat_raises() -> None:
 
 
 def test_preset_characteristics_are_used_not_rolled() -> None:
-    # SmartRoller(10, 1) would roll Intelligence=10; preset gives Intelligence=9
+    # The scripted CHARACTERISTIC roll is 10; the preset says 9, and the preset wins.
     preset = {
         "Strength": 9,
         "Dexterity": 9,
@@ -627,31 +703,31 @@ def test_preset_characteristics_are_used_not_rolled() -> None:
     }
     result = generate_character(
         NAVY_CAREER,
-        roller=SmartRoller(10, 1),
+        rolls=_rolls(),
         preset_characteristics=preset,
         bypass_qualification=True,
     )
     assert isinstance(result, Character)
-    # Intelligence=9 comes from preset, not 10 from SmartRoller
-    # SmartRoller(10, 1) → aging roll 10-terms ≥ 1 always → no stat reduction
     assert result.characteristics["Intelligence"] == 9
 
 
 def test_bypass_qualification_skips_enlistment() -> None:
-    # ConstantRoller(1): qual_dm=-2, roll=1 → -1 < 6 → normally fails enlistment
-    # bypass_qualification=True must skip the enlistment check entirely; the
-    # survival check then also fails (1 + -2 < 5), which now resolves via the
-    # mishap table instead of GenerationFailure.
-    result = generate_character(NAVY_CAREER, roller=ConstantRoller(1), bypass_qualification=True)
+    # Qualification would fail, but bypass_qualification must skip the check
+    # entirely. Survival then also fails, which resolves via the mishap table
+    # rather than a GenerationFailure.
+    result = generate_character(
+        NAVY_CAREER,
+        rolls=_rolls(checks={RollName.QUALIFICATION: False, RollName.SURVIVAL: False}),
+        bypass_qualification=True,
+    )
     assert isinstance(result, Character)
 
 
 def test_hard_max_terms_prevents_forced_8th_term() -> None:
-    # SmartRoller(12, 1): re-enlistment at term 7 = 12 → normally forces term 8
-    # hard_max_terms=True must prevent the extra term
+    # A natural 12 at term 7 would normally force term 8; hard_max_terms forbids it.
     result = generate_character(
         NAVY_CAREER,
-        roller=SmartRoller(12, 1),
+        rolls=_rolls(two_d6={RollName.REENLISTMENT: 12}),
         bypass_qualification=True,
         hard_max_terms=True,
     )
@@ -662,7 +738,7 @@ def test_hard_max_terms_prevents_forced_8th_term() -> None:
 def test_drafted_param_sets_character_drafted_true() -> None:
     result = generate_character(
         NAVY_CAREER,
-        roller=SmartRoller(10, 1),
+        rolls=_rolls(),
         bypass_qualification=True,
         drafted=True,
     )
@@ -671,7 +747,7 @@ def test_drafted_param_sets_character_drafted_true() -> None:
 
 
 def test_drafted_defaults_to_false_in_generate_character() -> None:
-    result = generate_character(NAVY_CAREER, roller=SmartRoller(10, 1))
+    result = generate_character(NAVY_CAREER, rolls=_rolls())
     assert isinstance(result, Character)
     assert result.drafted is False
 
@@ -680,26 +756,26 @@ def test_drafted_defaults_to_false_in_generate_character() -> None:
 
 
 def test_generate_career_character_returns_character() -> None:
-    result = generate_career_character(SCOUT_CAREER, roller=SmartRoller(10, 1))
+    result = generate_career_character(SCOUT_CAREER, rolls=_rolls())
     assert isinstance(result, Character)
 
 
 def test_generate_career_character_intelligence_at_least_6() -> None:
-    result = generate_career_character(SCOUT_CAREER, roller=SmartRoller(10, 1))
+    result = generate_career_character(SCOUT_CAREER, rolls=_rolls())
     assert isinstance(result, Character)
     assert result.characteristics["Intelligence"] >= 6
 
 
 def test_generate_career_character_piloting_at_level_1() -> None:
     # rank-0 bonus grants Piloting+1 before basic training; basic training skips setting it to 0
-    result = generate_career_character(SCOUT_CAREER, roller=SmartRoller(10, 1))
+    result = generate_career_character(SCOUT_CAREER, rolls=_rolls())
     assert isinstance(result, Character)
     assert result.skills.get("Piloting", 0) >= 1
 
 
 def test_generate_career_character_two_skill_rolls_per_term() -> None:
     # Scout has no commission/advancement → always 2 skill rolls per term
-    result = generate_career_character(SCOUT_CAREER, roller=SmartRoller(10, 1))
+    result = generate_career_character(SCOUT_CAREER, rolls=_rolls())
     assert isinstance(result, Character)
     for i, term in enumerate(result.terms):
         non_bt = term.skills_gained if i > 0 else term.skills_gained[6:]
@@ -707,20 +783,17 @@ def test_generate_career_character_two_skill_rolls_per_term() -> None:
 
 
 def test_generate_career_character_material_roll_5_gives_explorers_society() -> None:
-    # Direct unit test of _muster_out (a full generate_career_character run with a
-    # fixed-value roller would hang once reroll-on-repeat is wired in, since a fixed
-    # roller can never produce a "different" result). rank=0 -> material_dm=0, so
-    # idx = clamp(roll + 0 - 1) = roll - 1. terms_served=4 + rank-0 bonus_rolls (0) = 4
-    # total rolls: 3 cash (cap) + 1 material. ConstantRoller(5): material die=5 -> idx=4 ->
-    # SCOUT_CAREER.material_benefits[4] = "Explorers' Society". This confirms row 5
-    # (idx 4) is reachable with a roll of 5 and no rank DM.
+    # rank 0 -> material_dm=0, so idx = clamp(roll + 0 - 1) = roll - 1. A material
+    # roll of 5 lands on idx 4 -> SCOUT_CAREER.material_benefits[4] = "Explorers'
+    # Society", confirming row 5 is reachable with no rank DM.
+    # terms_served=4 + rank-0 bonus (0) = 4 rolls: 3 cash (the cap), 1 material.
     result = _muster_out(
         career=SCOUT_CAREER,
         terms_served=4,
         rank=0,
         skills={},
         characteristics={},
-        roller=ConstantRoller(5),
+        rolls=_rolls(d6={RollName.CASH_BENEFIT: 5, RollName.MATERIAL_BENEFIT: 5}),
     )
     assert len(result) == 4
     material_benefits = [b for b in result if b.kind == "material"]
@@ -731,13 +804,12 @@ def test_generate_career_character_material_roll_5_gives_explorers_society() -> 
 
 
 def test_education_below_8_excludes_advanced_education_skills() -> None:
-    # ConstantRoller(7): all stats=7, Education=7 < 8 → only 3 skill tables (no advanced education)
-    # Skill rolls hit personal_development[0] = "+1 Str" (stat boost, no skill entry added)
-    # Background skills are random now; probe only advanced-education-exclusive skills.
-    # Check skills that come ONLY from advanced_education and not from other sources
-    result = generate_career_character(SCOUT_CAREER, roller=ConstantRoller(7))
+    # Education 7 (< 8) leaves only 3 skill tables — no Advanced Education.
+    # Navigation and Tactics live only in that table, so they must never appear.
+    result = generate_career_character(
+        SCOUT_CAREER, rolls=_rolls(two_d6={RollName.CHARACTERISTIC: 7})
+    )
     assert isinstance(result, Character)
-    # Navigation and Tactics are in advanced_education only (not in service/background skills)
     exclusively_advanced = {"Navigation", "Tactics"}
     for skill in exclusively_advanced:
         assert (
@@ -746,9 +818,12 @@ def test_education_below_8_excludes_advanced_education_skills() -> None:
 
 
 def test_education_8_or_above_can_access_advanced_education() -> None:
-    # SmartRoller(10, 4): all stats=10, Education=10 >= 8 → 4 tables available
-    # Skill table: (4-1)%4=3 → advanced_education; entry: (4-1)%6=3 → "Medicine"
-    result = generate_career_character(SCOUT_CAREER, roller=SmartRoller(10, 4))
+    # Education 10 (>= 8) opens the 4th table: skill-table roll 4 -> (4-1)%4 = 3 ->
+    # advanced_education; entry roll 4 -> (4-1)%6 = 3 -> "Medicine".
+    result = generate_career_character(
+        SCOUT_CAREER,
+        rolls=_rolls(d6={RollName.SKILL_TABLE: 4, RollName.SKILL_ENTRY: 4}),
+    )
     assert isinstance(result, Character)
     assert "Medicine" in result.skills
 
@@ -757,10 +832,12 @@ def test_education_8_or_above_can_access_advanced_education() -> None:
 
 
 def test_single_term_scout_muster_out() -> None:
-    # Qualification: 6 rolls of 8 (Intelligence=8 >= 6 → passes first try)
-    # Survival (2D6=8 >= 7 ✓); 2 skill rolls (1D6=1,1 each); re-enlistment (2D6=4 < 6 → fail)
-    roller = SequenceRoller([8] * 6 + [6, 6, 6] + [8, 1, 1, 1, 1, 4, 1], default=1)
-    result = generate_career_character(SCOUT_CAREER, roller=roller)
+    # Re-enlistment of 4 misses Scout's target of 6, so the career ends after one
+    # term: 1 term + rank-0 bonus (0) = a single benefit roll.
+    result = generate_career_character(
+        SCOUT_CAREER,
+        rolls=_rolls(two_d6={RollName.CHARACTERISTIC: 8, RollName.REENLISTMENT: 4}),
+    )
     assert isinstance(result, Character)
     assert result.terms_served == 1
     assert result.skills.get("Piloting", 0) >= 1
@@ -774,50 +851,30 @@ def test_single_term_scout_muster_out() -> None:
 
 
 def test_draft_character_roll_5_gives_scout() -> None:
-    # DRAFT_TABLE[4] = "scout"; 1D6 roll=5 → index 4 → Scout career
-    roller = SequenceRoller([5], default=10)
-    result = draft_character(roller=roller)
+    # DRAFT_TABLE[4] = "scout"; a draft roll of 5 -> index 4.
+    result = draft_character(rolls=_rolls(d6={RollName.DRAFT: 5}))
     assert isinstance(result, Character)
     assert result.drafted is True
     assert result.career == "Scout"
 
 
 def test_draft_character_roll_1_gives_aerospace() -> None:
-    # DRAFT_TABLE[0] = "aerospace system defense"; 1D6 roll=1 → index 0
-    roller = SequenceRoller([1], default=10)
-    result = draft_character(roller=roller)
+    # DRAFT_TABLE[0] = "aerospace system defense"; a draft roll of 1 -> index 0.
+    result = draft_character(rolls=_rolls(d6={RollName.DRAFT: 1}))
     assert isinstance(result, Character)
     assert result.drafted is True
     assert result.career == "Aerospace System Defense"
 
 
 def test_draft_character_sets_drafted_true() -> None:
-    # default=6 (not a larger value like 10): a fixed high-value roller would let
-    # rank climb until material_dm=1, at which point every material-benefit roll
-    # resolves to index 6 ("Explorers' Society"). Once granted once, the
-    # reroll-on-repeat helper would call roller.roll(6) again forever, since a
-    # fixed roller can never return a different value — an infinite loop.
-    # default=6 keeps commission from ever succeeding (Navy needs Social
-    # Standing >= 7; a fixed characteristic of 6 with a +0 DM never reaches it),
-    # so rank stays 0, material_dm stays 0, and every material roll resolves to
-    # index 5 ("High Passage") instead — no reroll is ever triggered.
-    roller = SequenceRoller([3], default=6)
-    result = draft_character(roller=roller)
+    result = draft_character(rolls=_rolls(d6={RollName.DRAFT: 3}))
     assert isinstance(result, Character)
     assert result.drafted is True
 
 
 def test_draft_character_roll_2_gives_marine() -> None:
-    # DRAFT_TABLE[1] = "marine"; 1D6 roll=2 → index 1 → Marine career
-    # default=6 for the same reason as test_draft_character_sets_drafted_true
-    # above. Marine's commission succeeds once at this default (Education
-    # target is exactly 6), reaching rank 1, but advancement then never
-    # succeeds (Social Standing target 7, unmet), so rank stays at 1 and
-    # material_dm stays 0 — every material roll resolves to index 5 ("High
-    # Passage"), never index 6 ("Explorers' Society"), so no reroll is ever
-    # triggered.
-    roller = SequenceRoller([2], default=6)
-    result = draft_character(roller=roller)
+    # DRAFT_TABLE[1] = "marine"; a draft roll of 2 -> index 1.
+    result = draft_character(rolls=_rolls(d6={RollName.DRAFT: 2}))
     assert isinstance(result, Character)
     assert result.drafted is True
     assert result.career == "Marine"
@@ -831,8 +888,7 @@ def test_draft_character_unimplemented_career_returns_failure() -> None:
 
     # Patch DRAFT_TABLE in generator so index 0 is "smuggler" (not in CAREER_REGISTRY)
     with patch("cetools.engine.generator.DRAFT_TABLE", ("smuggler",) + ("navy",) * 5):
-        roller = SequenceRoller([1], default=10)
-        result = draft_character(roller=roller)
+        result = draft_character(rolls=_rolls(d6={RollName.DRAFT: 1}))
     assert isinstance(result, GenerationFailure)
     assert "smuggler" in result.reason
 
@@ -849,24 +905,14 @@ _SCOUT_PRESET = {
 }
 
 
-def _five_completed_scout_terms() -> list[int]:
-    # Scout has no commission/advancement, so each term is: survival(2D6),
-    # 2 skill rolls (table+entry each), [aging(2D6) once age>=34], reenlist(2D6).
-    # Preset stats of 10 give Endurance dm +1 (survival target 7, reenlistment
-    # target 6) so a roll of 10 passes every check; 1D6=1 keeps skill rolls
-    # deterministic (harmless "+1 Str" stat boosts, not asserted on here).
-    no_aging_term = [10, 1, 1, 1, 1, 10]
-    aging_term = [10, 1, 1, 1, 1, 10, 10]  # terms 4-5: age reaches 34+
-    return no_aging_term * 3 + aging_term * 2
-
-
-def _generate_scout_mishap_after_five_terms(mishap_extra: list[int]) -> Character:
-    # Term 6's survival roll (value 1) fails: 1 + End_dm(10)=1 = 2 < target 7.
-    values = [6] * 4 + _five_completed_scout_terms() + [1] + mishap_extra
-    roller = SequenceRoller(values, default=6)
+def _generate_scout_mishap_after_five_terms(mishap: int, injury: int | None = None) -> Character:
+    # Five terms survived, then the sixth ends in the given mishap.
+    d6 = {RollName.MISHAP: mishap}
+    if injury is not None:
+        d6[RollName.INJURY] = injury
     result = generate_character(
         SCOUT_CAREER,
-        roller=roller,
+        rolls=_rolls(checks={RollName.SURVIVAL: [True] * 5 + [False]}, d6=d6),
         preset_characteristics=_SCOUT_PRESET,
         bypass_qualification=True,
     )
@@ -875,8 +921,8 @@ def _generate_scout_mishap_after_five_terms(mishap_extra: list[int]) -> Characte
 
 
 def test_mishap_outcome_1_preserves_benefits_and_pension_after_five_terms() -> None:
-    # Mishap-table roll 1, injury rolls (6, 6) -> injury row 6, no effect.
-    result = _generate_scout_mishap_after_five_terms([1, 6, 6])
+    # Mishap 1 takes two injury rolls; both land on row 6, "no permanent effect".
+    result = _generate_scout_mishap_after_five_terms(mishap=1, injury=6)
     assert result.terms_served == 5
     assert len(result.benefits) == 5
     assert result.pension is not None
@@ -884,7 +930,7 @@ def test_mishap_outcome_1_preserves_benefits_and_pension_after_five_terms() -> N
 
 
 def test_mishap_outcome_2_preserves_benefits_and_pension_after_five_terms() -> None:
-    result = _generate_scout_mishap_after_five_terms([2])
+    result = _generate_scout_mishap_after_five_terms(mishap=2)
     assert result.terms_served == 5
     assert len(result.benefits) == 5
     assert result.pension is not None
@@ -892,7 +938,7 @@ def test_mishap_outcome_2_preserves_benefits_and_pension_after_five_terms() -> N
 
 
 def test_mishap_outcome_3_preserves_benefits_and_pension_with_legal_debt() -> None:
-    result = _generate_scout_mishap_after_five_terms([3])
+    result = _generate_scout_mishap_after_five_terms(mishap=3)
     assert result.terms_served == 5
     assert len(result.benefits) == 5
     assert result.pension is not None
@@ -900,22 +946,22 @@ def test_mishap_outcome_3_preserves_benefits_and_pension_with_legal_debt() -> No
 
 
 def test_mishap_outcome_4_forfeits_benefits_and_pension_after_five_terms() -> None:
-    result = _generate_scout_mishap_after_five_terms([4])
+    result = _generate_scout_mishap_after_five_terms(mishap=4)
     assert result.terms_served == 5
     assert result.benefits == []
     assert result.pension is None
 
 
 def test_mishap_outcome_5_forfeits_benefits_and_pension_after_five_terms() -> None:
-    result = _generate_scout_mishap_after_five_terms([5])
+    result = _generate_scout_mishap_after_five_terms(mishap=5)
     assert result.terms_served == 5
     assert result.benefits == []
     assert result.pension is None
 
 
 def test_mishap_outcome_6_preserves_benefits_and_pension_after_five_terms() -> None:
-    # Mishap-table roll 6, single injury roll 6 -> injury row 6, no effect.
-    result = _generate_scout_mishap_after_five_terms([6, 6])
+    # Mishap 6 takes a single injury roll; row 6 is "no permanent effect".
+    result = _generate_scout_mishap_after_five_terms(mishap=6, injury=6)
     assert result.terms_served == 5
     assert len(result.benefits) == 5
     assert result.pension is not None
@@ -925,13 +971,13 @@ def test_mishap_outcome_6_preserves_benefits_and_pension_after_five_terms() -> N
 # --- T019: mishap during a character's very first term (edge case) ---
 
 
-def _generate_scout_first_term_mishap(mishap_extra: list[int]) -> Character:
-    # Term 1's survival roll (value 1) fails immediately: no prior terms.
-    values = [6] * 4 + [1] + mishap_extra
-    roller = SequenceRoller(values, default=6)
+def _generate_scout_first_term_mishap(mishap: int, injury: int | None = None) -> Character:
+    d6 = {RollName.MISHAP: mishap}
+    if injury is not None:
+        d6[RollName.INJURY] = injury
     result = generate_character(
         SCOUT_CAREER,
-        roller=roller,
+        rolls=_rolls(checks={RollName.SURVIVAL: False}, d6=d6),
         preset_characteristics=_SCOUT_PRESET,
         bypass_qualification=True,
     )
@@ -940,12 +986,12 @@ def _generate_scout_first_term_mishap(mishap_extra: list[int]) -> Character:
 
 
 @pytest.mark.parametrize(
-    "mishap_extra",
-    [[1, 6, 6], [2], [3], [4], [5], [6, 6]],
+    ("mishap", "injury"),
+    [(1, 6), (2, None), (3, None), (4, None), (5, None), (6, 6)],
     ids=["outcome1", "outcome2", "outcome3", "outcome4", "outcome5", "outcome6"],
 )
-def test_first_term_mishap_yields_no_benefits_or_pension(mishap_extra: list[int]) -> None:
-    result = _generate_scout_first_term_mishap(mishap_extra)
+def test_first_term_mishap_yields_no_benefits_or_pension(mishap: int, injury: int | None) -> None:
+    result = _generate_scout_first_term_mishap(mishap=mishap, injury=injury)
     assert result.terms_served == 0
     assert result.benefits == []
     assert result.pension is None
@@ -955,8 +1001,7 @@ def test_first_term_mishap_yields_no_benefits_or_pension(mishap_extra: list[int]
 
 
 def test_two_skill_rolls_per_term_in_term_history() -> None:
-    # SmartRoller(10, 1): all terms complete; basic training only in term 1
-    result = generate_career_character(SCOUT_CAREER, roller=SmartRoller(10, 1))
+    result = generate_career_character(SCOUT_CAREER, rolls=_rolls())
     assert isinstance(result, Character)
     assert result.terms_served >= 2
     # Term 1: 6 basic training entries + 2 skill roll entries
@@ -970,36 +1015,37 @@ def test_two_skill_rolls_per_term_in_term_history() -> None:
 
 
 def test_draw_distinct_returns_requested_count_of_distinct_items() -> None:
-    # ConstantRoller(1): idx = (1-1) % len = 0 every time → pops the head repeatedly.
-    result = _draw_distinct(("A", "B", "C", "D"), 3, ConstantRoller(1))
+    # Every draw takes index 0, the head of what remains.
+    result = _draw_distinct(("A", "B", "C", "D"), 3, _rolls())
     assert result == ["A", "B", "C"]
     assert len(set(result)) == 3
 
 
 def test_draw_distinct_respects_exclude() -> None:
-    result = _draw_distinct(("A", "B", "C"), 2, ConstantRoller(1), exclude=("A",))
+    result = _draw_distinct(("A", "B", "C"), 2, _rolls(), exclude=("A",))
     assert result == ["B", "C"]
     assert "A" not in result
 
 
 def test_draw_distinct_truncates_when_over_requested() -> None:
     # Only 2 items available but 5 requested → returns just the 2.
-    result = _draw_distinct(("A", "B"), 5, ConstantRoller(1))
+    result = _draw_distinct(("A", "B"), 5, _rolls())
     assert result == ["A", "B"]
 
 
-def test_draw_distinct_uses_roller_to_index() -> None:
-    # ConstantRoller(3): idx = (3-1) % len = 2 % len.
-    # remaining=[A,B,C,D] → idx 2 → C; remaining=[A,B,D] → idx 2 → D.
-    result = _draw_distinct(("A", "B", "C", "D"), 2, ConstantRoller(3))
+def test_draw_distinct_uses_the_choice_to_index() -> None:
+    # Index 2 each draw: [A,B,C,D] -> C; then [A,B,D] -> D.
+    result = _draw_distinct(
+        ("A", "B", "C", "D"), 2, _rolls(choices={RollName.BACKGROUND_SKILL: 2})
+    )
     assert result == ["C", "D"]
 
 
 def test_draw_distinct_can_reach_pool_tail() -> None:
     # Regression: indexing a pool larger than 6 with a fixed d6 left the tail
-    # unreachable (Zero-G at index 9 could never be drawn). Sizing the die to the
-    # remaining pool makes the last element reachable.
-    result = _draw_distinct(_HOMEWORLD_SKILLS, 1, _MaxFaceRoller())
+    # unreachable (Zero-G at index 9 could never be drawn). A choice is sized to
+    # the pool, not to a die, so the last element is reachable.
+    result = _draw_distinct(_HOMEWORLD_SKILLS, 1, _rolls(choices={RollName.BACKGROUND_SKILL: -1}))
     assert result == ["Zero-G"]
 
 
@@ -1011,13 +1057,13 @@ def test_background_skill_count_matches_three_plus_education_dm() -> None:
     cases = {2: 1, 4: 2, 7: 3, 10: 4, 12: 5, 15: 6}
     for education, expected in cases.items():
         skills: dict[str, int] = {}
-        _grant_background_skills({"Education": education}, skills, ConstantRoller(1))
+        _grant_background_skills({"Education": education}, skills, _rolls())
         assert len(skills) == expected, f"Education {education} should grant {expected} skills"
 
 
 def test_background_skills_are_all_level_zero() -> None:
     skills: dict[str, int] = {}
-    _grant_background_skills({"Education": 12}, skills, ConstantRoller(1))
+    _grant_background_skills({"Education": 12}, skills, _rolls())
     assert all(level == 0 for level in skills.values())
 
 
@@ -1025,31 +1071,32 @@ def test_background_low_education_draws_only_homeworld_skills() -> None:
     # count 1 (Edu 2) and count 2 (Edu 4) → every skill comes from the homeworld pool.
     for education in (2, 4):
         skills: dict[str, int] = {}
-        _grant_background_skills({"Education": education}, skills, ConstantRoller(1))
+        _grant_background_skills({"Education": education}, skills, _rolls())
         assert set(skills) <= set(_HOMEWORLD_SKILLS)
 
 
 def test_background_full_draw_is_deterministic_and_distinct() -> None:
-    # Edu 12 → count 5. ConstantRoller(1) always pops index 0.
+    # Edu 12 → count 5. Every draw takes index 0.
     # Homeworld: Animals, Broker. Education (excluding those): Admin, Advocate, Carousing.
     skills: dict[str, int] = {}
-    _grant_background_skills({"Education": 12}, skills, ConstantRoller(1))
+    _grant_background_skills({"Education": 12}, skills, _rolls())
     assert set(skills) == {"Animals", "Broker", "Admin", "Advocate", "Carousing"}
 
 
-def test_background_skills_reproducible_across_identical_rollers() -> None:
+def test_background_skills_reproducible_across_identical_scripts() -> None:
     first: dict[str, int] = {}
     second: dict[str, int] = {}
-    _grant_background_skills({"Education": 10}, first, SequenceRoller([2, 4, 1, 3]))
-    _grant_background_skills({"Education": 10}, second, SequenceRoller([2, 4, 1, 3]))
+    choices = {RollName.BACKGROUND_SKILL: [1, 3, 0, 2]}
+    _grant_background_skills({"Education": 10}, first, _rolls(choices=choices))
+    _grant_background_skills({"Education": 10}, second, _rolls(choices=dict(choices)))
     assert first == second
 
 
 def test_generate_character_grants_background_skills() -> None:
-    # Preset Education 10 → 4 background skills. SmartRoller single-die value 1 →
-    # idx 0 every draw → homeworld Animals, Broker; education Admin, Advocate.
-    # Broker/Admin/Advocate are not Scout service, rank, or skill-roll outputs
-    # under this roller, so they can only come from background granting.
+    # Preset Education 10 → 4 background skills, each drawn at index 0:
+    # homeworld Animals, Broker; education Admin, Advocate. None of these are
+    # Scout service, rank, or skill-roll outputs under this script, so they can
+    # only have come from background granting.
     preset = {
         "Strength": 10,
         "Dexterity": 10,
@@ -1060,7 +1107,7 @@ def test_generate_character_grants_background_skills() -> None:
     }
     result = generate_character(
         SCOUT_CAREER,
-        roller=SmartRoller(10, 1),
+        rolls=_rolls(),
         preset_characteristics=preset,
         bypass_qualification=True,
     )
@@ -1074,14 +1121,14 @@ def test_generate_character_none_qualification_skips_enlistment_failure() -> Non
     no_qual = dataclasses.replace(
         NAVY_CAREER, name="Drifter", qualification_stat=None, qualification_target=None
     )
-    # ConstantRoller(1) would fail Navy's Int 6+ qualification; with no
-    # qualification the career must not return an enlistment failure.
-    result = generate_character(no_qual, roller=ConstantRoller(1))
+    # The qualification check would fail, but a career with no qualification must
+    # never run it — so no enlistment failure.
+    result = generate_character(no_qual, rolls=_rolls(checks={RollName.QUALIFICATION: False}))
     assert isinstance(result, Character)
 
 
 def test_generate_character_concrete_qualification_still_gates() -> None:
-    result = generate_character(NAVY_CAREER, roller=ConstantRoller(1))
+    result = generate_character(NAVY_CAREER, rolls=_rolls(checks={RollName.QUALIFICATION: False}))
     assert isinstance(result, GenerationFailure)
     assert "enlistment failed" in result.reason
 
@@ -1090,16 +1137,12 @@ def test_roll_until_qualified_none_qualification_returns_immediately() -> None:
     no_qual = dataclasses.replace(
         NAVY_CAREER, name="Drifter", qualification_stat=None, qualification_target=None
     )
-    # All stats roll to 1 — Navy would loop forever; no-qual returns at once.
-    result = roll_until_qualified(no_qual, roller=ConstantRoller(1))
+    # Every stat rolls a 1 — Navy would loop forever; no-qual returns at once.
+    result = roll_until_qualified(no_qual, rolls=_rolls(two_d6={RollName.CHARACTERISTIC: 1}))
     assert set(result.keys()) == set(STAT_NAMES)
 
 
 def test_muster_out_ship_shares_rolls_quantity() -> None:
-    import dataclasses
-
-    from cetools.engine.models import STAT_NAMES
-
     ship_career = dataclasses.replace(
         NAVY_CAREER,
         material_benefits=(
@@ -1114,10 +1157,22 @@ def test_muster_out_ship_shares_rolls_quantity() -> None:
     )
     characteristics = {stat: 7 for stat in STAT_NAMES}
     # rank 5 -> material_dm=1 and +2 bonus muster rolls; terms=2 -> 4 total rolls
-    # (3 cash cap, then 1 material). Cash rolls 1,1,1; material-select roll 6 ->
-    # idx 6 -> "1D6 Ship Shares"; quantity roll 3.
-    roller = SequenceRoller([1, 1, 1, 6, 3])
-    benefits = _muster_out(ship_career, 2, 5, {}, characteristics, roller)
+    # (3 cash, the cap, then 1 material). The material roll of 6 lands on idx 6 ->
+    # "1D6 Ship Shares", whose quantity is then rolled separately.
+    benefits = _muster_out(
+        ship_career,
+        2,
+        5,
+        {},
+        characteristics,
+        _rolls(
+            d6={
+                RollName.CASH_BENEFIT: 1,
+                RollName.MATERIAL_BENEFIT: 6,
+                RollName.SHIP_SHARES: 3,
+            }
+        ),
+    )
     material = [b for b in benefits if b.kind == "material"]
     assert len(material) == 1
     assert material[0].material_name == "Ship Shares"
@@ -1128,12 +1183,13 @@ def test_muster_out_ship_shares_rolls_quantity() -> None:
 
 def test_muster_out_zero_cash_benefit() -> None:
     from cetools.engine.careers.barbarian import BARBARIAN_CAREER
-    from cetools.engine.models import STAT_NAMES
 
     characteristics = {stat: 7 for stat in STAT_NAMES}
-    # rank 0, terms=1 -> 1 total roll (cash). ConstantRoller(1) with no Gambling
-    # -> cash_dm=0 -> idx 0 -> cash_benefits[0] == 0.
-    benefits = _muster_out(BARBARIAN_CAREER, 1, 0, {}, characteristics, ConstantRoller(1))
+    # rank 0, terms=1 -> 1 roll (cash). A cash roll of 1 with no Gambling DM
+    # -> idx 0 -> cash_benefits[0] == 0.
+    benefits = _muster_out(
+        BARBARIAN_CAREER, 1, 0, {}, characteristics, _rolls(d6={RollName.CASH_BENEFIT: 1})
+    )
     cash = [b for b in benefits if b.kind == "cash"]
     assert len(cash) == 1
     assert cash[0].cash_amount == 0
@@ -1141,14 +1197,24 @@ def test_muster_out_zero_cash_benefit() -> None:
 
 def test_muster_out_hunter_ship_shares() -> None:
     from cetools.engine.careers.hunter import HUNTER_CAREER
-    from cetools.engine.models import STAT_NAMES
 
     characteristics = {stat: 7 for stat in STAT_NAMES}
-    # rank 0 -> material_dm=0; terms=4 -> 4 total rolls (3 cash cap, 1 material).
-    # Cash rolls 1,1,1; material-select roll 5 -> idx 4 -> "1D6 Ship Shares";
-    # quantity roll 3.
-    roller = SequenceRoller([1, 1, 1, 5, 3])
-    benefits = _muster_out(HUNTER_CAREER, 4, 0, {}, characteristics, roller)
+    # rank 0 -> material_dm=0; terms=4 -> 4 rolls (3 cash, the cap, then 1
+    # material). The material roll of 5 lands on idx 4 -> "1D6 Ship Shares".
+    benefits = _muster_out(
+        HUNTER_CAREER,
+        4,
+        0,
+        {},
+        characteristics,
+        _rolls(
+            d6={
+                RollName.CASH_BENEFIT: 1,
+                RollName.MATERIAL_BENEFIT: 5,
+                RollName.SHIP_SHARES: 3,
+            }
+        ),
+    )
     material = [b for b in benefits if b.kind == "material"]
     assert len(material) == 1
     assert material[0].material_name == "Ship Shares"
@@ -1158,21 +1224,29 @@ def test_muster_out_hunter_ship_shares() -> None:
 def test_generate_career_character_drifter_no_qualification() -> None:
     from cetools.engine.careers.drifter import DRIFTER_CAREER
 
-    result = generate_career_character(DRIFTER_CAREER, roller=SmartRoller(10, 1))
+    result = generate_career_character(DRIFTER_CAREER, rolls=_rolls())
     assert isinstance(result, Character)
     assert result.career == "Drifter"
 
 
 def test_muster_out_belter_ship_shares() -> None:
     from cetools.engine.careers.belter import BELTER_CAREER
-    from cetools.engine.models import STAT_NAMES
 
     characteristics = {stat: 7 for stat in STAT_NAMES}
-    # rank 0 -> material_dm=0; terms=4 -> 4 total rolls (3 cash cap, 1 material).
-    # Cash rolls 1,1,1; material-select roll 5 -> idx 4 -> "1D6 Ship Shares";
-    # quantity roll 3.
-    roller = SequenceRoller([1, 1, 1, 5, 3])
-    benefits = _muster_out(BELTER_CAREER, 4, 0, {}, characteristics, roller)
+    benefits = _muster_out(
+        BELTER_CAREER,
+        4,
+        0,
+        {},
+        characteristics,
+        _rolls(
+            d6={
+                RollName.CASH_BENEFIT: 1,
+                RollName.MATERIAL_BENEFIT: 5,
+                RollName.SHIP_SHARES: 3,
+            }
+        ),
+    )
     material = [b for b in benefits if b.kind == "material"]
     assert len(material) == 1
     assert material[0].material_name == "Ship Shares"
@@ -1183,11 +1257,16 @@ def test_muster_out_belter_ship_shares() -> None:
 
 
 def test_generated_character_has_psionics() -> None:
-    # ConstantRoller returns 11 for every roll: the gate roll (11 >= 11) passes,
-    # and the Psi 2D6 roll is also 11, so Psi = max(0, 11 - terms_served).
+    # The gate passes and the Psi roll is 11, so Psi = max(0, 11 - terms_served).
     # terms_served is on the result, so the relationship holds without predicting
-    # the full generation.
-    result = generate_career_character(NAVY_CAREER, ConstantRoller(11))
+    # the whole generation.
+    result = generate_career_character(
+        NAVY_CAREER,
+        _rolls(
+            checks={RollName.PSI_GATE: True},
+            two_d6={RollName.PSI_STRENGTH: 11},
+        ),
+    )
     assert isinstance(result, Character)
     assert isinstance(result.talents, dict)
     assert result.psi_strength == max(0, 11 - result.terms_served)
@@ -1197,21 +1276,21 @@ def test_generated_character_has_psionics() -> None:
 
 
 def test_random_career_character_selects_career_by_first_roll() -> None:
-    # SequenceRoller first value 9 -> pick index (9-1) % 24 = 8 -> Drifter
-    # (Drifter has no qualification, so generation completes with default rolls)
-    result = random_career_character(SequenceRoller([9], default=10))
+    # Careers are offered in name order; index 8 is Drifter (which has no
+    # qualification, so generation completes on the defaults).
+    result = random_career_character(_rolls(choices={RollName.CAREER: 8}))
     assert isinstance(result, Character)
     assert result.career == "Drifter"
 
 
 def test_random_career_character_varies_with_first_roll() -> None:
-    drifter = random_career_character(SequenceRoller([9], default=10))
-    aerospace = random_career_character(SequenceRoller([1], default=10))
+    drifter = random_career_character(_rolls(choices={RollName.CAREER: 8}))
+    aerospace = random_career_character(_rolls(choices={RollName.CAREER: 0}))
     assert aerospace.career == "Aerospace System Defense"
     assert drifter.career != aerospace.career
 
 
 def test_random_career_character_passes_drafted_through() -> None:
-    result = random_career_character(SequenceRoller([9], default=10), drafted=True)
+    result = random_career_character(_rolls(choices={RollName.CAREER: 8}), drafted=True)
     assert isinstance(result, Character)
     assert result.drafted is True

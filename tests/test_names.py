@@ -1,17 +1,22 @@
+from collections.abc import Sequence
+from typing import TypeVar
+
 from cetools.engine.names import FIRST_NAMES, LAST_NAMES, generate_name
-from conftest import ConstantRoller, SequenceRoller
+from cetools.engine.rolls import RollName, ScriptedRolls
+
+T = TypeVar("T")
 
 
-class _RecordingRoller:
-    """Records every (sides, count) call it receives, returning values in sequence."""
+class _RecordingRolls(ScriptedRolls):
+    """Records the size and name of every `choose` the engine asks for."""
 
-    def __init__(self, values: list[int]) -> None:
-        self._values = list(values)
-        self.calls: list[tuple[int, int]] = []
+    def __init__(self) -> None:
+        super().__init__()
+        self.calls: list[tuple[int, RollName]] = []
 
-    def roll(self, sides: int, count: int = 1) -> int:
-        self.calls.append((sides, count))
-        return self._values[len(self.calls) - 1]
+    def choose(self, items: Sequence[T], name: RollName) -> T:
+        self.calls.append((len(items), name))
+        return super().choose(items, name)
 
 
 def test_first_names_is_tuple_with_at_least_ten_entries() -> None:
@@ -27,22 +32,24 @@ def test_last_names_is_tuple_with_at_least_ten_entries() -> None:
 
 
 def test_generate_name_returns_two_space_separated_non_empty_words() -> None:
-    result = generate_name(ConstantRoller(1))
+    # Nothing scripted: both picks take the default index (0).
+    result = generate_name(ScriptedRolls())
     words = result.split(" ")
     assert len(words) == 2
     assert all(word for word in words)
 
 
 def test_generate_name_combines_independently_drawn_first_and_last_names() -> None:
-    # SequenceRoller([3, 7]): first draw = 3 -> FIRST_NAMES[2]; second draw = 7 -> LAST_NAMES[6]
-    roller = SequenceRoller([3, 7])
-    result = generate_name(roller)
+    # The two picks are drawn independently: index 2 of FIRST_NAMES, index 6 of
+    # LAST_NAMES.
+    rolls = ScriptedRolls(choices={RollName.FIRST_NAME: 2, RollName.LAST_NAME: 6})
+    result = generate_name(rolls)
     assert result == f"{FIRST_NAMES[2]} {LAST_NAMES[6]}"
 
 
 def test_generate_name_makes_two_independent_rolls_sized_to_each_table() -> None:
-    roller = _RecordingRoller([1, 1])
-    generate_name(roller)
-    assert len(roller.calls) == 2
-    assert roller.calls[0][0] == len(FIRST_NAMES)
-    assert roller.calls[1][0] == len(LAST_NAMES)
+    rolls = _RecordingRolls()
+    generate_name(rolls)
+    assert len(rolls.calls) == 2
+    assert rolls.calls[0][0] == len(FIRST_NAMES)
+    assert rolls.calls[1][0] == len(LAST_NAMES)

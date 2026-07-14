@@ -1,7 +1,7 @@
 """Tests for SURFACE_CAREER data fields and behavior."""
 
 from cetools.engine.careers.base import RankEntry
-from conftest import ConstantRoller, SequenceRoller
+from cetools.engine.rolls import RollName, ScriptedRolls
 
 # ---------------------------------------------------------------------------
 # Qualification, survival, commission, advancement, reenlistment, name
@@ -247,7 +247,8 @@ def test_surface_commission_roll_success_advances_to_rank_1() -> None:
     from cetools.engine.generator import generate_character
     from cetools.engine.models import Character
 
-    result = generate_character(SURFACE_CAREER, roller=ConstantRoller(12))
+    rolls = ScriptedRolls(checks={RollName.COMMISSION: True})
+    result = generate_character(SURFACE_CAREER, rolls=rolls)
     assert isinstance(result, Character)
     assert result.rank >= 1
 
@@ -267,12 +268,15 @@ def test_surface_commission_roll_failure_stays_at_rank_0() -> None:
         "Social Standing": 7,
     }
 
-    # Survival (Edu 5): pass with the leading 12
-    # Commission (End 6): fail with default 1
-    # Reenlistment (5): fail after 1 term with default 1
+    # Survive the term but fail the commission, then fail reenlistment (2 is
+    # below the target of 5) so the career ends at rank 0 after one term.
+    rolls = ScriptedRolls(
+        checks={RollName.SURVIVAL: True, RollName.COMMISSION: False},
+        two_d6={RollName.REENLISTMENT: 2},
+    )
     result = generate_character(
         SURFACE_CAREER,
-        roller=SequenceRoller([12], default=1),
+        rolls=rolls,
         preset_characteristics=_PRESET,
         bypass_qualification=True,
     )
@@ -286,7 +290,8 @@ def test_surface_advancement_increments_rank() -> None:
     from cetools.engine.generator import generate_character
     from cetools.engine.models import Character
 
-    result = generate_character(SURFACE_CAREER, roller=ConstantRoller(12))
+    rolls = ScriptedRolls(checks={RollName.COMMISSION: True, RollName.ADVANCEMENT: True})
+    result = generate_character(SURFACE_CAREER, rolls=rolls)
     assert isinstance(result, Character)
     assert result.rank >= 1
 
@@ -306,7 +311,7 @@ def test_surface_rank_0_gun_combat_applied_at_enlistment() -> None:
     from cetools.engine.generator import generate_character
     from cetools.engine.models import Character
 
-    result = generate_character(SURFACE_CAREER, roller=ConstantRoller(12))
+    result = generate_character(SURFACE_CAREER, rolls=ScriptedRolls())
     assert isinstance(result, Character)
     assert "Gun Combat" in result.skills
 
@@ -317,7 +322,9 @@ def test_surface_rank_3_leadership_applied() -> None:
     from cetools.engine.generator import generate_character
     from cetools.engine.models import Character
 
-    result = generate_character(SURFACE_CAREER, roller=ConstantRoller(12))
+    # Every check passes by default, so commission and advancement fire and the
+    # character climbs past rank 3.
+    result = generate_character(SURFACE_CAREER, rolls=ScriptedRolls())
     assert isinstance(result, Character)
     if result.rank >= 3:
         assert "Leadership" in result.skills
