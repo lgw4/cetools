@@ -50,10 +50,12 @@ The engine (`src/cetools/engine/`) must never import from `src/cetools/cli/`. Th
 Run this before every commit:
 
 ```bash
-uv run black . && uv run flake8 src tests && uv run pytest
+uv run black . && uv run flake8 src tests && uv run pytest && uv run python scripts/check_docs.py
 ```
 
-All three must pass. `pytest` includes coverage measurement; the suite fails if `src/cetools` coverage drops below 85%.
+All four must pass, and the pre-push hooks run all four. `pytest` includes coverage measurement; the suite fails if `src/cetools` coverage drops below 85%.
+
+`scripts/check_docs.py` is the only thing that tests the docs, which is why it exists: docs drift faster than code and nothing else notices. It checks that every backticked symbol in the maintained prose resolves in the package, that the README's Python examples still run, that the module map above names every engine module, and that dashes are tight. The historical plans and specs under `docs/superpowers/` are records of past decisions, not descriptions of the code, so they are not checked.
 
 To run a single test file without coverage enforcement:
 

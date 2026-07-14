@@ -31,3 +31,13 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-push]
+
+      # The docs are the one thing nothing else tests, and they drift fastest.
+      # Checks that backticked symbols resolve, README examples still run, the
+      # module map is complete, and dashes are tight. See scripts/check_docs.py.
+      - id: docs
+        name: docs
+        entry: uv run python scripts/check_docs.py
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
