@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from cetools.engine import mishaps
+from cetools.engine.aging import AGING_STARTS_AT_AGE, apply_aging
+from cetools.engine.background import background_skills
+from cetools.engine.benefits import muster_out
 from cetools.engine.careers.base import Career
 from cetools.engine.careers.registry import CAREER_REGISTRY, DRAFT_TABLE
 from cetools.engine.models import (
-    STAT_ABBREV,
     STAT_NAMES,
     Benefit,
     Character,
@@ -17,80 +19,16 @@ from cetools.engine.names import generate_name
 from cetools.engine.pseudohex import encode_upp
 from cetools.engine.psionics import roll_psionics
 from cetools.engine.rolls import RandomRolls, RollName, Rolls
-
-_PHYSICAL_STATS = ("Strength", "Dexterity", "Endurance")
-
-_EDUCATION_SKILLS = (
-    "Admin",
-    "Advocate",
-    "Animals",
-    "Carousing",
-    "Comms",
-    "Computer",
-    "Electronics",
-    "Engineering",
-    "Life Sciences",
-    "Linguistics",
-    "Mechanics",
-    "Medicine",
-    "Physical Sciences",
-    "Social Sciences",
-    "Space Sciences",
-)
-
-_HOMEWORLD_SKILLS = (
-    "Animals",
-    "Broker",
-    "Carousing",
-    "Computer",
-    "Gun Combat",
-    "Melee Combat",
-    "Streetwise",
-    "Survival",
-    "Watercraft",
-    "Zero-G",
-)
+from cetools.engine.training import roll_skill
 
 _PENSION = {5: 10000, 6: 12000, 7: 14000, 8: 16000}
 
-_RANK_BONUS_ROLLS = {4: 1, 5: 2, 6: 3}
-
 _MAX_TERMS = 7
-_MAX_CASH_ROLLS = 3
-_UNIQUE_MATERIAL_BENEFITS = frozenset({"Explorers' Society", "Research Vessel", "Courier Vessel"})
-_SHIP_SHARES_BENEFIT = "1D6 Ship Shares"
-_MAX_MATERIAL_REROLLS = 100
+_MAX_RANK = 6
 
 
 def _dm(characteristics: dict[str, int], stat: str) -> int:
     return characteristic_modifier(characteristics[stat])
-
-
-def _draw_distinct(
-    pool: tuple[str, ...],
-    count: int,
-    rolls: Rolls,
-    exclude: tuple[str, ...] = (),
-) -> list[str]:
-    remaining = [skill for skill in pool if skill not in exclude]
-    chosen: list[str] = []
-    for _ in range(min(count, len(remaining))):
-        pick = rolls.choose(remaining, RollName.BACKGROUND_SKILL)
-        remaining.remove(pick)
-        chosen.append(pick)
-    return chosen
-
-
-def _grant_background_skills(
-    characteristics: dict[str, int], skills: dict[str, int], rolls: Rolls
-) -> None:
-    count = max(0, 3 + characteristic_modifier(characteristics.get("Education", 0)))
-    homeworld_count = min(2, count)
-    education_count = count - homeworld_count
-    homeworld = _draw_distinct(_HOMEWORLD_SKILLS, homeworld_count, rolls)
-    education = _draw_distinct(_EDUCATION_SKILLS, education_count, rolls, exclude=tuple(homeworld))
-    for name in homeworld + education:
-        skills[name] = 0
 
 
 def _check(
@@ -103,157 +41,9 @@ def _check(
     return rolls.check(_dm(characteristics, stat), target, name)
 
 
-def _roll_skill(
-    career: Career,
-    characteristics: dict[str, int],
-    skills: dict[str, int],
-    rolls: Rolls,
-) -> str:
-    tables = [
-        career.personal_development,
-        career.service_skills,
-        career.specialist_skills,
-    ]
-    if characteristics.get("Education", 0) >= 8:
-        tables.append(career.advanced_education)
-    # The SRD says to *choose* a Skills and Training table, so the choice is
-    # uniform over the tables on offer. Rolling a die and taking it modulo the
-    # table count would favour the first two whenever Advanced Education is in
-    # play. Rolling *on* the chosen table is a real 1D6.
-    table = rolls.choose(tables, RollName.SKILL_TABLE)
-    entry = table[rolls.d6(RollName.SKILL_ENTRY) - 1]
-    _apply_skill_entry(entry, characteristics, skills)
-    return entry
-
-
-def _apply_stat_boost(name: str, characteristics: dict[str, int]) -> bool:
-    """Return True if `name` is a "+1 X" entry, whether or not X is a known stat."""
-    if not name.startswith("+1 "):
-        return False
-    stat = STAT_ABBREV.get(name[3:])
-    if stat:
-        characteristics[stat] = min(33, characteristics.get(stat, 0) + 1)
-    return True
-
-
-def _apply_skill_entry(
-    entry: str, characteristics: dict[str, int], skills: dict[str, int]
-) -> None:
-    # SRD: a skill you do not already have is taken at level 1; one you do have
-    # goes up a level. Level 0 comes only from basic training and background
-    # skills, and a roll takes such a skill to 1 either way.
-    if not _apply_stat_boost(entry, characteristics):
-        skills[entry] = skills.get(entry, 0) + 1
-
-
 def _grant_rank_bonus(rank_entry, characteristics: dict[str, int], skills: dict[str, int]) -> None:
     for skill_name in rank_entry.bonus_skills:
         skills[skill_name] = skills.get(skill_name, 0) + 1
-
-
-def _apply_aging(characteristics: dict[str, int], terms_served: int, rolls: Rolls) -> None:
-    roll = rolls.two_d6(RollName.AGING) - terms_served
-    if roll >= 1:
-        return
-    reductions: list[tuple[str, int]] = []
-    if roll == 0:
-        reductions = [("Strength", 1)]
-    elif roll == -1:
-        reductions = [("Strength", 1), ("Dexterity", 1)]
-    elif roll == -2:
-        reductions = [("Strength", 1), ("Dexterity", 1), ("Endurance", 1)]
-    elif roll == -3:
-        reductions = [("Strength", 2), ("Dexterity", 1), ("Endurance", 1)]
-    elif roll == -4:
-        reductions = [("Strength", 2), ("Dexterity", 2), ("Endurance", 1)]
-    elif roll == -5:
-        reductions = [("Strength", 2), ("Dexterity", 2), ("Endurance", 2)]
-    else:  # -6 or worse
-        reductions = [
-            ("Strength", 2),
-            ("Dexterity", 2),
-            ("Endurance", 2),
-            ("Intelligence", 1),
-        ]
-    for stat, amount in reductions:
-        characteristics[stat] = max(0, characteristics[stat] - amount)
-
-
-def _muster_out(
-    career: Career,
-    terms_served: int,
-    rank: int,
-    skills: dict[str, int],
-    characteristics: dict[str, int],
-    rolls: Rolls,
-) -> list[Benefit]:
-    bonus_rolls = _RANK_BONUS_ROLLS.get(rank, 0)
-    total_rolls = terms_served + bonus_rolls
-    cash_rolls_used = 0
-    benefits: list[Benefit] = []
-    granted_material_names: set[str] = set()
-
-    cash_dm = 1 if skills.get("Gambling", -1) >= 0 else 0
-    material_dm = 1 if rank >= 5 else 0
-
-    for _ in range(total_rolls):
-        use_cash = cash_rolls_used < _MAX_CASH_ROLLS
-        if use_cash:
-            idx = max(0, min(6, rolls.d6(RollName.CASH_BENEFIT) + cash_dm - 1))
-            amount = career.cash_benefits[idx]
-            benefits.append(Benefit(kind="cash", cash_amount=amount))
-            cash_rolls_used += 1
-        else:
-            name = _roll_material_benefit(career, material_dm, rolls, granted_material_names)
-            if name == _SHIP_SHARES_BENEFIT:
-                quantity = rolls.d6(RollName.SHIP_SHARES)
-                benefits.append(
-                    Benefit(
-                        kind="material",
-                        material_name="Ship Shares",
-                        material_quantity=quantity,
-                    )
-                )
-                granted_material_names.add(name)
-            else:
-                _apply_material_benefit(name, characteristics, skills)
-                granted_material_names.add(name)
-                benefits.append(Benefit(kind="material", material_name=name))
-
-    return benefits
-
-
-def _roll_material_benefit(
-    career: Career,
-    material_dm: int,
-    rolls: Rolls,
-    granted_names: set[str],
-) -> str:
-    mat_max = len(career.material_benefits) - 1
-    for _ in range(_MAX_MATERIAL_REROLLS):
-        idx = max(0, min(mat_max, rolls.d6(RollName.MATERIAL_BENEFIT) + material_dm - 1))
-        name = career.material_benefits[idx]
-        if name in _UNIQUE_MATERIAL_BENEFITS and name in granted_names:
-            continue
-        return name
-    # A degenerate script (e.g. a ScriptedRolls fixed on one value) that keeps landing
-    # on an already-granted once-only benefit would otherwise loop forever.
-    # Fall back deterministically to the first table entry that is not an
-    # already-granted once-only benefit — every real career table has one.
-    for name in career.material_benefits:
-        if not (name in _UNIQUE_MATERIAL_BENEFITS and name in granted_names):
-            return name
-    raise RuntimeError(
-        f"Career '{career.name}' has no material benefit outside the"
-        f" already-granted once-only set"
-        f" {sorted(_UNIQUE_MATERIAL_BENEFITS & granted_names)}"
-    )
-
-
-def _apply_material_benefit(
-    name: str, characteristics: dict[str, int], skills: dict[str, int]
-) -> None:
-    _apply_stat_boost(name, characteristics)
 
 
 def _pension(terms_served: int) -> int | None:
@@ -282,8 +72,7 @@ def generate_character(
     else:
         characteristics = {stat: rolls.two_d6(RollName.CHARACTERISTIC) for stat in STAT_NAMES}
 
-    skills: dict[str, int] = {}
-    _grant_background_skills(characteristics, skills, rolls)
+    skills: dict[str, int] = background_skills(characteristics, rolls)
 
     if (
         not bypass_qualification
@@ -371,7 +160,7 @@ def generate_character(
                         career.advancement_target,
                         RollName.ADVANCEMENT,
                     ):
-                        if rank < 6:
+                        if rank < _MAX_RANK:
                             rank += 1
                             promoted_this_term = True
                             _grant_rank_bonus(career.ranks[rank], characteristics, skills)
@@ -389,7 +178,7 @@ def generate_character(
                 career.advancement_target,
                 RollName.ADVANCEMENT,
             ):
-                if rank < 6:
+                if rank < _MAX_RANK:
                     rank += 1
                     promoted_this_term = True
                     _grant_rank_bonus(career.ranks[rank], characteristics, skills)
@@ -399,13 +188,16 @@ def generate_character(
             skill_rolls = 2
 
         for _ in range(skill_rolls):
-            skills_gained_this_term.append(_roll_skill(career, characteristics, skills, rolls))
+            training = roll_skill(career, characteristics, skills, rolls)
+            characteristics = training.characteristics
+            skills = training.skills
+            skills_gained_this_term.append(training.entry)
 
         age += 4
         terms_served += 1
 
-        if age >= 34:
-            _apply_aging(characteristics, terms_served, rolls)
+        if age >= AGING_STARTS_AT_AGE:
+            characteristics = apply_aging(characteristics, terms_served, rolls)
 
         term_history.append(
             Term(
@@ -435,7 +227,9 @@ def generate_character(
         benefits: list[Benefit] = []
         pension = None
     else:
-        benefits = _muster_out(career, terms_served, rank, skills, characteristics, rolls)
+        mustered = muster_out(career, terms_served, rank, skills, characteristics, rolls)
+        benefits = mustered.benefits
+        characteristics = mustered.characteristics
         pension = _pension(terms_served)
     name = generate_name(rolls)
     psi_strength, talents = roll_psionics(terms_served, rolls)

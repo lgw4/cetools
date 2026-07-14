@@ -1,23 +1,10 @@
 import dataclasses
-import random
-from collections import Counter
 
 import pytest
 
-from cetools.engine.careers.aerospace import AEROSPACE_CAREER
 from cetools.engine.careers.navy import NAVY_CAREER
-from cetools.engine.careers.scientist import SCIENTIST_CAREER
 from cetools.engine.careers.scout import SCOUT_CAREER
 from cetools.engine.generator import (
-    _HOMEWORLD_SKILLS,
-    _apply_material_benefit,
-    _apply_skill_entry,
-    _apply_stat_boost,
-    _draw_distinct,
-    _grant_background_skills,
-    _muster_out,
-    _roll_material_benefit,
-    _roll_skill,
     draft_character,
     generate_career_character,
     generate_character,
@@ -25,23 +12,10 @@ from cetools.engine.generator import (
     roll_until_qualified,
 )
 from cetools.engine.models import STAT_NAMES, Character, GenerationFailure
-from cetools.engine.rolls import RandomRolls, RollName, ScriptedRolls
+from cetools.engine.rolls import RollName, ScriptedRolls
+from conftest import scripted
 
-
-def _rolls(**overrides) -> ScriptedRolls:
-    """A career where nothing goes wrong.
-
-    Every check passes, every table roll lands on row 1, every choice takes the
-    head of the list, every 2D6 is 10. Psionics is opted out (the gate fails) so
-    that tests about careers are not perturbed by psionic rolls.
-
-    Override any of it by name — a test says only what it is actually about.
-    """
-    checks = {RollName.PSI_GATE: False}
-    checks.update(overrides.pop("checks", {}))
-    params = dict(default_check=True, default_two_d6=10, default_d6=1, default_choice=0)
-    params.update(overrides)
-    return ScriptedRolls(checks=checks, **params)
+_rolls = scripted  # every check passes; see tests/conftest.py
 
 
 # --- Check helper ---
@@ -368,185 +342,6 @@ def test_rank_bonus_muster_rolls_applied() -> None:
     assert len(result.benefits) == expected_total
 
 
-# --- Material benefit row 7 reachable via rank DM ---
-
-
-def test_material_benefit_row_7_reachable_at_rank_5_plus() -> None:
-    # rank 5 -> material_dm=1, so idx = clamp(roll + 1 - 1) = roll. A material
-    # roll of 6 lands on idx 6 -> "Explorers' Society". Without the rank-5+ DM,
-    # idx would clamp to 5 (High Passage), so this confirms row 7 is reachable.
-    # terms_served=2 + rank-5 bonus (2) = 4 rolls: 3 cash (the cap), 1 material.
-    result = _muster_out(
-        career=NAVY_CAREER,
-        terms_served=2,
-        rank=5,
-        skills={},
-        characteristics={},
-        rolls=_rolls(d6={RollName.CASH_BENEFIT: 6, RollName.MATERIAL_BENEFIT: 6}),
-    )
-    assert len(result) == 4
-    material_benefits = [b for b in result if b.kind == "material"]
-    assert any(
-        b.material_name == "Explorers' Society" for b in material_benefits
-    ), "rank 5+ DM should make material benefit row 7 (Explorers' Society) reachable"
-
-
-def test_muster_out_grants_explorers_society_once_and_rerolls_repeat() -> None:
-    # rank 5 -> material_dm=1, so idx = roll. Two material rolls: the first 6
-    # grants "Explorers' Society"; the second 6 would repeat it, so the once-only
-    # rule rerolls, and the 2 lands on "Weapon".
-    result = _muster_out(
-        career=NAVY_CAREER,
-        terms_served=3,
-        rank=5,
-        skills={},
-        characteristics={},
-        rolls=_rolls(d6={RollName.MATERIAL_BENEFIT: [6, 6, 2]}),
-    )
-    assert len(result) == 5  # reroll must not add an extra roll (FR-008)
-    material = [b.material_name for b in result if b.kind == "material"]
-    assert material == ["Explorers' Society", "Weapon"]
-
-
-# --- Cash DM from Gambling skill ---
-
-
-def test_gambling_skill_grants_cash_dm_on_muster_out() -> None:
-    # A cash roll of 5:
-    #   without Gambling: idx = max(0, min(6, 5+0-1)) = 4 -> cash_benefits[4] = 20,000
-    #   with Gambling:    idx = max(0, min(6, 5+1-1)) = 5 -> cash_benefits[5] = 50,000
-    common = dict(
-        career=NAVY_CAREER,
-        terms_served=1,
-        rank=0,
-        characteristics={},
-        rolls=_rolls(d6={RollName.CASH_BENEFIT: 5}),
-    )
-    without_dm = _muster_out(**common, skills={})
-    with_dm = _muster_out(**common, skills={"Gambling": 0})
-    assert len(without_dm) == 1
-    assert len(with_dm) == 1
-    assert without_dm[0].cash_amount == 20000
-    assert with_dm[0].cash_amount == 50000
-
-
-# --- Explorers' Society: reroll on repeat ---
-
-
-def test_roll_material_benefit_grants_explorers_society_when_not_yet_granted() -> None:
-    # NAVY_CAREER.material_benefits[6] = "Explorers' Society". material_dm=1, so
-    # idx = clamp(roll + 1 - 1) = roll; a roll of 6 -> idx 6.
-    name = _roll_material_benefit(NAVY_CAREER, 1, _rolls(d6={RollName.MATERIAL_BENEFIT: 6}), set())
-    assert name == "Explorers' Society"
-
-
-def test_roll_material_benefit_rerolls_once_when_already_granted() -> None:
-    # First roll 6 -> "Explorers' Society", already granted, so it rerolls:
-    # 3 -> idx 3 -> "Mid Passage".
-    name = _roll_material_benefit(
-        NAVY_CAREER,
-        1,
-        _rolls(d6={RollName.MATERIAL_BENEFIT: [6, 3]}),
-        {"Explorers' Society"},
-    )
-    assert name == "Mid Passage"
-
-
-def test_roll_material_benefit_rerolls_repeatedly_until_non_duplicate() -> None:
-    # Three more 6s in a row (each still "Explorers' Society", already granted)
-    # before a 2 finally lands on idx 2 -> "Weapon".
-    name = _roll_material_benefit(
-        NAVY_CAREER,
-        1,
-        _rolls(d6={RollName.MATERIAL_BENEFIT: [6, 6, 6, 2]}),
-        {"Explorers' Society"},
-    )
-    assert name == "Weapon"
-
-
-def test_roll_material_benefit_unaffected_for_career_without_explorers_society() -> None:
-    # AEROSPACE_CAREER.material_benefits[6] = "+1 Soc" (no "Explorers' Society" entry
-    # exists in this table at all), so the uniqueness check can never match —
-    # behavior is identical to before this feature, even when `granted_names`
-    # already contains that string. material_dm=1, so idx = clamp(6 + 1 - 1) = 6.
-    name = _roll_material_benefit(
-        AEROSPACE_CAREER,
-        1,
-        _rolls(d6={RollName.MATERIAL_BENEFIT: 6}),
-        {"Explorers' Society"},
-    )
-    assert name == "+1 Soc"
-
-
-# --- Research Vessel (Scientist) and Courier Vessel (Scout): once-only ---
-
-
-def test_roll_material_benefit_grants_research_vessel_when_not_yet_granted() -> None:
-    name = _roll_material_benefit(
-        SCIENTIST_CAREER, 1, _rolls(d6={RollName.MATERIAL_BENEFIT: 6}), set()
-    )
-    assert name == "Research Vessel"
-
-
-def test_roll_material_benefit_rerolls_research_vessel_when_already_granted() -> None:
-    # First roll 6 -> "Research Vessel", already granted, so it rerolls:
-    # 4 -> idx 4 -> "+1 Soc".
-    name = _roll_material_benefit(
-        SCIENTIST_CAREER,
-        1,
-        _rolls(d6={RollName.MATERIAL_BENEFIT: [6, 4]}),
-        {"Research Vessel"},
-    )
-    assert name == "+1 Soc"
-
-
-def test_roll_material_benefit_grants_courier_vessel_when_not_yet_granted() -> None:
-    # SCOUT_CAREER.material_benefits has 6 entries; [5] = "Courier Vessel".
-    # material_dm=1, roll 6 -> idx = clamp(6, 0, 5) = 5.
-    name = _roll_material_benefit(
-        SCOUT_CAREER, 1, _rolls(d6={RollName.MATERIAL_BENEFIT: 6}), set()
-    )
-    assert name == "Courier Vessel"
-
-
-def test_roll_material_benefit_rerolls_courier_vessel_when_already_granted() -> None:
-    name = _roll_material_benefit(
-        SCOUT_CAREER,
-        1,
-        _rolls(d6={RollName.MATERIAL_BENEFIT: [6, 3]}),
-        {"Courier Vessel"},
-    )
-    assert name == "Mid Passage"
-
-
-def test_roll_material_benefit_terminates_with_fixed_script_on_granted_unique() -> None:
-    # A material roll of 6 always lands on SCOUT_CAREER.material_benefits[5]
-    # ("Courier Vessel"). With it already granted, the reroll loop would spin
-    # forever without a cap; the fallback must return a non-duplicate benefit.
-    name = _roll_material_benefit(
-        SCOUT_CAREER,
-        1,
-        _rolls(d6={RollName.MATERIAL_BENEFIT: 6}),
-        {"Courier Vessel"},
-    )
-    assert name != "Courier Vessel"
-    assert name in SCOUT_CAREER.material_benefits
-
-
-def test_roll_material_benefit_raises_when_no_eligible_benefit_remains() -> None:
-    # Degenerate career whose entire material table is once-only benefits that
-    # are all already granted: the reroll loop exhausts and the fallback finds
-    # nothing, so the guard raises a descriptive error instead of a bare
-    # StopIteration. Not reachable with any real career table.
-    degenerate = dataclasses.replace(
-        SCOUT_CAREER,
-        material_benefits=("Explorers' Society", "Research Vessel", "Courier Vessel"),
-    )
-    granted = {"Explorers' Society", "Research Vessel", "Courier Vessel"}
-    with pytest.raises(RuntimeError, match="no material benefit outside"):
-        _roll_material_benefit(degenerate, 0, _rolls(), granted)
-
-
 # --- Benefits non-empty ---
 
 
@@ -601,57 +396,10 @@ def test_per_term_skill_rolls_recorded_in_term_history() -> None:
     assert term.skills_gained.count("Comms") == 3
 
 
-# --- Skill table selection ---
+# --- Skill table selection (end to end) ---
 
 # A career whose four Skills and Training tables have no entries in common, so
 # the skill that comes back names the table it came from.
-_TAGGED_CAREER = dataclasses.replace(
-    NAVY_CAREER,
-    personal_development=("PD",) * 6,
-    service_skills=("SERVICE",) * 6,
-    specialist_skills=("SPECIALIST",) * 6,
-    advanced_education=("ADVANCED",) * 6,
-)
-
-_EDU_8 = {"Education": 8}  # opens the Advanced Education table
-
-
-@pytest.mark.parametrize(
-    ("index", "table"),
-    [(0, "PD"), (1, "SERVICE"), (2, "SPECIALIST"), (3, "ADVANCED")],
-)
-def test_skill_table_is_chosen_by_index_not_by_a_die(index: int, table: str) -> None:
-    # The SRD says to *choose* a Skills and Training table, so cetools picks one
-    # uniformly rather than rolling a die and taking it modulo the table count.
-    # Each table is addressed by its position, with no die in between.
-    entry = _roll_skill(
-        _TAGGED_CAREER,
-        dict(_EDU_8),
-        {},
-        _rolls(choices={RollName.SKILL_TABLE: index}),
-    )
-    assert entry == table
-
-
-def test_skill_table_selection_is_uniform_across_all_four_tables() -> None:
-    # Regression: the table used to be picked with (1D6 - 1) % len(tables). With
-    # Advanced Education in play there are four tables, so a d6 modulo 4 gave
-    # 0,1,2,3,0,1 — Personal Development and Service Skills came up twice as
-    # often as Specialist and Advanced Education. Every table must be equally
-    # likely.
-    rolls = RandomRolls(random.Random(20260713))
-    counts = Counter(_roll_skill(_TAGGED_CAREER, dict(_EDU_8), {}, rolls) for _ in range(4000))
-    assert set(counts) == {"PD", "SERVICE", "SPECIALIST", "ADVANCED"}
-    for table, count in counts.items():
-        assert 850 <= count <= 1150, f"{table} came up {count} times in 4000, expected ~1000"
-
-
-def test_skill_table_selection_covers_three_tables_below_education_8() -> None:
-    # Without Advanced Education there are only three tables, and all three must
-    # be reachable.
-    rolls = RandomRolls(random.Random(20260713))
-    counts = Counter(_roll_skill(_TAGGED_CAREER, {"Education": 7}, {}, rolls) for _ in range(1200))
-    assert set(counts) == {"PD", "SERVICE", "SPECIALIST"}
 
 
 # --- Rank bonus skill levels ---
@@ -676,50 +424,10 @@ def test_generate_character_accepts_any_career_without_navy_hardcoding() -> None
     assert isinstance(result, (Character, GenerationFailure))
 
 
-# --- Stat boost helper ---
-
-
-def test_apply_stat_boost_applies_boost_and_returns_true() -> None:
-    characteristics = {"Strength": 7}
-    assert _apply_stat_boost("+1 Str", characteristics) is True
-    assert characteristics["Strength"] == 8
-
-
-def test_apply_stat_boost_returns_false_for_plain_skill_name() -> None:
-    characteristics = {"Strength": 7}
-    assert _apply_stat_boost("Melee Combat", characteristics) is False
-    assert characteristics["Strength"] == 7
-
-
-def test_apply_stat_boost_returns_true_for_unknown_abbreviation_without_applying() -> None:
-    characteristics = {"Strength": 7}
-    assert _apply_stat_boost("+1 Xyz", characteristics) is True
-    assert characteristics == {"Strength": 7}
-
-
-# --- Skill levels from a Skills and Training roll ---
+# --- Skill levels from a Skills and Training roll (end to end) ---
 # SRD: "If you gain a skill as a result and you do not already have levels in
 # that skill, take it at level 1. If you already have the skill, increase your
 # skill by one level." Basic training is the exception that grants level 0.
-
-
-def test_skill_entry_grants_an_unheld_skill_at_level_1() -> None:
-    skills: dict[str, int] = {}
-    _apply_skill_entry("Gravitics", {}, skills)
-    assert skills["Gravitics"] == 1
-
-
-def test_skill_entry_increments_a_level_zero_skill_to_1() -> None:
-    # Basic training and background skills grant level 0; a roll increases it.
-    skills = {"Comms": 0}
-    _apply_skill_entry("Comms", {}, skills)
-    assert skills["Comms"] == 1
-
-
-def test_skill_entry_increments_a_held_skill_by_one_level() -> None:
-    skills = {"Comms": 2}
-    _apply_skill_entry("Comms", {}, skills)
-    assert skills["Comms"] == 3
 
 
 def test_skill_rolled_from_a_table_is_granted_at_level_1_end_to_end() -> None:
@@ -737,21 +445,6 @@ def test_skill_rolled_from_a_table_is_granted_at_level_1_end_to_end() -> None:
     assert isinstance(result, Character)
     assert "Gravitics" not in NAVY_CAREER.service_skills
     assert result.skills["Gravitics"] == 1
-
-
-# --- Characteristic cap at 33 ---
-
-
-def test_apply_skill_entry_caps_stat_at_33() -> None:
-    characteristics = {"Strength": 33}
-    _apply_skill_entry("+1 Str", characteristics, {})
-    assert characteristics["Strength"] == 33
-
-
-def test_apply_material_benefit_caps_stat_at_33() -> None:
-    characteristics = {"Strength": 33}
-    _apply_material_benefit("+1 Str", characteristics, {})
-    assert characteristics["Strength"] == 33
 
 
 # --- T008: roll_until_qualified ---
@@ -879,24 +572,6 @@ def test_generate_career_character_two_skill_rolls_per_term() -> None:
     for i, term in enumerate(result.terms):
         non_bt = term.skills_gained if i > 0 else term.skills_gained[6:]
         assert len(non_bt) == 2, f"Term {i + 1} expected 2 skill rolls, got {len(non_bt)}"
-
-
-def test_generate_career_character_material_roll_5_gives_explorers_society() -> None:
-    # rank 0 -> material_dm=0, so idx = clamp(roll + 0 - 1) = roll - 1. A material
-    # roll of 5 lands on idx 4 -> SCOUT_CAREER.material_benefits[4] = "Explorers'
-    # Society", confirming row 5 is reachable with no rank DM.
-    # terms_served=4 + rank-0 bonus (0) = 4 rolls: 3 cash (the cap), 1 material.
-    result = _muster_out(
-        career=SCOUT_CAREER,
-        terms_served=4,
-        rank=0,
-        skills={},
-        characteristics={},
-        rolls=_rolls(d6={RollName.CASH_BENEFIT: 5, RollName.MATERIAL_BENEFIT: 5}),
-    )
-    assert len(result) == 4
-    material_benefits = [b for b in result if b.kind == "material"]
-    assert any(b.material_name == "Explorers' Society" for b in material_benefits)
 
 
 # --- T010a: Education < 8 restricts Scout skill rolls to 3 tables ---
@@ -1113,87 +788,6 @@ def test_two_skill_rolls_per_term_in_term_history() -> None:
         assert len(term.skills_gained) == 2
 
 
-# --- Background skills: _draw_distinct ---
-
-
-def test_draw_distinct_returns_requested_count_of_distinct_items() -> None:
-    # Every draw takes index 0, the head of what remains.
-    result = _draw_distinct(("A", "B", "C", "D"), 3, _rolls())
-    assert result == ["A", "B", "C"]
-    assert len(set(result)) == 3
-
-
-def test_draw_distinct_respects_exclude() -> None:
-    result = _draw_distinct(("A", "B", "C"), 2, _rolls(), exclude=("A",))
-    assert result == ["B", "C"]
-    assert "A" not in result
-
-
-def test_draw_distinct_truncates_when_over_requested() -> None:
-    # Only 2 items available but 5 requested → returns just the 2.
-    result = _draw_distinct(("A", "B"), 5, _rolls())
-    assert result == ["A", "B"]
-
-
-def test_draw_distinct_uses_the_choice_to_index() -> None:
-    # Index 2 each draw: [A,B,C,D] -> C; then [A,B,D] -> D.
-    result = _draw_distinct(
-        ("A", "B", "C", "D"), 2, _rolls(choices={RollName.BACKGROUND_SKILL: 2})
-    )
-    assert result == ["C", "D"]
-
-
-def test_draw_distinct_can_reach_pool_tail() -> None:
-    # Regression: indexing a pool larger than 6 with a fixed d6 left the tail
-    # unreachable (Zero-G at index 9 could never be drawn). A choice is sized to
-    # the pool, not to a die, so the last element is reachable.
-    result = _draw_distinct(_HOMEWORLD_SKILLS, 1, _rolls(choices={RollName.BACKGROUND_SKILL: -1}))
-    assert result == ["Zero-G"]
-
-
-# --- Background skills: _grant_background_skills ---
-
-
-def test_background_skill_count_matches_three_plus_education_dm() -> None:
-    # count = 3 + characteristic_modifier(Education).
-    cases = {2: 1, 4: 2, 7: 3, 10: 4, 12: 5, 15: 6}
-    for education, expected in cases.items():
-        skills: dict[str, int] = {}
-        _grant_background_skills({"Education": education}, skills, _rolls())
-        assert len(skills) == expected, f"Education {education} should grant {expected} skills"
-
-
-def test_background_skills_are_all_level_zero() -> None:
-    skills: dict[str, int] = {}
-    _grant_background_skills({"Education": 12}, skills, _rolls())
-    assert all(level == 0 for level in skills.values())
-
-
-def test_background_low_education_draws_only_homeworld_skills() -> None:
-    # count 1 (Edu 2) and count 2 (Edu 4) → every skill comes from the homeworld pool.
-    for education in (2, 4):
-        skills: dict[str, int] = {}
-        _grant_background_skills({"Education": education}, skills, _rolls())
-        assert set(skills) <= set(_HOMEWORLD_SKILLS)
-
-
-def test_background_full_draw_is_deterministic_and_distinct() -> None:
-    # Edu 12 → count 5. Every draw takes index 0.
-    # Homeworld: Animals, Broker. Education (excluding those): Admin, Advocate, Carousing.
-    skills: dict[str, int] = {}
-    _grant_background_skills({"Education": 12}, skills, _rolls())
-    assert set(skills) == {"Animals", "Broker", "Admin", "Advocate", "Carousing"}
-
-
-def test_background_skills_reproducible_across_identical_scripts() -> None:
-    first: dict[str, int] = {}
-    second: dict[str, int] = {}
-    choices = {RollName.BACKGROUND_SKILL: [1, 3, 0, 2]}
-    _grant_background_skills({"Education": 10}, first, _rolls(choices=choices))
-    _grant_background_skills({"Education": 10}, second, _rolls(choices=dict(choices)))
-    assert first == second
-
-
 def test_generate_character_grants_background_skills() -> None:
     # Preset Education 10 → 4 background skills, each drawn at index 0:
     # homeworld Animals, Broker; education Admin, Advocate. None of these are
@@ -1244,115 +838,12 @@ def test_roll_until_qualified_none_qualification_returns_immediately() -> None:
     assert set(result.keys()) == set(STAT_NAMES)
 
 
-def test_muster_out_ship_shares_rolls_quantity() -> None:
-    ship_career = dataclasses.replace(
-        NAVY_CAREER,
-        material_benefits=(
-            "Low Passage",
-            "+1 Int",
-            "Weapon",
-            "Mid Passage",
-            "+1 Soc",
-            "High Passage",
-            "1D6 Ship Shares",
-        ),
-    )
-    characteristics = {stat: 7 for stat in STAT_NAMES}
-    # rank 5 -> material_dm=1 and +2 bonus muster rolls; terms=2 -> 4 total rolls
-    # (3 cash, the cap, then 1 material). The material roll of 6 lands on idx 6 ->
-    # "1D6 Ship Shares", whose quantity is then rolled separately.
-    benefits = _muster_out(
-        ship_career,
-        2,
-        5,
-        {},
-        characteristics,
-        _rolls(
-            d6={
-                RollName.CASH_BENEFIT: 1,
-                RollName.MATERIAL_BENEFIT: 6,
-                RollName.SHIP_SHARES: 3,
-            }
-        ),
-    )
-    material = [b for b in benefits if b.kind == "material"]
-    assert len(material) == 1
-    assert material[0].material_name == "Ship Shares"
-    assert material[0].material_quantity == 3
-    # ship shares do not touch characteristics
-    assert all(value == 7 for value in characteristics.values())
-
-
-def test_muster_out_zero_cash_benefit() -> None:
-    from cetools.engine.careers.barbarian import BARBARIAN_CAREER
-
-    characteristics = {stat: 7 for stat in STAT_NAMES}
-    # rank 0, terms=1 -> 1 roll (cash). A cash roll of 1 with no Gambling DM
-    # -> idx 0 -> cash_benefits[0] == 0.
-    benefits = _muster_out(
-        BARBARIAN_CAREER, 1, 0, {}, characteristics, _rolls(d6={RollName.CASH_BENEFIT: 1})
-    )
-    cash = [b for b in benefits if b.kind == "cash"]
-    assert len(cash) == 1
-    assert cash[0].cash_amount == 0
-
-
-def test_muster_out_hunter_ship_shares() -> None:
-    from cetools.engine.careers.hunter import HUNTER_CAREER
-
-    characteristics = {stat: 7 for stat in STAT_NAMES}
-    # rank 0 -> material_dm=0; terms=4 -> 4 rolls (3 cash, the cap, then 1
-    # material). The material roll of 5 lands on idx 4 -> "1D6 Ship Shares".
-    benefits = _muster_out(
-        HUNTER_CAREER,
-        4,
-        0,
-        {},
-        characteristics,
-        _rolls(
-            d6={
-                RollName.CASH_BENEFIT: 1,
-                RollName.MATERIAL_BENEFIT: 5,
-                RollName.SHIP_SHARES: 3,
-            }
-        ),
-    )
-    material = [b for b in benefits if b.kind == "material"]
-    assert len(material) == 1
-    assert material[0].material_name == "Ship Shares"
-    assert material[0].material_quantity == 3
-
-
 def test_generate_career_character_drifter_no_qualification() -> None:
     from cetools.engine.careers.drifter import DRIFTER_CAREER
 
     result = generate_career_character(DRIFTER_CAREER, rolls=_rolls())
     assert isinstance(result, Character)
     assert result.career == "Drifter"
-
-
-def test_muster_out_belter_ship_shares() -> None:
-    from cetools.engine.careers.belter import BELTER_CAREER
-
-    characteristics = {stat: 7 for stat in STAT_NAMES}
-    benefits = _muster_out(
-        BELTER_CAREER,
-        4,
-        0,
-        {},
-        characteristics,
-        _rolls(
-            d6={
-                RollName.CASH_BENEFIT: 1,
-                RollName.MATERIAL_BENEFIT: 5,
-                RollName.SHIP_SHARES: 3,
-            }
-        ),
-    )
-    material = [b for b in benefits if b.kind == "material"]
-    assert len(material) == 1
-    assert material[0].material_name == "Ship Shares"
-    assert material[0].material_quantity == 3
 
 
 # --- Psionics ---

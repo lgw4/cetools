@@ -48,6 +48,27 @@ def characteristic_modifier(score: int) -> int:
     return 9
 
 
+MAX_CHARACTERISTIC = 33
+
+
+def boost(characteristics: dict[str, int], entry: str) -> dict[str, int] | None:
+    """New characteristics if `entry` is a "+1 X" boost, else None.
+
+    Both Skills and Training entries and material benefits use the same "+1 X"
+    notation, so both go through here. An unknown abbreviation is still a boost —
+    it just has nothing to apply — which keeps a typo in a career table from being
+    silently granted as a skill named "+1 Xyz".
+    """
+    if not entry.startswith("+1 "):
+        return None
+    stat = STAT_ABBREV.get(entry[3:])
+    if stat is None:
+        return dict(characteristics)
+    boosted = dict(characteristics)
+    boosted[stat] = min(MAX_CHARACTERISTIC, boosted.get(stat, 0) + 1)
+    return boosted
+
+
 @dataclass
 class Benefit:
     kind: Literal["cash", "material"]

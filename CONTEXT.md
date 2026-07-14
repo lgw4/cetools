@@ -62,6 +62,27 @@ Psi strength is appended after a hyphen.
 The architecture vocabulary (module, interface, depth, seam, adapter, leverage,
 locality) is defined by the `/codebase-design` skill and used as written there.
 
+**The engine's steps** — each named step of character creation is its own module,
+with a deep interface: give it the state and the **Rolls**, get back what changed.
+None of them mutates its arguments.
+
+| module | interface | the SRD step |
+| --- | --- | --- |
+| `background.py` | `background_skills(characteristics, rolls)` | the skills a character brings to their first career |
+| `training.py` | `roll_skill(career, characteristics, skills, rolls)` | Skills and Training |
+| `aging.py` | `apply_aging(characteristics, terms_served, rolls)` | Ageing |
+| `benefits.py` | `muster_out(career, …, rolls)` | Benefits (**muster-out**) |
+| `mishaps.py` | `resolve_survival_mishap(rolls, characteristics)` | Survival Mishaps |
+| `psionics.py` | `roll_psionics(terms_served, rolls)` | Psionics |
+
+`generator.py` is the **coordinator**: it owns qualification, survival, commission,
+advancement, re-enlistment, and the **term** loop, and calls the steps above. It
+holds no rules content that belongs to a named step.
+
+The `"+1 X"` **stat boost** rule is shared by Skills and Training entries and by
+material benefits, so it lives with the other characteristics rules in
+`models.py` (`boost`), not in either caller.
+
 **Rolls** — the engine's single seam for chance. Everything the rules leave to
 chance passes through it, and nothing else in the engine touches `random`.
 

@@ -5,6 +5,7 @@ from cetools.engine.models import (
     Character,
     GenerationFailure,
     MishapOutcome,
+    boost,
     characteristic_modifier,
 )
 from cetools.engine.pseudohex import encode_upp
@@ -279,3 +280,32 @@ def test_character_psionics_can_be_set() -> None:
     )
     assert char.psi_strength == 6
     assert char.talents == {"Telepathy": 0}
+
+
+# --- boost: the "+1 X" rule ---
+# Shared by Skills and Training entries and by material benefits, so it lives
+# with the other characteristics rules rather than in either caller.
+
+
+def test_boost_applies_a_stat_boost() -> None:
+    assert boost({"Strength": 7}, "+1 Str")["Strength"] == 8
+
+
+def test_boost_returns_none_for_a_plain_skill_name() -> None:
+    assert boost({"Strength": 7}, "Melee Combat") is None
+
+
+def test_boost_recognises_an_unknown_abbreviation_without_applying_it() -> None:
+    # Still a boost, so it is never granted as a skill named "+1 Xyz" — it just
+    # has nothing to apply.
+    assert boost({"Strength": 7}, "+1 Xyz") == {"Strength": 7}
+
+
+def test_boost_caps_a_characteristic_at_33() -> None:
+    assert boost({"Strength": 33}, "+1 Str")["Strength"] == 33
+
+
+def test_boost_does_not_mutate_its_argument() -> None:
+    characteristics = {"Strength": 7}
+    boost(characteristics, "+1 Str")
+    assert characteristics == {"Strength": 7}
