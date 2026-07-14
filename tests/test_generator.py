@@ -3,6 +3,7 @@ import dataclasses
 import pytest
 
 from cetools.engine.careers.navy import NAVY_CAREER
+from cetools.engine.careers.registry import resolve
 from cetools.engine.careers.scout import SCOUT_CAREER
 from cetools.engine.generator import DRAFT, RANDOM, generate
 from cetools.engine.models import STAT_NAMES, Cash, Character, GenerationFailure
@@ -483,6 +484,16 @@ def test_house_rules_keep_rerolling_until_qualified() -> None:
     # have left a 3.
     assert result.characteristics["Intelligence"] == 8
     assert result.characteristics["Education"] == 8
+
+
+def test_house_rules_give_up_rather_than_loop_forever_on_an_impossible_script() -> None:
+    # Athlete qualifies on Endurance 8+. A rolls source pinned below that can never
+    # produce a qualifying character, and the reroll loop would spin for ever. It
+    # gives up with a descriptive error instead, naming what it could not satisfy.
+    # Not reachable with real dice: RandomRolls clears an 8 about 42% of the time.
+    athlete = resolve("athlete")
+    with pytest.raises(RuntimeError, match="Athlete.*Endurance 8"):
+        generate(athlete, _rolls(two_d6={RollName.CHARACTERISTIC: 7}))
 
 
 def test_house_rules_never_fail_enlistment() -> None:

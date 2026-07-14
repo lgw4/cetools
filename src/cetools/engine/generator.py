@@ -29,6 +29,11 @@ _PENSION = {5: 10000, 6: 12000, 7: 14000, 8: 16000}
 
 _MAX_TERMS = 7
 
+# Enough that real dice will never exhaust it; small enough that a rolls source
+# which can never qualify fails fast instead of hanging. Mirrors the same guard in
+# benefits.roll_material_benefit.
+_MAX_QUALIFICATION_ATTEMPTS = 100
+
 
 def _pension(terms_served: int) -> int | None:
     if terms_served < 5:
@@ -65,12 +70,23 @@ def _roll_until_qualified(career: Career, rolls: Rolls) -> dict[str, int]:
     A raw comparison against the career's target, not a dice check: under HOUSE
     rules a character gets the career they asked for, so enlistment cannot fail.
     """
-    while True:
+    for _ in range(_MAX_QUALIFICATION_ATTEMPTS):
         characteristics = _roll_characteristics(rolls)
         if career.qualification_stat is None or career.qualification_target is None:
             return characteristics
         if characteristics[career.qualification_stat] >= career.qualification_target:
             return characteristics
+
+    # A rolls source that can never clear the target (e.g. a ScriptedRolls pinned
+    # to a 2D6 below it) would otherwise spin here for ever. Real dice do not: the
+    # highest target any career sets is 8, which 2D6 clears about 42% of the time,
+    # so exhausting these attempts by chance is a ~1-in-10^23 event.
+    raise RuntimeError(
+        f"Career '{career.name}' still unqualified after"
+        f" {_MAX_QUALIFICATION_ATTEMPTS} attempts:"
+        f" this rolls source cannot produce {career.qualification_stat}"
+        f" {career.qualification_target}+"
+    )
 
 
 def _assign(assignment: Assignment, rolls: Rolls) -> tuple[Career, bool]:
@@ -95,9 +111,12 @@ def generate(
 ) -> Character | GenerationFailure:
     """A whole character: pick the career, serve the terms, muster out.
 
-    `assignment` is a Career, or DRAFT, or RANDOM. Under HOUSE rules the only
-    failure is a draft landing on a career cetools has not implemented; under SRD
-    rules enlistment can fail too.
+    `assignment` is a Career, or DRAFT, or RANDOM.
+
+    Under HOUSE rules this cannot fail: characteristics are rerolled until the
+    career accepts them, and the draft table holds careers rather than names, so
+    there is nothing left to fail at. `GenerationFailure` is returned only under
+    SRD rules, whose enlistment is a check the character can miss.
     """
     rolls = rolls or RandomRolls()
 
