@@ -18,6 +18,24 @@ class Training:
     skills: dict[str, int]
 
 
+def rolls_this_term(career: Career, commissioned: bool, promoted: bool) -> int:
+    """How many Skills and Training rolls a term grants.
+
+    The SRD gives one roll a term: "Choose one of the Skills and Training tables
+    for this career and roll on it." A commission earns "an extra skill" on top,
+    and an advancement earns another, so a term that brings both is worth three.
+
+    The exception is the seven careers with neither check (Athlete, Barbarian,
+    Belter, Drifter, Entertainer, Hunter, Scout): they "get to make two rolls for
+    skills instead of one every term". That is a property of the career, not of
+    what happened this term—a character who simply failed their commission gets
+    the base one roll, not two.
+    """
+    if career.commission_stat is None and career.advancement_stat is None:
+        return 2
+    return 1 + commissioned + promoted
+
+
 def _tables(career: Career, characteristics: dict[str, int]) -> list[tuple[str, ...]]:
     tables = [
         career.personal_development,
@@ -56,7 +74,7 @@ def roll_skill(
     """One Skills and Training roll: choose a table, then roll 1D6 on it.
 
     The SRD says to *choose* a table, so the choice is uniform over the tables on
-    offer — Advanced Education among them only at Education 8+. Rolling on the
+    offer—Advanced Education among them only at Education 8+. Rolling on the
     chosen table is a real 1D6.
     """
     table = rolls.choose(_tables(career, characteristics), RollName.SKILL_TABLE)

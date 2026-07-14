@@ -23,7 +23,7 @@ from cetools.engine.psionics import roll_psionics
 from cetools.engine.ranks import grant_rank_bonus, progress
 from cetools.engine.rolls import RandomRolls, RollName, Rolls
 from cetools.engine.rules import HOUSE, Rules
-from cetools.engine.training import roll_skill
+from cetools.engine.training import roll_skill, rolls_this_term
 
 _PENSION = {5: 10000, 6: 12000, 7: 14000, 8: 16000}
 
@@ -178,9 +178,9 @@ def generate(
         commissioned_this_term = advanced.commissioned
         promoted_this_term = advanced.promoted
 
-        skill_rolls = 1
-        if not commissioned_this_term and not promoted_this_term:
-            skill_rolls = 2
+        skill_rolls = rolls_this_term(
+            career, commissioned=commissioned_this_term, promoted=promoted_this_term
+        )
 
         for _ in range(skill_rolls):
             training = roll_skill(career, characteristics, skills, rolls)

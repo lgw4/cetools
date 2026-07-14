@@ -373,24 +373,26 @@ def _failed_commission_navy() -> ScriptedRolls:
     )
 
 
-def test_failed_commission_grants_two_skill_rolls() -> None:
-    # Comms is level 0 after basic training; two skill rolls push it to level 2.
-    # With only 1 roll it would stay at 1.
+def test_failed_commission_grants_only_the_base_roll() -> None:
+    # This test used to assert the opposite, and its name said so: it expected a
+    # failed commission to grant TWO skill rolls. The SRD gives one roll a term and
+    # an *extra* for a commission, so a term where the commission fails is worth
+    # the base one. Comms is level 0 after basic training; one roll takes it to 1.
     result = generate(NAVY_CAREER, _failed_commission_navy())
     assert isinstance(result, Character)
     assert result.terms_served == 1
     assert result.rank == 0
-    assert result.skills.get("Comms") == 2, "failed commission should not reduce skill rolls to 1"
+    assert result.skills.get("Comms") == 1
 
 
 def test_per_term_skill_rolls_recorded_in_term_history() -> None:
     result = generate(NAVY_CAREER, _failed_commission_navy())
     assert isinstance(result, Character)
     term = result.terms[0]
-    # 6 from basic training + 2 from skill rolls
-    assert len(term.skills_gained) == 8
-    # "Comms" appears once in basic training and twice from the two skill rolls
-    assert term.skills_gained.count("Comms") == 3
+    # 6 from basic training + 1 from the single skill roll a quiet term grants
+    assert len(term.skills_gained) == 7
+    # "Comms" appears once in basic training and once from the skill roll
+    assert term.skills_gained.count("Comms") == 2
 
 
 # --- Skill table selection (end to end) ---
@@ -405,7 +407,7 @@ def test_per_term_skill_rolls_recorded_in_term_history() -> None:
 def test_rank_bonus_skills_granted_at_level_1() -> None:
     # Every skill roll lands on personal_development[0] = "+1 Str", a stat boost
     # rather than a skill, so Zero-G (rank 0) and Tactics (rank 3) can only have
-    # come from rank bonuses — and must start at level 1, not 0.
+    # come from rank bonuses—and must start at level 1, not 0.
     result = generate(NAVY_CAREER, _rolls())
     assert isinstance(result, Character)
     assert result.skills.get("Zero-G") == 1, "rank-0 bonus should grant Zero-G-1"
@@ -434,9 +436,12 @@ def test_skill_rolled_from_a_table_is_granted_at_level_1_end_to_end() -> None:
     result = generate(
         NAVY_CAREER,
         rolls=_rolls(
+            # A failed commission leaves the term worth its base single roll, so
+            # exactly one Gravitics lands. Re-enlistment of 1 ends the career there.
+            checks={RollName.COMMISSION: False},
             choices={RollName.SKILL_TABLE: 2},
             d6={RollName.SKILL_ENTRY: 1},
-            two_d6={RollName.REENLISTMENT: 1},  # one term, so exactly one roll lands
+            two_d6={RollName.REENLISTMENT: 1},
         ),
     )
     assert isinstance(result, Character)
@@ -460,7 +465,7 @@ def test_house_rules_reroll_characteristics_until_the_career_qualifies() -> None
 
 def test_house_rules_keep_rerolling_until_qualified() -> None:
     # Three failing sets of characteristics (Intelligence 3 < 6), then a passing
-    # one. Every stat coming back as 8 — the fourth block — is only possible if
+    # one. Every stat coming back as 8—the fourth block—is only possible if
     # the loop discarded the first three. Re-enlistment of 1 ends the career after
     # one term, before ageing can touch anything.
     result = generate(
@@ -558,7 +563,7 @@ def test_generate_career_character_two_skill_rolls_per_term() -> None:
 
 
 def test_education_below_8_excludes_advanced_education_skills() -> None:
-    # Education 7 (< 8) leaves only 3 skill tables — no Advanced Education.
+    # Education 7 (< 8) leaves only 3 skill tables—no Advanced Education.
     # Navigation and Tactics live only in that table, so they must never appear.
     result = generate(SCOUT_CAREER, rolls=_rolls(two_d6={RollName.CHARACTERISTIC: 7}))
     assert isinstance(result, Character)
@@ -779,7 +784,7 @@ def test_srd_rules_skip_enlistment_for_a_career_without_qualification() -> None:
         NAVY_CAREER, name="Drifter", qualification_stat=None, qualification_target=None
     )
     # The qualification check would fail, but a career with no qualification must
-    # never run it — so no enlistment failure, even under SRD rules.
+    # never run it—so no enlistment failure, even under SRD rules.
     result = generate(no_qual, _rolls(checks={RollName.QUALIFICATION: False}), rules=SRD)
     assert isinstance(result, Character)
 
@@ -847,7 +852,7 @@ def test_random_career_character_varies_with_first_roll() -> None:
 
 
 def test_random_career_is_not_drafted() -> None:
-    # `drafted` is no longer a parameter — the assignment says so. A random career
+    # `drafted` is no longer a parameter—the assignment says so. A random career
     # is chosen, not drafted, and the old "drafted random" combination can no
     # longer be asked for.
     result = generate(RANDOM, _rolls(choices={RollName.CAREER: 8}))

@@ -134,7 +134,7 @@ def test_marine_ranks_without_bonus_skills() -> None:
         ), f"Rank {rank_idx} should have no bonus skills"
 
 
-# --- T005: mustering-out tables — 7 cash entries, 7 material entries ---
+# --- T005: mustering-out tables—7 cash entries, 7 material entries ---
 
 
 def test_marine_cash_benefits_values() -> None:
@@ -209,7 +209,9 @@ def test_marine_commission_success_advances_rank_0_to_1() -> None:
     assert result.rank_title == "Lieutenant"
     term = result.terms[0]
     assert term.commissioned is True
-    assert len(term.skills_gained[6:]) == 1, "a commissioned term grants exactly 1 skill roll"
+    # The SRD gives one roll a term plus an *extra* for the commission. This
+    # assertion used to read "exactly 1", which had the rule backwards.
+    assert len(term.skills_gained[6:]) == 2, "a commissioned term grants 1 base + 1 extra roll"
 
 
 def test_marine_commission_failure_stays_rank_0() -> None:
@@ -304,7 +306,7 @@ def test_marine_rank_3_tactics_applied() -> None:
 
 def test_marine_commissioned_officer_retains_rank_0_zero_g_bonus() -> None:
     # Same rolls as test_marine_commission_success_advances_rank_0_to_1:
-    # commissioned to rank 1, never demoted — the rank-0 Zero-G bonus must
+    # commissioned to rank 1, never demoted—the rank-0 Zero-G bonus must
     # persist since skills accumulate and are never cleared.
     rolls = ScriptedRolls(
         checks={
