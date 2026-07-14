@@ -31,7 +31,6 @@ class RollName(StrEnum):
     PSI_STRENGTH = "psi_strength"
 
     # 1D6 table indices and quantities.
-    SKILL_TABLE = "skill_table"
     SKILL_ENTRY = "skill_entry"
     CASH_BENEFIT = "cash_benefit"
     MATERIAL_BENEFIT = "material_benefit"
@@ -43,6 +42,7 @@ class RollName(StrEnum):
     INJURY_DEBT = "injury_debt"
 
     # Uniform picks from a list.
+    SKILL_TABLE = "skill_table"
     CAREER = "career"
     BACKGROUND_SKILL = "background_skill"
     INJURY_STAT = "injury_stat"

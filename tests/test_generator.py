@@ -1,4 +1,6 @@
 import dataclasses
+import random
+from collections import Counter
 
 import pytest
 
@@ -15,6 +17,7 @@ from cetools.engine.generator import (
     _grant_background_skills,
     _muster_out,
     _roll_material_benefit,
+    _roll_skill,
     draft_character,
     generate_career_character,
     generate_character,
@@ -22,7 +25,7 @@ from cetools.engine.generator import (
     roll_until_qualified,
 )
 from cetools.engine.models import STAT_NAMES, Character, GenerationFailure
-from cetools.engine.rolls import RollName, ScriptedRolls
+from cetools.engine.rolls import RandomRolls, RollName, ScriptedRolls
 
 
 def _rolls(**overrides) -> ScriptedRolls:
@@ -567,13 +570,14 @@ def test_successful_character_served_at_least_one_term() -> None:
 
 def _failed_commission_navy() -> ScriptedRolls:
     # Commission fails, so neither commission nor advancement is received and two
-    # skill rolls must follow. Education 8 opens the Advanced Education table, so
-    # there are 4 tables: skill-table roll 2 -> (2-1)%4 = 1 -> service skills;
-    # entry roll 1 -> "Comms". Re-enlistment of 1 ends the career after one term.
+    # skill rolls must follow. Each picks the Service Skills table (index 1) and
+    # rolls its first entry, "Comms". Re-enlistment of 1 ends the career after
+    # one term.
     return _rolls(
         checks={RollName.COMMISSION: False},
         two_d6={RollName.CHARACTERISTIC: 8, RollName.REENLISTMENT: 1},
-        d6={RollName.SKILL_TABLE: 2, RollName.SKILL_ENTRY: 1},
+        choices={RollName.SKILL_TABLE: 1},
+        d6={RollName.SKILL_ENTRY: 1},
     )
 
 
@@ -595,6 +599,59 @@ def test_per_term_skill_rolls_recorded_in_term_history() -> None:
     assert len(term.skills_gained) == 8
     # "Comms" appears once in basic training and twice from the two skill rolls
     assert term.skills_gained.count("Comms") == 3
+
+
+# --- Skill table selection ---
+
+# A career whose four Skills and Training tables have no entries in common, so
+# the skill that comes back names the table it came from.
+_TAGGED_CAREER = dataclasses.replace(
+    NAVY_CAREER,
+    personal_development=("PD",) * 6,
+    service_skills=("SERVICE",) * 6,
+    specialist_skills=("SPECIALIST",) * 6,
+    advanced_education=("ADVANCED",) * 6,
+)
+
+_EDU_8 = {"Education": 8}  # opens the Advanced Education table
+
+
+@pytest.mark.parametrize(
+    ("index", "table"),
+    [(0, "PD"), (1, "SERVICE"), (2, "SPECIALIST"), (3, "ADVANCED")],
+)
+def test_skill_table_is_chosen_by_index_not_by_a_die(index: int, table: str) -> None:
+    # The SRD says to *choose* a Skills and Training table, so cetools picks one
+    # uniformly rather than rolling a die and taking it modulo the table count.
+    # Each table is addressed by its position, with no die in between.
+    entry = _roll_skill(
+        _TAGGED_CAREER,
+        dict(_EDU_8),
+        {},
+        _rolls(choices={RollName.SKILL_TABLE: index}),
+    )
+    assert entry == table
+
+
+def test_skill_table_selection_is_uniform_across_all_four_tables() -> None:
+    # Regression: the table used to be picked with (1D6 - 1) % len(tables). With
+    # Advanced Education in play there are four tables, so a d6 modulo 4 gave
+    # 0,1,2,3,0,1 — Personal Development and Service Skills came up twice as
+    # often as Specialist and Advanced Education. Every table must be equally
+    # likely.
+    rolls = RandomRolls(random.Random(20260713))
+    counts = Counter(_roll_skill(_TAGGED_CAREER, dict(_EDU_8), {}, rolls) for _ in range(4000))
+    assert set(counts) == {"PD", "SERVICE", "SPECIALIST", "ADVANCED"}
+    for table, count in counts.items():
+        assert 850 <= count <= 1150, f"{table} came up {count} times in 4000, expected ~1000"
+
+
+def test_skill_table_selection_covers_three_tables_below_education_8() -> None:
+    # Without Advanced Education there are only three tables, and all three must
+    # be reachable.
+    rolls = RandomRolls(random.Random(20260713))
+    counts = Counter(_roll_skill(_TAGGED_CAREER, {"Education": 7}, {}, rolls) for _ in range(1200))
+    assert set(counts) == {"PD", "SERVICE", "SPECIALIST"}
 
 
 # --- Rank bonus skill levels ---
@@ -818,11 +875,14 @@ def test_education_below_8_excludes_advanced_education_skills() -> None:
 
 
 def test_education_8_or_above_can_access_advanced_education() -> None:
-    # Education 10 (>= 8) opens the 4th table: skill-table roll 4 -> (4-1)%4 = 3 ->
-    # advanced_education; entry roll 4 -> (4-1)%6 = 3 -> "Medicine".
+    # Education 10 (>= 8) opens the 4th table, index 3: advanced_education, whose
+    # 4th entry is "Medicine".
     result = generate_career_character(
         SCOUT_CAREER,
-        rolls=_rolls(d6={RollName.SKILL_TABLE: 4, RollName.SKILL_ENTRY: 4}),
+        rolls=_rolls(
+            choices={RollName.SKILL_TABLE: 3},
+            d6={RollName.SKILL_ENTRY: 4},
+        ),
     )
     assert isinstance(result, Character)
     assert "Medicine" in result.skills

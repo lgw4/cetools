@@ -116,11 +116,12 @@ def _roll_skill(
     ]
     if characteristics.get("Education", 0) >= 8:
         tables.append(career.advanced_education)
-    # A 1D6 modulo the table count, not a uniform pick: with Advanced Education
-    # in play (4 tables) this favours the first two. Preserved as-is — the seam
-    # refactor does not change any distribution.
-    table = tables[(rolls.d6(RollName.SKILL_TABLE) - 1) % len(tables)]
-    entry = table[(rolls.d6(RollName.SKILL_ENTRY) - 1) % 6]
+    # The SRD says to *choose* a Skills and Training table, so the choice is
+    # uniform over the tables on offer. Rolling a die and taking it modulo the
+    # table count would favour the first two whenever Advanced Education is in
+    # play. Rolling *on* the chosen table is a real 1D6.
+    table = rolls.choose(tables, RollName.SKILL_TABLE)
+    entry = table[rolls.d6(RollName.SKILL_ENTRY) - 1]
     _apply_skill_entry(entry, characteristics, skills)
     return entry
 

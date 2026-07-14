@@ -120,9 +120,21 @@ Two things surfaced only because the tests stopped counting dice.
 
 **The aging ladder was only covered by accident.** Old die sequences wandered into the `-3`…`-6` rungs incidentally; scripting by name stopped that, and generator coverage fell to 94%. It is now covered on purpose, one test per rung, and generator coverage is 99% — above where it started. Writing those tests turned up a rules fact worth recording: **the `-6 or worse` rung is unreachable in a normal career.** `2D6` bottoms out at 2 and the term cap is 7, so the worst reachable roll is `2 - 7 = -5`. Only a natural 12 on re-enlistment, which forces an 8th term, reaches `2 - 8 = -6`.
 
-### Known rules bug, deliberately NOT fixed here
+### Follow-up: the skill-table selection bias (fixed)
 
-`_roll_skill` selects a skill table with `(d6 - 1) % len(tables)`. With Education ≥ 8 there are four tables, so a d6 modulo 4 makes Personal Development and Service Skills **twice as likely** as Specialist and Advanced Education. Switching that site to `choose` would fix it — and would change production behaviour, which would have destroyed phase A's behaviour-preservation proof. The modulo is preserved as-is with a comment at `generator.py`. It deserves its own change, checked against the SRD.
+Found during phase A, fixed after phase B — deliberately kept out of both, because it changes generated characters and would have destroyed phase A's behaviour-preservation proof.
+
+`_roll_skill` selected a skill table with `(d6 - 1) % len(tables)`. With Education ≥ 8 there are four tables, so a d6 modulo 4 mapped to `0,1,2,3,0,1` — Personal Development and Service Skills came up **twice as often** (≈33% each) as Specialist and Advanced Education (≈17% each).
+
+The SRD is explicit that this is not a roll at all:
+
+> **Choose** one of the Skills and Training tables for this career and roll on it.
+
+So the table is a *choice*, which cetools automates, and automating a choice means picking uniformly. `SKILL_TABLE` moves from a `d6` to a `choose` and now sits with the other uniform picks in `RollName`. Measured over 20,000 skill rolls at Education 8, all four tables now come up at 25%. Rolling *on* the chosen table remains a real 1D6, and the `% 6` that guarded it is gone — a career's tables are validated at exactly 6 entries, so it never did anything.
+
+### Open: a second SRD discrepancy, not investigated
+
+The same SRD paragraph says: *"If you gain a skill as a result and you do not already have levels in that skill, take it at level 1."* `_apply_skill_entry` grants it at level **0** (`skills.get(entry, -1) + 1`). Skills already held (including the level-0 service skills from basic training) do increment correctly. Whether the level-0 grant is a deliberate cetools house rule or a bug has not been established — it is not recorded anywhere.
 
 ## Self-Review
 
