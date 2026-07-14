@@ -68,41 +68,43 @@ Each character prints as a compact block:
 - **Optional** — a line of material benefits (repeats collapsed as `Name x N`).
 - **Optional** — a final `Mishap:` line when a survival mishap ended the career.
 
+Skills are shown with their level. A skill first gained from a Skills and Training roll starts at level 1; level 0 means the character has the skill but has never rolled it — it came from basic training or from their background.
+
 Example output (Navy, full career):
 
 ```text
-Starman Sam Voss	5A3B93	Age 38
-Navy (5 terms)	Cr52,000
-Admin-0, Advocate-1, Animals-0, Comms-0, Engineering-1, Gun Combat-0, Gunnery-0, Melee Combat-2, Tactics-1, Vehicle-2, Zero-G-1
-+1 Edu, High Passage
+Commodore Sam Voss	7796D5	Age 46
+Navy (7 terms)	Cr61,000
+Advocate-0, Comms-1, Computer-0, Engineering-0, Gravitics-1, Gun Combat-1, Gunnery-1, Leadership-2, Linguistics-0, Melee Combat-0, Navigation-2, Streetwise-0, Tactics-1, Vehicle-1, Zero-G-1
++2 Edu, Explorers' Society, Weapon, High Passage, Mid Passage (x2)
 ```
 
-Example output (drafted; note repeated benefits collapsed to `x 2`):
+Example output (drafted; note repeated benefits collapsed to `(x2)`, and stat boosts summed):
 
 ```text
-Captain Morgan Voss	7937A5	Age 42
-Navy (6 terms)	Cr61,000
-Admin-0, Advocate-0, Animals-0, Comms-0, Engineering-0, Gun Combat-0, Gunnery-0, Jack o' Trades-0, Leadership-0, Melee Combat-0, Piloting-0, Tactics-2, Vehicle-1, Zero-G-1
-+1 Soc, +1 Edu x 2, Weapon x 2
+General Drew Kade	798979	Age 46
+Surface System Defense (7 terms)	Cr50,000
+Animals-0, Battle Dress-0, Carousing-0, Gun Combat-2, Gunnery-0, Leadership-1, Mechanics-1, Melee Combat-4, Recon-2, Vehicle-1
++3 Soc, Weapon, High Passage, Mid Passage (x2)
 ```
 
 Example output (Marine, career cut short by a mishap):
 
 ```text
-Trooper Casey Voss	481749	Age 20
+Trooper Taylor Voss	216668	Age 20
 Marine (0 terms)	Cr0
-Admin-0, Advocate-0, Animals-0, Battle Dress-0, Comms-0, Demolitions-0, Gun Combat-0, Gunnery-0, Melee Combat-0, Zero-G-1
-Mishap: Injured in action, injured (Endurance -6), survived an injury crisis; Debt Cr40,000
+Battle Dress-0, Comms-0, Demolitions-0, Engineering-0, Gun Combat-0, Gunnery-0, Melee Combat-0, Watercraft-0, Zero-G-1
+Mishap: Medically discharged, injured (Dexterity -6, Endurance -2, Strength -2), survived an injury crisis; Debt Cr10,000
 ```
 
 Example output (Navy, psionic):
 
 ```text
-Starman Sam Voss	5A3B93-6	Age 38
-Navy (5 terms)	Cr52,000
-Admin-0, Advocate-1, Comms-0, Engineering-1, Melee Combat-2, Tactics-1, Vehicle-2, Zero-G-1
-Psionics: Awareness-0, Telepathy-0
-+1 Edu, High Passage
+Captain Drew Solis	69575C-2	Age 42
+Navy (6 terms)	Cr21,000
+Comms-0, Engineering-2, Gravitics-1, Gun Combat-0, Gunnery-2, Melee Combat-0, Streetwise-0, Survival-0, Tactics-1, Vehicle-0, Zero-G-1
+Psionics: Telekinesis-0
++1 Soc, Mid Passage, High Passage, Weapon (x2)
 ```
 
 Characters no longer die during generation. A failed survival roll resolves on the [Survival Mishaps table](https://evolvedexperiment.github.io/cepheus-srd/) and always yields a usable character: an injury, a discharge (honorable, dishonorable, or medical), and sometimes debt. The mishap is summarized on the `Mishap:` line.

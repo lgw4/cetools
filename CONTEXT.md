@@ -34,6 +34,11 @@ shape is a check.
 `characteristic_modifier`. The caller computes its own DM; a **check** only
 knows the number.
 
+**Skill level** — a skill first gained from a Skills and Training roll is taken at
+level **1**; one the character already has goes up a level. Level **0** means the
+character has the skill but has never rolled it: basic training grants every
+service skill at 0, and background skills come in at 0.
+
 **Mishap** — what happens when a **term** is not survived: a discharge (honorable,
 dishonorable, medical, or none), possibly imprisonment, possibly injury, possibly
 debt. A mishap ends the career.

@@ -697,6 +697,48 @@ def test_apply_stat_boost_returns_true_for_unknown_abbreviation_without_applying
     assert characteristics == {"Strength": 7}
 
 
+# --- Skill levels from a Skills and Training roll ---
+# SRD: "If you gain a skill as a result and you do not already have levels in
+# that skill, take it at level 1. If you already have the skill, increase your
+# skill by one level." Basic training is the exception that grants level 0.
+
+
+def test_skill_entry_grants_an_unheld_skill_at_level_1() -> None:
+    skills: dict[str, int] = {}
+    _apply_skill_entry("Gravitics", {}, skills)
+    assert skills["Gravitics"] == 1
+
+
+def test_skill_entry_increments_a_level_zero_skill_to_1() -> None:
+    # Basic training and background skills grant level 0; a roll increases it.
+    skills = {"Comms": 0}
+    _apply_skill_entry("Comms", {}, skills)
+    assert skills["Comms"] == 1
+
+
+def test_skill_entry_increments_a_held_skill_by_one_level() -> None:
+    skills = {"Comms": 2}
+    _apply_skill_entry("Comms", {}, skills)
+    assert skills["Comms"] == 3
+
+
+def test_skill_rolled_from_a_table_is_granted_at_level_1_end_to_end() -> None:
+    # Gravitics is Navy's first Specialist skill (table index 2) and is not in the
+    # service skills a Navy character gets from basic training, so a roll on it is
+    # the character's first level in it: level 1, not 0.
+    result = generate_character(
+        NAVY_CAREER,
+        rolls=_rolls(
+            choices={RollName.SKILL_TABLE: 2},
+            d6={RollName.SKILL_ENTRY: 1},
+            two_d6={RollName.REENLISTMENT: 1},  # one term, so exactly one roll lands
+        ),
+    )
+    assert isinstance(result, Character)
+    assert "Gravitics" not in NAVY_CAREER.service_skills
+    assert result.skills["Gravitics"] == 1
+
+
 # --- Characteristic cap at 33 ---
 
 

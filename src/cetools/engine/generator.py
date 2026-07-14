@@ -139,8 +139,11 @@ def _apply_stat_boost(name: str, characteristics: dict[str, int]) -> bool:
 def _apply_skill_entry(
     entry: str, characteristics: dict[str, int], skills: dict[str, int]
 ) -> None:
+    # SRD: a skill you do not already have is taken at level 1; one you do have
+    # goes up a level. Level 0 comes only from basic training and background
+    # skills, and a roll takes such a skill to 1 either way.
     if not _apply_stat_boost(entry, characteristics):
-        skills[entry] = skills.get(entry, -1) + 1
+        skills[entry] = skills.get(entry, 0) + 1
 
 
 def _grant_rank_bonus(rank_entry, characteristics: dict[str, int], skills: dict[str, int]) -> None:
