@@ -23,6 +23,7 @@ src/cetools/
 │   └── character.py
 ├── engine/         # Pure generation engine—no CLI dependency
 │   ├── careers/
+│   │   ├── __init__.py   # The package's public surface; import from here
 │   │   ├── base.py       # Career + RankEntry frozen dataclasses
 │   │   ├── navy.py       # NAVY_CAREER instance (one module per career, 24 of them)
 │   │   └── registry.py   # CAREERS, DRAFT_TABLE, resolve(), is_military(), UnknownCareer
@@ -43,11 +44,18 @@ src/cetools/
 └── formatter.py    # Plain-text character formatter
 
 tests/              # Mirrors src/cetools/ structure
+scripts/
+└── check_docs.py   # The docs check; part of the quality gate below
 docs/adr/           # Architecture decision records
 docs/superpowers/   # Historical plans and specs; a record, not documentation
+specs/              # Spec Kit feature directories, one per feature, numbered
 ```
 
 The engine (`src/cetools/engine/`) must never import from `src/cetools/cli/`. The CLI is the only code allowed to depend on the engine.
+
+Within the engine, `careers` is imported as a package: its `__init__.py` is the
+public surface, so a caller reaches for `CAREERS` or `resolve()` from
+`cetools.engine.careers`, not from `registry.py`.
 
 `CONTEXT.md` is the domain vocabulary: what a career, a term, a check, a mishap
 and the `Rolls` seam mean here. Read it before naming anything new, and add an
