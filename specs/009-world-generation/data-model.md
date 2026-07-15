@@ -73,7 +73,9 @@ A world plus its stellar surroundings. Produced by `generate_system`; each subse
 
 - `base_code` → `A` (naval+scout), `N` (naval), `S` (scout), `G` (scout+pirate), `P` (pirate), else
   `" "`.
-- `pbg` → 3-digit string: `population_modifier`, `planetoid_belts`, `gas_giants`.
+- `pbg` → 3-character string: `population_modifier`, `planetoid_belts`, `gas_giants`, each rendered
+  via `pseudohex.to_pseudohex` so a Population Modifier of 10 renders `A` (the SRD PBG convention;
+  belts max 3 and gas giants max 4 are already single digits).
 - `data_line` → full world-data line (see `profile.py` / research D5).
 
 **Invariants:** base-exclusion rules never violated (SC-004); `world.size==0 ⇒ planetoid_belts>=1`.
