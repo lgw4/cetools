@@ -33,7 +33,7 @@ at `tests/`. The world domain lives in a new `src/cetools/engine/worlds/` subpac
 
 **Purpose**: Create the subpackage skeleton so every later module has a home.
 
-- [ ] T001 Create the `src/cetools/engine/worlds/` subpackage skeleton: empty `__init__.py`,
+- [X] T001 Create the `src/cetools/engine/worlds/` subpackage skeleton: empty `__init__.py`,
   `tables.py`, `models.py`, `generator.py`, `naming.py`, and `profile.py` module files (each with a
   one-line module docstring), so imports resolve as the domain is filled in.
 
