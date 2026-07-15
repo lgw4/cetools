@@ -162,7 +162,8 @@ fully-described system whose hex coordinate matches its position. Delivers a rea
 - **FR-008**: System MUST generate Technology Level as 1D6 plus the SRD tech-level DMs derived from
   Starport, Size, Atmosphere, Hydrographics, Population, and Government, never below 0.
 - **FR-009**: System MUST raise a world's Technology Level to any SRD-mandated minimum implied by
-  its Hydrographics, Population, and Atmosphere conditions.
+  its Hydrographics, Population, and Atmosphere conditions; a Population-0 (uninhabited) world MUST
+  instead have Technology Level 0, overriding the rolled value and any mandated minimum.
 - **FR-010**: System MUST render a world's core characteristics as the classic pseudo-hexadecimal
   UWP profile string in the SRD order (Starport, Size, Atmosphere, Hydrographics, Population,
   Government, Law Level, hyphen, Technology Level), using letters for values above 9.
@@ -209,8 +210,9 @@ fully-described system whose hex coordinate matches its position. Delivers a rea
 - **FR-025**: The system MUST generate a world name by default so the referee receives a named
   world without extra effort; the caller MAY override the generated name with a specific one.
 - **FR-026**: Default world names MUST be produced by combining a curated pool of stems
-  procedurally into invented, pronounceable names (a hybrid word-list/syllable approach), yielding
-  enough variety that a full subsector does not visibly repeat.
+  procedurally into invented, pronounceable names (a hybrid word-list/syllable approach). The
+  generator MUST be capable of producing at least 10,000 distinct names, so that a full 80-hex
+  subsector shows no visible repeats.
 - **FR-027**: When generating a subsector, auto-generated world names MUST be unique within that
   subsector; on a name collision the system MUST regenerate until the name is unique.
 
@@ -238,17 +240,21 @@ fully-described system whose hex coordinate matches its position. Delivers a rea
 - **SC-002**: 100% of generated worlds satisfy every SRD inter-characteristic dependency (Size-0 ⇒
   Atmosphere 0 and Hydrographics 0; Size 0/1 ⇒ Hydrographics 0; Population-0 ⇒ Government, Law
   Level, and Technology Level 0; TL raised to any mandated minimum).
-- **SC-003**: Trade-code assignment matches the SRD trade-classification table for 100% of a
-  reference set of hand-worked worlds covering every classification.
-- **SC-004**: Base, planetoid-belt, and gas-giant presence rules produce outcomes within their
-  SRD-defined probability bounds across a large generated sample (e.g. gas-giant presence ≈ 72% at
-  the 5+ threshold), and never violate the exclusion rules.
+- **SC-003**: Trade-code assignment matches the SRD trade-classification table (research.md
+  Appendix C3) for 100% of a named reference fixture of hand-worked worlds that includes at least
+  one world per classification (Ag, As, Ba, De, Fl, Ga, Hi, Ht, Ic, In, Na, Ni, Lo, Lt, Po, Ri, Wa,
+  Va) plus at least one multi-code world and one no-code world.
+- **SC-004**: Base, planetoid-belt, and gas-giant presence rules produce outcomes within ±2
+  percentage points of their SRD-derived probabilities over a sample of at least 10,000 systems
+  (planetoid-belt presence ≈ 92% at 4+, gas-giant presence ≈ 83% at 5+, naval-base presence ≈ 42%
+  at 8+ given a Class-A/B starport), and never violate the exclusion rules.
 - **SC-005**: Regenerating with the same seed reproduces an identical world, system, and subsector
   100% of the time.
 - **SC-006**: A referee can generate a single fully-described world and read its complete world-data
   line in one command, and can generate a full 8×10 subsector in one command.
-- **SC-007**: Over a default-density subsector sample, the share of occupied hexes is
-  approximately 50%, shifting measurably up for dense and down for sparse/rift densities.
+- **SC-007**: Over a sample of at least 10,000 hexes per density, the share of occupied hexes is
+  within ±2 percentage points of the density's SRD-derived probability: rift ≈ 17% (1D6 ≥ 6),
+  sparse ≈ 33% (1D6 ≥ 5), standard ≈ 50% (1D6 ≥ 4), dense ≈ 67% (1D6 ≥ 3).
 - **SC-008**: 100% of generated worlds have a non-empty name by default, and every auto-generated
   name within a single generated subsector is unique.
 

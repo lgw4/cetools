@@ -62,13 +62,13 @@ Table maps digit → diameter and surface gravity. Size 0 is "typically an aster
 ### 8. Technology Level—`1D6 +` DMs from the TL-DM matrix, then minimums:
 
 DMs are summed across six UWP columns (Starport, Size, Atmosphere, Hydrographics, Population,
-Government) keyed by each characteristic's value. Notable entries (full matrix goes in
-`tables.py`):
+Government) keyed by each characteristic's value. The full matrix is transcribed verbatim in
+Appendix C1; summary:
 
 - Starport: A +6, B +4, C +2, X −4.
 - Size: 0–1 +2, 2–4 +1.
 - Atmosphere: 0–3 +1, A–F +1.
-- Hydrographics: 9 +1, A +2.
+- Hydrographics: 0 +1, 9 +1, A +2.
 - Population: 1–5 +1, 9 +1, A +2, B +3, C +4.
 - Government: 0 +1, 5 +1, 7 +2, D −2, E −2.
 
@@ -78,6 +78,11 @@ Never below 0. Then apply **minimum TL** overrides (raise TL to the minimum if l
 - Atmosphere 4, 7, or 9 → min 5.
 - Atmosphere ≤ 3 or A–C → min 7.
 - Atmosphere D or E **and** Hydrographics A → min 7.
+
+A Population-0 (uninhabited) world is the final exception: its Technology Level is forced to 0
+*after* the minimum-TL step, overriding both the rolled value and any mandated minimum (matches the
+§4 uninhabited rule and the SC-002 invariant). Order: roll → DMs → clamp ≥ 0 → minimum overrides →
+Population-0 zeroing.
 
 ### 9. Population Modifier—`2D6 − 2`
 
@@ -106,7 +111,8 @@ Never below 0. Then apply **minimum TL** overrides (raise TL to the minimum if l
 
 Each classification tests a conjunction of ranges over the eight UWP fields; assign every code whose
 conditions all hold. Codes: Ag, As, Ba, De, Fl, Ga, Hi, Ht, Ic, In, Lo, Lt, Na, Ni, Po, Ri, Wa, Va.
-(Full condition set goes in `tables.py`; e.g. **Ag**: Atmosphere 4–9, Hydro 4–8, Pop 5–7.)
+The full condition set is transcribed verbatim in Appendix C3 (e.g. **Ag**: Atmosphere 4–9,
+Hydro 4–8, Pop 5–7).
 
 ### 14. Travel Zone
 
@@ -205,3 +211,79 @@ conditions all hold. Codes: Ag, As, Ba, De, Fl, Ga, Hi, Ht, Ic, In, Lo, Lt, Na, 
   The CLI builds `RandomRolls(random.Random(seed))` when `--seed` is supplied.
 - **Rationale**: Same seed → identical world/system/subsector (FR-022, SC-005), while unseeded use
   stays convenient. Mirrors `generator.generate`'s default-rolls approach.
+
+---
+
+## Part C—Full SRD tables (verbatim transcription)
+
+Transcribed from the SRD "Worlds" page tables (fetched as raw HTML per project convention). These
+are the exhaustive tables the §8 and §13 summaries point to; `tables.py` encodes them as data
+(Principle V). A blank cell means "no DM" (C1) or "field unconstrained" (C3).
+
+### C1. Technology Level DMs by UWP Values (`TL_DM_BY_VALUE`)
+
+DMs are summed across the six columns, keyed by each characteristic's value, and added to `1D6`;
+the result is never below 0.
+
+| Value | Starport | Size | Atmosphere | Hydrographics | Population | Government |
+|-------|----------|------|------------|---------------|------------|------------|
+| 0 |  | +2 | +1 | +1 |  | +1 |
+| 1 |  | +2 | +1 |  | +1 |  |
+| 2 |  | +1 | +1 |  | +1 |  |
+| 3 |  | +1 | +1 |  | +1 |  |
+| 4 |  | +1 |  |  | +1 |  |
+| 5 |  |  |  |  | +1 | +1 |
+| 6 |  |  |  |  |  |  |
+| 7 |  |  |  |  |  | +2 |
+| 8 |  |  |  |  |  |  |
+| 9 |  |  |  | +1 | +1 |  |
+| A (10) | +6 |  | +1 | +2 | +2 |  |
+| B (11) | +4 |  | +1 |  | +3 |  |
+| C (12) | +2 |  | +1 |  | +4 |  |
+| D (13) |  |  | +1 |  |  | −2 |
+| E (14) |  |  | +1 |  |  | −2 |
+| F (15) |  |  | +1 |  |  |  |
+| X | −4 |  |  |  |  |  |
+
+The Hydrographics column is 0 +1, 9 +1, A +2 (all other values contribute nothing); an earlier §8
+summary omitted the Hydrographics-0 entry. Every other summary entry matches this table exactly.
+
+### C2. Technology Level Minimums (`TL_MINIMUMS`—raise TL to the minimum if the rolled TL is lower)
+
+| Conditions | Minimum TL |
+|------------|-----------|
+| Hydrographics is 0 or A, Population is at least 6 | 4 |
+| Atmosphere is 4, 7, or 9 | 5 |
+| Atmosphere is 3 or less, or A–C | 7 |
+| Atmosphere is D or E, Hydrographics is A | 7 |
+
+### C3. UWP Values for Trade Codes (`TRADE_CODES`)
+
+Assign every code whose listed field constraints all hold. A blank cell means the field is
+unconstrained for that code. Ranges are inclusive; `n+` means n or greater, `n–` means n or less;
+comma lists are discrete values.
+
+| Classification | Code | Size | Atmos. | Hydro | Pop. | Gov. | Law | TL |
+|----------------|------|------|--------|-------|------|------|-----|----|
+| Agricultural | Ag |  | 4–9 | 4–8 | 5–7 |  |  |  |
+| Asteroid | As | 0 | 0 | 0 |  |  |  |  |
+| Barren | Ba |  |  |  | 0 | 0 | 0 |  |
+| Desert | De |  | 2+ | 0 |  |  |  |  |
+| Fluid Oceans | Fl |  | 10+ | 1+ |  |  |  |  |
+| Garden | Ga |  | 5, 6, 8 | 4–9 | 4–8 |  |  |  |
+| High Population | Hi |  |  |  | 9+ |  |  |  |
+| High Technology | Ht |  |  |  |  |  |  | 12+ |
+| Ice-Capped | Ic |  | 0–1 | 1+ |  |  |  |  |
+| Industrial | In |  | 0–2, 4, 7, 9 |  | 9+ |  |  |  |
+| Low Population | Lo |  |  |  | 1–3 |  |  |  |
+| Low Technology | Lt |  |  |  |  |  |  | 5– |
+| Non-Agricultural | Na |  | 0–3 | 0–3 | 6+ |  |  |  |
+| Non-Industrial | Ni |  |  |  | 4–6 |  |  |  |
+| Poor | Po |  | 2–5 | 0–3 |  |  |  |  |
+| Rich | Ri |  | 6, 8 |  | 6–8 |  |  |  |
+| Water World | Wa |  |  | 10 |  |  |  |  |
+| Vacuum | Va |  | 0 |  |  |  |  |  |
+
+The `Na` **trade** code (Non-Agricultural) is unrelated to the default `Na` **allegiance**
+(non-aligned); they coincidentally share the two letters but occupy different fields on the
+world-data line.
