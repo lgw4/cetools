@@ -68,46 +68,46 @@ dependency holds (Size-0 ⇒ Atmo 0 & Hydro 0; Pop-0 ⇒ Gov/Law/TL 0; TL raised
 
 ### Tests for User Story 1 ⚠️ (write first, ensure they FAIL)
 
-- [ ] T003 [P] [US1] Table-invariant tests in `tests/test_world_tables.py`: `STARPORT_BY_ROLL` maps
+- [X] T003 [P] [US1] Table-invariant tests in `tests/test_world_tables.py`: `STARPORT_BY_ROLL` maps
   every clamped roll to `X/E/D/C/B/A` per the Primary Starport table; `TL_DM_BY_VALUE` matches
   research.md Appendix C1 (including the Hydrographics-0 `+1` entry); `TL_MINIMUMS` matches C2;
   `HYDRO_DM_BY_ATMOSPHERE`, `POPULATION_DMS`, `GOVERNMENT_TYPES`, `LAW_LEVELS` have the SRD shapes.
-- [ ] T004 [P] [US1] `World` model tests in `tests/test_world_models.py`: `profile` renders SRD order
+- [X] T004 [P] [US1] `World` model tests in `tests/test_world_models.py`: `profile` renders SRD order
   with the hyphen before TL; `head_count == population_modifier * 10**population`; the frozen
   dataclass enforces SC-001 ranges and SC-002 dependencies for hand-built instances.
-- [ ] T005 [P] [US1] `generate_world` rule tests in `tests/test_world_generator.py` using
+- [X] T005 [P] [US1] `generate_world` rule tests in `tests/test_world_generator.py` using
   `ScriptedRolls`: pin each characteristic (Size `2D6−2`; Atmosphere `2D6−7+Size` with Size-0 → 0 and
   cap 15; Hydrographics DMs and Size-0/1 → 0; Population DMs and clamp; Government/Law Level zeroing;
   Starport lookup; TL DM sum, `≥0` floor, minimum overrides, and Population-0 → TL 0). Add a
   statistical-bounds pass over ≥2000 unseeded worlds asserting SC-001/SC-002 (mirrors quickstart).
   Add a determinism assertion: `generate_world` under two freshly-seeded `RandomRolls(random.Random(n))`
   produces identical worlds (FR-022, SC-005).
-- [ ] T006 [P] [US1] Profile-rendering tests in `tests/test_world_profile.py`: the UWP string uses
+- [X] T006 [P] [US1] Profile-rendering tests in `tests/test_world_profile.py`: the UWP string uses
   pseudo-hex for values >9 (letters), literal Starport letter, and the `-TL` suffix (e.g. `A867A9C-F`).
-- [ ] T007 [P] [US1] Naming tests in `tests/test_world_naming.py`: `generate_world_name(rolls)`
+- [X] T007 [P] [US1] Naming tests in `tests/test_world_naming.py`: `generate_world_name(rolls)`
   returns a non-empty title-cased pronounceable string, is deterministic under a seeded `rolls`, and
   a large sample yields ≥10,000 distinct names (FR-026).
 
 ### Implementation for User Story 1
 
-- [ ] T008 [P] [US1] Encode the P1 SRD tables as data in `src/cetools/engine/worlds/tables.py`:
+- [X] T008 [P] [US1] Encode the P1 SRD tables as data in `src/cetools/engine/worlds/tables.py`:
   `SIZE_DESCRIPTIONS`, `ATMOSPHERE_DESCRIPTIONS`, `HYDRO_DM_BY_ATMOSPHERE`, `POPULATION_DMS`
   (per-field predicate data), `STARPORT_BY_ROLL`, `GOVERNMENT_TYPES`, `LAW_LEVELS`, `TL_DM_BY_VALUE`,
   and `TL_MINIMUMS` (research.md Appendix C1/C2, Principle V — no logic).
-- [ ] T009 [P] [US1] Define `TravelZone` enum and the `World` frozen dataclass in
+- [X] T009 [P] [US1] Define `TravelZone` enum and the `World` frozen dataclass in
   `src/cetools/engine/worlds/models.py`, with `profile` and `head_count` derived properties
   (data-model.md World section).
-- [ ] T010 [P] [US1] Implement the curated stem pool and `generate_world_name(rolls=None)` in
+- [X] T010 [P] [US1] Implement the curated stem pool and `generate_world_name(rolls=None)` in
   `src/cetools/engine/worlds/naming.py`, assembling 2–3 stems via `rolls.choose(..., WORLD_NAME_STEM)`
   and title-casing (research.md D4; ≥10,000 distinct names).
-- [ ] T011 [P] [US1] Implement the UWP profile-string renderer in
+- [X] T011 [P] [US1] Implement the UWP profile-string renderer in
   `src/cetools/engine/worlds/profile.py`, reusing `engine/pseudohex.to_pseudohex` for the 0–15 digits
   and the literal Starport letter (research.md D5).
-- [ ] T012 [US1] Implement `generate_world(rolls=None, *, name=None, travel_zone_red=False)` in
+- [X] T012 [US1] Implement `generate_world(rolls=None, *, name=None, travel_zone_red=False)` in
   `src/cetools/engine/worlds/generator.py`, running the SRD order size → atmosphere → hydrographics →
   population → government → law_level → starport → tech_level, applying all DMs/caps/floors/zeroing
   and TL minimums, and defaulting the name via `generate_world_name` (depends on T008–T011).
-- [ ] T013 [US1] Export `generate_world`, `generate_world_name`, `World`, and `TravelZone` from
+- [X] T013 [US1] Export `generate_world`, `generate_world_name`, `World`, and `TravelZone` from
   `src/cetools/engine/worlds/__init__.py` as the public surface (contracts/engine-api.md).
 
 **Checkpoint**: `generate_world` is fully functional and independently testable (MVP). The engine
