@@ -46,7 +46,7 @@ before any user-story work.
 
 **⚠️ CRITICAL**: No user story can be implemented until this phase is complete.
 
-- [ ] T002 Add the world `RollName` members to `src/cetools/engine/rolls.py` (additive only):
+- [X] T002 Add the world `RollName` members to `src/cetools/engine/rolls.py` (additive only):
   `WORLD_SIZE`, `WORLD_ATMOSPHERE`, `WORLD_HYDROGRAPHICS`, `WORLD_POPULATION`, `WORLD_GOVERNMENT`,
   `WORLD_LAW_LEVEL`, `WORLD_STARPORT`, `WORLD_TECH_LEVEL`, `POPULATION_MODIFIER`,
   `PLANETOID_BELT_PRESENCE`, `PLANETOID_BELT_COUNT`, `GAS_GIANT_PRESENCE`, `GAS_GIANT_COUNT`,
