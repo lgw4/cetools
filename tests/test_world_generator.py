@@ -465,6 +465,136 @@ def test_generate_world_trade_codes_match_the_table_generically():
         assert world.trade_codes == expected
 
 
+def _scripted_trade_code_world(
+    *,
+    size,
+    atmosphere,
+    hydrographics,
+    population,
+    government,
+    law_level,
+    starport="D",
+    tech_level_roll=4,
+):
+    """Build a `World` via `generate_world`/`ScriptedRolls` landing on the exact given
+    UWP values, by inverting each per-characteristic formula in generator.py. Used to
+    hand-verify trade-code assignment against Appendix C3 at specific, chosen values
+    (SC-003), rather than relying only on random sampling.
+    """
+    from cetools.engine.worlds.tables import (
+        HYDRO_DM_BY_ATMOSPHERE,
+        POPULATION_DMS,
+        STARPORT_BY_ROLL,
+        matches_conditions,
+    )
+
+    hydro_dm = HYDRO_DM_BY_ATMOSPHERE.get(atmosphere, 0)
+    population_dm = sum(
+        rule["dm"]
+        for rule in POPULATION_DMS
+        if matches_conditions(
+            rule["conditions"],
+            {"size": size, "atmosphere": atmosphere, "hydrographics": hydrographics},
+        )
+    )
+    starport_target_roll = next(
+        roll for roll, letter in STARPORT_BY_ROLL.items() if letter == starport
+    )
+
+    rolls = ScriptedRolls(
+        two_d6={
+            RollName.WORLD_SIZE: size + 2,
+            RollName.WORLD_ATMOSPHERE: atmosphere + 7 - size,
+            RollName.WORLD_HYDROGRAPHICS: hydrographics + 7 - size - hydro_dm,
+            RollName.WORLD_POPULATION: population + 2 - population_dm,
+            RollName.WORLD_GOVERNMENT: government + 7 - population,
+            RollName.WORLD_LAW_LEVEL: law_level + 7 - government,
+            RollName.WORLD_STARPORT: starport_target_roll + 7 - population,
+        },
+        d6={RollName.WORLD_TECH_LEVEL: tech_level_roll},
+    )
+    return generate_world(rolls, name="X")
+
+
+def _recompute_trade_codes(world) -> tuple[str, ...]:
+    from cetools.engine.worlds.tables import TRADE_CODES, matches_conditions
+
+    values = {
+        "size": world.size,
+        "atmosphere": world.atmosphere,
+        "hydrographics": world.hydrographics,
+        "population": world.population,
+        "government": world.government,
+        "law_level": world.law_level,
+        "tech_level": world.tech_level,
+    }
+    return tuple(
+        rule["code"] for rule in TRADE_CODES if matches_conditions(rule["conditions"], values)
+    )
+
+
+# One hand-worked world per SC-003 classification (Ag, As, Ba, De, Fl, Ga, Hi, Ht, Ic,
+# In, Lo, Lt, Na, Ni, Po, Ri, Wa, Va), each built with values chosen inside that code's
+# Appendix C3 range. Some incidentally also satisfy a neighboring code (e.g. a Rich
+# world is often also Agricultural)-that is a correct multi-code result, not a bug.
+_TRADE_CODE_REFERENCE_FIXTURE = (
+    ("Ag", dict(size=6, atmosphere=7, hydrographics=6, population=7, government=8, law_level=5)),
+    ("As", dict(size=0, atmosphere=0, hydrographics=0, population=0, government=0, law_level=0)),
+    ("Ba", dict(size=5, atmosphere=5, hydrographics=5, population=0, government=0, law_level=0)),
+    ("De", dict(size=6, atmosphere=9, hydrographics=0, population=7, government=8, law_level=5)),
+    ("Fl", dict(size=6, atmosphere=12, hydrographics=8, population=7, government=8, law_level=5)),
+    ("Ga", dict(size=6, atmosphere=8, hydrographics=7, population=8, government=8, law_level=5)),
+    ("Hi", dict(size=6, atmosphere=6, hydrographics=5, population=10, government=8, law_level=5)),
+    (
+        "Ht",
+        dict(
+            size=6,
+            atmosphere=2,
+            hydrographics=5,
+            population=7,
+            government=8,
+            law_level=5,
+            tech_level_roll=11,
+        ),
+    ),
+    ("Ic", dict(size=6, atmosphere=1, hydrographics=3, population=6, government=8, law_level=5)),
+    ("In", dict(size=6, atmosphere=9, hydrographics=5, population=10, government=8, law_level=5)),
+    ("Lo", dict(size=6, atmosphere=6, hydrographics=5, population=2, government=8, law_level=5)),
+    (
+        "Lt",
+        dict(
+            size=6,
+            atmosphere=15,
+            hydrographics=0,
+            population=7,
+            government=8,
+            law_level=6,
+            tech_level_roll=2,
+        ),
+    ),
+    ("Na", dict(size=6, atmosphere=2, hydrographics=2, population=8, government=8, law_level=5)),
+    ("Ni", dict(size=6, atmosphere=6, hydrographics=5, population=5, government=8, law_level=5)),
+    ("Po", dict(size=6, atmosphere=3, hydrographics=1, population=6, government=8, law_level=5)),
+    ("Ri", dict(size=6, atmosphere=6, hydrographics=5, population=7, government=8, law_level=5)),
+    ("Wa", dict(size=8, atmosphere=6, hydrographics=10, population=7, government=8, law_level=5)),
+    ("Va", dict(size=6, atmosphere=0, hydrographics=0, population=3, government=8, law_level=5)),
+)
+
+
+@pytest.mark.parametrize("code,fields", _TRADE_CODE_REFERENCE_FIXTURE)
+def test_generate_world_trade_code_reference_fixture(code, fields):
+    world = _scripted_trade_code_world(**fields)
+    assert code in world.trade_codes
+    assert world.trade_codes == _recompute_trade_codes(world)
+
+
+def test_trade_code_reference_fixture_covers_every_classification():
+    from cetools.engine.worlds.tables import TRADE_CODES
+
+    covered = {code for code, _ in _TRADE_CODE_REFERENCE_FIXTURE}
+    assert covered == {rule["code"] for rule in TRADE_CODES}
+
+
 # --- Travel zone (Amber rule, FR-016) ---
 
 

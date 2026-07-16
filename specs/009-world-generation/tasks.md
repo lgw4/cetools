@@ -324,3 +324,33 @@ Task: "UWP profile renderer in src/cetools/engine/worlds/profile.py"     # T011
 - Every rule test uses `ScriptedRolls` to pin the dice; statistical-bounds tests use unseeded runs.
 - Verify tests fail before implementing; commit after each task or logical group.
 - Engine code MUST NOT import from `cli/` (Principle II); the CLI is pure I/O routing (Principle III).
+
+---
+
+## Phase 7: Convergence
+
+- [X] T038 Fix `cetools world subsector` printing each hex code twice per line: in
+  `src/cetools/cli/world.py`'s `generate_subsector_command`, `render_data_line` already embeds
+  `system.hex` as a field, so the command's own `f"{system.hex}  {system.data_line}"` prefix
+  duplicates it (confirmed live: `0103  Citifa  0103  D542440-5  ...`). Print `system.data_line`
+  alone, update the affected `tests/test_cli.py` subsector assertion to guard against a duplicate
+  hex token, and correct the illustrative example in `README.md` per contracts/cli.md's documented
+  single-hex format (contradicts).
+- [X] T039 Add a hand-worked trade-code reference fixture to `tests/test_world_generator.py`: build
+  one `World` per each of the 18 SRD classifications (Ag, As, Ba, De, Fl, Ga, Hi, Ht, Ic, In, Lo,
+  Lt, Na, Ni, Po, Ri, Wa, Va) via `ScriptedRolls` and assert each yields its expected trade code
+  exactly, alongside the existing multi-code and no-code cases, per SC-003 (partial).
+
+---
+
+## Phase 8: Convergence
+
+- [ ] T040 Expand `test_statistical_occupancy_by_density` in `tests/test_world_generator.py` to
+  sample at least 10,000 hexes per density (currently 40 subsectors × 80 hexes = 3,200, ~3x short
+  of the documented minimum, and inconsistent with the sibling SC-004 test in the same file, which
+  already samples 10,000) per SC-007 (partial).
+- [ ] T041 Update the `cetools world subsector` example in
+  `specs/009-world-generation/contracts/cli.md` to match the corrected single-hex-per-line format
+  (name first, then hex, e.g. `Karnas  0102  C7A5410-8 ...`) and rephrase "prefixed by its CCRR
+  hex," since both still describe the pre-T038 hex-first line shape per contracts/cli.md
+  (contradicts).

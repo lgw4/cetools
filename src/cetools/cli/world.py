@@ -64,4 +64,4 @@ def generate_subsector_command(
 
     subsector = generate_subsector(rolls, density=resolved_density)
     for system in sorted(subsector.systems, key=lambda system: system.hex):
-        typer.echo(f"{system.hex}  {system.data_line}")
+        typer.echo(system.data_line)

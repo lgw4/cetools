@@ -698,9 +698,11 @@ def test_world_subsector_seed_prints_hex_prefixed_lines_and_exits_0():
     lines = result.stdout.strip().splitlines()
     assert lines
     for line in lines:
-        hex_code = line.split()[0]
+        tokens = line.split()
+        hex_code = tokens[1]
         assert len(hex_code) == 4
         assert hex_code.isdigit()
+        assert tokens.count(hex_code) == 1
 
 
 def test_world_subsector_dense_yields_more_occupied_hexes_than_default():

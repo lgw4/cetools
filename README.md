@@ -217,7 +217,7 @@ uv run cetools world generate --seed 5 -n 2
 
 `--name` applies only to a single world; passing it together with `--count` greater than 1 exits `1`.
 
-Generate an 8x10 subsector—one line per occupied hex, ordered by coordinate, prefixed by its four-digit hex code:
+Generate an 8x10 subsector—one line per occupied hex, ordered by coordinate, each carrying its four-digit hex code:
 
 ```bash
 uv run cetools world subsector --seed 7
@@ -225,9 +225,9 @@ uv run cetools world subsector --seed 7
 
 ```console
 $ uv run cetools world subsector --seed 7
-0103  Citifa  0103  D542440-5     Lt Ni Po  A  133  Na
-0106  Tici  0106  E546659-5     Ag Lt Ni  A  912  Na
-0109  Rino  0109  E120443-9     De Ni Po     311  Na
+Citifa  0103  D542440-5     Lt Ni Po  A  133  Na
+Tici  0106  E546659-5     Ag Lt Ni  A  912  Na
+Rino  0109  E120443-9     De Ni Po     311  Na
 ...
 ```
 
