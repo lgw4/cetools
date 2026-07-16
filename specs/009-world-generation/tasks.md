@@ -227,16 +227,16 @@ and all auto-generated names are unique within the subsector (SC-008).
 
 **Purpose**: Documentation, docs-check compliance, and the full quality gate.
 
-- [ ] T033 [P] Add the `engine/worlds/` package (and its modules) to the module map in
+- [X] T033 [P] Add the `engine/worlds/` package (and its modules) to the module map in
   `CONTRIBUTING.md` for human readers (plan.md notes `check_docs.py` globs only top-level
   `engine/*.py`, so subpackage modules are not auto-enforced).
-- [ ] T034 [P] Document the `cetools world` commands and world generation in `README.md` (backtick
+- [X] T034 [P] Document the `cetools world` commands and world generation in `README.md` (backtick
   every referenced symbol so `scripts/check_docs.py` resolves it; keep dashes tight).
-- [ ] T035 Run `uv run python scripts/check_docs.py` and fix any unresolved symbols, missing
+- [X] T035 Run `uv run python scripts/check_docs.py` and fix any unresolved symbols, missing
   module-map entries, or spaced dashes in the touched docs.
-- [ ] T036 Run the quickstart.md validation (library, CLI, subsector, and SRD-invariant snippets) and
+- [X] T036 Run the quickstart.md validation (library, CLI, subsector, and SRD-invariant snippets) and
   confirm each prints its expected success output.
-- [ ] T037 Run the full quality gate — `uv run black . && uv run flake8 src tests && uv run pytest &&
+- [X] T037 Run the full quality gate — `uv run black . && uv run flake8 src tests && uv run pytest &&
   uv run python scripts/check_docs.py` — and confirm Black clean, flake8 zero warnings, pytest green
   with `src/cetools` coverage ≥ 85%, and docs check passing.
 

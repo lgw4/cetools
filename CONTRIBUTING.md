@@ -20,13 +20,21 @@ that run the quality gate below before every `git push`.
 src/cetools/
 ├── cli/            # Typer CLI—thin I/O wrapper only, no game logic
 │   ├── main.py     # Root app; registers sub-apps
-│   └── character.py
+│   ├── character.py
+│   └── world.py    # `cetools world` sub-app: generate, subsector
 ├── engine/         # Pure generation engine—no CLI dependency
 │   ├── careers/
 │   │   ├── __init__.py   # The package's public surface; import from here
 │   │   ├── base.py       # Career + RankEntry frozen dataclasses
 │   │   ├── navy.py       # NAVY_CAREER instance (one module per career, 24 of them)
 │   │   └── registry.py   # CAREERS, DRAFT_TABLE, resolve(), is_military(), UnknownCareer
+│   ├── worlds/
+│   │   ├── __init__.py   # The package's public surface; import from here
+│   │   ├── tables.py     # SRD Chapter 12 tables as data: sizes, atmospheres, DMs, trade codes
+│   │   ├── models.py     # World, System, Subsector, TravelZone, Density frozen dataclasses
+│   │   ├── generator.py  # generate_world/system/subsector(rolls, ...)
+│   │   ├── naming.py     # generate_world_name()
+│   │   └── profile.py    # render_profile(), render_data_line()
 │   ├── rolls.py        # Rolls seam: RollName, RandomRolls, ScriptedRolls
 │   ├── rules.py        # Rules policy: HOUSE (default) and SRD
 │   ├── generator.py    # generate(assignment, rolls, rules): the coordinator
