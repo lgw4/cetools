@@ -1,6 +1,6 @@
 import pytest
 
-from cetools.engine.worlds.models import System, World
+from cetools.engine.worlds.models import Density, Subsector, System, World
 
 
 def _world(**overrides):
@@ -238,3 +238,46 @@ def test_pirate_base_never_present_with_a_naval_base():
 
 def test_pirate_base_allowed_without_naval_base_or_starport_a():
     _system(world=_world(starport="C"), pirate_base=True)
+
+
+# --- Subsector (Phase 5 / US3) ---
+
+
+def test_density_dms():
+    assert Density.RIFT.dm == -2
+    assert Density.SPARSE.dm == -1
+    assert Density.STANDARD.dm == 0
+    assert Density.DENSE.dm == 1
+
+
+def _subsector(**overrides):
+    fields = dict(
+        systems=(_system(hex="0101"), _system(hex="0810")),
+        density=Density.STANDARD,
+    )
+    fields.update(overrides)
+    return Subsector(**fields)
+
+
+def test_subsector_accepts_hexes_within_bounds():
+    _subsector()
+
+
+def test_subsector_rejects_column_out_of_range():
+    with pytest.raises(ValueError):
+        _subsector(systems=(_system(hex="0901"),))
+
+
+def test_subsector_rejects_row_out_of_range():
+    with pytest.raises(ValueError):
+        _subsector(systems=(_system(hex="0111"),))
+
+
+def test_subsector_rejects_duplicate_hex():
+    with pytest.raises(ValueError):
+        _subsector(systems=(_system(hex="0101"), _system(hex="0101")))
+
+
+def test_subsector_rejects_a_system_with_no_hex():
+    with pytest.raises(ValueError):
+        _subsector(systems=(_system(hex=None),))

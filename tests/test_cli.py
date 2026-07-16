@@ -687,3 +687,36 @@ def test_world_generate_without_seed_still_succeeds():
     result = runner.invoke(app, ["world", "generate"])
     assert result.exit_code == 0
     assert result.stdout.strip()
+
+
+# --- T028: `cetools world subsector` ---
+
+
+def test_world_subsector_seed_prints_hex_prefixed_lines_and_exits_0():
+    result = runner.invoke(app, ["world", "subsector", "--seed", "7"])
+    assert result.exit_code == 0
+    lines = result.stdout.strip().splitlines()
+    assert lines
+    for line in lines:
+        hex_code = line.split()[0]
+        assert len(hex_code) == 4
+        assert hex_code.isdigit()
+
+
+def test_world_subsector_dense_yields_more_occupied_hexes_than_default():
+    default_result = runner.invoke(app, ["world", "subsector", "--seed", "7"])
+    dense_result = runner.invoke(app, ["world", "subsector", "--density", "dense", "--seed", "7"])
+    default_lines = len(default_result.stdout.strip().splitlines())
+    dense_lines = len(dense_result.stdout.strip().splitlines())
+    assert dense_lines > default_lines
+
+
+def test_world_subsector_invalid_density_exits_nonzero():
+    result = runner.invoke(app, ["world", "subsector", "--density", "bogus"])
+    assert result.exit_code != 0
+
+
+def test_world_subsector_same_seed_is_deterministic():
+    result_a = runner.invoke(app, ["world", "subsector", "--seed", "5"])
+    result_b = runner.invoke(app, ["world", "subsector", "--seed", "5"])
+    assert result_a.stdout == result_b.stdout

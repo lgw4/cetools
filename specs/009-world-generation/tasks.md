@@ -193,30 +193,30 @@ and all auto-generated names are unique within the subsector (SC-008).
 
 ### Tests for User Story 3 ⚠️ (write first, ensure they FAIL)
 
-- [ ] T026 [P] [US3] `Subsector` model tests in `tests/test_world_models.py`: `Density` DMs
+- [X] T026 [P] [US3] `Subsector` model tests in `tests/test_world_models.py`: `Density` DMs
   (rift −2, sparse −1, standard 0, dense +1); every `system.hex` is within columns 01–08 / rows 01–10
   and unique.
-- [ ] T027 [P] [US3] `generate_subsector` tests in `tests/test_world_generator.py`: per-hex presence
+- [X] T027 [P] [US3] `generate_subsector` tests in `tests/test_world_generator.py`: per-hex presence
   `1D6 + density.dm >= 4` with statistical occupancy within ±2pp per density (SC-007); each occupied
   hex is a valid system with a matching `CCRR`; auto-generated names are unique across the subsector
   and collisions regenerate (bounded max-attempts guard raises `ValueError` when exhausted) (SC-008).
   Add a determinism assertion: `generate_subsector` under two freshly-seeded
   `RandomRolls(random.Random(n))` produces an identical subsector (FR-022, SC-005).
-- [ ] T028 [P] [US3] Subsector CLI tests in `tests/test_cli.py`: `cetools world subsector --seed 7`
+- [X] T028 [P] [US3] Subsector CLI tests in `tests/test_cli.py`: `cetools world subsector --seed 7`
   prints hex-prefixed lines and exits 0; `--density dense` yields more occupied hexes than default;
   an invalid `--density` value exits 1 (contracts/cli.md).
 
 ### Implementation for User Story 3
 
-- [ ] T029 [US3] Add the `Density` enum and the `Subsector` frozen dataclass to
+- [X] T029 [US3] Add the `Density` enum and the `Subsector` frozen dataclass to
   `src/cetools/engine/worlds/models.py` (data-model.md Subsector section).
-- [ ] T030 [US3] Implement `generate_subsector(rolls=None, *, density=Density.STANDARD)` in
+- [X] T030 [US3] Implement `generate_subsector(rolls=None, *, density=Density.STANDARD)` in
   `src/cetools/engine/worlds/generator.py`: walk 80 hexes, presence via `d6()` + density DM ≥ 4,
   `generate_system(..., hex="CCRR")` per occupied hex, and enforce per-subsector name uniqueness by
   regenerating on collision with a bounded max-attempts guard (research.md D4, depends on T021).
-- [ ] T031 [US3] Export `generate_subsector`, `Subsector`, and `Density` from
+- [X] T031 [US3] Export `generate_subsector`, `Subsector`, and `Density` from
   `src/cetools/engine/worlds/__init__.py` (contracts/engine-api.md).
-- [ ] T032 [US3] Add the `subsector` command (`--density`, `--seed`) to `src/cetools/cli/world.py`,
+- [X] T032 [US3] Add the `subsector` command (`--density`, `--seed`) to `src/cetools/cli/world.py`,
   printing one `CCRR`-prefixed data line per occupied hex ordered by coordinate (contracts/cli.md).
 
 **Checkpoint**: All three user stories are independently functional.

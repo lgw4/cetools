@@ -158,3 +158,45 @@ class System:
     def data_line(self) -> str:
         """The full world-data line (research.md D5)."""
         return render_data_line(self)
+
+
+class Density(Enum):
+    """Subsector world-presence modifier (research.md Part A step 15)."""
+
+    RIFT = -2
+    SPARSE = -1
+    STANDARD = 0
+    DENSE = 1
+
+    @property
+    def dm(self) -> int:
+        """The DM applied to the per-hex `1D6 >= 4` presence check."""
+        return self.value
+
+
+_VALID_COLUMNS = frozenset(f"{column:02d}" for column in range(1, 9))
+_VALID_ROWS = frozenset(f"{row:02d}" for row in range(1, 11))
+
+
+def _validate_subsector(subsector: Subsector) -> None:
+    hexes = [system.hex for system in subsector.systems]
+    if len(hexes) != len(set(hexes)):
+        raise ValueError("subsector systems must have unique hex coordinates")
+    for hex_code in hexes:
+        if (
+            hex_code is None
+            or hex_code[:2] not in _VALID_COLUMNS
+            or hex_code[2:] not in _VALID_ROWS
+        ):
+            raise ValueError(f"hex coordinate out of subsector bounds: {hex_code!r}")
+
+
+@dataclass(frozen=True)
+class Subsector:
+    """An 8x10 region of systems. Produced by `generate_subsector`."""
+
+    systems: tuple[System, ...]
+    density: Density = Density.STANDARD
+
+    def __post_init__(self) -> None:
+        _validate_subsector(self)

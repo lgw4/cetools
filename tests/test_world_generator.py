@@ -1,8 +1,10 @@
 import random
 
+import pytest
+
 from cetools.engine.rolls import RandomRolls, RollName, ScriptedRolls
-from cetools.engine.worlds.generator import generate_system, generate_world
-from cetools.engine.worlds.models import TravelZone
+from cetools.engine.worlds.generator import generate_subsector, generate_system, generate_world
+from cetools.engine.worlds.models import Density, TravelZone
 
 
 def _rolls(**kwargs) -> ScriptedRolls:
@@ -792,3 +794,83 @@ def test_generate_system_is_deterministic_given_the_same_seed():
 def test_generate_system_defaults_to_random_rolls():
     system = generate_system()
     assert system.world.name
+
+
+# --- generate_subsector (Phase 5 / US3) ---
+
+
+def test_subsector_defaults_to_standard_density():
+    subsector = generate_subsector()
+    assert subsector.density == Density.STANDARD
+
+
+def test_only_the_present_hex_generates_a_system():
+    rolls = _rolls(d6={RollName.WORLD_PRESENCE: [6] + [1] * 79})
+    subsector = generate_subsector(rolls)
+    assert len(subsector.systems) == 1
+    assert subsector.systems[0].hex == "0101"
+
+
+def test_hexes_are_stamped_in_column_major_row_minor_order():
+    rolls = _rolls(d6={RollName.WORLD_PRESENCE: [1] + [6] + [1] * 78})
+    subsector = generate_subsector(rolls)
+    assert len(subsector.systems) == 1
+    assert subsector.systems[0].hex == "0102"
+
+
+def test_presence_applies_the_density_dm():
+    # RIFT (dm -2): only a roll of 6 clears the >= 4 threshold (6-2=4).
+    rolls = _rolls(d6={RollName.WORLD_PRESENCE: [5] + [6] + [1] * 78})
+    subsector = generate_subsector(rolls, density=Density.RIFT)
+    assert len(subsector.systems) == 1
+    assert subsector.systems[0].hex == "0102"
+
+
+def test_every_occupied_hex_is_within_subsector_bounds():
+    subsector = generate_subsector(RandomRolls(random.Random(11)), density=Density.DENSE)
+    assert subsector.systems
+    for system in subsector.systems:
+        column, row = system.hex[:2], system.hex[2:]
+        assert 1 <= int(column) <= 8
+        assert 1 <= int(row) <= 10
+
+
+def test_subsector_auto_generated_names_are_unique():
+    subsector = generate_subsector(RandomRolls(random.Random(4)), density=Density.DENSE)
+    names = [system.world.name for system in subsector.systems]
+    assert len(names) == len(set(names))
+
+
+def test_subsector_raises_when_name_uniqueness_guard_is_exhausted():
+    # Every choose() falls back to the same default index, so every generated name
+    # collides with the first: the bounded regeneration guard must exhaust and raise.
+    rolls = _rolls(d6={RollName.WORLD_PRESENCE: 6})
+    with pytest.raises(ValueError):
+        generate_subsector(rolls)
+
+
+def test_statistical_occupancy_by_density():
+    expected_pct = {
+        Density.RIFT: 100 / 6,
+        Density.SPARSE: 200 / 6,
+        Density.STANDARD: 300 / 6,
+        Density.DENSE: 400 / 6,
+    }
+    for density, expected in expected_pct.items():
+        rolls = RandomRolls(random.Random(density.value + 10))
+        occupied = 0
+        total = 0
+        for _ in range(40):
+            subsector = generate_subsector(rolls, density=density)
+            occupied += len(subsector.systems)
+            total += 80
+        assert abs(occupied / total * 100 - expected) <= 2
+
+
+# --- Determinism (FR-022, SC-005) ---
+
+
+def test_generate_subsector_is_deterministic_given_the_same_seed():
+    subsector_a = generate_subsector(RandomRolls(random.Random(123)))
+    subsector_b = generate_subsector(RandomRolls(random.Random(123)))
+    assert subsector_a == subsector_b

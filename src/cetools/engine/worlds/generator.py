@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from cetools.engine.rolls import RandomRolls, RollName, Rolls
-from cetools.engine.worlds.models import System, TravelZone, World
+from cetools.engine.worlds.models import Density, Subsector, System, TravelZone, World
 from cetools.engine.worlds.naming import generate_world_name
 from cetools.engine.worlds.tables import (
     HYDRO_DM_BY_ATMOSPHERE,
@@ -238,3 +238,52 @@ def generate_system(
         pirate_base=pirate_base,
         allegiance=allegiance,
     )
+
+
+_SUBSECTOR_COLUMNS = range(1, 9)
+_SUBSECTOR_ROWS = range(1, 11)
+_MAX_NAME_ATTEMPTS = 100
+
+
+def _generate_unique_system(rolls: Rolls, hex_code: str, used_names: set[str]) -> System:
+    for _ in range(_MAX_NAME_ATTEMPTS):
+        system = generate_system(rolls, hex=hex_code)
+        if system.world.name not in used_names:
+            return system
+
+    # A rolls source whose name generation can never avoid the names already used
+    # (e.g. a ScriptedRolls pinned to always choose the same stems) would otherwise
+    # spin here for ever. Real dice do not: the stem pool offers thousands of
+    # combinations against at most 80 hexes, so exhausting these attempts by chance
+    # is effectively impossible.
+    raise ValueError(
+        f"could not generate a world name unique within the subsector for hex"
+        f" {hex_code!r} after {_MAX_NAME_ATTEMPTS} attempts"
+    )
+
+
+def generate_subsector(
+    rolls: Rolls | None = None, *, density: Density = Density.STANDARD
+) -> Subsector:
+    """An 8x10 subsector: every hex independently checked for world presence.
+
+    Presence is `1D6 + density.dm >= 4` (research.md D2: a 1D6 check, not the
+    2D6 `check()` verb). Each occupied hex gets a full `generate_system`, with
+    auto-generated names kept unique within the subsector by regenerating on
+    collision (research.md D4), bounded by `_MAX_NAME_ATTEMPTS`.
+    """
+    rolls = rolls or RandomRolls()
+
+    systems: list[System] = []
+    used_names: set[str] = set()
+    for column in _SUBSECTOR_COLUMNS:
+        for row in _SUBSECTOR_ROWS:
+            present = rolls.d6(RollName.WORLD_PRESENCE) + density.dm >= 4
+            if not present:
+                continue
+            hex_code = f"{column:02d}{row:02d}"
+            system = _generate_unique_system(rolls, hex_code, used_names)
+            used_names.add(system.world.name)
+            systems.append(system)
+
+    return Subsector(systems=tuple(systems), density=density)
