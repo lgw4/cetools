@@ -990,10 +990,11 @@ def test_statistical_occupancy_by_density():
         rolls = RandomRolls(random.Random(density.value + 10))
         occupied = 0
         total = 0
-        for _ in range(40):
+        for _ in range(125):
             subsector = generate_subsector(rolls, density=density)
             occupied += len(subsector.systems)
             total += 80
+        assert total >= 10000
         assert abs(occupied / total * 100 - expected) <= 2
 
 

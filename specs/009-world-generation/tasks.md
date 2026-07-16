@@ -345,11 +345,11 @@ Task: "UWP profile renderer in src/cetools/engine/worlds/profile.py"     # T011
 
 ## Phase 8: Convergence
 
-- [ ] T040 Expand `test_statistical_occupancy_by_density` in `tests/test_world_generator.py` to
+- [X] T040 Expand `test_statistical_occupancy_by_density` in `tests/test_world_generator.py` to
   sample at least 10,000 hexes per density (currently 40 subsectors × 80 hexes = 3,200, ~3x short
   of the documented minimum, and inconsistent with the sibling SC-004 test in the same file, which
   already samples 10,000) per SC-007 (partial).
-- [ ] T041 Update the `cetools world subsector` example in
+- [X] T041 Update the `cetools world subsector` example in
   `specs/009-world-generation/contracts/cli.md` to match the corrected single-hex-per-line format
   (name first, then hex, e.g. `Karnas  0102  C7A5410-8 ...`) and rephrase "prefixed by its CCRR
   hex," since both still describe the pre-T038 hex-first line shape per contracts/cli.md

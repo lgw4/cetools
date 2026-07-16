@@ -28,15 +28,15 @@ Veltura       A867A9C-F  N  Ag Ni  A  234  Na
 | `--density` | choice: `rift\|sparse\|standard\|dense` | `standard` | World-presence density |
 | `--seed` | `int` | none | Seed for reproducible output |
 
-**Behavior**: prints one world-data line per occupied hex (ordered by hex coordinate), each prefixed
-by its `CCRR` hex. Exit 0.
+**Behavior**: prints one world-data line per occupied hex (ordered by hex coordinate), each carrying
+its `CCRR` hex. Exit 0.
 
 Example:
 
 ```text
 $ cetools world subsector --density sparse --seed 7
-0102  Karnas     C7A5410-8     S  Ni  A  102  Na
-0105  Dramio     X431220-6         Lo Po     101  Na
+Karnas  0102  C7A5410-8     S  Ni  A  102  Na
+Dramio  0105  X431220-6         Lo Po     101  Na
 ...
 ```
 
