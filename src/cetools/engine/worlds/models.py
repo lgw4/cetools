@@ -5,7 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from cetools.engine.worlds.profile import render_profile
+from cetools.engine.pseudohex import to_pseudohex
+from cetools.engine.worlds.profile import render_data_line, render_profile
 from cetools.engine.worlds.tables import TL_MINIMUMS, matches_conditions
 
 _VALID_STARPORTS = frozenset("ABCDEX")
@@ -82,6 +83,8 @@ class World:
     starport: str
     tech_level: int
     population_modifier: int
+    trade_codes: tuple[str, ...] = ()
+    travel_zone: TravelZone = TravelZone.GREEN
 
     def __post_init__(self) -> None:
         _validate_world(self)
@@ -95,3 +98,63 @@ class World:
     def head_count(self) -> int:
         """The specific population: `population_modifier * 10**population`."""
         return self.population_modifier * (10**self.population)
+
+
+def _validate_system(system: System) -> None:
+    if system.planetoid_belts < 0:
+        raise ValueError(f"planetoid_belts must be >= 0, got {system.planetoid_belts}")
+    if system.gas_giants < 0:
+        raise ValueError(f"gas_giants must be >= 0, got {system.gas_giants}")
+    if system.world.size == 0 and system.planetoid_belts < 1:
+        raise ValueError("size 0 requires at least one planetoid belt")
+    if system.naval_base and system.world.starport not in ("A", "B"):
+        raise ValueError("naval base requires starport A or B")
+    if system.scout_base and system.world.starport in ("E", "X"):
+        raise ValueError("scout base is never present on starport E or X")
+    if system.pirate_base and (system.world.starport == "A" or system.naval_base):
+        raise ValueError("pirate base is never present with starport A or a naval base")
+
+
+@dataclass(frozen=True)
+class System:
+    """A world plus its stellar surroundings. Produced by `generate_system`."""
+
+    world: World
+    hex: str | None = None
+    planetoid_belts: int = 0
+    gas_giants: int = 0
+    naval_base: bool = False
+    scout_base: bool = False
+    pirate_base: bool = False
+    allegiance: str = "Na"
+
+    def __post_init__(self) -> None:
+        _validate_system(self)
+
+    @property
+    def base_code(self) -> str:
+        """`A`/`N`/`S`/`G`/`P`, or a blank space when no base is present."""
+        if self.naval_base and self.scout_base:
+            return "A"
+        if self.naval_base:
+            return "N"
+        if self.scout_base and self.pirate_base:
+            return "G"
+        if self.scout_base:
+            return "S"
+        if self.pirate_base:
+            return "P"
+        return " "
+
+    @property
+    def pbg(self) -> str:
+        """Population Modifier, planetoid belts, gas giants, each pseudo-hex encoded."""
+        return "".join(
+            to_pseudohex(value)
+            for value in (self.world.population_modifier, self.planetoid_belts, self.gas_giants)
+        )
+
+    @property
+    def data_line(self) -> str:
+        """The full world-data line (research.md D5)."""
+        return render_data_line(self)

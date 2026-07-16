@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from cetools.engine.pseudohex import to_pseudohex
 
 if TYPE_CHECKING:  # models.py imports this module, so only import it for types
-    from cetools.engine.worlds.models import World
+    from cetools.engine.worlds.models import System, World
 
 
 def render_profile(world: World) -> str:
@@ -24,3 +24,18 @@ def render_profile(world: World) -> str:
         )
     )
     return f"{world.starport}{digits}-{to_pseudohex(world.tech_level)}"
+
+
+def render_data_line(system: System) -> str:
+    """The full, double-space-separated world-data line (research.md D5)."""
+    fields = (
+        system.world.name,
+        system.hex if system.hex is not None else "",
+        system.world.profile,
+        system.base_code,
+        " ".join(system.world.trade_codes),
+        system.world.travel_zone.value,
+        system.pbg,
+        system.allegiance,
+    )
+    return "  ".join(fields)

@@ -128,14 +128,14 @@ code, trade codes, travel-zone code, PBG triple, and allegiance (FR-018).
 
 ### Tests for User Story 2 ⚠️ (write first, ensure they FAIL)
 
-- [ ] T014 [P] [US2] Trade-code table tests in `tests/test_world_tables.py`: `TRADE_CODES` reproduces
+- [X] T014 [P] [US2] Trade-code table tests in `tests/test_world_tables.py`: `TRADE_CODES` reproduces
   research.md Appendix C3 for all 18 classifications (Ag, As, Ba, De, Fl, Ga, Hi, Ht, Ic, In, Lo, Lt,
   Na, Ni, Po, Ri, Wa, Va) as per-field allowed-value sets.
-- [ ] T015 [P] [US2] `System` model tests in `tests/test_world_models.py`: `base_code` mapping
+- [X] T015 [P] [US2] `System` model tests in `tests/test_world_models.py`: `base_code` mapping
   (`A`/`N`/`S`/`G`/`P`/blank); `pbg` renders each slot via `pseudohex` (assert a Population Modifier
   of 10 renders `A`, e.g. `pbg == "A10"`-style, not a broken 4-char string); and the base-exclusion
   invariants (`size==0 ⇒ belts>=1`, no scout on E/X, no pirate with A or a naval base).
-- [ ] T016 [P] [US2] `generate_system` rule tests in `tests/test_world_generator.py` via
+- [X] T016 [P] [US2] `generate_system` rule tests in `tests/test_world_generator.py` via
   `ScriptedRolls`: Population Modifier (`2D6−2`, min 1 when pop>0 else 0); belt presence `2D6≥4` and
   count `1D6−3` min 1 with Size-0 guarantee; gas-giant presence `2D6≥5` and count `1D6−2` min 1;
   naval/scout/pirate rolls with the scout DMs and all exclusions; trade-code assignment against a
@@ -145,36 +145,36 @@ code, trade codes, travel-zone code, PBG triple, and allegiance (FR-018).
   presence ≈42% (given a Class-A/B starport) each within ±2pp, and that the base-exclusion rules are
   never violated (SC-004). Add a determinism assertion: `generate_system` under two freshly-seeded
   `RandomRolls(random.Random(n))` produces identical systems (FR-022, SC-005).
-- [ ] T017 [P] [US2] Data-line rendering tests in `tests/test_world_profile.py`: `System.data_line`
+- [X] T017 [P] [US2] Data-line rendering tests in `tests/test_world_profile.py`: `System.data_line`
   emits name, `CCRR` (or blanks), profile, base code, trade codes/remarks, travel-zone code, PBG
   triple, and allegiance with blanks preserved for absent fields (research.md D5). Assert an
   unspecified allegiance defaults to and renders `Na` (FR-017), and that a Population-Modifier-10
   system renders its PBG slot as `A` (I1).
-- [ ] T018 [P] [US2] CLI tests in `tests/test_cli.py`: `cetools world generate --seed 42` prints one
+- [X] T018 [P] [US2] CLI tests in `tests/test_cli.py`: `cetools world generate --seed 42` prints one
   data line and exits 0; `--name Terra` names the world; `--count 2` prints two lines; `--name` with
   `--count > 1` exits 1 with the usage message (contracts/cli.md).
 
 ### Implementation for User Story 2
 
-- [ ] T019 [US2] Add `TRADE_CODES` (per-field allowed-value sets, table order) to
+- [X] T019 [US2] Add `TRADE_CODES` (per-field allowed-value sets, table order) to
   `src/cetools/engine/worlds/tables.py` (research.md Appendix C3).
-- [ ] T020 [US2] Add the `System` frozen dataclass to `src/cetools/engine/worlds/models.py` with
+- [X] T020 [US2] Add the `System` frozen dataclass to `src/cetools/engine/worlds/models.py` with
   `base_code`, `pbg` (each of `population_modifier`/`planetoid_belts`/`gas_giants` rendered via
   `pseudohex.to_pseudohex`, so a modifier of 10 → `A`), and `data_line` derived members
   (data-model.md System section).
-- [ ] T021 [US2] Extend `src/cetools/engine/worlds/generator.py` with the trade-code matcher, Amber
+- [X] T021 [US2] Extend `src/cetools/engine/worlds/generator.py` with the trade-code matcher, Amber
   travel-zone rule, and `generate_system(rolls=None, *, name=None, hex=None, allegiance="Na",
   travel_zone_red=False)` computing Population Modifier, belts, gas giants, and bases in the SRD
   exclusion order (depends on T012, T019, T020).
-- [ ] T022 [US2] Add the full world-data line renderer to `src/cetools/engine/worlds/profile.py`
+- [X] T022 [US2] Add the full world-data line renderer to `src/cetools/engine/worlds/profile.py`
   (name, hex, profile, base code, trade codes, travel-zone code, PBG, allegiance).
-- [ ] T023 [US2] Export `generate_system` and `System` from
+- [X] T023 [US2] Export `generate_system` and `System` from
   `src/cetools/engine/worlds/__init__.py` (contracts/engine-api.md).
-- [ ] T024 [US2] Create the `cetools world` Typer sub-app in `src/cetools/cli/world.py` with the
+- [X] T024 [US2] Create the `cetools world` Typer sub-app in `src/cetools/cli/world.py` with the
   `generate` command (`--name`, `--count/-n`, `--allegiance`, `--seed`), building
   `RandomRolls(random.Random(seed))` when seeded, printing one data line per system, and erroring on
   `--name` with `--count > 1` (contracts/cli.md — pure I/O routing).
-- [ ] T025 [US2] Register the world sub-app in `src/cetools/cli/main.py`
+- [X] T025 [US2] Register the world sub-app in `src/cetools/cli/main.py`
   (`app.add_typer(world.app, name="world")`) and update the root callback help text.
 
 **Checkpoint**: A referee can generate a full system data line in one command; US1 and US2 both work.

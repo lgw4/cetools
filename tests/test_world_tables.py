@@ -6,6 +6,7 @@ from cetools.engine.worlds.tables import (
     STARPORT_BY_ROLL,
     TL_DM_BY_VALUE,
     TL_MINIMUMS,
+    TRADE_CODES,
     matches_conditions,
 )
 
@@ -134,3 +135,160 @@ def test_matches_conditions_requires_every_field_within_its_allowed_set():
 
 def test_matches_conditions_is_vacuously_true_for_no_conditions():
     assert matches_conditions({}, {"anything": 1}) is True
+
+
+# --- Trade codes (Appendix C3) ---
+
+
+def _conditions(code):
+    return next(rule["conditions"] for rule in TRADE_CODES if rule["code"] == code)
+
+
+def test_trade_codes_lists_all_eighteen_classifications_in_table_order():
+    assert [rule["code"] for rule in TRADE_CODES] == [
+        "Ag",
+        "As",
+        "Ba",
+        "De",
+        "Fl",
+        "Ga",
+        "Hi",
+        "Ht",
+        "Ic",
+        "In",
+        "Lo",
+        "Lt",
+        "Na",
+        "Ni",
+        "Po",
+        "Ri",
+        "Wa",
+        "Va",
+    ]
+
+
+def test_agricultural_conditions():
+    assert _conditions("Ag") == {
+        "atmosphere": frozenset(range(4, 10)),
+        "hydrographics": frozenset(range(4, 9)),
+        "population": frozenset(range(5, 8)),
+    }
+
+
+def test_asteroid_conditions():
+    assert _conditions("As") == {
+        "size": frozenset({0}),
+        "atmosphere": frozenset({0}),
+        "hydrographics": frozenset({0}),
+    }
+
+
+def test_barren_conditions():
+    assert _conditions("Ba") == {
+        "population": frozenset({0}),
+        "government": frozenset({0}),
+        "law_level": frozenset({0}),
+    }
+
+
+def test_desert_conditions():
+    assert _conditions("De") == {
+        "atmosphere": frozenset(range(2, 16)),
+        "hydrographics": frozenset({0}),
+    }
+
+
+def test_fluid_oceans_conditions():
+    assert _conditions("Fl") == {
+        "atmosphere": frozenset(range(10, 16)),
+        "hydrographics": frozenset(range(1, 11)),
+    }
+
+
+def test_garden_conditions():
+    assert _conditions("Ga") == {
+        "atmosphere": frozenset({5, 6, 8}),
+        "hydrographics": frozenset(range(4, 10)),
+        "population": frozenset(range(4, 9)),
+    }
+
+
+def test_high_population_conditions():
+    assert _conditions("Hi") == {"population": frozenset(range(9, 11))}
+
+
+def test_high_technology_conditions():
+    assert _conditions("Ht") == {"tech_level": frozenset(range(12, 34))}
+
+
+def test_ice_capped_conditions():
+    assert _conditions("Ic") == {
+        "atmosphere": frozenset({0, 1}),
+        "hydrographics": frozenset(range(1, 11)),
+    }
+
+
+def test_industrial_conditions():
+    assert _conditions("In") == {
+        "atmosphere": frozenset({0, 1, 2, 4, 7, 9}),
+        "population": frozenset(range(9, 11)),
+    }
+
+
+def test_low_population_conditions():
+    assert _conditions("Lo") == {"population": frozenset(range(1, 4))}
+
+
+def test_low_technology_conditions():
+    assert _conditions("Lt") == {"tech_level": frozenset(range(0, 6))}
+
+
+def test_non_agricultural_conditions():
+    assert _conditions("Na") == {
+        "atmosphere": frozenset(range(0, 4)),
+        "hydrographics": frozenset(range(0, 4)),
+        "population": frozenset(range(6, 11)),
+    }
+
+
+def test_non_industrial_conditions():
+    assert _conditions("Ni") == {"population": frozenset(range(4, 7))}
+
+
+def test_poor_conditions():
+    assert _conditions("Po") == {
+        "atmosphere": frozenset(range(2, 6)),
+        "hydrographics": frozenset(range(0, 4)),
+    }
+
+
+def test_rich_conditions():
+    assert _conditions("Ri") == {
+        "atmosphere": frozenset({6, 8}),
+        "population": frozenset(range(6, 9)),
+    }
+
+
+def test_water_world_conditions():
+    assert _conditions("Wa") == {"hydrographics": frozenset({10})}
+
+
+def test_vacuum_conditions():
+    assert _conditions("Va") == {"atmosphere": frozenset({0})}
+
+
+def test_matches_conditions_reads_trade_codes_generically():
+    values = {
+        "size": 8,
+        "atmosphere": 6,
+        "hydrographics": 6,
+        "population": 6,
+        "government": 6,
+        "law_level": 6,
+        "tech_level": 6,
+    }
+    codes = {
+        rule["code"] for rule in TRADE_CODES if matches_conditions(rule["conditions"], values)
+    }
+    assert "Ga" in codes
+    assert "Ri" in codes

@@ -144,6 +144,100 @@ TL_MINIMUMS: tuple[dict, ...] = (
 """Technology Level Minimums (Appendix C2); the highest matching minimum applies."""
 
 
+TRADE_CODES: tuple[dict, ...] = (
+    {
+        "code": "Ag",
+        "conditions": {
+            "atmosphere": frozenset(range(4, 10)),
+            "hydrographics": frozenset(range(4, 9)),
+            "population": frozenset(range(5, 8)),
+        },
+    },
+    {
+        "code": "As",
+        "conditions": {
+            "size": frozenset({0}),
+            "atmosphere": frozenset({0}),
+            "hydrographics": frozenset({0}),
+        },
+    },
+    {
+        "code": "Ba",
+        "conditions": {
+            "population": frozenset({0}),
+            "government": frozenset({0}),
+            "law_level": frozenset({0}),
+        },
+    },
+    {
+        "code": "De",
+        "conditions": {
+            "atmosphere": frozenset(range(2, 16)),
+            "hydrographics": frozenset({0}),
+        },
+    },
+    {
+        "code": "Fl",
+        "conditions": {
+            "atmosphere": frozenset(range(10, 16)),
+            "hydrographics": frozenset(range(1, 11)),
+        },
+    },
+    {
+        "code": "Ga",
+        "conditions": {
+            "atmosphere": frozenset({5, 6, 8}),
+            "hydrographics": frozenset(range(4, 10)),
+            "population": frozenset(range(4, 9)),
+        },
+    },
+    {"code": "Hi", "conditions": {"population": frozenset(range(9, 11))}},
+    {"code": "Ht", "conditions": {"tech_level": frozenset(range(12, 34))}},
+    {
+        "code": "Ic",
+        "conditions": {
+            "atmosphere": frozenset({0, 1}),
+            "hydrographics": frozenset(range(1, 11)),
+        },
+    },
+    {
+        "code": "In",
+        "conditions": {
+            "atmosphere": frozenset({0, 1, 2, 4, 7, 9}),
+            "population": frozenset(range(9, 11)),
+        },
+    },
+    {"code": "Lo", "conditions": {"population": frozenset(range(1, 4))}},
+    {"code": "Lt", "conditions": {"tech_level": frozenset(range(0, 6))}},
+    {
+        "code": "Na",
+        "conditions": {
+            "atmosphere": frozenset(range(0, 4)),
+            "hydrographics": frozenset(range(0, 4)),
+            "population": frozenset(range(6, 11)),
+        },
+    },
+    {"code": "Ni", "conditions": {"population": frozenset(range(4, 7))}},
+    {
+        "code": "Po",
+        "conditions": {
+            "atmosphere": frozenset(range(2, 6)),
+            "hydrographics": frozenset(range(0, 4)),
+        },
+    },
+    {
+        "code": "Ri",
+        "conditions": {
+            "atmosphere": frozenset({6, 8}),
+            "population": frozenset(range(6, 9)),
+        },
+    },
+    {"code": "Wa", "conditions": {"hydrographics": frozenset({10})}},
+    {"code": "Va", "conditions": {"atmosphere": frozenset({0})}},
+)
+"""UWP Values for Trade Codes (Appendix C3), in table order."""
+
+
 def matches_conditions(conditions: dict[str, frozenset], values: dict[str, int]) -> bool:
     """Whether every field in `conditions` holds a value from its allowed set.
 
