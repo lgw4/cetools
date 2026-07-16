@@ -1,6 +1,6 @@
 # cetools
 
-Cepheus Engine character generation tools. Generates playable characters following the [Cepheus Engine SRD](https://evolvedexperiment.github.io/cepheus-srd/) rules.
+Cepheus Engine character and world generation tools. Generates playable characters and worlds following the [Cepheus Engine SRD](https://evolvedexperiment.github.io/cepheus-srd/) rules.
 
 Supported careers: **Aerospace System Defense**, **Agent**, **Athlete**, **Barbarian**, **Belter**, **Bureaucrat**, **Colonist**, **Diplomat**, **Drifter**, **Entertainer**, **Hunter**, **Marine**, **Maritime System Defense**, **Mercenary**, **Merchant**, **Navy**, **Noble**, **Physician**, **Pirate**, **Rogue**, **Scientist**, **Scout**, **Surface System Defense**, **Technician**. Omit `--career` to have one of the six services (Aerospace System Defense, Marine, Maritime System Defense, Navy, Scout, Surface System Defense) drafted at random; the other careers are selectable with `--career` only.
 
@@ -190,3 +190,87 @@ result = generate(NAVY_CAREER, rolls)
 ```
 
 Anything left unscripted takes a per-verb default. `RandomRolls` is the production adapter, and `RollName` is the index of every random decision the rules make.
+
+## World generation
+
+Generates worlds, systems, and subsectors following SRD Chapter 12: a single [Universal World Profile](https://evolvedexperiment.github.io/cepheus-srd/worlds.html#universal-world-profile) (UWP), a fully-described system, or an 8x10 subsector.
+
+### CLI
+
+Generate a fully-described system:
+
+```bash
+uv run cetools world generate --seed 42
+```
+
+```console
+$ uv run cetools world generate --seed 42
+Dehi    X553338-2     Lo Lt Po     321  Na
+```
+
+Name a single world explicitly, or generate several at once with `--count`/`-n`:
+
+```bash
+uv run cetools world generate --name Terra --seed 1
+uv run cetools world generate --seed 5 -n 2
+```
+
+`--name` applies only to a single world; passing it together with `--count` greater than 1 exits `1`.
+
+Generate an 8x10 subsector—one line per occupied hex, ordered by coordinate, each carrying its four-digit hex code:
+
+```bash
+uv run cetools world subsector --seed 7
+```
+
+```console
+$ uv run cetools world subsector --seed 7
+Citifa  0103  D542440-5     Lt Ni Po  A  133  Na
+Tici  0106  E546659-5     Ag Lt Ni  A  912  Na
+Rino  0109  E120443-9     De Ni Po     311  Na
+...
+```
+
+Control occupied-hex density with `--density` (rift, sparse, standard, or dense; default standard, roughly 50% occupied):
+
+```bash
+uv run cetools world subsector --density dense --seed 7
+```
+
+An unknown `--density` value exits `1` with the valid choices on stderr.
+
+Output above is illustrative; generation is random unless `--seed` is given, so unseeded results will differ.
+
+**Exit codes**: `0` on success; `1` on a usage error (an unknown `--density` value, or `--name` together with `--count` greater than 1), with the reason on stderr. World generation has no in-domain failure analogous to character death.
+
+#### Output format
+
+Each printed line is the full SRD world-data line: name, hex (subsector listings only), UWP profile, base code, trade codes, travel-zone code, PBG triple, and allegiance.
+
+### Library
+
+The generation engine is usable directly without the CLI:
+
+```python
+from cetools.engine.worlds import generate_system, generate_subsector
+
+system = generate_system()
+print(system.world.profile)   # e.g. A867A9C-F
+print(system.data_line)       # the full world-data line
+
+subsector = generate_subsector()
+print(len(subsector.systems), "occupied hexes")
+```
+
+`generate_system` returns a `System` wrapping a `World`; `system.world.profile` is the classic UWP string and `system.data_line` is the full rendered line. `generate_subsector` walks the 8x10 grid and returns a `Subsector` of `System`s, each with its `hex` set to its own coordinate.
+
+World generation reuses the same `Rolls` seam as character generation, so it is deterministic given a seed:
+
+```python
+import random
+from cetools.engine.rolls import RandomRolls
+from cetools.engine.worlds import generate_world
+
+world = generate_world(RandomRolls(random.Random(42)))
+assert world == generate_world(RandomRolls(random.Random(42)))
+```

@@ -23,12 +23,25 @@ class RollName(StrEnum):
     ADVANCEMENT = "advancement"
     PSI_GATE = "psi_gate"
     PSI_TALENT = "psi_talent"
+    PLANETOID_BELT_PRESENCE = "planetoid_belt_presence"
+    GAS_GIANT_PRESENCE = "gas_giant_presence"
+    NAVAL_BASE = "naval_base"
+    SCOUT_BASE = "scout_base"
+    PIRATE_BASE = "pirate_base"
 
     # Raw 2D6 values the rules do arithmetic on.
     CHARACTERISTIC = "characteristic"
     AGING = "aging"
     REENLISTMENT = "reenlistment"
     PSI_STRENGTH = "psi_strength"
+    WORLD_SIZE = "world_size"
+    WORLD_ATMOSPHERE = "world_atmosphere"
+    WORLD_HYDROGRAPHICS = "world_hydrographics"
+    WORLD_POPULATION = "world_population"
+    WORLD_GOVERNMENT = "world_government"
+    WORLD_LAW_LEVEL = "world_law_level"
+    WORLD_STARPORT = "world_starport"
+    POPULATION_MODIFIER = "population_modifier"
 
     # 1D6 table indices and quantities.
     SKILL_ENTRY = "skill_entry"
@@ -40,6 +53,10 @@ class RollName(StrEnum):
     INJURY = "injury"
     INJURY_AMOUNT = "injury_amount"
     INJURY_DEBT = "injury_debt"
+    WORLD_TECH_LEVEL = "world_tech_level"
+    PLANETOID_BELT_COUNT = "planetoid_belt_count"
+    GAS_GIANT_COUNT = "gas_giant_count"
+    WORLD_PRESENCE = "world_presence"
 
     # Uniform picks from a list.
     SKILL_TABLE = "skill_table"
@@ -48,6 +65,7 @@ class RollName(StrEnum):
     INJURY_STAT = "injury_stat"
     FIRST_NAME = "first_name"
     LAST_NAME = "last_name"
+    WORLD_NAME_STEM = "world_name_stem"
 
 
 class Rolls(Protocol):

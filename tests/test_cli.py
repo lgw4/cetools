@@ -625,3 +625,100 @@ def test_batch_all_failures_exits_1_with_empty_stdout():
     assert result.exit_code == 1
     assert result.stdout.strip() == ""
     assert "all fail" in result.stderr
+
+
+# --- T018: `cetools world generate` ---
+
+
+def test_world_generate_seed_prints_one_line_and_exits_0():
+    result = runner.invoke(app, ["world", "generate", "--seed", "42"])
+    assert result.exit_code == 0
+    assert len(result.stdout.strip().splitlines()) == 1
+
+
+def test_world_generate_name_names_the_world():
+    result = runner.invoke(app, ["world", "generate", "--name", "Terra", "--seed", "1"])
+    assert result.exit_code == 0
+    assert result.stdout.startswith("Terra")
+
+
+def test_world_generate_count_prints_multiple_lines():
+    result = runner.invoke(app, ["world", "generate", "--count", "2", "--seed", "1"])
+    assert result.exit_code == 0
+    assert len(result.stdout.strip().splitlines()) == 2
+
+
+def test_world_generate_default_count_is_one():
+    result = runner.invoke(app, ["world", "generate", "--seed", "7"])
+    assert result.exit_code == 0
+    assert len(result.stdout.strip().splitlines()) == 1
+
+
+def test_world_generate_name_with_count_greater_than_one_exits_1():
+    result = runner.invoke(app, ["world", "generate", "--name", "Terra", "--count", "2"])
+    assert result.exit_code == 1
+    assert "--name applies only to a single world (use --count 1)." in result.stderr
+
+
+def test_world_generate_allegiance_is_stamped():
+    result = runner.invoke(app, ["world", "generate", "--seed", "1", "--allegiance", "ImDs"])
+    assert result.exit_code == 0
+    assert result.stdout.strip().endswith("ImDs")
+
+
+def test_world_generate_allegiance_defaults_to_na():
+    result = runner.invoke(app, ["world", "generate", "--seed", "1"])
+    assert result.exit_code == 0
+    assert result.stdout.strip().endswith("Na")
+
+
+def test_world_generate_same_seed_is_deterministic():
+    result_a = runner.invoke(app, ["world", "generate", "--seed", "5"])
+    result_b = runner.invoke(app, ["world", "generate", "--seed", "5"])
+    assert result_a.stdout == result_b.stdout
+
+
+def test_world_generate_count_below_one_is_rejected():
+    result = runner.invoke(app, ["world", "generate", "--count", "0"])
+    assert result.exit_code != 0
+
+
+def test_world_generate_without_seed_still_succeeds():
+    result = runner.invoke(app, ["world", "generate"])
+    assert result.exit_code == 0
+    assert result.stdout.strip()
+
+
+# --- T028: `cetools world subsector` ---
+
+
+def test_world_subsector_seed_prints_hex_prefixed_lines_and_exits_0():
+    result = runner.invoke(app, ["world", "subsector", "--seed", "7"])
+    assert result.exit_code == 0
+    lines = result.stdout.strip().splitlines()
+    assert lines
+    for line in lines:
+        tokens = line.split()
+        hex_code = tokens[1]
+        assert len(hex_code) == 4
+        assert hex_code.isdigit()
+        assert tokens.count(hex_code) == 1
+
+
+def test_world_subsector_dense_yields_more_occupied_hexes_than_default():
+    default_result = runner.invoke(app, ["world", "subsector", "--seed", "7"])
+    dense_result = runner.invoke(app, ["world", "subsector", "--density", "dense", "--seed", "7"])
+    default_lines = len(default_result.stdout.strip().splitlines())
+    dense_lines = len(dense_result.stdout.strip().splitlines())
+    assert dense_lines > default_lines
+
+
+def test_world_subsector_invalid_density_exits_nonzero():
+    result = runner.invoke(app, ["world", "subsector", "--density", "bogus"])
+    assert result.exit_code != 0
+
+
+def test_world_subsector_same_seed_is_deterministic():
+    result_a = runner.invoke(app, ["world", "subsector", "--seed", "5"])
+    result_b = runner.invoke(app, ["world", "subsector", "--seed", "5"])
+    assert result_a.stdout == result_b.stdout
