@@ -29,6 +29,8 @@ def _tech_level_minimum(atmosphere: int, hydrographics: int, population: int) ->
 
 
 def _validate_world(world: World) -> None:
+    if not world.name:
+        raise ValueError("name must be non-empty")
     if not 0 <= world.size <= 10:
         raise ValueError(f"size must be 0-10, got {world.size}")
     if not 0 <= world.atmosphere <= 15:

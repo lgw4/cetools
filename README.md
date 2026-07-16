@@ -193,7 +193,7 @@ Anything left unscripted takes a per-verb default. `RandomRolls` is the producti
 
 ## World generation
 
-Generates worlds, systems, and subsectors following SRD Chapter 12: a single [Universal World Profile](https://evolvedexperiment.github.io/cepheus-srd/introduction.html#universal-personality-profile) (UWP), a fully-described system, or an 8x10 subsector.
+Generates worlds, systems, and subsectors following SRD Chapter 12: a single [Universal World Profile](https://evolvedexperiment.github.io/cepheus-srd/worlds.html#universal-world-profile) (UWP), a fully-described system, or an 8x10 subsector.
 
 ### CLI
 

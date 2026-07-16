@@ -192,7 +192,7 @@ Hydro 4–8, Pop 5–7).
 - **Rationale**: Reuses the project's canonical pseudo-hex codec; keeps rendering out of the models
   and out of the CLI (Principle III). The existing `formatter.py` handles characters and is left
   untouched.
-- **Full line format** (fields separated by single spaces, blanks preserved for absent base/zone):
+- **Full line format** (fields separated by double spaces, blanks preserved for absent base/zone):
   `Name  CCRR  A867A9C-F  N  Ag Ni  A  234  Na` → name, hex, profile, base code, trade codes/remarks,
   travel-zone code, PBG triple, allegiance.
 

@@ -49,6 +49,7 @@ The primary world of a system. Produced by `generate_world`.
 
 **Invariants** (validated in tests, enforced by the generator):
 
+- `name` is non-empty.
 - SC-001 ranges hold for every field.
 - SC-002 dependencies: `size==0 ⇒ atmosphere==0 and hydrographics==0`;
   `size<=1 ⇒ hydrographics==0`; `population==0 ⇒ government==law_level==tech_level==0`;

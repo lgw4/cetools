@@ -61,6 +61,11 @@ def test_invalid_starport_raises():
         _world(starport="Z")
 
 
+def test_empty_name_raises():
+    with pytest.raises(ValueError, match="name"):
+        _world(name="")
+
+
 def test_size_zero_requires_atmosphere_zero():
     with pytest.raises(ValueError):
         _world(size=0, atmosphere=1, hydrographics=0)
