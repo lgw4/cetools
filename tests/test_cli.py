@@ -722,3 +722,30 @@ def test_world_subsector_same_seed_is_deterministic():
     result_a = runner.invoke(app, ["world", "subsector", "--seed", "5"])
     result_b = runner.invoke(app, ["world", "subsector", "--seed", "5"])
     assert result_a.stdout == result_b.stdout
+
+
+def test_character_same_seed_is_deterministic():
+    args = ["character", "generate", "--career", "scout", "--seed", "42"]
+    first = runner.invoke(app, args)
+    second = runner.invoke(app, args)
+    assert first.exit_code == 0
+    assert first.stdout.strip()
+    assert first.stdout == second.stdout
+
+
+def test_character_different_seeds_differ():
+    base = ["character", "generate", "--career", "scout"]
+    a = runner.invoke(app, base + ["--seed", "1"])
+    b = runner.invoke(app, base + ["--seed", "2"])
+    assert a.stdout != b.stdout
+
+
+def test_character_seed_with_count_fixes_the_whole_sequence():
+    args = ["character", "generate", "--career", "scout", "-n", "3", "--seed", "7"]
+    first = runner.invoke(app, args)
+    second = runner.invoke(app, args)
+    assert first.stdout == second.stdout
+    # The seed fixes a sequence of three distinct characters, not one repeated.
+    blocks = [block for block in first.stdout.strip().split("\n\n") if block.strip()]
+    assert len(blocks) == 3
+    assert len(set(blocks)) > 1

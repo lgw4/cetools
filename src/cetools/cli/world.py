@@ -1,4 +1,3 @@
-import random
 from typing import Annotated
 
 import typer
@@ -35,7 +34,7 @@ def generate_worlds(
         typer.echo("--name applies only to a single world (use --count 1).", err=True)
         raise typer.Exit(1)
 
-    rolls = RandomRolls(random.Random(seed)) if seed is not None else RandomRolls()
+    rolls = RandomRolls.seeded(seed)
 
     for _ in range(count):
         system = generate_system(rolls, name=name, allegiance=allegiance)
@@ -60,7 +59,7 @@ def generate_subsector_command(
         typer.echo(f"Unknown density {density!r}. Valid choices: {valid}.", err=True)
         raise typer.Exit(1)
 
-    rolls = RandomRolls(random.Random(seed)) if seed is not None else RandomRolls()
+    rolls = RandomRolls.seeded(seed)
 
     subsector = generate_subsector(rolls, density=resolved_density)
     for system in sorted(subsector.systems, key=lambda system: system.hex):

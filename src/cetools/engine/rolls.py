@@ -98,6 +98,15 @@ class RandomRolls:
     def __init__(self, rng: random.Random | None = None) -> None:
         self._rng = rng or random
 
+    @classmethod
+    def seeded(cls, seed: int | None) -> RandomRolls:
+        """Seeded for reproducibility, or unseeded (real entropy) when `seed` is None.
+
+        The one place the optional-seed-to-adapter decision is made, so every entry
+        point—each CLI command—gets reproducibility the same way.
+        """
+        return cls(random.Random(seed) if seed is not None else None)
+
     def _two_dice(self) -> int:
         return self._rng.randint(1, 6) + self._rng.randint(1, 6)
 

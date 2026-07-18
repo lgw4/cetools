@@ -55,6 +55,14 @@ Generate several characters at once with `--count`/`-n` (blocks are separated by
 uv run cetools character generate --career scout -n 3
 ```
 
+Pass `--seed` for reproducible output; the same seed and options always produce the same character(s), and a seed works with `--career`, `--random`, or the draft. With `-n`, the seed fixes the whole sequence, not one repeated character:
+
+```bash
+uv run cetools character generate --career scout --seed 42
+```
+
+Generation is otherwise random, so unseeded results differ from run to run.
+
 `--career` and `--random` are mutually exclusive; passing both exits `1`.
 
 #### Output format
