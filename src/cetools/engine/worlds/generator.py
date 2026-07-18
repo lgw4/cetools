@@ -29,19 +29,18 @@ def _roll_atmosphere(rolls: Rolls, size: int) -> int:
     return max(0, min(15, value))
 
 
-def _roll_hydrographics(rolls: Rolls, size: int, atmosphere: int) -> int:
-    value = rolls.two_d6(RollName.WORLD_HYDROGRAPHICS) - 7 + size
-    value += HYDRO_DM_BY_ATMOSPHERE.get(atmosphere, 0)
-    if size <= 1:
+def _roll_hydrographics(rolls: Rolls, uwp: dict[str, int]) -> int:
+    value = rolls.two_d6(RollName.WORLD_HYDROGRAPHICS) - 7 + uwp["size"]
+    value += HYDRO_DM_BY_ATMOSPHERE.get(uwp["atmosphere"], 0)
+    if uwp["size"] <= 1:
         return 0
     return max(0, min(10, value))
 
 
-def _roll_population(rolls: Rolls, size: int, atmosphere: int, hydrographics: int) -> int:
+def _roll_population(rolls: Rolls, uwp: dict[str, int]) -> int:
     value = rolls.two_d6(RollName.WORLD_POPULATION) - 2
-    values = {"size": size, "atmosphere": atmosphere, "hydrographics": hydrographics}
     for rule in POPULATION_DMS:
-        if matches_conditions(rule["conditions"], values):
+        if matches_conditions(rule["conditions"], uwp):
             value += rule["dm"]
     return max(0, min(10, value))
 
@@ -66,32 +65,26 @@ def _roll_starport(rolls: Rolls, population: int) -> str:
     return STARPORT_BY_ROLL[clamped]
 
 
-def _roll_tech_level(
-    rolls: Rolls,
-    starport: str,
-    size: int,
-    atmosphere: int,
-    hydrographics: int,
-    population: int,
-    government: int,
-) -> int:
+def _roll_tech_level(rolls: Rolls, uwp: dict[str, int], starport: str) -> int:
     dm = (
         TL_DM_BY_VALUE["starport"].get(starport, 0)
-        + TL_DM_BY_VALUE["size"].get(size, 0)
-        + TL_DM_BY_VALUE["atmosphere"].get(atmosphere, 0)
-        + TL_DM_BY_VALUE["hydrographics"].get(hydrographics, 0)
-        + TL_DM_BY_VALUE["population"].get(population, 0)
-        + TL_DM_BY_VALUE["government"].get(government, 0)
+        + TL_DM_BY_VALUE["size"].get(uwp["size"], 0)
+        + TL_DM_BY_VALUE["atmosphere"].get(uwp["atmosphere"], 0)
+        + TL_DM_BY_VALUE["hydrographics"].get(uwp["hydrographics"], 0)
+        + TL_DM_BY_VALUE["population"].get(uwp["population"], 0)
+        + TL_DM_BY_VALUE["government"].get(uwp["government"], 0)
     )
     tech_level = max(0, rolls.d6(RollName.WORLD_TECH_LEVEL) + dm)
     tech_level = max(
         tech_level,
         tech_level_minimum(
-            atmosphere=atmosphere, hydrographics=hydrographics, population=population
+            atmosphere=uwp["atmosphere"],
+            hydrographics=uwp["hydrographics"],
+            population=uwp["population"],
         ),
     )
 
-    if population == 0:
+    if uwp["population"] == 0:
         return 0
     return tech_level
 
@@ -103,31 +96,19 @@ def _roll_population_modifier(rolls: Rolls, population: int) -> int:
     return max(1, value)
 
 
-def _match_trade_codes(
-    size: int,
-    atmosphere: int,
-    hydrographics: int,
-    population: int,
-    government: int,
-    law_level: int,
-    tech_level: int,
-) -> tuple[str, ...]:
-    values = {
-        "size": size,
-        "atmosphere": atmosphere,
-        "hydrographics": hydrographics,
-        "population": population,
-        "government": government,
-        "law_level": law_level,
-        "tech_level": tech_level,
-    }
+def _match_trade_codes(uwp: dict[str, int]) -> tuple[str, ...]:
     return tuple(
-        rule["code"] for rule in TRADE_CODES if matches_conditions(rule["conditions"], values)
+        rule["code"] for rule in TRADE_CODES if matches_conditions(rule["conditions"], uwp)
     )
 
 
-def _is_amber(atmosphere: int, government: int, law_level: int) -> bool:
-    return atmosphere >= 10 or government in (0, 7, 10) or law_level == 0 or law_level >= 9
+def _is_amber(uwp: dict[str, int]) -> bool:
+    return (
+        uwp["atmosphere"] >= 10
+        or uwp["government"] in (0, 7, 10)
+        or uwp["law_level"] == 0
+        or uwp["law_level"] >= 9
+    )
 
 
 def generate_world(
@@ -146,40 +127,36 @@ def generate_world(
     """
     rolls = rolls or RandomRolls()
 
-    size = _roll_size(rolls)
-    atmosphere = _roll_atmosphere(rolls, size)
-    hydrographics = _roll_hydrographics(rolls, size, atmosphere)
-    population = _roll_population(rolls, size, atmosphere, hydrographics)
-    government = _roll_government(rolls, population)
-    law_level = _roll_law_level(rolls, government)
-    starport = _roll_starport(rolls, population)
-    tech_level = _roll_tech_level(
-        rolls, starport, size, atmosphere, hydrographics, population, government
-    )
-    population_modifier = _roll_population_modifier(rolls, population)
-    trade_codes = _match_trade_codes(
-        size, atmosphere, hydrographics, population, government, law_level, tech_level
-    )
+    # The seven UWP characteristic values, accumulated in SRD order. The coordinator
+    # is the sole writer; the wide helpers only read it, and it is exactly the
+    # dict[str, int] the rules engine (matches_conditions) consumes, so nothing
+    # rebuilds a subset of it. starport (a str) and population_modifier are not
+    # rules-engine inputs, so they stay separate locals.
+    uwp: dict[str, int] = {}
+    uwp["size"] = _roll_size(rolls)
+    uwp["atmosphere"] = _roll_atmosphere(rolls, uwp["size"])
+    uwp["hydrographics"] = _roll_hydrographics(rolls, uwp)
+    uwp["population"] = _roll_population(rolls, uwp)
+    uwp["government"] = _roll_government(rolls, uwp["population"])
+    uwp["law_level"] = _roll_law_level(rolls, uwp["government"])
+    starport = _roll_starport(rolls, uwp["population"])
+    uwp["tech_level"] = _roll_tech_level(rolls, uwp, starport)
+    population_modifier = _roll_population_modifier(rolls, uwp["population"])
+    trade_codes = _match_trade_codes(uwp)
     if travel_zone_red:
         travel_zone = TravelZone.RED
-    elif _is_amber(atmosphere, government, law_level):
+    elif _is_amber(uwp):
         travel_zone = TravelZone.AMBER
     else:
         travel_zone = TravelZone.GREEN
 
     return World(
         name=name if name is not None else generate_world_name(rolls),
-        size=size,
-        atmosphere=atmosphere,
-        hydrographics=hydrographics,
-        population=population,
-        government=government,
-        law_level=law_level,
         starport=starport,
-        tech_level=tech_level,
         population_modifier=population_modifier,
         trade_codes=trade_codes,
         travel_zone=travel_zone,
+        **uwp,
     )
 
 
