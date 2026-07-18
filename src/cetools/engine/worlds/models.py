@@ -7,7 +7,7 @@ from enum import Enum
 
 from cetools.engine.pseudohex import to_pseudohex
 from cetools.engine.worlds.profile import render_data_line, render_profile
-from cetools.engine.worlds.tables import TL_MINIMUMS, matches_conditions
+from cetools.engine.worlds.tables import tech_level_minimum
 
 _VALID_STARPORTS = frozenset("ABCDEX")
 
@@ -18,14 +18,6 @@ class TravelZone(Enum):
     GREEN = " "
     AMBER = "A"
     RED = "R"
-
-
-def _tech_level_minimum(atmosphere: int, hydrographics: int, population: int) -> int:
-    values = {"atmosphere": atmosphere, "hydrographics": hydrographics, "population": population}
-    applicable = [
-        rule["min"] for rule in TL_MINIMUMS if matches_conditions(rule["conditions"], values)
-    ]
-    return max(applicable, default=0)
 
 
 def _validate_world(world: World) -> None:
@@ -64,7 +56,11 @@ def _validate_world(world: World) -> None:
                 f"population_modifier must be 1-10 when inhabited, got"
                 f" {world.population_modifier}"
             )
-        minimum = _tech_level_minimum(world.atmosphere, world.hydrographics, world.population)
+        minimum = tech_level_minimum(
+            atmosphere=world.atmosphere,
+            hydrographics=world.hydrographics,
+            population=world.population,
+        )
         if world.tech_level < minimum:
             raise ValueError(
                 f"tech_level must be >= mandated minimum {minimum}, got {world.tech_level}"

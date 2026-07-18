@@ -5,9 +5,9 @@ from cetools.engine.worlds.tables import (
     POPULATION_DMS,
     STARPORT_BY_ROLL,
     TL_DM_BY_VALUE,
-    TL_MINIMUMS,
     TRADE_CODES,
     matches_conditions,
+    tech_level_minimum,
 )
 
 
@@ -53,24 +53,32 @@ def test_population_dms_reproduce_the_five_srd_rules():
     assert _population_dm(size=8, atmosphere=7, hydrographics=5) == 0  # no rule applies
 
 
-def _tl_minimum(atmosphere, hydrographics, population):
-    values = {"atmosphere": atmosphere, "hydrographics": hydrographics, "population": population}
-    applicable = [
-        rule["min"] for rule in TL_MINIMUMS if matches_conditions(rule["conditions"], values)
-    ]
-    return max(applicable, default=0)
-
-
 def test_tl_minimums_matches_appendix_c2():
-    assert _tl_minimum(atmosphere=6, hydrographics=0, population=6) == 4
-    assert _tl_minimum(atmosphere=6, hydrographics=10, population=8) == 4
-    assert _tl_minimum(atmosphere=6, hydrographics=0, population=5) == 0
-    assert _tl_minimum(atmosphere=4, hydrographics=5, population=5) == 5
-    assert _tl_minimum(atmosphere=2, hydrographics=5, population=5) == 7
-    assert _tl_minimum(atmosphere=11, hydrographics=5, population=5) == 7
-    assert _tl_minimum(atmosphere=13, hydrographics=10, population=5) == 7
-    assert _tl_minimum(atmosphere=13, hydrographics=5, population=5) == 0
-    assert _tl_minimum(atmosphere=9, hydrographics=9, population=9) == 5
+    assert tech_level_minimum(atmosphere=6, hydrographics=0, population=6) == 4
+    assert tech_level_minimum(atmosphere=6, hydrographics=10, population=8) == 4
+    assert tech_level_minimum(atmosphere=6, hydrographics=0, population=5) == 0
+    assert tech_level_minimum(atmosphere=4, hydrographics=5, population=5) == 5
+    assert tech_level_minimum(atmosphere=2, hydrographics=5, population=5) == 7
+    assert tech_level_minimum(atmosphere=11, hydrographics=5, population=5) == 7
+    assert tech_level_minimum(atmosphere=13, hydrographics=10, population=5) == 7
+    assert tech_level_minimum(atmosphere=13, hydrographics=5, population=5) == 0
+    assert tech_level_minimum(atmosphere=9, hydrographics=9, population=9) == 5
+
+
+def test_tech_level_minimum_is_zero_when_no_rule_matches():
+    assert tech_level_minimum(atmosphere=6, hydrographics=5, population=5) == 0
+
+
+def test_tech_level_minimum_takes_the_highest_of_several_matching_rules():
+    # Atmosphere 2 mandates 7; hydrographics 0 with population 6 mandates 4.
+    # Both fire; the higher (7) wins.
+    assert tech_level_minimum(atmosphere=2, hydrographics=0, population=6) == 7
+
+
+def test_tech_level_minimum_reads_the_table_even_for_an_uninhabited_world():
+    # It is a faithful table read: it does not apply the population-0 override
+    # (TL 0), which is the caller's job. Atmosphere 2 still mandates 7 here.
+    assert tech_level_minimum(atmosphere=2, hydrographics=0, population=0) == 7
 
 
 def test_tl_dm_by_value_matches_appendix_c1():
