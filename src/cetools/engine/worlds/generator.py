@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from cetools.engine.rolls import RandomRolls, RollName, Rolls
+from cetools.engine.rolls import MAX_ROLL_ATTEMPTS, RandomRolls, RollName, Rolls, bounded_retry
 from cetools.engine.worlds.models import Density, Subsector, System, TravelZone, World
 from cetools.engine.worlds.naming import generate_world_name
 from cetools.engine.worlds.tables import (
@@ -220,24 +220,21 @@ def generate_system(
 
 _SUBSECTOR_COLUMNS = range(1, 9)
 _SUBSECTOR_ROWS = range(1, 11)
-_MAX_NAME_ATTEMPTS = 100
 
 
 def _generate_unique_system(rolls: Rolls, hex_code: str, used_names: set[str]) -> System:
-    for _ in range(_MAX_NAME_ATTEMPTS):
-        system = generate_system(rolls, hex=hex_code)
-        if system.world.name not in used_names:
-            return system
-
-    # A rolls source whose name generation can never avoid the names already used
-    # (e.g. a ScriptedRolls pinned to always choose the same stems) would otherwise
-    # spin here for ever. Real dice do not: the stem pool offers thousands of
-    # combinations against at most 80 hexes, so exhausting these attempts by chance
-    # is effectively impossible.
-    raise ValueError(
-        f"could not generate a world name unique within the subsector for hex"
-        f" {hex_code!r} after {_MAX_NAME_ATTEMPTS} attempts"
+    system = bounded_retry(
+        lambda: generate_system(rolls, hex=hex_code),
+        lambda candidate: candidate.world.name not in used_names,
     )
+    if system is None:
+        # Only a ScriptedRolls pinned to one stem reaches here; real name generation
+        # offers thousands of combinations against at most 80 hexes.
+        raise ValueError(
+            f"could not generate a world name unique within the subsector for hex"
+            f" {hex_code!r} after {MAX_ROLL_ATTEMPTS} attempts"
+        )
+    return system
 
 
 def generate_subsector(
@@ -248,7 +245,7 @@ def generate_subsector(
     Presence is `1D6 + density.dm >= 4` (research.md D2: a 1D6 check, not the
     2D6 `check()` verb). Each occupied hex gets a full `generate_system`, with
     auto-generated names kept unique within the subsector by regenerating on
-    collision (research.md D4), bounded by `_MAX_NAME_ATTEMPTS`.
+    collision (research.md D4), bounded by `bounded_retry`.
     """
     rolls = rolls or RandomRolls()
 

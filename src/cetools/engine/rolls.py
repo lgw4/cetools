@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from enum import StrEnum
 from typing import Protocol, TypeVar
 
@@ -188,3 +188,34 @@ class ScriptedRolls:
         if not items:
             raise ValueError(f"cannot choose from an empty sequence (roll '{name}')")
         return items[self._next(self._choices, name, self._default_choice) % len(items)]
+
+
+MAX_ROLL_ATTEMPTS = 100
+"""How many times a filtered draw retries before giving up.
+
+Enough that real dice will never exhaust it; small enough that a degenerate rolls
+source fails fast instead of hanging. See `bounded_retry`.
+"""
+
+
+def bounded_retry(
+    produce: Callable[[], T],
+    accept: Callable[[T], bool],
+    *,
+    attempts: int = MAX_ROLL_ATTEMPTS,
+) -> T | None:
+    """The first `produce()` an `accept` predicate likes, or `None` if none within budget.
+
+    The guard for draws that filter their result. Real dice always land an
+    acceptable value quickly, but a `ScriptedRolls` pinned to a rejected value
+    (below a career's target, an already-used name, an exhausted once-only benefit)
+    would otherwise spin for ever. Bounding the retries turns that into a loud,
+    fast `None` the caller can fail on, rather than a hang. Callers decide what
+    exhaustion means: `None` is safe here because every `produce` returns a real
+    value, never `None`.
+    """
+    for _ in range(attempts):
+        candidate = produce()
+        if accept(candidate):
+            return candidate
+    return None

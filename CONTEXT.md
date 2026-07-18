@@ -41,10 +41,11 @@ rather than as loose flags:
 `SRD`-only outcome; and the worst rung of the ageing ladder is unreachable,
 because it needs the eighth term that only `SRD` allows.
 
-`HOUSE`'s re-roll gives up after 100 attempts and raises. Real dice never reach
-that: the highest target any career sets is 8, which `2D6` clears about 42% of the
-time. It is there so that a **ScriptedRolls** pinned below a career's target fails
-loudly instead of hanging for ever.
+`HOUSE`'s re-roll gives up after `MAX_ROLL_ATTEMPTS` attempts and raises, through
+`bounded_retry` (see Architecture). Real dice never reach that: the highest target
+any career sets is 8, which `2D6` clears about 42% of the time. The guard is there
+so that a **ScriptedRolls** pinned below a career's target fails loudly instead of
+hanging for ever.
 
 **Draft table**—the six careers a drafted character can land in. It holds
 `Career` objects, so a draft can never land on a career that does not exist. It
@@ -166,3 +167,12 @@ leaves to chance. Names exist so that tests can address a roll by intent
 Two adapters satisfy the seam: `RandomRolls` in production, `ScriptedRolls` in
 tests. A test scripts rolls by name; anything it does not name takes a per-verb
 default.
+
+**`bounded_retry`**—the one guard for a draw that filters its result. Some draws
+reject what they drew and draw again: characteristics below a career's target, a
+world name already used in the subsector, a once-only benefit already granted.
+`bounded_retry` caps that at `MAX_ROLL_ATTEMPTS` and returns nothing on exhaustion,
+so a `ScriptedRolls` pinned to a rejected value fails loudly instead of hanging;
+real dice never reach the cap. It lives beside the seam because it exists for the
+seam's one degenerate case—a pinned adapter—and each caller decides what
+exhaustion means: raise, or fall back to a deterministic scan.
