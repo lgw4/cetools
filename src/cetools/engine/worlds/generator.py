@@ -10,9 +10,9 @@ from cetools.engine.worlds.tables import (
     POPULATION_DMS,
     STARPORT_BY_ROLL,
     TL_DM_BY_VALUE,
-    TL_MINIMUMS,
     TRADE_CODES,
     matches_conditions,
+    tech_level_minimum,
 )
 
 _SCOUT_DM_BY_STARPORT = {"A": -3, "B": -2, "C": -1}
@@ -84,11 +84,12 @@ def _roll_tech_level(
         + TL_DM_BY_VALUE["government"].get(government, 0)
     )
     tech_level = max(0, rolls.d6(RollName.WORLD_TECH_LEVEL) + dm)
-
-    values = {"atmosphere": atmosphere, "hydrographics": hydrographics, "population": population}
-    for rule in TL_MINIMUMS:
-        if matches_conditions(rule["conditions"], values):
-            tech_level = max(tech_level, rule["min"])
+    tech_level = max(
+        tech_level,
+        tech_level_minimum(
+            atmosphere=atmosphere, hydrographics=hydrographics, population=population
+        ),
+    )
 
     if population == 0:
         return 0

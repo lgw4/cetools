@@ -144,6 +144,22 @@ TL_MINIMUMS: tuple[dict, ...] = (
 """Technology Level Minimums (Appendix C2); the highest matching minimum applies."""
 
 
+def tech_level_minimum(*, atmosphere: int, hydrographics: int, population: int) -> int:
+    """The highest Technology Level these UWP values mandate (Appendix C2), or 0.
+
+    A faithful read of `TL_MINIMUMS` and nothing more: it does not know the
+    population-0 override (an uninhabited world gets TL 0), which is a rule its two
+    callers apply themselves—`generate_world` floors a rolled TL with this, and
+    `models._validate_world` rejects a stored TL below it. Both cross this one
+    interface, so the rule lives here alone.
+    """
+    values = {"atmosphere": atmosphere, "hydrographics": hydrographics, "population": population}
+    return max(
+        (rule["min"] for rule in TL_MINIMUMS if matches_conditions(rule["conditions"], values)),
+        default=0,
+    )
+
+
 TRADE_CODES: tuple[dict, ...] = (
     {
         "code": "Ag",
