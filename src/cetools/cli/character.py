@@ -5,6 +5,7 @@ import typer
 from cetools.engine.careers import CAREERS, UnknownCareer, resolve
 from cetools.engine.generator import DRAFT, RANDOM, generate
 from cetools.engine.models import Character
+from cetools.engine.rolls import RandomRolls
 from cetools.formatter import format_characters
 
 app = typer.Typer()
@@ -26,6 +27,10 @@ def generate_characters(
         int,
         typer.Option("--count", "-n", min=1, help="Number of characters to generate."),
     ] = 1,
+    seed: Annotated[
+        int | None,
+        typer.Option("--seed", help="Seed for reproducible output."),
+    ] = None,
 ) -> None:
     """Generate one or more characters."""
     if career is not None and random:
@@ -45,11 +50,13 @@ def generate_characters(
 
     assignment = resolved_career or (RANDOM if random else DRAFT)
 
+    rolls = RandomRolls.seeded(seed)
+
     characters: list[Character] = []
     failures = 0
     failure_exit_code = 1
     for _ in range(count):
-        result = generate(assignment)
+        result = generate(assignment, rolls)
 
         if isinstance(result, Character):
             characters.append(result)

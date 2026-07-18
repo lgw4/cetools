@@ -190,3 +190,25 @@ def test_bounded_retry_defaults_to_max_roll_attempts() -> None:
 
     assert bounded_retry(produce, lambda n: n > 0) is None
     assert calls == MAX_ROLL_ATTEMPTS
+
+
+def test_seeded_rolls_are_reproducible() -> None:
+    a = RandomRolls.seeded(42)
+    b = RandomRolls.seeded(42)
+    a_seq = [a.two_d6(RollName.CHARACTERISTIC) for _ in range(20)]
+    b_seq = [b.two_d6(RollName.CHARACTERISTIC) for _ in range(20)]
+    assert a_seq == b_seq
+
+
+def test_different_seeds_produce_different_streams() -> None:
+    a = RandomRolls.seeded(1)
+    b = RandomRolls.seeded(2)
+    a_seq = [a.two_d6(RollName.CHARACTERISTIC) for _ in range(20)]
+    b_seq = [b.two_d6(RollName.CHARACTERISTIC) for _ in range(20)]
+    assert a_seq != b_seq
+
+
+def test_seeded_none_is_an_unseeded_working_adapter() -> None:
+    rolls = RandomRolls.seeded(None)
+    assert isinstance(rolls, RandomRolls)
+    assert all(2 <= rolls.two_d6(RollName.CHARACTERISTIC) <= 12 for _ in range(20))
