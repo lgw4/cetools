@@ -1,6 +1,12 @@
 import pytest
 
-from cetools.engine.rolls import RandomRolls, RollName, ScriptedRolls
+from cetools.engine.rolls import (
+    MAX_ROLL_ATTEMPTS,
+    RandomRolls,
+    RollName,
+    ScriptedRolls,
+    bounded_retry,
+)
 
 
 class FixedRandom:
@@ -139,3 +145,48 @@ def test_scripted_keys_must_be_roll_names() -> None:
 def test_roll_names_are_unique() -> None:
     values = [member.value for member in RollName]
     assert len(values) == len(set(values))
+
+
+def test_bounded_retry_returns_the_first_accepted_candidate() -> None:
+    produced = iter([1, 2, 3, 4])
+    assert bounded_retry(lambda: next(produced), lambda n: n >= 3) == 3
+
+
+def test_bounded_retry_returns_none_when_nothing_is_accepted() -> None:
+    assert bounded_retry(lambda: 0, lambda n: n > 0) is None
+
+
+def test_bounded_retry_stops_producing_once_accepted() -> None:
+    calls = 0
+
+    def produce() -> int:
+        nonlocal calls
+        calls += 1
+        return calls
+
+    assert bounded_retry(produce, lambda n: n == 2) == 2
+    assert calls == 2
+
+
+def test_bounded_retry_honors_a_custom_attempt_budget() -> None:
+    calls = 0
+
+    def produce() -> int:
+        nonlocal calls
+        calls += 1
+        return 0
+
+    assert bounded_retry(produce, lambda n: n > 0, attempts=3) is None
+    assert calls == 3
+
+
+def test_bounded_retry_defaults_to_max_roll_attempts() -> None:
+    calls = 0
+
+    def produce() -> int:
+        nonlocal calls
+        calls += 1
+        return 0
+
+    assert bounded_retry(produce, lambda n: n > 0) is None
+    assert calls == MAX_ROLL_ATTEMPTS

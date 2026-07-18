@@ -21,18 +21,13 @@ from cetools.engine.names import generate_name
 from cetools.engine.pseudohex import encode_upp
 from cetools.engine.psionics import roll_psionics
 from cetools.engine.ranks import grant_rank_bonus, progress
-from cetools.engine.rolls import RandomRolls, RollName, Rolls
+from cetools.engine.rolls import MAX_ROLL_ATTEMPTS, RandomRolls, RollName, Rolls, bounded_retry
 from cetools.engine.rules import HOUSE, Rules
 from cetools.engine.training import roll_skill, rolls_this_term
 
 _PENSION = {5: 10000, 6: 12000, 7: 14000, 8: 16000}
 
 _MAX_TERMS = 7
-
-# Enough that real dice will never exhaust it; small enough that a rolls source
-# which can never qualify fails fast instead of hanging. Mirrors the same guard in
-# benefits.roll_material_benefit.
-_MAX_QUALIFICATION_ATTEMPTS = 100
 
 
 def _pension(terms_served: int) -> int | None:
@@ -64,29 +59,32 @@ def _roll_characteristics(rolls: Rolls) -> dict[str, int]:
     return {stat: rolls.two_d6(RollName.CHARACTERISTIC) for stat in STAT_NAMES}
 
 
+def _qualifies(career: Career, characteristics: dict[str, int]) -> bool:
+    if career.qualification_stat is None or career.qualification_target is None:
+        return True
+    return characteristics[career.qualification_stat] >= career.qualification_target
+
+
 def _roll_until_qualified(career: Career, rolls: Rolls) -> dict[str, int]:
     """Reroll characteristics until the career will have them.
 
     A raw comparison against the career's target, not a dice check: under HOUSE
     rules a character gets the career they asked for, so enlistment cannot fail.
     """
-    for _ in range(_MAX_QUALIFICATION_ATTEMPTS):
-        characteristics = _roll_characteristics(rolls)
-        if career.qualification_stat is None or career.qualification_target is None:
-            return characteristics
-        if characteristics[career.qualification_stat] >= career.qualification_target:
-            return characteristics
-
-    # A rolls source that can never clear the target (e.g. a ScriptedRolls pinned
-    # to a 2D6 below it) would otherwise spin here for ever. Real dice do not: the
-    # highest target any career sets is 8, which 2D6 clears about 42% of the time,
-    # so exhausting these attempts by chance is a ~1-in-10^23 event.
-    raise RuntimeError(
-        f"Career '{career.name}' still unqualified after"
-        f" {_MAX_QUALIFICATION_ATTEMPTS} attempts:"
-        f" this rolls source cannot produce {career.qualification_stat}"
-        f" {career.qualification_target}+"
+    characteristics = bounded_retry(
+        lambda: _roll_characteristics(rolls),
+        lambda rolled: _qualifies(career, rolled),
     )
+    if characteristics is None:
+        # Only a ScriptedRolls pinned below the target reaches here; real dice clear
+        # the highest target any career sets (8) about 42% of the time.
+        raise RuntimeError(
+            f"Career '{career.name}' still unqualified after"
+            f" {MAX_ROLL_ATTEMPTS} attempts:"
+            f" this rolls source cannot produce {career.qualification_stat}"
+            f" {career.qualification_target}+"
+        )
+    return characteristics
 
 
 def _assign(assignment: Assignment, rolls: Rolls) -> tuple[Career, bool]:

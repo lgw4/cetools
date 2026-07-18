@@ -11,7 +11,7 @@ from cetools.engine.models import (
     apply_stat_boost,
     parse_stat_boost,
 )
-from cetools.engine.rolls import RollName, Rolls
+from cetools.engine.rolls import RollName, Rolls, bounded_retry
 
 # Extra benefit rolls granted by rank on leaving a career.
 RANK_BONUS_ROLLS = {4: 1, 5: 2, 6: 3}
@@ -23,8 +23,6 @@ MATERIAL_DM_MINIMUM_RANK = 5
 ONCE_ONLY = frozenset({"Explorers' Society", "Research Vessel", "Courier Vessel"})
 
 SHIP_SHARES = "1D6 Ship Shares"
-
-_MAX_REROLLS = 100
 
 
 @dataclass(frozen=True)
@@ -47,19 +45,24 @@ def roll_material_benefit(
 ) -> str:
     """A material benefit, rerolling any once-only benefit already granted."""
     last = len(career.material_benefits) - 1
-    for _ in range(_MAX_REROLLS):
+
+    def draw() -> str:
         idx = max(0, min(last, rolls.d6(RollName.MATERIAL_BENEFIT) + material_dm - 1))
-        name = career.material_benefits[idx]
-        if name in ONCE_ONLY and name in granted:
-            continue
+        return career.material_benefits[idx]
+
+    def available(name: str) -> bool:
+        return not (name in ONCE_ONLY and name in granted)
+
+    name = bounded_retry(draw, available)
+    if name is not None:
         return name
 
     # A degenerate script (e.g. a ScriptedRolls fixed on one value) that keeps
-    # landing on an already-granted once-only benefit would otherwise loop
-    # forever. Fall back to the first entry that is not one—every real career
-    # table has one.
+    # landing on an already-granted once-only benefit exhausts the retries. Fall
+    # back to the first available entry—every real career table has one—and only
+    # raise if the whole table is already used up.
     for name in career.material_benefits:
-        if not (name in ONCE_ONLY and name in granted):
+        if available(name):
             return name
     raise RuntimeError(
         f"Career '{career.name}' has no material benefit outside the"
