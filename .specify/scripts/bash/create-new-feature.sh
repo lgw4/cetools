@@ -151,7 +151,7 @@ shell_quote() {
 SCRIPT_DIR="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
-REPO_ROOT=$(get_repo_root) || exit 1
+REPO_ROOT=$(get_repo_root)
 
 cd "$REPO_ROOT"
 
@@ -170,6 +170,7 @@ generate_branch_name() {
     # Convert to lowercase and split into words
     local clean_name=$(printf '%s' "$description" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/ /g')
 
+
     # Filter words: remove stop words and words shorter than 3 chars (unless they're uppercase acronyms in original)
     local meaningful_words=()
     for word in $clean_name; do
@@ -180,10 +181,8 @@ generate_branch_name() {
         if ! echo "$word" | grep -qiE "$stop_words"; then
             if [ ${#word} -ge 3 ]; then
                 meaningful_words+=("$word")
-            # Keep short words that appear as an uppercase acronym in the original.
-            # Uppercase via tr and match with grep -w (both portable) rather than
-            # bash's 4+ "^^" case expansion (breaks on macOS bash 3.2) and \b (non-POSIX).
-            elif printf '%s' "$description" | grep -qw -- "$(printf '%s' "$word" | tr '[:lower:]' '[:upper:]')"; then
+            elif echo "$description" | grep -q "\b${word^^}\b"; then
+                # Keep short words if they appear as uppercase in original (likely acronyms)
                 meaningful_words+=("$word")
             fi
         fi

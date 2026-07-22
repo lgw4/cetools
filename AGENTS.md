@@ -57,9 +57,15 @@ All new code should have corresponding tests in `tests/`. Run the full suite bef
 
 - Format with Black: `uv run black .`
 - Lint with flake8: `uv run flake8 src tests`
-- Both should be run (and pass) before finishing a change.
+- Check the docs against the code: `uv run python scripts/check_docs.py`
+- All three should be run (and pass) before finishing a change.
+
+The docs check fails if a backticked symbol in `README.md`, `CONTEXT.md`,
+`CONTRIBUTING.md`, `AGENTS.md` or an ADR no longer exists, if a README Python
+example stops running, if the module map misses an engine module, or if a dash is
+spaced. Rename a symbol and the docs that name it must move with it.
 
 ## PR instructions
 
 - Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for all commit messages and PR titles (e.g., `feat: add X`, `fix: correct Y`, `docs: update Z`).
-- Run `uv run black . && uv run flake8 src tests && uv run pytest` before committing. The `pytest` step includes coverage; the suite fails if coverage falls below 85%.
+- Run `uv run black . && uv run flake8 src tests && uv run pytest && uv run python scripts/check_docs.py` before committing. The `pytest` step includes coverage; the suite fails if coverage falls below 85%. The pre-push hooks run the same four.

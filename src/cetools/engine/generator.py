@@ -1,247 +1,33 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from cetools.engine import mishaps
+from cetools.engine.aging import AGING_STARTS_AT_AGE, apply_aging
+from cetools.engine.background import background_skills
+from cetools.engine.benefits import muster_out
 from cetools.engine.careers.base import Career
-from cetools.engine.careers.registry import CAREER_REGISTRY, DRAFT_TABLE
-from cetools.engine.dice import DiceRoller, RandomDiceRoller
+from cetools.engine.careers.registry import CAREERS, DRAFT_TABLE
 from cetools.engine.models import (
-    STAT_ABBREV,
     STAT_NAMES,
     Benefit,
     Character,
     GenerationFailure,
     MishapOutcome,
     Term,
-    characteristic_modifier,
+    characteristic_check,
 )
 from cetools.engine.names import generate_name
 from cetools.engine.pseudohex import encode_upp
 from cetools.engine.psionics import roll_psionics
-
-_PHYSICAL_STATS = ("Strength", "Dexterity", "Endurance")
-
-_EDUCATION_SKILLS = (
-    "Admin",
-    "Advocate",
-    "Animals",
-    "Carousing",
-    "Comms",
-    "Computer",
-    "Electronics",
-    "Engineering",
-    "Life Sciences",
-    "Linguistics",
-    "Mechanics",
-    "Medicine",
-    "Physical Sciences",
-    "Social Sciences",
-    "Space Sciences",
-)
-
-_HOMEWORLD_SKILLS = (
-    "Animals",
-    "Broker",
-    "Carousing",
-    "Computer",
-    "Gun Combat",
-    "Melee Combat",
-    "Streetwise",
-    "Survival",
-    "Watercraft",
-    "Zero-G",
-)
+from cetools.engine.ranks import grant_rank_bonus, progress
+from cetools.engine.rolls import MAX_ROLL_ATTEMPTS, RandomRolls, RollName, Rolls, bounded_retry
+from cetools.engine.rules import HOUSE, Rules
+from cetools.engine.training import roll_skill, rolls_this_term
 
 _PENSION = {5: 10000, 6: 12000, 7: 14000, 8: 16000}
 
-_RANK_BONUS_ROLLS = {4: 1, 5: 2, 6: 3}
-
 _MAX_TERMS = 7
-_MAX_CASH_ROLLS = 3
-_UNIQUE_MATERIAL_BENEFITS = frozenset({"Explorers' Society", "Research Vessel", "Courier Vessel"})
-_SHIP_SHARES_BENEFIT = "1D6 Ship Shares"
-_MAX_MATERIAL_REROLLS = 100
-
-
-def _dm(characteristics: dict[str, int], stat: str) -> int:
-    return characteristic_modifier(characteristics[stat])
-
-
-def _draw_distinct(
-    pool: tuple[str, ...],
-    count: int,
-    roller: DiceRoller,
-    exclude: tuple[str, ...] = (),
-) -> list[str]:
-    remaining = [skill for skill in pool if skill not in exclude]
-    chosen: list[str] = []
-    for _ in range(min(count, len(remaining))):
-        idx = (roller.roll(len(remaining)) - 1) % len(remaining)
-        chosen.append(remaining.pop(idx))
-    return chosen
-
-
-def _grant_background_skills(
-    characteristics: dict[str, int], skills: dict[str, int], roller: DiceRoller
-) -> None:
-    count = max(0, 3 + characteristic_modifier(characteristics.get("Education", 0)))
-    homeworld_count = min(2, count)
-    education_count = count - homeworld_count
-    homeworld = _draw_distinct(_HOMEWORLD_SKILLS, homeworld_count, roller)
-    education = _draw_distinct(
-        _EDUCATION_SKILLS, education_count, roller, exclude=tuple(homeworld)
-    )
-    for name in homeworld + education:
-        skills[name] = 0
-
-
-def _check(roller: DiceRoller, characteristics: dict[str, int], stat: str, target: int) -> bool:
-    return roller.roll(6, count=2) + _dm(characteristics, stat) >= target
-
-
-def _roll_skill(
-    career: Career,
-    characteristics: dict[str, int],
-    skills: dict[str, int],
-    roller: DiceRoller,
-) -> str:
-    tables = [
-        career.personal_development,
-        career.service_skills,
-        career.specialist_skills,
-    ]
-    if characteristics.get("Education", 0) >= 8:
-        tables.append(career.advanced_education)
-    table = tables[(roller.roll(6) - 1) % len(tables)]
-    entry = table[(roller.roll(6) - 1) % 6]
-    _apply_skill_entry(entry, characteristics, skills)
-    return entry
-
-
-def _apply_stat_boost(name: str, characteristics: dict[str, int]) -> bool:
-    """Return True if `name` is a "+1 X" entry, whether or not X is a known stat."""
-    if not name.startswith("+1 "):
-        return False
-    stat = STAT_ABBREV.get(name[3:])
-    if stat:
-        characteristics[stat] = min(33, characteristics.get(stat, 0) + 1)
-    return True
-
-
-def _apply_skill_entry(
-    entry: str, characteristics: dict[str, int], skills: dict[str, int]
-) -> None:
-    if not _apply_stat_boost(entry, characteristics):
-        skills[entry] = skills.get(entry, -1) + 1
-
-
-def _grant_rank_bonus(rank_entry, characteristics: dict[str, int], skills: dict[str, int]) -> None:
-    for skill_name in rank_entry.bonus_skills:
-        skills[skill_name] = skills.get(skill_name, 0) + 1
-
-
-def _apply_aging(characteristics: dict[str, int], terms_served: int, roller: DiceRoller) -> None:
-    roll = roller.roll(6, count=2) - terms_served
-    if roll >= 1:
-        return
-    reductions: list[tuple[str, int]] = []
-    if roll == 0:
-        reductions = [("Strength", 1)]
-    elif roll == -1:
-        reductions = [("Strength", 1), ("Dexterity", 1)]
-    elif roll == -2:
-        reductions = [("Strength", 1), ("Dexterity", 1), ("Endurance", 1)]
-    elif roll == -3:
-        reductions = [("Strength", 2), ("Dexterity", 1), ("Endurance", 1)]
-    elif roll == -4:
-        reductions = [("Strength", 2), ("Dexterity", 2), ("Endurance", 1)]
-    elif roll == -5:
-        reductions = [("Strength", 2), ("Dexterity", 2), ("Endurance", 2)]
-    else:  # -6 or worse
-        reductions = [
-            ("Strength", 2),
-            ("Dexterity", 2),
-            ("Endurance", 2),
-            ("Intelligence", 1),
-        ]
-    for stat, amount in reductions:
-        characteristics[stat] = max(0, characteristics[stat] - amount)
-
-
-def _muster_out(
-    career: Career,
-    terms_served: int,
-    rank: int,
-    skills: dict[str, int],
-    characteristics: dict[str, int],
-    roller: DiceRoller,
-) -> list[Benefit]:
-    bonus_rolls = _RANK_BONUS_ROLLS.get(rank, 0)
-    total_rolls = terms_served + bonus_rolls
-    cash_rolls_used = 0
-    benefits: list[Benefit] = []
-    granted_material_names: set[str] = set()
-
-    cash_dm = 1 if skills.get("Gambling", -1) >= 0 else 0
-    material_dm = 1 if rank >= 5 else 0
-
-    for _ in range(total_rolls):
-        use_cash = cash_rolls_used < _MAX_CASH_ROLLS
-        if use_cash:
-            idx = max(0, min(6, roller.roll(6) + cash_dm - 1))
-            amount = career.cash_benefits[idx]
-            benefits.append(Benefit(kind="cash", cash_amount=amount))
-            cash_rolls_used += 1
-        else:
-            name = _roll_material_benefit(career, material_dm, roller, granted_material_names)
-            if name == _SHIP_SHARES_BENEFIT:
-                quantity = roller.roll(6)
-                benefits.append(
-                    Benefit(
-                        kind="material",
-                        material_name="Ship Shares",
-                        material_quantity=quantity,
-                    )
-                )
-                granted_material_names.add(name)
-            else:
-                _apply_material_benefit(name, characteristics, skills)
-                granted_material_names.add(name)
-                benefits.append(Benefit(kind="material", material_name=name))
-
-    return benefits
-
-
-def _roll_material_benefit(
-    career: Career,
-    material_dm: int,
-    roller: DiceRoller,
-    granted_names: set[str],
-) -> str:
-    mat_max = len(career.material_benefits) - 1
-    for _ in range(_MAX_MATERIAL_REROLLS):
-        idx = max(0, min(mat_max, roller.roll(6) + material_dm - 1))
-        name = career.material_benefits[idx]
-        if name in _UNIQUE_MATERIAL_BENEFITS and name in granted_names:
-            continue
-        return name
-    # A degenerate roller (e.g. a fixed-value test roller) that keeps landing
-    # on an already-granted once-only benefit would otherwise loop forever.
-    # Fall back deterministically to the first table entry that is not an
-    # already-granted once-only benefit — every real career table has one.
-    for name in career.material_benefits:
-        if not (name in _UNIQUE_MATERIAL_BENEFITS and name in granted_names):
-            return name
-    raise RuntimeError(
-        f"Career '{career.name}' has no material benefit outside the"
-        f" already-granted once-only set"
-        f" {sorted(_UNIQUE_MATERIAL_BENEFITS & granted_names)}"
-    )
-
-
-def _apply_material_benefit(
-    name: str, characteristics: dict[str, int], skills: dict[str, int]
-) -> None:
-    _apply_stat_boost(name, characteristics)
 
 
 def _pension(terms_served: int) -> int | None:
@@ -252,40 +38,111 @@ def _pension(terms_served: int) -> int | None:
     return 16000 + (terms_served - 8) * 2000
 
 
-def generate_character(
-    career: Career,
-    roller: DiceRoller | None = None,
-    preset_characteristics: dict[str, int] | None = None,
-    bypass_qualification: bool = False,
-    hard_max_terms: bool = False,
-    drafted: bool = False,
+@dataclass(frozen=True)
+class Draft:
+    """Assignment: take whatever career the draft table hands out."""
+
+
+@dataclass(frozen=True)
+class RandomCareer:
+    """Assignment: any career, drawn uniformly."""
+
+
+DRAFT = Draft()
+RANDOM = RandomCareer()
+
+Assignment = Career | Draft | RandomCareer
+"""How a character comes to be in a career: a Career means "this one"."""
+
+
+def _roll_characteristics(rolls: Rolls) -> dict[str, int]:
+    return {stat: rolls.two_d6(RollName.CHARACTERISTIC) for stat in STAT_NAMES}
+
+
+def _qualifies(career: Career, characteristics: dict[str, int]) -> bool:
+    if career.qualification_stat is None or career.qualification_target is None:
+        return True
+    return characteristics[career.qualification_stat] >= career.qualification_target
+
+
+def _roll_until_qualified(career: Career, rolls: Rolls) -> dict[str, int]:
+    """Reroll characteristics until the career will have them.
+
+    A raw comparison against the career's target, not a dice check: under HOUSE
+    rules a character gets the career they asked for, so enlistment cannot fail.
+    """
+    characteristics = bounded_retry(
+        lambda: _roll_characteristics(rolls),
+        lambda rolled: _qualifies(career, rolled),
+    )
+    if characteristics is None:
+        # Only a ScriptedRolls pinned below the target reaches here; real dice clear
+        # the highest target any career sets (8) about 42% of the time.
+        raise RuntimeError(
+            f"Career '{career.name}' still unqualified after"
+            f" {MAX_ROLL_ATTEMPTS} attempts:"
+            f" this rolls source cannot produce {career.qualification_stat}"
+            f" {career.qualification_target}+"
+        )
+    return characteristics
+
+
+def _assign(assignment: Assignment, rolls: Rolls) -> tuple[Career, bool]:
+    """The career, and whether the character was drafted into it.
+
+    The draft table holds careers, not names, so a draft can never land on a
+    career that does not exist.
+    """
+    if isinstance(assignment, Draft):
+        return DRAFT_TABLE[rolls.d6(RollName.DRAFT) - 1], True
+
+    if isinstance(assignment, RandomCareer):
+        return rolls.choose(CAREERS, RollName.CAREER), False
+
+    return assignment, False
+
+
+def generate(
+    assignment: Assignment,
+    rolls: Rolls | None = None,
+    rules: Rules = HOUSE,
 ) -> Character | GenerationFailure:
-    if roller is None:
-        roller = RandomDiceRoller()
+    """A whole character: pick the career, serve the terms, muster out.
 
-    if preset_characteristics is not None:
-        missing = [s for s in STAT_NAMES if s not in preset_characteristics]
-        if missing:
-            raise ValueError(f"preset_characteristics missing required stats: {missing}")
-        characteristics: dict[str, int] = dict(preset_characteristics)
+    `assignment` is a Career, or DRAFT, or RANDOM.
+
+    Under HOUSE rules this cannot fail: characteristics are rerolled until the
+    career accepts them, and the draft table holds careers rather than names, so
+    there is nothing left to fail at. `GenerationFailure` is returned only under
+    SRD rules, whose enlistment is a check the character can miss.
+    """
+    rolls = rolls or RandomRolls()
+
+    career, drafted = _assign(assignment, rolls)
+
+    if rules.reroll_until_qualified:
+        characteristics = _roll_until_qualified(career, rolls)
     else:
-        characteristics = {stat: roller.roll(6, count=2) for stat in STAT_NAMES}
+        characteristics = _roll_characteristics(rolls)
 
-    skills: dict[str, int] = {}
-    _grant_background_skills(characteristics, skills, roller)
+    skills: dict[str, int] = background_skills(characteristics, rolls)
 
     if (
-        not bypass_qualification
+        not rules.reroll_until_qualified
         and career.qualification_stat is not None
         and career.qualification_target is not None
     ):
-        if not _check(
-            roller, characteristics, career.qualification_stat, career.qualification_target
+        if not characteristic_check(
+            rolls,
+            characteristics,
+            career.qualification_stat,
+            career.qualification_target,
+            RollName.QUALIFICATION,
         ):
             return GenerationFailure(reason=f"{career.name} enlistment failed")
 
     rank = 0
-    _grant_rank_bonus(career.ranks[rank], characteristics, skills)
+    skills = grant_rank_bonus(career.ranks[rank], skills)
 
     age = 18
     terms_served = 0
@@ -306,7 +163,13 @@ def generate_character(
                     skills[skill_name] = 0
                 skills_gained_this_term.append(skill_name)
 
-        if not _check(roller, characteristics, career.survival_stat, career.survival_target):
+        if not characteristic_check(
+            rolls,
+            characteristics,
+            career.survival_stat,
+            career.survival_target,
+            RollName.SURVIVAL,
+        ):
             term_history.append(
                 Term(
                     number=term_num,
@@ -317,58 +180,36 @@ def generate_character(
                     skills_gained=skills_gained_this_term,
                 )
             )
-            mishap, mishap_debt = mishaps.resolve_survival_mishap(roller, characteristics)
-            debt += mishap_debt
+            resolved = mishaps.resolve_survival_mishap(rolls, characteristics)
+            mishap = resolved.outcome
+            characteristics = resolved.characteristics
+            debt += resolved.debt
             age += 2
             if mishap.imprisoned:
                 age += 4
             break
 
-        commission_attempted = False
+        advanced = progress(career, rank, characteristics, skills, rolls)
+        rank = advanced.rank
+        skills = advanced.skills
+        commissioned_this_term = advanced.commissioned
+        promoted_this_term = advanced.promoted
 
-        if (
-            rank == 0
-            and career.commission_stat is not None
-            and career.commission_target is not None
-        ):
-            commission_attempted = True
-            if _check(roller, characteristics, career.commission_stat, career.commission_target):
-                rank = 1
-                commissioned_this_term = True
-                _grant_rank_bonus(career.ranks[rank], characteristics, skills)
-                if career.advancement_stat is not None and career.advancement_target is not None:
-                    if _check(
-                        roller, characteristics, career.advancement_stat, career.advancement_target
-                    ):
-                        if rank < 6:
-                            rank += 1
-                            promoted_this_term = True
-                            _grant_rank_bonus(career.ranks[rank], characteristics, skills)
-
-        if (
-            not commission_attempted
-            and rank >= 1
-            and career.advancement_stat is not None
-            and career.advancement_target is not None
-        ):
-            if _check(roller, characteristics, career.advancement_stat, career.advancement_target):
-                if rank < 6:
-                    rank += 1
-                    promoted_this_term = True
-                    _grant_rank_bonus(career.ranks[rank], characteristics, skills)
-
-        skill_rolls = 1
-        if not commissioned_this_term and not promoted_this_term:
-            skill_rolls = 2
+        skill_rolls = rolls_this_term(
+            career, commissioned=commissioned_this_term, promoted=promoted_this_term
+        )
 
         for _ in range(skill_rolls):
-            skills_gained_this_term.append(_roll_skill(career, characteristics, skills, roller))
+            training = roll_skill(career, characteristics, skills, rolls)
+            characteristics = training.characteristics
+            skills = training.skills
+            skills_gained_this_term.append(training.entry)
 
         age += 4
         terms_served += 1
 
-        if age >= 34:
-            _apply_aging(characteristics, terms_served, roller)
+        if age >= AGING_STARTS_AT_AGE:
+            characteristics = apply_aging(characteristics, terms_served, rolls)
 
         term_history.append(
             Term(
@@ -384,9 +225,9 @@ def generate_character(
         if mandatory_extra:
             break
 
-        reenlist_roll = roller.roll(6, count=2)
+        reenlist_roll = rolls.two_d6(RollName.REENLISTMENT)
         if terms_served >= _MAX_TERMS:
-            if reenlist_roll == 12 and not hard_max_terms:
+            if reenlist_roll == 12 and rules.natural_12_forces_extra_term:
                 mandatory_extra = True
             else:
                 break
@@ -398,18 +239,19 @@ def generate_character(
         benefits: list[Benefit] = []
         pension = None
     else:
-        benefits = _muster_out(career, terms_served, rank, skills, characteristics, roller)
+        mustered = muster_out(career, terms_served, rank, skills, characteristics, rolls)
+        benefits = mustered.benefits
+        characteristics = mustered.characteristics
         pension = _pension(terms_served)
-    name = generate_name(roller)
-    psi_strength, talents = roll_psionics(terms_served, roller)
+    name = generate_name(rolls)
+    psi_strength, talents = roll_psionics(terms_served, rolls)
 
     return Character(
         characteristics=characteristics,
         upp=encode_upp(characteristics),
         age=age,
-        career=career.name,
+        career=career,
         rank=rank,
-        rank_title=career.ranks[rank].title,
         terms_served=terms_served,
         name=name,
         skills=skills,
@@ -422,54 +264,3 @@ def generate_character(
         psi_strength=psi_strength,
         talents=talents,
     )
-
-
-def roll_until_qualified(career: Career, roller: DiceRoller | None = None) -> dict[str, int]:
-    if roller is None:
-        roller = RandomDiceRoller()
-    while True:
-        characteristics = {stat: roller.roll(6, count=2) for stat in STAT_NAMES}
-        if career.qualification_stat is None or career.qualification_target is None:
-            return characteristics
-        if characteristics[career.qualification_stat] >= career.qualification_target:
-            return characteristics
-
-
-def draft_character(roller: DiceRoller | None = None) -> Character | GenerationFailure:
-    if roller is None:
-        roller = RandomDiceRoller()
-    roll = roller.roll(6)
-    name = DRAFT_TABLE[roll - 1]
-    career = CAREER_REGISTRY.get(name)
-    if career is None:
-        return GenerationFailure(reason=f"Draft assigned unimplemented career '{name}'")
-    return generate_career_character(career, roller, drafted=True)
-
-
-def generate_career_character(
-    career: Career,
-    roller: DiceRoller | None = None,
-    drafted: bool = False,
-) -> Character | GenerationFailure:
-    if roller is None:
-        roller = RandomDiceRoller()
-    characteristics = roll_until_qualified(career, roller)
-    return generate_character(
-        career,
-        roller=roller,
-        preset_characteristics=characteristics,
-        bypass_qualification=True,
-        hard_max_terms=True,
-        drafted=drafted,
-    )
-
-
-def random_career_character(
-    roller: DiceRoller | None = None,
-    drafted: bool = False,
-) -> Character | GenerationFailure:
-    if roller is None:
-        roller = RandomDiceRoller()
-    careers = sorted(CAREER_REGISTRY.values(), key=lambda c: c.name)
-    idx = (roller.roll(len(careers)) - 1) % len(careers)
-    return generate_career_character(careers[idx], roller, drafted=drafted)

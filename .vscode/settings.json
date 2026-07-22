@@ -54,6 +54,7 @@
         "Pipfile",
         "pseudohex",
         "Psionic",
+        "psionics",
         "pybuilder",
         "pyenv",
         "pyflakes",
