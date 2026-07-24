@@ -21,9 +21,10 @@ jump_distance = 1         # optional; intended jump range for fuel (default: ful
 power_weeks = 2           # optional, defaults to the minimum; below it (2 starship / 1 small
                            # craft) loads cleanly and is rejected by build_ship, not at load
 
-[bridge]
-present = true            # starships; omit / false for small craft
-cockpit = "1_man"         # small craft only: "1_man" | "2_man" (the two SRD cockpits, research Part K)
+[bridge]                  # exactly one of `present` / `cockpit`, never both
+present = true            # starships; the default, so the section may be omitted
+cockpit = "1_man"         # small craft: "1_man" | "2_man" (the two SRD cockpits, research Part K)
+                          # a small craft sets `cockpit`; `present = false` alone is rejected
 
 [computer]
 model = 1                 # 1..7

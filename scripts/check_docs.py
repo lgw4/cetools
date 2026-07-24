@@ -39,6 +39,9 @@ PROSE = [ROOT / doc for doc in DOCS] + sorted(ROOT.glob("docs/adr/*.md"))
 SOURCES = sorted((ROOT / "src").rglob("*.py"))
 ENGINE = ROOT / "src" / "cetools" / "engine"
 
+# The only command `check_readme_ship_console_examples` will run. See its docstring.
+SHIP_CONSOLE_PREFIX = "uv run cetools ship"
+
 # Backticked things that are prose, tooling, or SRD notation rather than cetools code.
 NOT_CODE = {
     # tooling, files, git
@@ -155,13 +158,23 @@ def check_readme_ship_console_examples() -> None:
     check, so the drives line (`Jump-1 Maneuver-1 Power-1`) drifted silently after
     T080 changed it until someone ran the command by hand. This closes that gap
     for `cetools ship` invocations specifically.
+
+    Only the exact `$ uv run cetools ship ` prefix is run. This check executes what
+    the README says, so a looser match would let any future README edit run any
+    command in CI; the prefix keeps the executed program pinned to this CLI.
     """
+    prefix = "$ " + SHIP_CONSOLE_PREFIX + " "
     blocks = re.findall(r"```console\n(.*?)```", (ROOT / "README.md").read_text(), re.S)
     for block in blocks:
         lines = block.splitlines()
-        if not lines or not lines[0].startswith("$ ") or "cetools ship" not in lines[0]:
+        if not lines or not lines[0].startswith(prefix):
+            if lines and lines[0].startswith("$ ") and "cetools ship" in lines[0]:
+                failures.append(
+                    f"README.md: `{lines[0][2:]}` is not checked; a `cetools ship` console "
+                    f"block must invoke it as `{SHIP_CONSOLE_PREFIX} ...`"
+                )
             continue
-        command = shlex.split(lines[0][len("$ ") :])
+        command = SHIP_CONSOLE_PREFIX.split() + shlex.split(lines[0][len(prefix) :])
         expected = "\n".join(lines[1:]).rstrip("\n")
         result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)
         actual = result.stdout.rstrip("\n")

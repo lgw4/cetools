@@ -40,7 +40,7 @@ def build(
     output = dump_design(ship.design) if toml else render_sheet(ship)
 
     if out is not None:
-        out.write_text(output)
+        out.write_text(output, encoding="utf-8")
     else:
         typer.echo(output)
 
@@ -81,6 +81,6 @@ def generate(
     output = dump_design(ship.design) if toml else render_sheet(ship)
 
     if out is not None:
-        out.write_text(output)
+        out.write_text(output, encoding="utf-8")
     else:
         typer.echo(output)

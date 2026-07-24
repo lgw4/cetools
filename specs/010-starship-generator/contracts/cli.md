@@ -18,13 +18,23 @@ stdout (default) or the round-trippable TOML design (`--toml`) (FR-022). Exit 0.
 Example:
 
 ```text
-$ cetools ship build free-trader.toml
-Ship: Beowulf (custom)
-Hull: 200 tons, streamlined (hull 2)   Hull/Structure: 4/4
-Drives: Jump-1 (A)  Maneuver-1 (A)  Power-1 (A)
-...
-Tonnage: 191 used / 9 cargo            Cost: MCr 61.06        Build: 44 weeks
+$ uv run cetools ship build specs/010-starship-generator/examples/free-trader.toml
+Ship: Beowulf (standard)
+Hull: 200 tons, standard (hull 2)
+Drives: Jump-1 (A)  Maneuver-1 (A)  Power-1 (A), 4t power plant
+Fuel: 20t jump (assumes range 1), 2t power plant (2 weeks)
+Bridge: 10t
+Computer: Model/1
+Crew: pilot 1, navigator 1, engineers 1, gunners 0, screen operators 0, medic 1, stewards 1 (total 5)
+Quarters: 4 staterooms, 0 low berths, 0 emergency low berths
+Fittings: fuel_processor x1
+Tonnage: 65 used, 135 cargo, hardpoints 0/2
+Hull points: 4, Structure points: 4
+Cost: MCr29.772, Build time: 44 weeks
 ```
+
+The same block appears in the README, where `check_docs.py` runs the command and asserts the
+output matches, so it cannot drift from the sheet `render_sheet` actually produces.
 
 ## `cetools ship generate`—randomly generate a ship
 
@@ -41,15 +51,18 @@ its round-trippable TOML (`--toml`). When `--seed` is omitted, the chosen seed i
 stderr** so the run can be reproduced; stdout carries only the sheet, which `render_sheet` derives
 from the `Ship` alone and which therefore never contains the seed. Exit 0.
 
-Example:
+Example (sheets abridged to their first lines; the full sheet has the same sections as `build`):
 
 ```text
-$ cetools ship generate --seed 42
-Hull: 400 tons, standard (hull 4)  ...
+$ uv run cetools ship generate --seed 42
+Ship: Unnamed Ship (custom)
+Hull: 400 tons, distributed (hull 4)
+...
 
-$ cetools ship generate            # seed chosen for you, reported on stderr
+$ uv run cetools ship generate     # seed chosen for you, reported on stderr
 seed: 8613427                      # stderr
-Hull: 600 tons, streamlined (hull 6)  ...   # stdout
+Ship: Unnamed Ship (custom)        # stdout
+...
 ```
 
 ## Error handling
