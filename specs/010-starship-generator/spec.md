@@ -129,14 +129,15 @@ rejected on hulls too small to support them.
   up), and small-craft fuel (rounded to 0.1 ton) must round per the SRD, not by ad-hoc truncation.
 - **Missing required systems**: a starship without a jump drive, or any powered ship without a power
   plant, is invalid and must be reported as such.
-- **Armor increments**: armor requested in a non-5% increment, or below the 1-ton-per-5% minimum, must
-  be normalized or rejected per the SRD.
+- **Armor increments**: armor requested in a non-5% increment, or below the 1-ton-per-5% minimum, is
+  rejected as invalid with a message naming the 5% increment rule; the builder does not silently
+  normalize it.
 - **Fuel for a stated jump range**: jump fuel scales with the intended jump distance (0.1 × hull ×
   jump number); the tool must state the assumed range used when reporting fuel.
 - **Crew scaling**: engineers scale with drive-plus-plant tonnage, stewards and medics with passenger
   counts; a ship with no passengers needs no steward.
 - **Standard vs. custom cost**: the 10% common-design discount applies only when the design is marked
-  standard; custom designs do not receive it.
+  standard, and never to fuel or ammunition; custom designs do not receive it.
 
 ## Clarifications
 
@@ -187,14 +188,20 @@ rejected on hulls too small to support them.
   rack, missiles by type), enforcing one hardpoint per 100 tons of hull.
 - **FR-011**: The tool MUST treat all tonnage not consumed by other components as cargo capacity and
   report it.
-- **FR-012**: The tool MUST compute minimum crew (pilot, engineer, gunners, and — where the ship's
-  contents require them — navigator, medic, steward) per the SRD crew rules.
-- **FR-013**: The tool MUST compute total cost in MCr as the sum of all components and MUST apply a 10%
-  discount only when the design is marked as a common/standard design.
+- **FR-012**: The tool MUST compute minimum crew per the SRD crew rules: a pilot always; an engineer
+  scaled by drive-plus-plant tonnage; gunners for turrets, bays, and screens; a navigator unless the
+  computer carries Jump-Control software (which reduces the navigator minimum to zero); and a medic and
+  steward only when the ship carries passengers.
+- **FR-013**: The tool MUST compute total cost in MCr as the sum of all components. It MUST apply a 10%
+  discount only when the design is marked as a common/standard design, and that discount applies to the
+  hull and components but never to fuel or ammunition (per the SRD).
 - **FR-014**: The tool MUST report build time from the SRD hull table.
 - **FR-015**: The tool MUST reject any design whose combined component tonnage exceeds the hull
   tonnage, and MUST report which constraint each rejected design violates (over-allocation, drive/plant
   mismatch, hardpoint limit, missing required system, or an armament disallowed for the hull class).
+  When a design violates more than one constraint, the tool reports the first violation encountered in
+  the SRD build order (hull and configuration, armor, drives, power plant, fuel, bridge/cockpit,
+  computer and software, electronics, quarters, fittings, armaments, cargo).
 
 **Random generator (P2)**
 
@@ -218,7 +225,9 @@ rejected on hulls too small to support them.
 
 - **FR-020**: The tool MUST support 50-ton weapon bays (missile bank, particle, meson, fusion) and
   defensive screens (meson screen, nuclear damper), accounting for their tonnage, cost, hardpoint, and
-  fire-control requirements, and MUST reject bay weapons on small craft.
+  fire-control requirements, and MUST reject bay weapons on small craft. A hull with too few hardpoints
+  (one per 100 tons) or too little free tonnage to hold a 50-ton bay cannot mount one; this is enforced
+  by the hardpoint and tonnage limits rather than a separate minimum-hull rule.
 
 **Interface**
 
@@ -230,8 +239,9 @@ rejected on hulls too small to support them.
 - **FR-022**: A completed ship MUST be presentable as a human-readable ship sheet listing hull and
   configuration, drives and performance, power plant, fuel, computer and software, electronics, crew,
   quarters, fittings, armaments, tonnage summary (used/cargo), hull/structure points, total cost, and
-  build time. The CLI MUST also, on request, emit a completed ship as a builder-compatible TOML design
-  file so it can be saved, edited, and rebuilt.
+  build time. For a small craft the sheet reflects the small-craft ruleset: a cockpit line in place of
+  the bridge, and no jump drive or jump-fuel line. The CLI MUST also, on request, emit a completed ship
+  as a builder-compatible TOML design file so it can be saved, edited, and rebuilt.
 - **FR-023**: A randomly generated ship (FR-016) MUST be emittable as a builder-compatible TOML design
   file that, when fed back to the builder, reproduces the same ship; the design-file schema MUST be
   expressive enough to represent any ship the random generator can produce.
@@ -266,9 +276,10 @@ rejected on hulls too small to support them.
 
 - **SC-001**: A user can produce a complete, valid ship sheet for a standard hull from a set of
   component choices in a single command.
-- **SC-002**: For at least three hand-worked SRD reference designs (a small starship, a mid-size trader
-  or scout, and a larger armed ship), the tool's tonnage, cost, crew, fuel, and hull/structure points
-  match the worked figures exactly.
+- **SC-002**: For at least three concrete hand-worked SRD reference designs (a small starship, a
+  mid-size trader or scout, and a larger armed warship), each captured as a golden fixture in the test
+  suite with its full component list and expected figures, the tool's tonnage, cost, crew, fuel, and
+  hull/structure points match the worked figures exactly.
 - **SC-003**: 100% of randomly generated ships pass the builder's own validation (no generated ship is
   ever rules-illegal).
 - **SC-004**: Random generation is fully reproducible: the same seed yields byte-identical ship sheets
