@@ -282,3 +282,65 @@ from cetools.engine.worlds import generate_world
 world = generate_world(RandomRolls(random.Random(42)))
 assert world == generate_world(RandomRolls(random.Random(42)))
 ```
+
+## Starship generation
+
+Designs and generates starships following the Cepheus Engine SRD [Ship Design and Construction](https://evolvedexperiment.github.io/cepheus-srd/ships.html) rules: a deterministic **builder** that costs and validates a hull, drives, armor, computer, crew and armaments, and a seed-driven **random generator** layered on top of it.
+
+### CLI
+
+Build a ship from a TOML design file:
+
+```bash
+uv run cetools ship build specs/010-starship-generator/examples/free-trader.toml
+```
+
+```console
+$ uv run cetools ship build specs/010-starship-generator/examples/free-trader.toml
+Beowulf
+Hull: 200 tons, standard configuration
+Jump-1 Maneuver-1 Power-1
+Fuel: 20t jump (assumes range 1), 2t power plant (2 weeks)
+Bridge: 10t
+Computer: Model/1
+Crew: pilot 1, navigator 1, engineers 1, gunners 0, screen operators 0, medic 1, stewards 1 (total 5)
+Quarters: 4 staterooms, 0 low berths, 0 emergency low berths
+Fittings: fuel_processor x1
+Tonnage: 65 used, 135 cargo, hardpoints 0/2
+Hull points: 4, Structure points: 4
+Cost: MCr29.772, Build time: 44 weeks
+```
+
+Randomly generate a ship from a seed, or constrain it to a hull size or the small-craft ruleset:
+
+```bash
+uv run cetools ship generate --seed 42
+uv run cetools ship generate --hull 10 --small-craft --seed 7
+```
+
+Add `--toml` to emit a round-trippable design file instead of the sheet, and `--out` to write it to a file. Omit `--seed` to have one chosen for you and reported on stderr, so the run can be reproduced.
+
+**Exit codes**: `0` on success; `1` on a missing or malformed design file, an unknown hull size, or a rules-illegal design (e.g. a power plant rated below its drives), with the violated rule on stderr.
+
+Output above is illustrative; generation is random unless `--seed` is given, so unseeded results will differ.
+
+### Library
+
+```python
+from cetools.engine.ships import build_ship, load_design
+
+ship = build_ship(load_design("specs/010-starship-generator/examples/free-trader.toml"))
+print(ship.total_cost, ship.cargo_tons, ship.crew.total)   # 29.772 135 5
+```
+
+`build_ship` is the sole validation authority: it allocates every component in SRD build order and rejects a rules-illegal design with a message naming the violated rule. `load_design`/`loads_design` and `dump_design` round-trip a `ShipDesign` through TOML losslessly, including a ship's own `design`, so `build_ship(loads_design(dump_design(ship.design))) == ship`.
+
+`generate_ship` reuses the same `Rolls` seam as character and world generation, so it is deterministic given a seed, and it always routes through `build_ship`, so a generated ship can never be rules-illegal:
+
+```python
+from cetools.engine.rolls import RandomRolls
+from cetools.engine.ships import generate_ship
+
+a = generate_ship(RandomRolls.seeded(42))
+assert a == generate_ship(RandomRolls.seeded(42))
+```

@@ -114,6 +114,40 @@ arrive already knowing what they are.
 **UPP**—the six characteristics encoded in pseudo-hex. A psionic character's
 Psi strength is appended after a hyphen.
 
+**Ship design**—the Cepheus Engine SRD "Ship Design and Construction" rules, digested in
+`specs/010-starship-generator/research.md`. Where the SRD defers a step to referee discretion—crew
+role assignment beyond the stated minimums, mission-specific fittings—cetools invents nothing: those
+steps are out of automated scope and documented here as omitted (FR-002).
+
+**`ShipDesign`**—the input record: hull, configuration, drives, power plant, bridge or cockpit,
+computer, software, electronics, armor, quarters, fittings, turrets, bays, screens, and the
+standard-design discount flag. Its own validation is **shape only**—types, ranges, enum
+membership—never an SRD rule, so a well-formed but rules-illegal design still constructs and still
+loads; only `build_ship` rejects it.
+
+**`build_ship`**—the sole SRD-rule authority for ships, the way `engine/careers` is for careers. It
+walks the SRD build order (hull and configuration, armor, drives and power plant, bridge or cockpit,
+computer and software, electronics, quarters, fittings, turrets, bays, screens, cargo), costing and
+validating each step in turn as a `LineItem`, so a design with two violations is rejected on
+whichever comes first in *build order*, not in argument order. `generate_ship` and `cetools ship`
+both route every design through `build_ship` rather than duplicating a check, so a generated ship can
+never be rules-illegal.
+
+**`Ship`**—the output record `build_ship` returns: every `LineItem`, the derived `Crew`,
+hull/structure points, fuel, cost, and build time. It carries its own `design`, so
+`build_ship(loads_design(dump_design(ship.design))) == ship`—a ship round-trips through TOML
+losslessly, including one produced by `generate_ship`.
+
+**Small craft**—a 10–95-ton hull built under a second, smaller ruleset in the same builder and
+generator: a cockpit instead of a bridge, no jump drive, a one-week power-plant fuel floor, exactly
+one hardpoint, and a power-plant energy-weapon cap. `HullClass` distinguishes it from a standard
+starship hull.
+
+**Crew**—derived, never authored: pilot, navigator (unless Jump-Control software), engineers,
+gunners (turrets plus bays), `screen_operators` (one per screen), stewards, and a **medic** that is
+`0` unless the ship carries high or middle passengers. `⌈(crew + passengers) ÷ 120⌉` alone would put
+a medic on every ship, which the SRD does not.
+
 ## Architecture
 
 The architecture vocabulary (module, interface, depth, seam, adapter, leverage,

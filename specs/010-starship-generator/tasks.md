@@ -202,14 +202,14 @@ hardpoint or under 50 free tons is rejected; a bay on a small craft is rejected 
 **Purpose**: Documentation, doc-check compliance, the remaining success-criteria assertions (SC-006,
 SC-007), and the full quality gate.
 
-- [ ] T060 [P] Add the `engine/ships/` package (and its seven modules) to the module map in `CONTRIBUTING.md`
-- [ ] T061 [P] Document the `cetools ship build` and `cetools ship generate` commands with a runnable example in `README.md`
-- [ ] T062 [P] Record the ship-design domain and its SRD source in `CONTEXT.md`, including the FR-002 note that referee-discretion steps (crew role assignment beyond the SRD minimum, mission-specific fittings) are deliberately omitted
-- [ ] T063 Run `uv run python scripts/check_docs.py` and fix any broken backticked symbol, non-running README example, or spaced dash introduced by T060–T062
-- [ ] T064 Add a performance assertion that a single build and a single generation each complete in under 0.1 seconds (SC-007) in `tests/test_ship_generator.py`
-- [ ] T065 [P] Add a data-driven-extensibility test (SC-006) in `tests/test_ship_tables.py`: insert a synthetic row into a copy of a table (a new hull size, a new turret weapon, a new fitting), build a design that uses it, and assert it costs and allocates correctly—proving a new SRD entry needs no change to `builder.py` or `generator.py`
-- [ ] T066 Execute every command in [quickstart.md](./quickstart.md) and confirm the stated expected output for Stories 1–4
-- [ ] T067 Run the full quality gate `uv run black . && uv run flake8 src tests && uv run pytest && uv run python scripts/check_docs.py` and confirm `src/cetools` coverage stays at or above 85%
+- [X] T060 [P] Add the `engine/ships/` package (and its seven modules) to the module map in `CONTRIBUTING.md`
+- [X] T061 [P] Document the `cetools ship build` and `cetools ship generate` commands with a runnable example in `README.md`
+- [X] T062 [P] Record the ship-design domain and its SRD source in `CONTEXT.md`, including the FR-002 note that referee-discretion steps (crew role assignment beyond the SRD minimum, mission-specific fittings) are deliberately omitted
+- [X] T063 Run `uv run python scripts/check_docs.py` and fix any broken backticked symbol, non-running README example, or spaced dash introduced by T060–T062
+- [X] T064 Add a performance assertion that a single build and a single generation each complete in under 0.1 seconds (SC-007) in `tests/test_ship_generator.py`
+- [X] T065 [P] Add a data-driven-extensibility test (SC-006) in `tests/test_ship_tables.py`: insert a synthetic row into a copy of a table (a new hull size, a new turret weapon, a new fitting), build a design that uses it, and assert it costs and allocates correctly—proving a new SRD entry needs no change to `builder.py` or `generator.py`
+- [X] T066 Execute every command in [quickstart.md](./quickstart.md) and confirm the stated expected output for Stories 1–4
+- [X] T067 Run the full quality gate `uv run black . && uv run flake8 src tests && uv run pytest && uv run python scripts/check_docs.py` and confirm `src/cetools` coverage stays at or above 85%
 
 ---
 

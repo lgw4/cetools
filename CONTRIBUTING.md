@@ -21,7 +21,8 @@ src/cetools/
 ├── cli/            # Typer CLI—thin I/O wrapper only, no game logic
 │   ├── main.py     # Root app; registers sub-apps
 │   ├── character.py
-│   └── world.py    # `cetools world` sub-app: generate, subsector
+│   ├── world.py    # `cetools world` sub-app: generate, subsector
+│   └── ship.py     # `cetools ship` sub-app: build, generate
 ├── engine/         # Pure generation engine—no CLI dependency
 │   ├── careers/
 │   │   ├── __init__.py   # The package's public surface; import from here
@@ -35,6 +36,14 @@ src/cetools/
 │   │   ├── generator.py  # generate_world/system/subsector(rolls, ...)
 │   │   ├── naming.py     # generate_world_name()
 │   │   └── profile.py    # render_profile(), render_data_line()
+│   ├── ships/
+│   │   ├── __init__.py   # The package's public surface; import from here
+│   │   ├── tables.py     # SRD ship-construction tables as data: hulls, drives, armor, turrets, bays, screens
+│   │   ├── models.py     # ShipDesign, Ship, Crew, LineItem and the frozen component-fit records
+│   │   ├── builder.py    # build_ship(design): the sole costing/validation authority
+│   │   ├── generator.py  # generate_ship(rolls, ...): rolls a legal ShipDesign, then builds it
+│   │   ├── design.py     # load_design/loads_design/dump_design: TOML round-trip
+│   │   └── sheet.py      # render_sheet(ship)
 │   ├── rolls.py        # Rolls seam: RollName, RandomRolls, ScriptedRolls
 │   ├── rules.py        # Rules policy: HOUSE (default) and SRD
 │   ├── generator.py    # generate(assignment, rolls, rules): the coordinator
@@ -61,9 +70,11 @@ specs/              # Spec Kit feature directories, one per feature, numbered
 
 The engine (`src/cetools/engine/`) must never import from `src/cetools/cli/`. The CLI is the only code allowed to depend on the engine.
 
-Within the engine, `careers` is imported as a package: its `__init__.py` is the
-public surface, so a caller reaches for `CAREERS` or `resolve()` from
-`cetools.engine.careers`, not from `registry.py`.
+Within the engine, `careers`, `worlds` and `ships` are imported as packages: each
+`__init__.py` is the public surface, so a caller reaches for `CAREERS` or
+`resolve()` from `cetools.engine.careers`, not from `registry.py`, and for
+`build_ship` or `generate_ship` from `cetools.engine.ships`, not from
+`builder.py` or `generator.py`.
 
 `CONTEXT.md` is the domain vocabulary: what a career, a term, a check, a mishap
 and the `Rolls` seam mean here. Read it before naming anything new, and add an

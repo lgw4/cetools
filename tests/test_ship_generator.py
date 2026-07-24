@@ -1,7 +1,9 @@
+import time
+
 import pytest
 
 from cetools.engine.rolls import RandomRolls, ScriptedRolls
-from cetools.engine.ships import build_ship, dump_design, loads_design
+from cetools.engine.ships import build_ship, dump_design, load_design, loads_design
 from cetools.engine.ships.generator import generate_ship
 from cetools.engine.ships.tables import HULLS
 
@@ -154,3 +156,23 @@ def test_a_screen_is_reachable_for_a_large_enough_hull():
         generate_ship(RandomRolls.seeded(seed), hull_size=2000).design.screens
         for seed in range(300)
     )
+
+
+# --- SC-007: a single build or generation is effectively instant ---
+
+
+def test_a_single_build_completes_in_under_a_tenth_of_a_second():
+    design = load_design("specs/010-starship-generator/examples/free-trader.toml")
+    build_ship(design)  # warm up imports before timing
+
+    start = time.perf_counter()
+    build_ship(design)
+    assert time.perf_counter() - start < 0.1
+
+
+def test_a_single_generation_completes_in_under_a_tenth_of_a_second():
+    generate_ship(RandomRolls.seeded(1))  # warm up imports before timing
+
+    start = time.perf_counter()
+    generate_ship(RandomRolls.seeded(2))
+    assert time.perf_counter() - start < 0.1

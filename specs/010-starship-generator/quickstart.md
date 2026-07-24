@@ -85,7 +85,7 @@ assert sc.jump_rating == 0                     # no jump drive on small craft
 print('fighter cargo', sc.cargo_tons, 'crew', sc.crew.total)
 
 try:                                           # FR-020: bays are starship-only
-    build_ship(replace(sc.design, bays=(BayFit(kind='particle'),)))
+    build_ship(replace(sc.design, turrets=(), bays=(BayFit(kind='particle'),)))
 except ValueError as e:
     print('rejected:', e)
 "

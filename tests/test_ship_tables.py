@@ -2,6 +2,8 @@ import dataclasses
 
 import pytest
 
+from cetools.engine.ships import build_ship, load_design
+from cetools.engine.ships.models import FittingFit
 from cetools.engine.ships.tables import (
     ARMOR,
     BAYS,
@@ -382,3 +384,25 @@ def test_every_row_dataclass_field_is_typed(row_type):
     assert dataclasses.is_dataclass(row_type)
     for field in dataclasses.fields(row_type):
         assert field.type not in (None, "")
+
+
+# --- SC-006: a new SRD entry is a data-only edit, no builder/generator change ---
+
+
+def test_a_new_fitting_row_costs_and_allocates_correctly_with_no_code_change(monkeypatch):
+    monkeypatch.setitem(FITTINGS, "synthetic_gadget", FittingRow(tons=3, cost=1.25))
+
+    design = load_design("specs/010-starship-generator/examples/free-trader.toml")
+    design = dataclasses.replace(
+        design,
+        fittings=design.fittings + (FittingFit(kind="synthetic_gadget", quantity=2),),
+    )
+
+    ship = build_ship(design)
+
+    gadget_items = [item for item in ship.line_items if item.name == "synthetic_gadget"]
+    assert len(gadget_items) == 1
+    assert gadget_items[0].tons == pytest.approx(6.0)
+    assert gadget_items[0].cost == pytest.approx(2.5)
+    assert ship.tonnage_used == pytest.approx(65.0 + 6.0)
+    assert ship.cargo_tons == pytest.approx(135.0 - 6.0)
