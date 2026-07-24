@@ -9,6 +9,7 @@ equal ships, SC-004).
 from __future__ import annotations
 
 from cetools.engine.ships.models import HullClass, Ship
+from cetools.engine.ships.tables import HULLS, SMALL_CRAFT_HULLS
 
 
 def _format_turret(turret) -> str:
@@ -32,12 +33,17 @@ def _format_drive(label: str, rating: int, code: str | None) -> str:
 
 def render_sheet(ship: Ship) -> str:
     design = ship.design
-    lines = [design.name if design.name is not None else "Unnamed Ship"]
+    is_small_craft = design.hull_class is HullClass.SMALL_CRAFT
 
-    lines.append(f"Hull: {ship.hull_tons} tons, {ship.configuration.value} configuration")
+    ship_name = design.name if design.name is not None else "Unnamed Ship"
+    marker = "standard" if design.standard_design else "custom"
+    lines = [f"Ship: {ship_name} ({marker})"]
+
+    hull_table = SMALL_CRAFT_HULLS if is_small_craft else HULLS
+    hull_code = hull_table[ship.hull_tons].code
+    lines.append(f"Hull: {ship.hull_tons} tons, {ship.configuration.value} (hull {hull_code})")
 
     week_word = "week" if design.power_weeks == 1 else "weeks"
-    is_small_craft = design.hull_class is HullClass.SMALL_CRAFT
     power_item = next(
         item for item in ship.line_items if item.name == f"power plant {design.power_code}"
     )

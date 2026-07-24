@@ -22,6 +22,7 @@ from cetools.engine.ships.models import Configuration, Crew, HullClass, LineItem
 from cetools.engine.ships.tables import (
     AMMO,
     ARMOR,
+    ARMOR_OPTIONS,
     BAYS,
     BRIDGE_SIZES,
     COCKPITS,
@@ -41,7 +42,6 @@ from cetools.engine.ships.tables import (
     TURRET_WEAPONS,
 )
 
-_ARMOR_OPTION_COST_PER_TON = {"reflec": 0.1, "self_sealing": 0.01, "stealth": 0.1}
 _COCKPIT_COST_PER_20_TONS = 0.1
 BAY_FIRE_CONTROL_TONS = 1.0
 """Fire control a weapon bay needs beyond its own 50 t (research Part H). Not
@@ -100,7 +100,7 @@ def _build_armor(
         tons = tons_per_increment * increments
         cost = base_hull_cost * (row.cost_percent_per_5_percent / 100) * increments
         for option in fit.options:
-            cost += _ARMOR_OPTION_COST_PER_TON[option] * tons
+            cost += ARMOR_OPTIONS[option].cost_per_ton * tons
         items.append(LineItem(name=f"{fit.type.value} armor", tons=tons, cost=cost))
         total_protection += row.protection_per_5_percent * increments
     return total_protection
@@ -232,9 +232,9 @@ def _build_fittings(design: ShipDesign, items: list[LineItem]) -> int:
         row = FITTINGS[fit.kind]
         if row.forbidden_on_distributed and design.configuration is Configuration.DISTRIBUTED:
             raise ValueError(f"a distributed hull cannot mount {fit.kind.replace('_', ' ')}")
-        if fit.kind == "vehicle_hangar":
-            tons = fit.vehicle_tons * 1.3 * fit.quantity
-            cost = fit.vehicle_tons * 0.2 * fit.quantity
+        if row.tons_per_vehicle_ton is not None:
+            tons = fit.vehicle_tons * row.tons_per_vehicle_ton * fit.quantity
+            cost = fit.vehicle_tons * row.cost_per_vehicle_ton * fit.quantity
         else:
             tons = row.tons * fit.quantity
             cost = row.cost * fit.quantity
@@ -243,10 +243,11 @@ def _build_fittings(design: ShipDesign, items: list[LineItem]) -> int:
     return bonus
 
 
-def _ammo_key(ammo) -> str:
-    """`AMMO`'s key for one `AmmoFit`: the kind, or ``missile_<type>`` for a
-    missile (whose price depends on standard/smart/nuclear, not the kind alone)."""
-    return f"missile_{ammo.type}" if ammo.kind == "missile" else ammo.kind
+def _ammo_row(ammo):
+    """The `AMMO` row for one `AmmoFit`, matched on the row's ``kind``/``type``
+    columns rather than on a key spelling, so a new SRD ammunition entry is a
+    data-only edit (SC-006). `AmmoFit`'s own validation guarantees a match."""
+    return next(row for row in AMMO.values() if row.kind == ammo.kind and row.type == ammo.type)
 
 
 def _build_turrets(design: ShipDesign, items: list[LineItem]) -> int:
@@ -257,7 +258,7 @@ def _build_turrets(design: ShipDesign, items: list[LineItem]) -> int:
             LineItem(name=f"{turret.mount} turret", tons=mount.tons, cost=mount.cost + weapon_cost)
         )
         for ammo in turret.ammo:
-            row = AMMO[_ammo_key(ammo)]
+            row = _ammo_row(ammo)
             items.append(
                 LineItem(
                     name=f"{ammo.kind} ammo" if ammo.type is None else f"{ammo.type} missile ammo",
@@ -345,6 +346,12 @@ def build_ship(design: ShipDesign) -> Ship:
 
     jump_distance = design.jump_distance if design.jump_distance is not None else jump_rating
     jump_fuel = 0.1 * hull_tons * jump_distance
+    minimum_weeks = 2 if design.hull_class is HullClass.STARSHIP else 1
+    if design.power_weeks < minimum_weeks:
+        raise ValueError(
+            f"power_weeks must be >= {minimum_weeks} for a {design.hull_class.value}, "
+            f"got {design.power_weeks}"
+        )
     if design.hull_class is HullClass.SMALL_CRAFT:
         power_fuel_per_week = math.floor(power_tons / 3 * 10) / 10
     else:

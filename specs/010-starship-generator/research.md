@@ -73,9 +73,11 @@ has a fixed (tonnage, cost) for jump drive, maneuver drive, and power plant. Exc
 `tables.py`): A = J(10t/10MCr) M(2t/4MCr) P(4t/8MCr); B = J(15/20) M(3/8) P(7/16); … Z = J(125/240)
 M(47/96) P(73/192). Each step adds 5t/10MCr (jump), 2t/4MCr (maneuver), 3t/8MCr (power).
 
-**C2. Drive-performance matrix**—`(drive_code, hull_tons) → rating`. The **same** matrix governs
-jump rating, maneuver-G, and power-plant rating. A blank cell means that code is not installable on
-that hull (→ rejection). Representative rows (100–1000t):
+**C2. Drive-performance matrix**—`(drive_code, hull_tons) → rating`. On a **standard hull** the
+**same** matrix governs jump rating, maneuver-G, and power-plant rating alike. It is tabulated only
+for the 100–5,000-ton hull sizes of Part B; small craft read a *separate* matrix at their own scale
+(Part K). A blank cell means that code is not installable on that hull (→ rejection). Representative
+rows (100–1000t):
 
 | Code | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | 1000 |
 |------|-----|-----|-----|-----|-----|-----|-----|-----|-----|------|
@@ -186,6 +188,18 @@ MCr 20, meson MCr 50, fusion MCr 8. **Forbidden on small craft** (reject).
 **Hardpoint limit** (FR-010, FR-015): total turrets + bays MUST NOT exceed hull hardpoints (tons ÷
 100, or 1 for a small craft). Fire control: 1 ton per weapon group.
 
+**Ambiguity resolved**: "fire control: 1 ton per weapon group" reads, on its own, as a rule that
+applies uniformly to every weapon group—turret or bay. The builder does not read it that way. The
+turret costs given above (single 1t, double 1t, triple 1t) are each already a complete, all-in
+tonnage for that mount; there is no separate fire-control ton to add on top without double-counting
+the turret's own listed weight. A 50-ton bay's tonnage, by contrast, is the weapon system alone—the
+SRD bay-weapons rule adds "+1t fire control" explicitly because a bay's listed 50t does not already
+include it. The builder therefore allocates `BAY_FIRE_CONTROL_TONS` for bays only
+(`_build_bays`/`_build_turrets` in `builder.py`) and reads "1 ton per weapon group" as restating that
+every weapon group—mounted turret or bay—consumes tonnage for its own fire control, already folded
+into the turret's tons and called out separately for the bay. This is the deliberate reading, not an
+oversight.
+
 ## Part I—Crew (minimum)
 
 FR-012 asks for the SRD **minimum** crew. The SRD "Minimum" column:
@@ -204,6 +218,16 @@ FR-012 asks for the SRD **minimum** crew. The SRD "Minimum" column:
 **Ambiguity resolved**: the SRD lists the navigator minimum as "One (optional with software)". The
 builder treats a navigator as required (minimum 1) unless the computer carries Jump-Control software,
 in which case it is 0; this is the literal reading and is documented, not a house rule.
+
+**Ambiguity resolved**: that navigator rule applies unchanged to a **small craft**, which by rule
+carries no jump drive at all (Part K). A reader may expect a jump-incapable hull to need no navigator,
+since plotting jump courses is the role's purpose—but the SRD's minimum-crew table states one flat
+rule with exactly one exception (Jump-Control software), and the small-craft section modifies the
+bridge, the jump drive, the fuel floor, the hardpoint count and the armament caps without touching
+crew. Inventing a small-craft carve-out would be a house rule the source page does not support, which
+FR-002 forbids, so `_build_crew` in `builder.py` applies the same navigator minimum to both rulesets:
+`examples/fighter.toml` reports a navigator. Where the SRD is silent, cetools follows the rule it
+states rather than the rule a reader might infer.
 
 A ship with no passengers needs no steward and no medic (spec Edge Cases, FR-012). Note the medic rule
 is a *conditional* per-120 headcount, not a bare `⌈(crew + passengers) ÷ 120⌉`: the bare formula would
@@ -226,6 +250,49 @@ minimum one week**, rounded **down to the nearest 0.1 ton** (the SRD's explicit 
 rule); exactly one hardpoint; **no bay weapons**; energy-weapon count capped by power-plant code
 (sA–sF: 0, sG–sK: 1, sL–sR: 2, sS–sZ: 3; missile/projectile weapons uncapped). Both the builder and
 the generator support small craft.
+
+**K1. Small-craft hull table** (10–95 tons in 5-ton steps). Cost follows the rule **MCr 1.0 + tons ÷
+100**; build weeks are tabulated:
+
+| Tons | Code | Cost (MCr) | Build (weeks) | | Tons | Code | Cost (MCr) | Build (weeks) |
+|------|------|-----------|---------------|---|------|------|-----------|---------------|
+| 10 | s1 | 1.10 | 28 | | 55 | sA | 1.55 | 32 |
+| 15 | s2 | 1.15 | 29 | | 60 | sB | 1.60 | 32 |
+| 20 | s3 | 1.20 | 29 | | 65 | sC | 1.65 | 33 |
+| 25 | s4 | 1.25 | 30 | | 70 | sD | 1.70 | 33 |
+| 30 | s5 | 1.30 | 30 | | 75 | sE | 1.75 | 34 |
+| 35 | s6 | 1.35 | 30 | | 80 | sF | 1.80 | 34 |
+| 40 | s7 | 1.40 | 31 | | 85 | sG | 1.85 | 34 |
+| 45 | s8 | 1.45 | 31 | | 90 | sH | 1.90 | 35 |
+| 50 | s9 | 1.50 | 32 | | 95 | sJ | 1.95 | 35 |
+
+Hull points and structure points use the same Part B formulas (⌊tons ÷ 50⌋ and ⌈tons ÷ 50⌉), so a
+sub-50-ton craft has 0 hull points and 1 structure point.
+
+**K2. Small-craft drive-performance matrix**—a **second, distinct** matrix from Part C2, and the one
+place the small-craft ruleset departs from "one matrix governs everything". It is required because
+no small-craft hull size (10–95 t) appears anywhere in the Part C2 matrix, and because the same code
+letter performs differently at small-craft scale. Its axes are the same—`(drive_code, hull_tons) →
+rating`, a blank cell meaning "not installable"—and it likewise governs maneuver-G and power-plant
+rating together (there is no jump rating to govern). Codes carry the small craft's `s` prefix
+(`sA`–`sZ`); component **tonnage and cost are unified across both rulesets**, read from the Part C1
+table by the bare letter, so only *performance* needs the separate matrix. Representative rows:
+
+| Code | 10 | 20 | 30 | 40 | 50 | 60 | 70 | 80 | 90 | 95 |
+|------|----|----|----|----|----|----|----|----|----|----|
+| sA | 2 | 1 | – | – | – | – | – | – | – | – |
+| sC | 6 | 3 | 2 | 1 | 1 | 1 | – | – | – | – |
+| sE | – | 5 | 3 | 2 | 2 | 1 | 1 | 1 | 1 | 1 |
+| sL | – | – | – | 6 | 4 | 4 | 3 | 3 | 2 | 2 |
+| sW | – | – | – | – | – | – | – | – | – | 6 |
+
+(Full 10–95 matrix stored in `tables.SMALL_CRAFT_DRIVE_PERFORMANCE`, exactly as the Part C2 matrix is
+stored in `tables.DRIVE_PERFORMANCE`.)
+
+**Not priced by the source page**: codes sX, sY and sZ appear in the energy-weapon cap band (sS–sZ: 3)
+but the source page tabulates **no** small-craft performance for them at any hull size, so
+`SMALL_CRAFT_DRIVE_PERFORMANCE` has no row for X, Y or Z and the builder rejects them on every
+small-craft hull. Nothing is guessed to fill the gap (FR-002).
 
 ## Part L—Determinism and the random generator (FR-016–FR-018)
 

@@ -18,7 +18,8 @@ jump = "A"                # drive code letter; required for starships, omit for 
 maneuver = "A"            # drive code letter; optional
 power = "A"               # drive code letter; required for any powered craft
 jump_distance = 1         # optional; intended jump range for fuel (default: full jump rating)
-power_weeks = 2           # optional; >= 2 (starship) or >= 1 (small craft)
+power_weeks = 2           # optional, defaults to the minimum; below it (2 starship / 1 small
+                           # craft) loads cleanly and is rejected by build_ship, not at load
 
 [bridge]
 present = true            # starships; omit / false for small craft

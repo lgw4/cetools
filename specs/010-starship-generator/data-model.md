@@ -46,7 +46,7 @@ The declarative build order, produced by `load_design` or the generator; consume
 | `maneuver_code` | `str \| None` | drive code letter; optional |
 | `power_code` | `str \| None` | drive code letter; required for any powered craft |
 | `jump_distance` | `int \| None` | intended jump range for fuel; `None` ⇒ assume full jump rating |
-| `power_weeks` | `int` | ≥ 2 (starship) or ≥ 1 (small craft); defaults to the minimum |
+| `power_weeks` | `int` | defaults to the minimum (≥ 2 starship / ≥ 1 small craft); the floor is builder-enforced, not shape-checked—see "Builder-enforced constraints" |
 | `armor` | `tuple[ArmorFit, ...]` | zero or more armor layers |
 | `bridge` | `bool` | default `True` for starships; small craft use a cockpit instead |
 | `cockpit` | `str \| None` | small-craft cockpit type; mutually exclusive with `bridge` |
@@ -173,14 +173,15 @@ reports the first one (FR-015):
 | 4 | Missing required system | drives / power | `"starship requires a jump drive"` / `"powered craft requires a power plant"` |
 | 5 | Small-craft jump drive | drives | `"small craft cannot mount a jump drive"` |
 | 6 | Power-plant below drives | power | `"power plant rating N below required M (higher of jump/maneuver)"` |
-| 7 | Small-craft hull built with a bridge | bridge/cockpit | `"small craft requires a cockpit, not a bridge"` |
-| 8 | Starship hull built with a cockpit | bridge/cockpit | `"a starship requires a bridge, not a cockpit"` |
-| 9 | Software over computer rating | computer | `"software rating N exceeds computer rating M"` |
-| 10 | Fuel scoops on a distributed hull | fittings | `"a distributed hull cannot mount fuel scoops"` |
-| 11 | Hardpoint limit | armaments | `"K weapon systems exceed J hardpoints (1 per 100 tons)"` |
-| 12 | Small-craft bay weapon | armaments | `"small craft cannot mount a weapon bay"` |
-| 13 | Small-craft energy-weapon cap | armaments | `"power plant code X allows at most K energy weapons"` |
-| 14 | Tonnage over-allocation | cargo | `"components use N tons, hull holds M"` |
+| 7 | Power-plant fuel weeks below minimum | fuel | `"power_weeks must be >= N for a <hull_class>, got M"` |
+| 8 | Small-craft hull built with a bridge | bridge/cockpit | `"small craft requires a cockpit, not a bridge"` |
+| 9 | Starship hull built with a cockpit | bridge/cockpit | `"a starship requires a bridge, not a cockpit"` |
+| 10 | Software over computer rating | computer | `"software rating N exceeds computer rating M"` |
+| 11 | Fuel scoops on a distributed hull | fittings | `"a distributed hull cannot mount fuel scoops"` |
+| 12 | Hardpoint limit | armaments | `"K weapon systems exceed J hardpoints (1 per 100 tons)"` |
+| 13 | Small-craft bay weapon | armaments | `"small craft cannot mount a weapon bay"` |
+| 14 | Small-craft energy-weapon cap | armaments | `"power plant code X allows at most K energy weapons"` |
+| 15 | Tonnage over-allocation | cargo | `"components use N tons, hull holds M"` |
 
 ## Static tables (`ships/tables.py`)—data, not logic
 
@@ -189,25 +190,36 @@ reports the first one (FR-015):
 | `HULLS` | `dict[int, HullRow]` | tons → (code, cost MCr, build weeks) for standard hulls |
 | `SMALL_CRAFT_HULLS` | `dict[int, HullRow]` | tons → (code, cost, build weeks) for 10–95 t |
 | `DRIVE_COSTS` | `dict[str, DriveRow]` | code → (jump t/cost, maneuver t/cost, power t/cost) |
-| `DRIVE_PERFORMANCE` | `dict[str, dict[int, int]]` | code → {hull tons → rating}; missing = illegal |
+| `DRIVE_PERFORMANCE` | `dict[str, dict[int, int]]` | code → {hull tons → rating} for 100–5,000 t; missing = illegal |
+| `SMALL_CRAFT_DRIVE_PERFORMANCE` | `dict[str, dict[int, int]]` | the separate 10–95 t matrix (research Part K2), keyed by the unprefixed code letter |
 | `CONFIG_MODIFIERS` | `dict[Configuration, float]` | ×0.9 / ×1.0 / ×1.1 |
 | `ARMOR` | `dict[ArmorType, ArmorRow]` | protection per 5%, cost %, min TL |
+| `ARMOR_OPTIONS` | `dict[str, ArmorOptionRow]` | reflec / self-sealing / stealth → MCr per armored ton |
 | `BRIDGE_SIZES` | ordered `tuple[(max_tons, bridge_tons), ...]` | stepped bridge table |
 | `COMPUTERS` | `dict[int, ComputerRow]` | model → (TL, rating, cost) |
 | `SOFTWARE` | `dict[str, SoftwareRow]` | name → (rating cost, MCr cost rule) |
 | `ELECTRONICS` | `dict[str, ElectronicsRow]` | package → (tons, cost) |
 | `QUARTERS` | `dict[str, QuartersRow]` | stateroom / low / emergency-low → (tons, cost) |
-| `FITTINGS` | `dict[str, FittingRow]` | fitting name → (tons, cost, extra rules) |
+| `FITTINGS` | `dict[str, FittingRow]` | fitting name → (tons, cost, extra rules); a *vehicle-sized* row sets `tons_per_vehicle_ton`/`cost_per_vehicle_ton` instead of fixed tons/cost |
 | `TURRET_MOUNTS` | `dict[str, MountRow]` | mount → (tons, cost, weapon slots) |
 | `TURRET_WEAPONS` | `dict[str, WeaponRow]` | weapon → cost (+ ammo rules) |
-| `AMMO` | `dict[str, AmmoRow]` | ammunition kind (sand barrels, missile by type) → (rounds/ton, cost/round) |
+| `AMMO` | `dict[str, AmmoRow]` | ammunition entry → (kind, type, rounds/ton, cost/round); the key is descriptive, the `kind`/`type` columns are what an `AmmoFit` matches on |
 | `BAYS` | `dict[str, BayRow]` | bay → (50 t, cost, +1 t fire control) |
 | `SCREENS` | `dict[str, ScreenRow]` | screen → (50 t, cost) |
-| `COCKPITS` | `dict[str, CockpitRow]` | small-craft cockpit → (tons, crew, cost) |
+| `COCKPITS` | `dict[str, CockpitRow]` | small-craft cockpit → (tons); see the seating note below |
 | `SMALL_CRAFT_ENERGY_CAPS` | `dict[str, int]` | power-plant code band → max energy weapons |
 
-Adding or adjusting any SRD entry (a new hull, weapon, or fitting) is a data edit to one of these
-tables with no change to `builder.py`/`generator.py` (SC-006).
+Adding or adjusting any SRD entry (a new hull, weapon, fitting, bay, screen, ammunition row or armor
+option) is a data edit to one of these tables with no change to `builder.py`/`generator.py` (SC-006).
+Every component fit validates its own strings against the table that prices them, so no module holds
+a second copy of a table's keys.
+
+**Cockpit seating is deliberately unenforced.** `CockpitRow` carries tonnage only. The SRD names its
+two cockpits "1-man" and "2-man", but the minimum-crew rules (Part I) are a separate, ship-wide
+calculation the source page never reconciles with cockpit seating—so a 40-ton fighter with a `1_man`
+cockpit legitimately reports a minimum crew of 3 (pilot, navigator, engineer) plus a gunner. Capping
+or checking crew against a cockpit's seats would be inventing a rule the SRD does not state, which
+FR-002 forbids; the omission is recorded here and in `CONTEXT.md` rather than house-ruled.
 
 ## Relationships
 

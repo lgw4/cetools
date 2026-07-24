@@ -190,6 +190,29 @@ def test_render_sheet_drives_line_names_the_drive_codes():
     assert "4t power plant" in sheet
 
 
+# --- T085: hull code and standard/custom marker ---
+
+
+def test_render_sheet_names_the_hull_code_and_standard_marker():
+    ship = build_ship(load_design(f"{_EXAMPLES}/free-trader.toml"))
+    sheet = render_sheet(ship)
+    assert "Ship: Beowulf (standard)" in sheet
+    assert "Hull: 200 tons, standard (hull 2)" in sheet
+
+
+def test_render_sheet_shows_the_custom_marker_for_a_non_standard_design():
+    ship = build_ship(load_design(f"{_EXAMPLES}/scout-courier.toml"))
+    sheet = render_sheet(ship)
+    assert "(custom)" in sheet
+    assert "(hull 1)" in sheet
+
+
+def test_render_sheet_names_the_small_craft_hull_code():
+    ship = build_ship(load_design(f"{_EXAMPLES}/fighter.toml"))
+    sheet = render_sheet(ship)
+    assert "(hull s" in sheet
+
+
 def test_render_sheet_shows_loaded_ammunition_in_armaments():
     design = ShipDesign(
         hull_tons=200,

@@ -3,9 +3,21 @@ import dataclasses
 import pytest
 
 from cetools.engine.ships import build_ship, load_design
-from cetools.engine.ships.models import Configuration, FittingFit, ShipDesign
+from cetools.engine.ships.models import (
+    AmmoFit,
+    ArmorFit,
+    ArmorType,
+    BayFit,
+    Configuration,
+    FittingFit,
+    ScreenFit,
+    ShipDesign,
+    TurretFit,
+)
 from cetools.engine.ships.tables import (
+    AMMO,
     ARMOR,
+    ARMOR_OPTIONS,
     BAYS,
     BRIDGE_SIZES,
     COCKPITS,
@@ -24,6 +36,8 @@ from cetools.engine.ships.tables import (
     SOFTWARE,
     TURRET_MOUNTS,
     TURRET_WEAPONS,
+    AmmoRow,
+    ArmorOptionRow,
     ArmorRow,
     BayRow,
     CockpitRow,
@@ -370,6 +384,8 @@ ROW_TYPES = (
     HullRow,
     DriveRow,
     ArmorRow,
+    ArmorOptionRow,
+    AmmoRow,
     ComputerRow,
     SoftwareRow,
     ElectronicsRow,
@@ -430,3 +446,119 @@ def test_a_new_distributed_forbidden_fitting_rejects_on_a_distributed_hull_with_
     )
     with pytest.raises(ValueError, match="a distributed hull cannot mount synthetic shield"):
         build_ship(design)
+
+
+def test_a_new_bay_row_is_accepted_and_allocated_with_no_code_change(monkeypatch):
+    # T087: BayFit validates against BAYS itself, not a hardcoded copy of its
+    # keys, so a new SRD bay is a data-only edit (SC-006).
+    monkeypatch.setitem(BAYS, "synthetic_bay", BayRow(tons=50, cost=17.5))
+
+    design = load_design("specs/010-starship-generator/examples/free-trader.toml")
+    design = dataclasses.replace(design, bays=(BayFit(kind="synthetic_bay"),))
+
+    ship = build_ship(design)
+
+    bay_item = next(item for item in ship.line_items if item.name == "synthetic_bay bay")
+    assert bay_item.tons == pytest.approx(50.0)
+    assert bay_item.cost == pytest.approx(17.5)
+    assert ship.hardpoints_used == 1
+    assert ship.crew.gunners == 1
+
+
+def test_a_new_screen_row_is_accepted_and_allocated_with_no_code_change(monkeypatch):
+    monkeypatch.setitem(SCREENS, "synthetic_screen", ScreenRow(tons=50, cost=42.0))
+
+    design = load_design("specs/010-starship-generator/examples/free-trader.toml")
+    design = dataclasses.replace(design, screens=(ScreenFit(kind="synthetic_screen"),))
+
+    ship = build_ship(design)
+
+    screen_item = next(item for item in ship.line_items if item.name == "synthetic_screen screen")
+    assert screen_item.tons == pytest.approx(50.0)
+    assert screen_item.cost == pytest.approx(42.0)
+    assert ship.crew.screen_operators == 1
+
+
+def test_a_new_ammo_row_is_accepted_and_costed_with_no_code_change(monkeypatch):
+    # The AMMO key is descriptive only: models.py and builder.py both match an
+    # AmmoFit on the row's kind/type columns (SC-006).
+    monkeypatch.setitem(
+        AMMO,
+        "missile_decoy",
+        AmmoRow(kind="missile", type="decoy", rounds_per_ton=12, cost_per_round=0.002),
+    )
+
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        turrets=(
+            TurretFit(
+                mount="single",
+                weapons=("missile_rack",),
+                ammo=(AmmoFit(kind="missile", type="decoy", count=24),),
+            ),
+        ),
+    )
+    ship = build_ship(design)
+
+    ammo_item = next(item for item in ship.line_items if item.name == "decoy missile ammo")
+    assert ammo_item.tons == pytest.approx(2.0)
+    assert ammo_item.cost == pytest.approx(0.048)
+    assert ammo_item.discountable is False
+
+
+def test_a_new_armor_option_row_is_accepted_and_costed_with_no_code_change(monkeypatch):
+    # T087: the armor-option surcharge is table data read by builder.py, not a
+    # dict living in the builder, so a new SRD option is a data-only edit.
+    monkeypatch.setitem(ARMOR_OPTIONS, "synthetic_coating", ArmorOptionRow(cost_per_ton=0.25))
+
+    def armor_cost(options):
+        design = ShipDesign(
+            hull_tons=200,
+            jump_code="A",
+            power_code="A",
+            armor=(ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5, options=options),),
+        )
+        item = next(i for i in build_ship(design).line_items if i.name == "titanium_steel armor")
+        return item.tons, item.cost
+
+    bare_tons, bare_cost = armor_cost(())
+    coated_tons, coated_cost = armor_cost(("synthetic_coating",))
+
+    assert bare_tons == pytest.approx(10.0)
+    assert coated_tons == pytest.approx(10.0)
+    assert coated_cost == pytest.approx(bare_cost + 0.25 * 10.0)
+
+
+def test_a_new_hull_row_costs_and_allocates_correctly_with_no_code_change(monkeypatch):
+    # T091/SC-006: a new hull size is a data edit to HULLS plus the drive
+    # performance the SRD tabulates for it -- no builder or generator change.
+    monkeypatch.setitem(HULLS, 250, HullRow(code="X", cost=10, build_weeks=50))
+    monkeypatch.setitem(DRIVE_PERFORMANCE, "A", {**DRIVE_PERFORMANCE["A"], 250: 1})
+
+    ship = build_ship(ShipDesign(hull_tons=250, jump_code="A", power_code="A"))
+
+    assert ship.build_weeks == 50
+    assert ship.hull_points == 5
+    assert ship.structure_points == 5
+    assert ship.hardpoints == 2
+    assert next(i for i in ship.line_items if i.name == "hull").cost == pytest.approx(10.0)
+    assert ship.jump_fuel == pytest.approx(25.0)
+    assert ship.tonnage_used == pytest.approx(10 + 4 + 20 + 25 + 2)
+
+
+def test_a_new_turret_weapon_row_costs_correctly_with_no_code_change(monkeypatch):
+    monkeypatch.setitem(TURRET_WEAPONS, "synthetic_cannon", WeaponRow(cost=3.5))
+
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        turrets=(TurretFit(mount="single", weapons=("synthetic_cannon",)),),
+    )
+    ship = build_ship(design)
+
+    turret_item = next(item for item in ship.line_items if item.name == "single turret")
+    assert turret_item.tons == pytest.approx(TURRET_MOUNTS["single"].tons)
+    assert turret_item.cost == pytest.approx(TURRET_MOUNTS["single"].cost + 3.5)

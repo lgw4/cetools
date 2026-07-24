@@ -13,21 +13,42 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from cetools.engine.ships.tables import (
+    AMMO,
+    ARMOR_OPTIONS,
+    BAYS,
     COCKPITS,
     COMPUTERS,
     CONFIG_MODIFIERS,
     ELECTRONICS,
     FITTINGS,
+    SCREENS,
     SOFTWARE,
     TURRET_MOUNTS,
     TURRET_WEAPONS,
 )
 
-_ARMOR_OPTIONS = frozenset({"reflec", "self_sealing", "stealth"})
-_AMMO_KINDS = frozenset({"sand_barrels", "missile"})
-_MISSILE_TYPES = frozenset({"standard", "smart", "nuclear"})
-_BAY_KINDS = frozenset({"missile_bank", "particle", "meson", "fusion"})
-_SCREEN_KINDS = frozenset({"meson_screen", "nuclear_damper"})
+
+def _ammo_kinds() -> set[str]:
+    """Every ammunition kind `AMMO` prices. Derived, never restated: a new SRD
+    ammunition row must be a data-only edit (SC-006)."""
+    return {row.kind for row in AMMO.values()}
+
+
+def _ammo_types_for(kind: str) -> set[str]:
+    """The types `AMMO` prices separately for `kind` (empty when the SRD prices
+    the kind as a single item, as it does sand barrels)."""
+    return {row.type for row in AMMO.values() if row.kind == kind and row.type is not None}
+
+
+def _typed_ammo_kinds() -> set[str]:
+    """The ammunition kinds that take a `type` at all."""
+    return {row.kind for row in AMMO.values() if row.type is not None}
+
+
+def _vehicle_sized_fittings() -> set[str]:
+    """Fittings sized from `FittingFit.vehicle_tons` rather than from a fixed
+    table tonnage—identified by the row's per-vehicle-ton columns, not by name."""
+    return {kind for kind, row in FITTINGS.items() if row.tons_per_vehicle_ton is not None}
 
 
 class Configuration(Enum):
@@ -67,7 +88,7 @@ def _validate_armor_fit(fit: ArmorFit) -> None:
     (FR-015; data-model.md "Builder-enforced constraints" #2)."""
     if fit.percent <= 0:
         raise ValueError(f"armor percent must be positive, got {fit.percent}")
-    unknown = set(fit.options) - _ARMOR_OPTIONS
+    unknown = set(fit.options) - set(ARMOR_OPTIONS)
     if unknown:
         raise ValueError(f"unknown armor option(s): {sorted(unknown)}")
     if len(fit.options) != len(set(fit.options)):
@@ -127,11 +148,15 @@ def _validate_fitting_fit(fit: FittingFit) -> None:
         raise ValueError(f"unknown fitting {fit.kind!r}; known: {sorted(FITTINGS)}")
     if fit.quantity <= 0:
         raise ValueError(f"fitting quantity must be positive, got {fit.quantity}")
-    if fit.kind == "vehicle_hangar":
+    vehicle_sized = _vehicle_sized_fittings()
+    if fit.kind in vehicle_sized:
         if fit.vehicle_tons is None or fit.vehicle_tons <= 0:
-            raise ValueError("vehicle_hangar requires a positive vehicle_tons")
+            raise ValueError(f"{fit.kind} requires a positive vehicle_tons")
     elif fit.vehicle_tons is not None:
-        raise ValueError(f"vehicle_tons is only meaningful for vehicle_hangar, not {fit.kind!r}")
+        raise ValueError(
+            f"vehicle_tons is only meaningful for {', '.join(sorted(vehicle_sized))}, "
+            f"not {fit.kind!r}"
+        )
 
 
 @dataclass(frozen=True)
@@ -147,15 +172,18 @@ class FittingFit:
 
 
 def _validate_ammo_fit(fit: AmmoFit) -> None:
-    if fit.kind not in _AMMO_KINDS:
-        raise ValueError(f"unknown ammo kind {fit.kind!r}; known: {sorted(_AMMO_KINDS)}")
+    kinds = _ammo_kinds()
+    if fit.kind not in kinds:
+        raise ValueError(f"unknown ammo kind {fit.kind!r}; known: {sorted(kinds)}")
     if fit.count <= 0:
         raise ValueError(f"ammo count must be positive, got {fit.count}")
-    if fit.kind == "missile":
-        if fit.type not in _MISSILE_TYPES:
-            raise ValueError(f"unknown missile type {fit.type!r}; known: {sorted(_MISSILE_TYPES)}")
+    types = _ammo_types_for(fit.kind)
+    if types:
+        if fit.type not in types:
+            raise ValueError(f"unknown {fit.kind} type {fit.type!r}; known: {sorted(types)}")
     elif fit.type is not None:
-        raise ValueError(f"type is only meaningful for missile ammo, not {fit.kind!r}")
+        typed = sorted(_typed_ammo_kinds())
+        raise ValueError(f"type is only meaningful for {', '.join(typed)} ammo, not {fit.kind!r}")
 
 
 @dataclass(frozen=True)
@@ -198,8 +226,8 @@ class TurretFit:
 
 
 def _validate_bay_fit(fit: BayFit) -> None:
-    if fit.kind not in _BAY_KINDS:
-        raise ValueError(f"unknown bay kind {fit.kind!r}; known: {sorted(_BAY_KINDS)}")
+    if fit.kind not in BAYS:
+        raise ValueError(f"unknown bay kind {fit.kind!r}; known: {sorted(BAYS)}")
 
 
 @dataclass(frozen=True)
@@ -213,8 +241,8 @@ class BayFit:
 
 
 def _validate_screen_fit(fit: ScreenFit) -> None:
-    if fit.kind not in _SCREEN_KINDS:
-        raise ValueError(f"unknown screen kind {fit.kind!r}; known: {sorted(_SCREEN_KINDS)}")
+    if fit.kind not in SCREENS:
+        raise ValueError(f"unknown screen kind {fit.kind!r}; known: {sorted(SCREENS)}")
 
 
 @dataclass(frozen=True)
@@ -241,13 +269,6 @@ def _validate_ship_design(design: ShipDesign) -> None:
 
     if design.jump_distance is not None and design.jump_distance < 0:
         raise ValueError(f"jump_distance must be >= 0, got {design.jump_distance}")
-
-    minimum_weeks = 2 if design.hull_class is HullClass.STARSHIP else 1
-    if design.power_weeks < minimum_weeks:
-        raise ValueError(
-            f"power_weeks must be >= {minimum_weeks} for a {design.hull_class.value}, "
-            f"got {design.power_weeks}"
-        )
 
     has_cockpit = design.cockpit is not None
     if has_cockpit == design.bridge:

@@ -129,6 +129,15 @@ def test_loads_design_accepts_a_7_percent_armor_layer():
         build_ship(design)
 
 
+def test_loads_design_accepts_power_weeks_1_on_a_starship():
+    # The >= 2 (starship) / >= 1 (small craft) floor is build_ship's job, not
+    # loads_design's (FR-015; contracts/design-schema.md "Rules enforced at load").
+    design = loads_design('hull_tons = 200\n\n[drives]\njump = "A"\npower = "A"\npower_weeks = 1')
+    assert design.power_weeks == 1
+    with pytest.raises(ValueError, match="power_weeks must be >= 2 for a starship"):
+        build_ship(design)
+
+
 # --- US3: small craft cockpit I/O (research.md Part K) ---
 
 

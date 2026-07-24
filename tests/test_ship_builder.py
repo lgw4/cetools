@@ -218,6 +218,18 @@ def test_rejects_a_power_plant_below_the_higher_drive_rating():
         build_ship(design)
 
 
+def test_rejects_power_weeks_below_the_starship_minimum():
+    design = ShipDesign(hull_tons=200, jump_code="A", power_code="A", power_weeks=1)
+    with pytest.raises(ValueError, match="power_weeks must be >= 2 for a starship"):
+        build_ship(design)
+
+
+def test_rejects_power_weeks_below_the_small_craft_minimum():
+    design = _small_craft(power_weeks=0)
+    with pytest.raises(ValueError, match="power_weeks must be >= 1 for a small_craft"):
+        build_ship(design)
+
+
 def test_rejects_software_over_the_computer_rating():
     design = ShipDesign(
         hull_tons=200,
@@ -271,6 +283,88 @@ def test_fuel_scoops_are_allowed_on_a_non_distributed_hull():
     build_ship(design)  # does not raise
 
 
+def test_a_small_craft_still_carries_a_navigator():
+    # research.md Part I: the SRD's navigator minimum has exactly one exception
+    # (Jump-Control software) and the small-craft section never touches crew, so
+    # a jump-incapable small craft still shows a navigator. Inventing a
+    # small-craft carve-out the source page does not state would violate FR-002.
+    ship = build_ship(load_design(f"{_EXAMPLES}/fighter.toml"))
+
+    assert ship.jump_rating == 0
+    assert ship.crew.navigator == 1
+
+
+def test_a_small_craft_navigator_still_yields_to_jump_control_software():
+    ship = build_ship(
+        _small_craft(computer=ComputerFit(model=2, software=(SoftwareFit("jump_control", 1),)))
+    )
+
+    assert ship.crew.navigator == 0
+
+
+def test_vehicle_hangar_is_sized_and_costed_from_its_vehicle_tons():
+    # FR-009 names the vehicle hangar; it is the one fitting whose figures come
+    # from the design (vehicle tons x1.3 tons, MCr0.2/ton) rather than a fixed
+    # table row, via FittingRow's per-vehicle-ton columns.
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        fittings=(FittingFit(kind="vehicle_hangar", vehicle_tons=13),),
+    )
+    ship = build_ship(design)
+
+    hangar = next(item for item in ship.line_items if item.name == "vehicle_hangar")
+    assert hangar.tons == pytest.approx(16.9)
+    assert hangar.cost == pytest.approx(2.6)
+
+
+def test_vehicle_hangar_quantity_multiplies_tonnage_and_cost():
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        fittings=(FittingFit(kind="vehicle_hangar", quantity=2, vehicle_tons=10),),
+    )
+    ship = build_ship(design)
+
+    hangar = next(item for item in ship.line_items if item.name == "vehicle_hangar")
+    assert hangar.tons == pytest.approx(26.0)
+    assert hangar.cost == pytest.approx(4.0)
+
+
+def test_a_new_vehicle_sized_fitting_needs_no_builder_change(monkeypatch):
+    # T090/SC-006: the builder branches on FittingRow's per-vehicle-ton columns,
+    # not on the literal key "vehicle_hangar", so a second SRD vehicle-sized
+    # fitting is a data-only edit.
+    monkeypatch.setitem(
+        FITTINGS,
+        "synthetic_bay_deck",
+        FittingRow(tons=None, cost=None, tons_per_vehicle_ton=2.0, cost_per_vehicle_ton=0.5),
+    )
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        fittings=(FittingFit(kind="synthetic_bay_deck", vehicle_tons=6),),
+    )
+    ship = build_ship(design)
+
+    deck = next(item for item in ship.line_items if item.name == "synthetic_bay_deck")
+    assert deck.tons == pytest.approx(12.0)
+    assert deck.cost == pytest.approx(3.0)
+
+
+def test_a_new_vehicle_sized_fitting_requires_vehicle_tons(monkeypatch):
+    monkeypatch.setitem(
+        FITTINGS,
+        "synthetic_bay_deck",
+        FittingRow(tons=None, cost=None, tons_per_vehicle_ton=2.0, cost_per_vehicle_ton=0.5),
+    )
+    with pytest.raises(ValueError, match="synthetic_bay_deck requires a positive vehicle_tons"):
+        FittingFit(kind="synthetic_bay_deck")
+
+
 # --- FR-015: first violation in SRD build order wins ---
 
 
@@ -284,6 +378,15 @@ def test_first_violation_in_build_order_is_reported():
 
 def test_hull_size_violation_precedes_a_drive_violation():
     design = ShipDesign(hull_tons=150, jump_code="Z", power_code="A")
+    with pytest.raises(ValueError, match="not a tabulated hull size"):
+        build_ship(design)
+
+
+def test_hull_size_violation_precedes_a_power_weeks_violation():
+    # Hull (build order 1) precedes fuel (build order after power); a design
+    # broken in both places must report the hull error, not the power_weeks
+    # error (this is the same defect T068 fixed for the 5%-armor rule).
+    design = ShipDesign(hull_tons=150, jump_code="A", power_code="A", power_weeks=1)
     with pytest.raises(ValueError, match="not a tabulated hull size"):
         build_ship(design)
 

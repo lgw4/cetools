@@ -297,9 +297,9 @@ uv run cetools ship build specs/010-starship-generator/examples/free-trader.toml
 
 ```console
 $ uv run cetools ship build specs/010-starship-generator/examples/free-trader.toml
-Beowulf
-Hull: 200 tons, standard configuration
-Jump-1 Maneuver-1 Power-1
+Ship: Beowulf (standard)
+Hull: 200 tons, standard (hull 2)
+Drives: Jump-1 (A)  Maneuver-1 (A)  Power-1 (A), 4t power plant
 Fuel: 20t jump (assumes range 1), 2t power plant (2 weeks)
 Bridge: 10t
 Computer: Model/1

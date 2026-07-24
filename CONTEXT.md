@@ -120,7 +120,13 @@ role assignment beyond the stated minimums, mission-specific fittings—cetools 
 steps are out of automated scope and documented here as omitted (FR-002). The same discipline
 applies to catalog entries the SRD names but never prices: a beam laser is named in the Turret
 Weapons prose (FR-010) alongside pulse laser, sandcaster, and particle beam, but the source page
-lists no cost for it, so `TURRET_WEAPONS` omits it rather than guessing a figure.
+lists no cost for it, so `TURRET_WEAPONS` omits it rather than guessing a figure. Small-craft drive
+codes sX–sY–sZ are the same case: they fall inside the energy-weapon cap bands but the source page
+tabulates no small-craft performance for them, so `SMALL_CRAFT_DRIVE_PERFORMANCE` carries no row and
+the builder rejects them. Two further rules are deliberately unenforced because the SRD states
+neither: a cockpit's "1-man"/"2-man" seating never constrains the derived minimum crew, and armor
+and computer tech levels (`ArmorRow.min_tl`, `ComputerRow.tl`) are stored for table fidelity but
+checked nowhere, since v1 has no tech-level model.
 
 **`ShipDesign`**—the input record: hull, configuration, drives, power plant, bridge or cockpit,
 computer, software, electronics, armor, quarters, fittings, turrets, bays, screens, and the

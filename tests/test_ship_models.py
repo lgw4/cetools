@@ -232,14 +232,19 @@ def test_ship_design_rejects_a_negative_jump_distance():
         ShipDesign(hull_tons=200, jump_code="A", power_code="A", jump_distance=-1)
 
 
-def test_ship_design_rejects_power_weeks_below_the_starship_minimum():
-    with pytest.raises(ValueError, match="power_weeks"):
-        ShipDesign(hull_tons=200, jump_code="A", power_code="A", power_weeks=1)
+def test_ship_design_accepts_power_weeks_below_the_starship_minimum_shape_only():
+    # The >= 2 (starship) / >= 1 (small craft) floor is an SRD rule, not a shape
+    # constraint (FR-015): only `build_ship`'s fuel step rejects it, so
+    # construction here succeeds.
+    design = ShipDesign(hull_tons=200, jump_code="A", power_code="A", power_weeks=1)
+    assert design.power_weeks == 1
 
 
-def test_ship_design_rejects_power_weeks_below_the_small_craft_minimum():
-    with pytest.raises(ValueError, match="power_weeks"):
-        ShipDesign(hull_tons=50, bridge=False, cockpit="1_man", power_code="sA", power_weeks=0)
+def test_ship_design_accepts_power_weeks_below_the_small_craft_minimum_shape_only():
+    design = ShipDesign(
+        hull_tons=50, bridge=False, cockpit="1_man", power_code="sA", power_weeks=0
+    )
+    assert design.power_weeks == 0
 
 
 def test_ship_design_rejects_bridge_and_cockpit_both_set():

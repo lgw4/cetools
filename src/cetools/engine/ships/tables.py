@@ -38,7 +38,13 @@ class DriveRow:
 
 @dataclass(frozen=True)
 class ArmorRow:
-    """One row of the Ship Armor by Type table."""
+    """One row of the Ship Armor by Type table.
+
+    ``min_tl`` is retained for SRD-table fidelity (research.md Part F gives a
+    minimum TL for each armor type) but is deliberately unenforced: no
+    functional requirement or success criterion asks for a tech-level model in
+    v1, so no builder step reads it. Do not mistake it for a live constraint.
+    """
 
     protection_per_5_percent: int
     cost_percent_per_5_percent: int
@@ -46,8 +52,21 @@ class ArmorRow:
 
 
 @dataclass(frozen=True)
+class ArmorOptionRow:
+    """One row of the Ship Armor Options table: MCr surcharge per armored ton."""
+
+    cost_per_ton: float
+
+
+@dataclass(frozen=True)
 class ComputerRow:
-    """One row of the Ship Computer Models table."""
+    """One row of the Ship Computer Models table.
+
+    ``tl`` is retained for SRD-table fidelity (research.md Part E gives a TL for
+    each computer model) but is deliberately unenforced: no functional
+    requirement or success criterion asks for a tech-level model in v1, so no
+    builder step reads it. Do not mistake it for a live constraint.
+    """
 
     tl: int
     rating: int
@@ -88,14 +107,21 @@ class QuartersRow:
 class FittingRow:
     """One row of the Additional Ship Components tables.
 
-    ``tons``/``cost`` are ``None`` for a fitting whose size is computed from the
-    design rather than fixed (the vehicle hangar, sized from ``vehicle_tons``).
+    ``tons``/``cost`` are ``None`` for a *vehicle-sized* fitting—one whose size
+    comes from the design rather than the table (the vehicle hangar, sized from
+    `FittingFit.vehicle_tons`). Such a row instead sets
+    ``tons_per_vehicle_ton``/``cost_per_vehicle_ton``, and those two columns are
+    what mark it vehicle-sized: `models.py` requires a ``vehicle_tons`` for any
+    row that sets them, and the builder's fitting step multiplies through them,
+    so a second SRD vehicle-sized fitting stays a data-only edit (SC-006).
     """
 
     tons: float | None
     cost: float | None
     forbidden_on_distributed: bool = False
     hull_structure_bonus: int = 0
+    tons_per_vehicle_ton: float | None = None
+    cost_per_vehicle_ton: float | None = None
 
 
 @dataclass(frozen=True)
@@ -117,10 +143,18 @@ class WeaponRow:
 
 @dataclass(frozen=True)
 class AmmoRow:
-    """One row of the Ammunition table: rounds per ton and cost per round."""
+    """One row of the Ammunition table: rounds per ton and cost per round.
 
+    ``kind`` and ``type`` mirror `AmmoFit`'s two selectors, so `models.py`
+    derives the legal ammo kinds—and the types legal for each kind—from this
+    table rather than from a hardcoded duplicate of its keys (SC-006).
+    ``type`` is ``None`` for a kind the SRD prices as a single item.
+    """
+
+    kind: str
     rounds_per_ton: int
     cost_per_round: float
+    type: str | None = None
 
 
 @dataclass(frozen=True)
@@ -150,6 +184,13 @@ class CockpitRow:
 
     Cost is not fixed per cockpit: it scales with the ship, MCr 0.1 per 20 tons
     of hull (research Part K), the same way bridge cost scales with hull tons.
+
+    Seating is deliberately **not** a column. The SRD names its cockpits "1-man"
+    and "2-man", but its minimum-crew rules (research Part I) are a separate,
+    ship-wide calculation the source page never reconciles with cockpit
+    capacity, so no builder step caps crew against seats—doing so would invent
+    a rule the SRD does not state (FR-002). A `1_man`-cockpit fighter reporting
+    a multi-person minimum crew is expected, not a defect.
     """
 
     tons: float
@@ -611,6 +652,16 @@ ARMOR: dict[str, ArmorRow] = {
 }
 """Armor type -> protection and cost per 5% of hull tonnage, keyed by ``ArmorType.value``."""
 
+ARMOR_OPTIONS: dict[str, ArmorOptionRow] = {
+    "reflec": ArmorOptionRow(cost_per_ton=0.1),
+    "self_sealing": ArmorOptionRow(cost_per_ton=0.01),
+    "stealth": ArmorOptionRow(cost_per_ton=0.1),
+}
+"""Armor option -> MCr surcharge per armored ton (research Part F). The single
+source for both which options exist (`ArmorFit` validates against these keys)
+and what they cost (the builder's armor step reads ``cost_per_ton``), so adding
+an SRD option stays a data-only edit (SC-006)."""
+
 BRIDGE_SIZES: tuple[tuple[int | None, int], ...] = (
     (200, 10),
     (1000, 20),
@@ -664,12 +715,16 @@ FITTINGS: dict[str, FittingRow] = {
     "library": FittingRow(tons=4, cost=4),
     "luxuries": FittingRow(tons=1, cost=0.1),
     "vault": FittingRow(tons=12, cost=6, hull_structure_bonus=4),
-    "vehicle_hangar": FittingRow(tons=None, cost=None),
+    "vehicle_hangar": FittingRow(
+        tons=None, cost=None, tons_per_vehicle_ton=1.3, cost_per_vehicle_ton=0.2
+    ),
 }
 """Fitting name -> (tons, cost MCr) per unit of ``FittingFit.quantity``.
 
-``vehicle_hangar``'s tons/cost are ``None``: its size comes from
-``FittingFit.vehicle_tons`` (hangar tons = vehicle tons x1.3, cost = MCr0.2/ton)."""
+``vehicle_hangar``'s tons/cost are ``None`` because it is vehicle-sized: its
+figures come from ``FittingFit.vehicle_tons`` scaled by the row's
+``tons_per_vehicle_ton``/``cost_per_vehicle_ton`` (hangar tons = vehicle tons
+x1.3, cost = MCr0.2/ton, research Part G)."""
 
 TURRET_MOUNTS: dict[str, MountRow] = {
     "single": MountRow(tons=1, cost=0.2, weapon_slots=1),
@@ -698,16 +753,24 @@ cap). The SRD page's Turret Weapons table lists exactly these four; a "beam lase
 named in the surrounding prose but never priced, so it is omitted rather than guessed."""
 
 AMMO: dict[str, AmmoRow] = {
-    "sand_barrels": AmmoRow(rounds_per_ton=20, cost_per_round=10_000 / 20 / 1_000_000),
-    "missile_standard": AmmoRow(rounds_per_ton=12, cost_per_round=1_250 / 1_000_000),
-    "missile_smart": AmmoRow(rounds_per_ton=12, cost_per_round=2_500 / 1_000_000),
-    "missile_nuclear": AmmoRow(rounds_per_ton=12, cost_per_round=3_750 / 1_000_000),
+    "sand_barrels": AmmoRow(
+        kind="sand_barrels", rounds_per_ton=20, cost_per_round=10_000 / 20 / 1_000_000
+    ),
+    "missile_standard": AmmoRow(
+        kind="missile", type="standard", rounds_per_ton=12, cost_per_round=1_250 / 1_000_000
+    ),
+    "missile_smart": AmmoRow(
+        kind="missile", type="smart", rounds_per_ton=12, cost_per_round=2_500 / 1_000_000
+    ),
+    "missile_nuclear": AmmoRow(
+        kind="missile", type="nuclear", rounds_per_ton=12, cost_per_round=3_750 / 1_000_000
+    ),
 }
-"""Ammunition kind -> (rounds per ton, MCr cost per round). Sand barrels: 20/ton,
-Cr10,000 per ton (Cr500/barrel). Missiles: 12/ton regardless of type, priced per
-missile (standard Cr1,250, smart Cr2,500, nuclear Cr3,750). Keyed by
-`AmmoFit.kind` for sand barrels, or ``f"missile_{AmmoFit.type}"`` for missiles
-(kind is always ``"missile"`` there; the type selects the price)."""
+"""Ammunition entry -> (kind, type, rounds per ton, MCr cost per round). Sand
+barrels: 20/ton, Cr10,000 per ton (Cr500/barrel). Missiles: 12/ton regardless of
+type, priced per missile (standard Cr1,250, smart Cr2,500, nuclear Cr3,750). The
+dict key is descriptive only—`models.py` and `builder.py` both match an
+`AmmoFit` on the row's ``kind``/``type`` columns, never on the key's spelling."""
 
 BAYS: dict[str, BayRow] = {
     "missile_bank": BayRow(tons=50, cost=12),
