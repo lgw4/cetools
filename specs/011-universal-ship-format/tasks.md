@@ -41,7 +41,7 @@ Single project (existing layout): `src/cetools/`, `tests/` at repository root.
 
 **Purpose**: Establish the baseline SC-005 will be checked against.
 
-- [ ] T001 Record the pre-change quality-gate baseline by running `uv run black --check . && uv run flake8 src tests && uv run pytest && uv run python scripts/check_docs.py` from the repository root, and note the passing test count in the working notes so SC-005 ("every pre-existing test passes unmodified") can be verified at the end.
+- [X] T001 Record the pre-change quality-gate baseline by running `uv run black --check . && uv run flake8 src tests && uv run pytest && uv run python scripts/check_docs.py` from the repository root, and note the passing test count in the working notes so SC-005 ("every pre-existing test passes unmodified") can be verified at the end.
 
 ---
 
