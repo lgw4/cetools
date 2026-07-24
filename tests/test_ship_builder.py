@@ -299,6 +299,106 @@ def test_fuel_scoops_are_allowed_on_a_non_distributed_hull():
     build_ship(design)  # does not raise
 
 
+# --- spec.md Edge Cases: "Zero remaining tonnage ... is valid" ---
+
+
+def test_a_design_that_exactly_fills_the_hull_yields_zero_cargo():
+    # 10 jump + 4 power + 10 bridge + 20 jump fuel + 2 power fuel + 52 staterooms
+    # + 2 low berths = exactly 100 tons. Zero cargo is valid, not an error.
+    design = ShipDesign(hull_tons=100, jump_code="A", power_code="A", staterooms=13, low_berths=4)
+    ship = build_ship(design)
+
+    assert ship.tonnage_used == pytest.approx(100.0)
+    assert ship.cargo_tons == pytest.approx(0.0)
+
+
+def test_one_half_ton_past_an_exact_fill_is_rejected():
+    # The other side of the same boundary: `cargo_tons < 0` is the rejection.
+    design = ShipDesign(hull_tons=100, jump_code="A", power_code="A", staterooms=13, low_berths=5)
+    with pytest.raises(ValueError, match="components use 100.5 tons, hull holds 100"):
+        build_ship(design)
+
+
+# --- FR-009: every quarters type the SRD tabulates (research Part G) ---
+
+
+def test_low_berths_allocate_their_srd_tonnage_and_cost():
+    design = ShipDesign(hull_tons=200, jump_code="A", power_code="A", low_berths=4)
+    ship = build_ship(design)
+
+    berths = next(item for item in ship.line_items if item.name == "low_berth")
+    assert berths.tons == pytest.approx(2.0)  # 0.5 t each
+    assert berths.cost == pytest.approx(0.2)  # Cr50,000 each
+
+
+def test_emergency_low_berths_allocate_their_srd_tonnage_and_cost():
+    design = ShipDesign(hull_tons=200, jump_code="A", power_code="A", emergency_low_berths=2)
+    ship = build_ship(design)
+
+    berths = next(item for item in ship.line_items if item.name == "emergency_low_berth")
+    assert berths.tons == pytest.approx(2.0)  # 1 t each
+    assert berths.cost == pytest.approx(0.2)  # Cr100,000 each
+
+
+def test_all_three_quarters_types_are_allocated_together():
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        staterooms=2,
+        low_berths=4,
+        emergency_low_berths=2,
+    )
+    ship = build_ship(design)
+
+    quarters = {
+        item.name: item.tons
+        for item in ship.line_items
+        if item.name in ("stateroom", "low_berth", "emergency_low_berth")
+    }
+    assert quarters == {
+        "stateroom": pytest.approx(8.0),
+        "low_berth": pytest.approx(2.0),
+        "emergency_low_berth": pytest.approx(2.0),
+    }
+
+
+# --- FR-008 / T022: the vault's +4 hull and structure points ---
+
+
+def _hull_and_structure(**overrides):
+    design = ShipDesign(hull_tons=200, jump_code="A", power_code="A", **overrides)
+    ship = build_ship(design)
+    return ship.hull_points, ship.structure_points
+
+
+def test_a_vault_adds_4_hull_and_structure_points():
+    bare = _hull_and_structure()
+    vaulted = _hull_and_structure(fittings=(FittingFit(kind="vault"),))
+
+    assert bare == (4, 4)
+    assert vaulted == (8, 8)
+
+
+def test_the_vault_bonus_multiplies_by_quantity():
+    assert _hull_and_structure(fittings=(FittingFit(kind="vault", quantity=2),)) == (12, 12)
+
+
+def test_a_vault_allocates_its_srd_tonnage_and_cost():
+    design = ShipDesign(
+        hull_tons=200, jump_code="A", power_code="A", fittings=(FittingFit(kind="vault"),)
+    )
+    ship = build_ship(design)
+
+    vault = next(item for item in ship.line_items if item.name == "vault")
+    assert vault.tons == pytest.approx(12.0)
+    assert vault.cost == pytest.approx(6.0)
+
+
+def test_a_fitting_without_a_bonus_leaves_hull_and_structure_points_alone():
+    assert _hull_and_structure(fittings=(FittingFit(kind="armory"),)) == (4, 4)
+
+
 def test_a_small_craft_still_carries_a_navigator():
     # research.md Part I: the SRD's navigator minimum has exactly one exception
     # (Jump-Control software) and the small-craft section never touches crew, so
