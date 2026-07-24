@@ -4,7 +4,7 @@ _EXAMPLES = "specs/010-starship-generator/examples"
 
 
 def _ships():
-    for name in ("free-trader", "scout-courier", "warship", "fighter"):
+    for name in ("free-trader", "scout-courier", "warship", "fighter", "heavy-cruiser"):
         yield build_ship(load_design(f"{_EXAMPLES}/{name}.toml"))
 
 
@@ -67,3 +67,20 @@ def test_render_sheet_small_craft_has_no_jump_lines():
     sheet = render_sheet(ship)
     assert "Jump-" not in sheet
     assert "jump" not in sheet.lower()
+
+
+# --- US4: bays and screens (research.md Part H) ---
+
+
+def test_render_sheet_shows_bays_and_screens_in_armaments():
+    ship = build_ship(load_design(f"{_EXAMPLES}/heavy-cruiser.toml"))
+    sheet = render_sheet(ship)
+    assert "Armaments:" in sheet
+    assert "particle bay" in sheet
+    assert "meson_screen screen" in sheet
+
+
+def test_render_sheet_shows_screen_operators_in_crew():
+    ship = build_ship(load_design(f"{_EXAMPLES}/heavy-cruiser.toml"))
+    sheet = render_sheet(ship)
+    assert "screen operators 1" in sheet

@@ -2,8 +2,8 @@
 
 Small-craft tables (``SMALL_CRAFT_HULLS``, ``COCKPITS``, ``SMALL_CRAFT_ENERGY_CAPS``,
 ``SMALL_CRAFT_DRIVE_PERFORMANCE``) mirror the starship tables under their own
-ruleset (research.md Part K). Bay/screen tables (``BAYS``, ``SCREENS``) are added
-in their own story phase.
+ruleset (research.md Part K). Bay/screen tables (``BAYS``, ``SCREENS``) hold the
+50-ton weapon bays and defensive screens from research.md Part H.
 
 Tables keyed by an enum's *value* (a lowercase string, e.g. ``"standard"`` for
 ``Configuration.STANDARD``) rather than by the enum itself, so this module has no
@@ -113,6 +113,27 @@ class WeaponRow:
 
     cost: float
     energy: bool = False
+
+
+@dataclass(frozen=True)
+class BayRow:
+    """One row of the Weapon Bays table: fixed 50 t plus SRD cost.
+
+    Each bay also costs +1 t of fire control (a builder-applied rule, not part
+    of this row—see ``builder.BAY_FIRE_CONTROL_TONS``) and consumes one
+    hardpoint, same as a turret.
+    """
+
+    tons: float
+    cost: float
+
+
+@dataclass(frozen=True)
+class ScreenRow:
+    """One row of the Defensive Screens table: fixed 50 t plus SRD cost."""
+
+    tons: float
+    cost: float
 
 
 @dataclass(frozen=True)
@@ -666,6 +687,20 @@ TURRET_WEAPONS: dict[str, WeaponRow] = {
 """Turret weapon -> (cost MCr, whether it counts against a small craft's energy-weapon
 cap). The SRD page's Turret Weapons table lists exactly these four; a "beam laser" is
 named in the surrounding prose but never priced, so it is omitted rather than guessed."""
+
+BAYS: dict[str, BayRow] = {
+    "missile_bank": BayRow(tons=50, cost=12),
+    "particle": BayRow(tons=50, cost=20),
+    "meson": BayRow(tons=50, cost=50),
+    "fusion": BayRow(tons=50, cost=8),
+}
+"""Weapon-bay kind -> (50 t, cost MCr), research Part H. Forbidden on small craft."""
+
+SCREENS: dict[str, ScreenRow] = {
+    "meson_screen": ScreenRow(tons=50, cost=60),
+    "nuclear_damper": ScreenRow(tons=50, cost=50),
+}
+"""Defensive-screen kind -> (50 t, cost MCr), research Part H."""
 
 SMALL_CRAFT_HULLS: dict[int, HullRow] = {
     10: HullRow(code="s1", cost=1.1, build_weeks=28),

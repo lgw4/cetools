@@ -178,20 +178,20 @@ hardpoint or under 50 free tons is rejected; a bay on a small craft is rejected 
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T049 [P] [US4] Write failing `BAYS` and `SCREENS` table tests (each row is 50 t with its SRD cost; bays carry the +1 t fire-control rule) in `tests/test_ship_tables.py`
-- [ ] T050 [P] [US4] Add a bay-and-screen-equipped golden design `specs/010-starship-generator/examples/heavy-cruiser.toml` with its hand-worked expected figures in a comment header
-- [ ] T051 [US4] Write failing bay/screen builder tests (golden figures; 50 t + 1 t fire control and one hardpoint per bay; screen tonnage and cost; `Crew.gunners` counts one per bay and `Crew.screen_operators` one per screen; bay rejected when hardpoints are exhausted; bay rejected when free tonnage is under 50; bay on a small craft rejected with `small craft cannot mount a weapon bay`) in `tests/test_ship_builder.py`
-- [ ] T052 [P] [US4] Write failing design I/O tests for the `[[bays]]` and `[[screens]]` sections (load, dump, round-trip, unknown `kind` rejected at load as a shape error; a bay on a small-craft hull *loads* cleanly and is rejected by `build_ship`, not at load) in `tests/test_ship_design.py`
-- [ ] T053 [P] [US4] Write failing sheet tests asserting bays and screens appear in the armaments section and screen operators appear in the crew section in `tests/test_ship_sheet.py`
-- [ ] T054 [P] [US4] Write failing generator tests asserting bays/screens only ever appear on hulls with the hardpoints and free tonnage to hold them, never on small craft, in `tests/test_ship_generator.py`
+- [X] T049 [P] [US4] Write failing `BAYS` and `SCREENS` table tests (each row is 50 t with its SRD cost; bays carry the +1 t fire-control rule) in `tests/test_ship_tables.py`
+- [X] T050 [P] [US4] Add a bay-and-screen-equipped golden design `specs/010-starship-generator/examples/heavy-cruiser.toml` with its hand-worked expected figures in a comment header
+- [X] T051 [US4] Write failing bay/screen builder tests (golden figures; 50 t + 1 t fire control and one hardpoint per bay; screen tonnage and cost; `Crew.gunners` counts one per bay and `Crew.screen_operators` one per screen; bay rejected when hardpoints are exhausted; bay rejected when free tonnage is under 50; bay on a small craft rejected with `small craft cannot mount a weapon bay`) in `tests/test_ship_builder.py`
+- [X] T052 [P] [US4] Write failing design I/O tests for the `[[bays]]` and `[[screens]]` sections (load, dump, round-trip, unknown `kind` rejected at load as a shape error; a bay on a small-craft hull *loads* cleanly and is rejected by `build_ship`, not at load) in `tests/test_ship_design.py`
+- [X] T053 [P] [US4] Write failing sheet tests asserting bays and screens appear in the armaments section and screen operators appear in the crew section in `tests/test_ship_sheet.py`
+- [X] T054 [P] [US4] Write failing generator tests asserting bays/screens only ever appear on hulls with the hardpoints and free tonnage to hold them, never on small craft, in `tests/test_ship_generator.py`
 
 ### Implementation for User Story 4
 
-- [ ] T055 [US4] Add the `BAYS` and `SCREENS` tables from research.md Part H to `src/cetools/engine/ships/tables.py`
-- [ ] T056 [US4] Implement bay and screen allocation in `src/cetools/engine/ships/builder.py`: 50 t plus 1 t fire control per bay, one hardpoint per bay counted against the hull limit, screen tonnage and cost, the small-craft bay rejection, one gunner per bay in `Crew.gunners` and one operator per screen in `Crew.screen_operators`
-- [ ] T057 [P] [US4] Add the `[[bays]]` and `[[screens]]` sections to `loads_design` and `dump_design` in `src/cetools/engine/ships/design.py`
-- [ ] T058 [P] [US4] Render bays and screens in the armaments section, and screen operators in the crew section, in `src/cetools/engine/ships/sheet.py`
-- [ ] T059 [P] [US4] Implement bay and screen selection (using `SHIP_BAY` and `SHIP_SCREEN`), gated on available hardpoints and free tonnage and disabled for small craft, in `src/cetools/engine/ships/generator.py`
+- [X] T055 [US4] Add the `BAYS` and `SCREENS` tables from research.md Part H to `src/cetools/engine/ships/tables.py`
+- [X] T056 [US4] Implement bay and screen allocation in `src/cetools/engine/ships/builder.py`: 50 t plus 1 t fire control per bay, one hardpoint per bay counted against the hull limit, screen tonnage and cost, the small-craft bay rejection, one gunner per bay in `Crew.gunners` and one operator per screen in `Crew.screen_operators`
+- [X] T057 [P] [US4] Add the `[[bays]]` and `[[screens]]` sections to `loads_design` and `dump_design` in `src/cetools/engine/ships/design.py`
+- [X] T058 [P] [US4] Render bays and screens in the armaments section, and screen operators in the crew section, in `src/cetools/engine/ships/sheet.py`
+- [X] T059 [P] [US4] Implement bay and screen selection (using `SHIP_BAY` and `SHIP_SCREEN`), gated on available hardpoints and free tonnage and disabled for small craft, in `src/cetools/engine/ships/generator.py`
 
 **Checkpoint**: All four user stories are independently functional.
 

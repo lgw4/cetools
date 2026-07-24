@@ -3,9 +3,11 @@ import pytest
 from cetools.engine.ships import (
     ArmorFit,
     ArmorType,
+    BayFit,
     ComputerFit,
     Configuration,
     FittingFit,
+    ScreenFit,
     ShipDesign,
     SoftwareFit,
     TurretFit,
@@ -21,6 +23,7 @@ _GOLDEN_FILES = (
     f"{_EXAMPLES}/scout-courier.toml",
     f"{_EXAMPLES}/warship.toml",
     f"{_EXAMPLES}/fighter.toml",
+    f"{_EXAMPLES}/heavy-cruiser.toml",
 )
 
 
@@ -153,4 +156,41 @@ def test_a_small_craft_carrying_a_jump_drive_loads_cleanly():
     )
     assert design.jump_code == "sB"
     with pytest.raises(ValueError, match="small craft cannot mount a jump drive"):
+        build_ship(design)
+
+
+# --- US4: bays and screens I/O (research.md Part H) ---
+
+
+def test_bays_and_screens_round_trip():
+    design = ShipDesign(
+        hull_tons=1000,
+        jump_code="E",
+        maneuver_code="E",
+        power_code="E",
+        bays=(BayFit(kind="particle"),),
+        screens=(ScreenFit(kind="meson_screen"),),
+    )
+    assert loads_design(dump_design(design)) == design
+
+
+def test_loads_design_rejects_an_unknown_bay_kind():
+    with pytest.raises(ValueError, match="unknown bay kind"):
+        loads_design('hull_tons = 1000\n\n[[bays]]\nkind = "torpedo"')
+
+
+def test_loads_design_rejects_an_unknown_screen_kind():
+    with pytest.raises(ValueError, match="unknown screen kind"):
+        loads_design('hull_tons = 1000\n\n[[screens]]\nkind = "force_field"')
+
+
+def test_a_bay_on_a_small_craft_hull_loads_cleanly():
+    # A bay on a small craft is a rules violation (FR-020), not a shape error:
+    # loads_design accepts it and build_ship rejects it.
+    design = loads_design(
+        'hull_tons = 40\n\n[drives]\nmaneuver = "sB"\npower = "sG"\n\n'
+        '[bridge]\ncockpit = "1_man"\n\n[[bays]]\nkind = "particle"'
+    )
+    assert design.bays == (BayFit(kind="particle"),)
+    with pytest.raises(ValueError, match="small craft cannot mount a weapon bay"):
         build_ship(design)

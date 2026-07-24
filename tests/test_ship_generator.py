@@ -123,3 +123,34 @@ def test_small_craft_round_trips_losslessly():
     for seed in range(50):
         ship = generate_ship(RandomRolls.seeded(seed), small_craft=True)
         assert build_ship(loads_design(dump_design(ship.design))) == ship
+
+
+# --- US4: bays and screens (research.md Part H) ---
+
+
+def test_generated_bays_never_exceed_hardpoints_or_free_tonnage():
+    for seed in range(300):
+        ship = generate_ship(RandomRolls.seeded(seed))
+        assert ship.hardpoints_used <= ship.hardpoints
+        assert ship.cargo_tons >= 0
+
+
+def test_generated_ships_never_carry_a_bay_on_small_craft():
+    for seed in range(300):
+        ship = generate_ship(RandomRolls.seeded(seed), small_craft=True)
+        assert ship.design.bays == ()
+
+
+def test_a_bay_is_reachable_for_a_large_enough_hull():
+    # Sweep enough seeds on a hull with ample hardpoints and tonnage that at
+    # least one draw selects a bay (bay selection is randomized, not forced).
+    assert any(
+        generate_ship(RandomRolls.seeded(seed), hull_size=2000).design.bays for seed in range(300)
+    )
+
+
+def test_a_screen_is_reachable_for_a_large_enough_hull():
+    assert any(
+        generate_ship(RandomRolls.seeded(seed), hull_size=2000).design.screens
+        for seed in range(300)
+    )

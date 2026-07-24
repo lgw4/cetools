@@ -3,9 +3,11 @@ import pytest
 from cetools.engine.ships import (
     ArmorFit,
     ArmorType,
+    BayFit,
     ComputerFit,
     Configuration,
     FittingFit,
+    ScreenFit,
     ShipDesign,
     SoftwareFit,
     TurretFit,
@@ -109,6 +111,35 @@ def test_fighter_golden_figures():
     assert crew.medic == 0
     assert crew.stewards == 0
     assert crew.total == 4
+
+
+def test_heavy_cruiser_golden_figures():
+    ship = build_ship(load_design(f"{_EXAMPLES}/heavy-cruiser.toml"))
+
+    assert ship.jump_rating == 1
+    assert ship.maneuver_rating == 1
+    assert ship.power_rating == 1
+    assert ship.assumed_jump_distance == 1
+    assert ship.jump_fuel == pytest.approx(100.0)
+    assert ship.power_fuel == pytest.approx(10.0)
+    assert ship.tonnage_used == pytest.approx(302.0)
+    assert ship.cargo_tons == pytest.approx(698.0)
+    assert ship.hull_points == 20
+    assert ship.structure_points == 20
+    assert ship.hardpoints == 10
+    assert ship.hardpoints_used == 1
+    assert ship.total_cost == pytest.approx(297.16)
+    assert ship.build_weeks == 108
+
+    crew = ship.crew
+    assert crew.pilot == 1
+    assert crew.navigator == 1
+    assert crew.engineers == 2
+    assert crew.gunners == 1
+    assert crew.screen_operators == 1
+    assert crew.medic == 0
+    assert crew.stewards == 0
+    assert crew.total == 6
 
 
 def test_warship_golden_figures():
@@ -366,3 +397,78 @@ def test_non_energy_weapons_are_never_capped_on_small_craft():
         turrets=(TurretFit(mount="fixed", weapons=("sandcaster",)),),
     )
     build_ship(design)  # does not raise: sandcaster is not an energy weapon
+
+
+# --- US4: bays and screens (research.md Part H) ---
+
+
+def test_bay_consumes_50_tons_plus_1_ton_fire_control_and_one_hardpoint():
+    design = ShipDesign(
+        hull_tons=1000,
+        jump_code="E",
+        maneuver_code="E",
+        power_code="E",
+        bays=(BayFit(kind="particle"),),
+    )
+    ship = build_ship(design)
+    bay_item = next(item for item in ship.line_items if item.name == "particle bay")
+    fire_control_item = next(
+        item for item in ship.line_items if item.name == "particle bay fire control"
+    )
+    assert bay_item.tons == pytest.approx(50.0)
+    assert bay_item.cost == pytest.approx(20.0)
+    assert fire_control_item.tons == pytest.approx(1.0)
+    assert ship.hardpoints_used == 1
+
+
+def test_screen_consumes_50_tons_and_costs_its_srd_price():
+    design = ShipDesign(
+        hull_tons=1000,
+        jump_code="E",
+        maneuver_code="E",
+        power_code="E",
+        screens=(ScreenFit(kind="meson_screen"),),
+    )
+    ship = build_ship(design)
+    screen_item = next(item for item in ship.line_items if item.name == "meson_screen screen")
+    assert screen_item.tons == pytest.approx(50.0)
+    assert screen_item.cost == pytest.approx(60.0)
+    assert ship.hardpoints_used == 0
+
+
+def test_bay_is_counted_in_crew_gunners_and_screen_in_screen_operators():
+    ship = build_ship(load_design(f"{_EXAMPLES}/heavy-cruiser.toml"))
+    assert ship.crew.gunners == 1
+    assert ship.crew.screen_operators == 1
+
+
+def test_bay_rejected_when_hardpoints_are_exhausted():
+    design = ShipDesign(
+        hull_tons=100,
+        jump_code="A",
+        power_code="A",
+        turrets=(TurretFit(mount="single", weapons=("sandcaster",)),),
+        bays=(BayFit(kind="particle"),),
+    )
+    with pytest.raises(ValueError, match=r"2 weapon systems exceed 1 hardpoints"):
+        build_ship(design)
+
+
+def test_bay_rejected_when_free_tonnage_is_under_50():
+    # 30 staterooms leave 34 tons free (< the bay's 50t + 1t fire control), but
+    # the design is otherwise legal, so the bay alone tips it over.
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        staterooms=30,
+        bays=(BayFit(kind="particle"),),
+    )
+    with pytest.raises(ValueError, match="components use .* tons, hull holds 200"):
+        build_ship(design)
+
+
+def test_bay_on_a_small_craft_is_rejected():
+    design = _small_craft(bays=(BayFit(kind="particle"),))
+    with pytest.raises(ValueError, match="small craft cannot mount a weapon bay"):
+        build_ship(design)

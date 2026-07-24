@@ -2,11 +2,11 @@
 
 Follows the SRD build order (research.md Part A) exactly: hull, armor, maneuver
 drive, jump drive, power plant, fuel, bridge, computer/software, electronics,
-quarters, fittings, turrets, cargo, crew, cost, build time. Every SRD rule
-check lives here, in that order, so a design that violates several reports the
-first violation in build order (FR-015, SC-005). `ShipDesign.__post_init__`
-already guarantees the record is well-formed; this module only ever rejects
-*rules* violations.
+quarters, fittings, turrets, bays, screens, cargo, crew, cost, build time.
+Every SRD rule check lives here, in that order, so a design that violates
+several reports the first violation in build order (FR-015, SC-005).
+`ShipDesign.__post_init__` already guarantees the record is well-formed; this
+module only ever rejects *rules* violations.
 
 Ammunition (`TurretFit.ammo`) is accepted and carried on the design for the
 sheet and round-trip, but is not tabulated in `tables.py` (the SRD ammunition
@@ -26,6 +26,7 @@ import math
 from cetools.engine.ships.models import Configuration, Crew, HullClass, LineItem, Ship, ShipDesign
 from cetools.engine.ships.tables import (
     ARMOR,
+    BAYS,
     BRIDGE_SIZES,
     COCKPITS,
     COMPUTERS,
@@ -35,6 +36,7 @@ from cetools.engine.ships.tables import (
     FITTINGS,
     HULLS,
     QUARTERS,
+    SCREENS,
     SMALL_CRAFT_DRIVE_PERFORMANCE,
     SMALL_CRAFT_ENERGY_CAPS,
     SMALL_CRAFT_HULLS,
@@ -45,6 +47,10 @@ from cetools.engine.ships.tables import (
 
 _ARMOR_OPTION_COST_PER_TON = {"reflec": 0.1, "self_sealing": 0.01, "stealth": 0.1}
 _COCKPIT_COST_PER_20_TONS = 0.1
+BAY_FIRE_CONTROL_TONS = 1.0
+"""Fire control a weapon bay needs beyond its own 50 t (research Part H). Not
+tabulated data—applied uniformly to every bay kind—so it lives here rather
+than in `tables.BAYS`, and `generator.py` imports it for the same allocation."""
 
 
 def _drive_letter(code: str) -> str:
@@ -229,6 +235,22 @@ def _build_turrets(design: ShipDesign, items: list[LineItem]) -> int:
     return len(design.turrets)
 
 
+def _build_bays(design: ShipDesign, items: list[LineItem]) -> int:
+    for bay in design.bays:
+        row = BAYS[bay.kind]
+        items.append(LineItem(name=f"{bay.kind} bay", tons=row.tons, cost=row.cost))
+        items.append(
+            LineItem(name=f"{bay.kind} bay fire control", tons=BAY_FIRE_CONTROL_TONS, cost=0.0)
+        )
+    return len(design.bays)
+
+
+def _build_screens(design: ShipDesign, items: list[LineItem]) -> None:
+    for screen in design.screens:
+        row = SCREENS[screen.kind]
+        items.append(LineItem(name=f"{screen.kind} screen", tons=row.tons, cost=row.cost))
+
+
 def _build_crew(design: ShipDesign, drive_tons: float, hardpoints_used: int) -> Crew:
     has_jump_control_software = design.computer is not None and any(
         software.name == "jump_control" for software in design.computer.software
@@ -294,11 +316,16 @@ def build_ship(design: ShipDesign) -> Ship:
     hull_structure_bonus = _build_fittings(design, items)
 
     hardpoints_used = _build_turrets(design, items)
+    hardpoints_used += _build_bays(design, items)
+    _build_screens(design, items)
     hardpoints = 1 if design.hull_class is HullClass.SMALL_CRAFT else hull_tons // 100
     if hardpoints_used > hardpoints:
         raise ValueError(
             f"{hardpoints_used} weapon systems exceed {hardpoints} hardpoints (1 per 100 tons)"
         )
+
+    if design.hull_class is HullClass.SMALL_CRAFT and design.bays:
+        raise ValueError("small craft cannot mount a weapon bay")
 
     if design.hull_class is HullClass.SMALL_CRAFT:
         energy_weapon_count = sum(

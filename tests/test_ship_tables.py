@@ -4,6 +4,7 @@ import pytest
 
 from cetools.engine.ships.tables import (
     ARMOR,
+    BAYS,
     BRIDGE_SIZES,
     COCKPITS,
     COMPUTERS,
@@ -14,6 +15,7 @@ from cetools.engine.ships.tables import (
     FITTINGS,
     HULLS,
     QUARTERS,
+    SCREENS,
     SMALL_CRAFT_DRIVE_PERFORMANCE,
     SMALL_CRAFT_ENERGY_CAPS,
     SMALL_CRAFT_HULLS,
@@ -21,6 +23,7 @@ from cetools.engine.ships.tables import (
     TURRET_MOUNTS,
     TURRET_WEAPONS,
     ArmorRow,
+    BayRow,
     CockpitRow,
     ComputerRow,
     DriveRow,
@@ -29,6 +32,7 @@ from cetools.engine.ships.tables import (
     HullRow,
     MountRow,
     QuartersRow,
+    ScreenRow,
     SoftwareRow,
     WeaponRow,
 )
@@ -260,6 +264,33 @@ def test_energy_weapons_are_flagged_for_the_small_craft_cap():
     assert TURRET_WEAPONS["sandcaster"].energy is False
 
 
+# --- Bays / screens (US4, research.md Part H) ---
+
+
+def test_bays_cover_the_four_srd_kinds_at_50_tons_each():
+    assert set(BAYS) == {"missile_bank", "particle", "meson", "fusion"}
+    for row in BAYS.values():
+        assert row.tons == 50
+
+
+def test_bays_match_srd_costs():
+    assert BAYS["missile_bank"] == BayRow(tons=50, cost=12)
+    assert BAYS["particle"] == BayRow(tons=50, cost=20)
+    assert BAYS["meson"] == BayRow(tons=50, cost=50)
+    assert BAYS["fusion"] == BayRow(tons=50, cost=8)
+
+
+def test_screens_cover_the_two_srd_kinds_at_50_tons_each():
+    assert set(SCREENS) == {"meson_screen", "nuclear_damper"}
+    for row in SCREENS.values():
+        assert row.tons == 50
+
+
+def test_screens_match_srd_costs():
+    assert SCREENS["meson_screen"] == ScreenRow(tons=50, cost=60)
+    assert SCREENS["nuclear_damper"] == ScreenRow(tons=50, cost=50)
+
+
 # --- Small craft (US3) ---
 
 
@@ -341,6 +372,8 @@ ROW_TYPES = (
     MountRow,
     WeaponRow,
     CockpitRow,
+    BayRow,
+    ScreenRow,
 )
 
 

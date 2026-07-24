@@ -12,6 +12,11 @@ weapons constrained to the power plant's energy-weapon cap. Maneuver and power
 drive codes are chosen together, since a small hull's tight tonnage budget
 means the choice must be filtered for affordability up front rather than
 corrected after the fact (unlike the starship path's looser margins).
+
+Bays and screens (research.md Part H, FR-020) are only ever offered on the
+standard-hull path, and only among kinds that fit the hardpoints and tonnage
+still free after turrets are chosen—never on small craft, which forbid bays
+outright.
 """
 
 from __future__ import annotations
@@ -19,19 +24,22 @@ from __future__ import annotations
 import math
 
 from cetools.engine.rolls import RandomRolls, RollName, Rolls
-from cetools.engine.ships.builder import build_ship
+from cetools.engine.ships.builder import BAY_FIRE_CONTROL_TONS, build_ship
 from cetools.engine.ships.models import (
     ArmorFit,
     ArmorType,
+    BayFit,
     ComputerFit,
     Configuration,
     FittingFit,
+    ScreenFit,
     Ship,
     ShipDesign,
     SoftwareFit,
     TurretFit,
 )
 from cetools.engine.ships.tables import (
+    BAYS,
     BRIDGE_SIZES,
     COCKPITS,
     DRIVE_COSTS,
@@ -40,6 +48,7 @@ from cetools.engine.ships.tables import (
     FITTINGS,
     HULLS,
     QUARTERS,
+    SCREENS,
     SMALL_CRAFT_DRIVE_PERFORMANCE,
     SMALL_CRAFT_ENERGY_CAPS,
     SMALL_CRAFT_HULLS,
@@ -192,6 +201,33 @@ def _select_turrets(
     return tuple(turrets), remaining
 
 
+def _select_bay(
+    rolls: Rolls, hardpoints_remaining: int, remaining: float
+) -> tuple[BayFit | None, int, float]:
+    """Pick a bay only among kinds that fit both the remaining hardpoints and
+    tonnage (50 t plus fire control), so a chosen bay never needs correction."""
+    if hardpoints_remaining <= 0:
+        return None, hardpoints_remaining, remaining
+    candidates: tuple[str | None, ...] = (None,) + tuple(
+        kind for kind, row in BAYS.items() if row.tons + BAY_FIRE_CONTROL_TONS <= remaining
+    )
+    kind = rolls.choose(candidates, RollName.SHIP_BAY)
+    if kind is None:
+        return None, hardpoints_remaining, remaining
+    tons = BAYS[kind].tons + BAY_FIRE_CONTROL_TONS
+    return BayFit(kind=kind), hardpoints_remaining - 1, remaining - tons
+
+
+def _select_screen(rolls: Rolls, remaining: float) -> tuple[ScreenFit | None, float]:
+    candidates: tuple[str | None, ...] = (None,) + tuple(
+        kind for kind, row in SCREENS.items() if row.tons <= remaining
+    )
+    kind = rolls.choose(candidates, RollName.SHIP_SCREEN)
+    if kind is None:
+        return None, remaining
+    return ScreenFit(kind=kind), remaining - SCREENS[kind].tons
+
+
 def _select_small_craft_hull_tons(rolls: Rolls, hull_size: int | None) -> int:
     if hull_size is not None:
         if hull_size not in SMALL_CRAFT_HULLS:
@@ -340,6 +376,10 @@ def generate_ship(
     fitting, remaining = _select_fitting(rolls, remaining)
     turrets, remaining = _select_turrets(rolls, hull_tons, remaining)
 
+    hardpoints_remaining = hull_tons // 100 - len(turrets)
+    bay, hardpoints_remaining, remaining = _select_bay(rolls, hardpoints_remaining, remaining)
+    screen, remaining = _select_screen(rolls, remaining)
+
     design = ShipDesign(
         hull_tons=hull_tons,
         configuration=configuration,
@@ -353,5 +393,7 @@ def generate_ship(
         staterooms=staterooms,
         fittings=(fitting,) if fitting is not None else (),
         turrets=turrets,
+        bays=(bay,) if bay is not None else (),
+        screens=(screen,) if screen is not None else (),
     )
     return build_ship(design)
