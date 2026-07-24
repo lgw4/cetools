@@ -1,0 +1,274 @@
+import pytest
+
+from cetools.engine.ships import (
+    ArmorFit,
+    ArmorType,
+    ComputerFit,
+    Configuration,
+    FittingFit,
+    ShipDesign,
+    SoftwareFit,
+    TurretFit,
+    build_ship,
+    load_design,
+)
+
+_EXAMPLES = "specs/010-starship-generator/examples"
+
+
+# --- SC-002: golden SRD reference designs ---
+
+
+def test_free_trader_golden_figures():
+    ship = build_ship(load_design(f"{_EXAMPLES}/free-trader.toml"))
+
+    assert ship.jump_rating == 1
+    assert ship.maneuver_rating == 1
+    assert ship.power_rating == 1
+    assert ship.assumed_jump_distance == 1
+    assert ship.jump_fuel == pytest.approx(20.0)
+    assert ship.power_fuel == pytest.approx(2.0)
+    assert ship.tonnage_used == pytest.approx(65.0)
+    assert ship.cargo_tons == pytest.approx(135.0)
+    assert ship.hull_points == 4
+    assert ship.structure_points == 4
+    assert ship.hardpoints == 2
+    assert ship.hardpoints_used == 0
+    assert ship.total_cost == pytest.approx(29.772)
+    assert ship.build_weeks == 44
+
+    crew = ship.crew
+    assert crew.pilot == 1
+    assert crew.navigator == 1
+    assert crew.engineers == 1
+    assert crew.gunners == 0
+    assert crew.screen_operators == 0
+    assert crew.medic == 1
+    assert crew.stewards == 1
+    assert crew.total == 5
+
+
+def test_scout_courier_golden_figures():
+    ship = build_ship(load_design(f"{_EXAMPLES}/scout-courier.toml"))
+
+    assert ship.jump_rating == 2
+    assert ship.maneuver_rating == 2
+    assert ship.power_rating == 2
+    assert ship.assumed_jump_distance == 2
+    assert ship.jump_fuel == pytest.approx(20.0)
+    assert ship.power_fuel == pytest.approx(2.0)
+    assert ship.tonnage_used == pytest.approx(62.0)
+    assert ship.cargo_tons == pytest.approx(38.0)
+    assert ship.hull_points == 2
+    assert ship.structure_points == 2
+    assert ship.hardpoints == 1
+    assert ship.hardpoints_used == 1
+    assert ship.total_cost == pytest.approx(28.06)
+    assert ship.build_weeks == 36
+
+    crew = ship.crew
+    assert crew.pilot == 1
+    assert crew.navigator == 0  # Jump-Control software present
+    assert crew.engineers == 1
+    assert crew.gunners == 1
+    assert crew.screen_operators == 0
+    assert crew.medic == 0
+    assert crew.stewards == 0
+    assert crew.total == 3
+
+
+def test_warship_golden_figures():
+    ship = build_ship(load_design(f"{_EXAMPLES}/warship.toml"))
+
+    assert ship.jump_rating == 1
+    assert ship.maneuver_rating == 1
+    assert ship.power_rating == 1
+    assert ship.assumed_jump_distance == 1
+    assert ship.jump_fuel == pytest.approx(80.0)
+    assert ship.power_fuel == pytest.approx(8.0)
+    assert ship.tonnage_used == pytest.approx(264.0)
+    assert ship.cargo_tons == pytest.approx(536.0)
+    assert ship.hull_points == 16
+    assert ship.structure_points == 16
+    assert ship.hardpoints == 8
+    assert ship.hardpoints_used == 2
+    assert ship.total_cost == pytest.approx(183.825)
+    assert ship.build_weeks == 92
+
+    crew = ship.crew
+    assert crew.pilot == 1
+    assert crew.navigator == 1
+    assert crew.engineers == 2
+    assert crew.gunners == 2
+    assert crew.screen_operators == 0
+    assert crew.medic == 0
+    assert crew.stewards == 0
+    assert crew.total == 6
+
+
+# --- FR-015 / SC-005: rejections, one per builder-enforced constraint ---
+
+
+def test_rejects_an_untabulated_hull_size():
+    design = ShipDesign(hull_tons=150, jump_code="A", power_code="A")
+    with pytest.raises(ValueError, match="not a tabulated hull size"):
+        build_ship(design)
+
+
+def test_rejects_a_drive_code_not_available_on_this_hull():
+    design = ShipDesign(hull_tons=200, jump_code="Z", power_code="A")
+    with pytest.raises(ValueError, match="not available on"):
+        build_ship(design)
+
+
+def test_rejects_a_starship_missing_a_jump_drive():
+    design = ShipDesign(hull_tons=200, power_code="A")
+    with pytest.raises(ValueError, match="starship requires a jump drive"):
+        build_ship(design)
+
+
+def test_rejects_a_powered_craft_missing_a_power_plant():
+    design = ShipDesign(hull_tons=200, jump_code="A")
+    with pytest.raises(ValueError, match="powered craft requires a power plant"):
+        build_ship(design)
+
+
+def test_rejects_a_power_plant_below_the_higher_drive_rating():
+    design = ShipDesign(hull_tons=200, jump_code="C", power_code="A")
+    with pytest.raises(ValueError, match=r"power plant rating 1 below required 3"):
+        build_ship(design)
+
+
+def test_rejects_software_over_the_computer_rating():
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        computer=ComputerFit(model=1, software=(SoftwareFit(name="fire_control", level=2),)),
+    )
+    with pytest.raises(ValueError, match="software rating 10 exceeds computer rating 5"):
+        build_ship(design)
+
+
+def test_rejects_fuel_scoops_on_a_distributed_hull():
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        configuration=Configuration.DISTRIBUTED,
+        fittings=(FittingFit(kind="fuel_scoops"),),
+    )
+    with pytest.raises(ValueError, match="a distributed hull cannot mount fuel scoops"):
+        build_ship(design)
+
+
+def test_rejects_more_weapon_systems_than_hardpoints():
+    design = ShipDesign(
+        hull_tons=100,
+        jump_code="A",
+        power_code="A",
+        turrets=(
+            TurretFit(mount="single", weapons=("sandcaster",)),
+            TurretFit(mount="single", weapons=("sandcaster",)),
+        ),
+    )
+    with pytest.raises(ValueError, match=r"2 weapon systems exceed 1 hardpoints"):
+        build_ship(design)
+
+
+def test_rejects_tonnage_over_allocation():
+    design = ShipDesign(hull_tons=100, jump_code="A", power_code="A", staterooms=30)
+    with pytest.raises(ValueError, match="components use .* tons, hull holds 100"):
+        build_ship(design)
+
+
+def test_fuel_scoops_are_allowed_on_a_non_distributed_hull():
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        fittings=(FittingFit(kind="fuel_scoops"),),
+    )
+    build_ship(design)  # does not raise
+
+
+# --- FR-015: first violation in SRD build order wins ---
+
+
+def test_first_violation_in_build_order_is_reported():
+    # The maneuver-drive step (build order 3) precedes the jump/power steps
+    # (4-6); a design broken in both places must report the maneuver error.
+    design = ShipDesign(hull_tons=200, maneuver_code="Z", jump_code="A")
+    with pytest.raises(ValueError, match="drive code Z is not available"):
+        build_ship(design)
+
+
+def test_hull_size_violation_precedes_a_drive_violation():
+    design = ShipDesign(hull_tons=150, jump_code="Z", power_code="A")
+    with pytest.raises(ValueError, match="not a tabulated hull size"):
+        build_ship(design)
+
+
+# --- computer hardware option cost combinations ---
+
+
+def test_computer_jump_control_and_hardened_together_cost_double():
+    plain = build_ship(
+        ShipDesign(hull_tons=200, jump_code="A", power_code="A", computer=ComputerFit(model=1))
+    )
+    both = build_ship(
+        ShipDesign(
+            hull_tons=200,
+            jump_code="A",
+            power_code="A",
+            computer=ComputerFit(model=1, jump_control=True, hardened=True),
+        )
+    )
+    plain_computer_cost = next(
+        item.cost for item in plain.line_items if item.name.startswith("computer")
+    )
+    both_computer_cost = next(
+        item.cost for item in both.line_items if item.name.startswith("computer")
+    )
+    assert both_computer_cost == pytest.approx(plain_computer_cost * 2.0)
+
+
+def test_computer_single_option_costs_one_and_a_half_times():
+    plain = build_ship(
+        ShipDesign(hull_tons=200, jump_code="A", power_code="A", computer=ComputerFit(model=1))
+    )
+    hardened = build_ship(
+        ShipDesign(
+            hull_tons=200,
+            jump_code="A",
+            power_code="A",
+            computer=ComputerFit(model=1, hardened=True),
+        )
+    )
+    plain_computer_cost = next(
+        item.cost for item in plain.line_items if item.name.startswith("computer")
+    )
+    hardened_computer_cost = next(
+        item.cost for item in hardened.line_items if item.name.startswith("computer")
+    )
+    assert hardened_computer_cost == pytest.approx(plain_computer_cost * 1.5)
+
+
+def test_armor_options_add_a_per_ton_cost():
+    bare = build_ship(
+        ShipDesign(
+            hull_tons=200,
+            jump_code="A",
+            power_code="A",
+            armor=(ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5),),
+        )
+    )
+    with_reflec = build_ship(
+        ShipDesign(
+            hull_tons=200,
+            jump_code="A",
+            power_code="A",
+            armor=(ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5, options=("reflec",)),),
+        )
+    )
+    assert with_reflec.total_cost > bare.total_cost

@@ -749,3 +749,63 @@ def test_character_seed_with_count_fixes_the_whole_sequence():
     blocks = [block for block in first.stdout.strip().split("\n\n") if block.strip()]
     assert len(blocks) == 3
     assert len(set(blocks)) > 1
+
+
+# --- `cetools ship build` (T018) ---
+
+_FREE_TRADER_TOML = "specs/010-starship-generator/examples/free-trader.toml"
+
+
+def test_ship_build_prints_sheet_and_exits_0():
+    result = runner.invoke(app, ["ship", "build", _FREE_TRADER_TOML])
+    assert result.exit_code == 0
+    assert "Beowulf" in result.stdout
+
+
+def test_ship_build_toml_emits_round_trippable_design():
+    result = runner.invoke(app, ["ship", "build", _FREE_TRADER_TOML, "--toml"])
+    assert result.exit_code == 0
+    assert "hull_tons = 200" in result.stdout
+
+    from cetools.engine.ships import build_ship, loads_design
+
+    design = loads_design(result.stdout)
+    build_ship(design)  # round-tripped design must still be legal
+
+
+def test_ship_build_out_writes_a_file(tmp_path):
+    out_path = tmp_path / "beowulf.toml"
+    result = runner.invoke(
+        app, ["ship", "build", _FREE_TRADER_TOML, "--toml", "--out", str(out_path)]
+    )
+    assert result.exit_code == 0
+    assert out_path.exists()
+    assert "hull_tons = 200" in out_path.read_text()
+
+
+def test_ship_build_out_without_toml_exits_1():
+    result = runner.invoke(app, ["ship", "build", _FREE_TRADER_TOML, "--out", "ignored.toml"])
+    assert result.exit_code == 1
+    assert "--toml" in result.stderr
+
+
+def test_ship_build_missing_file_exits_1():
+    result = runner.invoke(app, ["ship", "build", "/no/such/design.toml"])
+    assert result.exit_code == 1
+    assert "cannot read design file" in result.stderr
+
+
+def test_ship_build_malformed_toml_exits_1(tmp_path):
+    bad = tmp_path / "bad.toml"
+    bad.write_text("not valid toml [[[")
+    result = runner.invoke(app, ["ship", "build", str(bad)])
+    assert result.exit_code == 1
+    assert result.stderr.strip()
+
+
+def test_ship_build_rules_illegal_design_exits_1(tmp_path):
+    illegal = tmp_path / "illegal.toml"
+    illegal.write_text('hull_tons = 150\n\n[drives]\njump = "A"\npower = "A"\n')
+    result = runner.invoke(app, ["ship", "build", str(illegal)])
+    assert result.exit_code == 1
+    assert "not a tabulated hull size" in result.stderr
