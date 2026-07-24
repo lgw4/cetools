@@ -45,13 +45,15 @@ def test_armor_fit_accepts_a_valid_layer():
     assert fit.percent == 10
 
 
-def test_armor_fit_rejects_a_non_5_percent_increment():
-    with pytest.raises(ValueError, match="multiple of 5"):
-        ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=7)
+def test_armor_fit_accepts_a_non_5_percent_increment_shape_only():
+    # The 5% rule is an SRD rule, not a shape constraint (FR-015): only
+    # `build_ship`'s armor step rejects it, so construction here succeeds.
+    fit = ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=7)
+    assert fit.percent == 7
 
 
 def test_armor_fit_rejects_zero_percent():
-    with pytest.raises(ValueError, match="multiple of 5"):
+    with pytest.raises(ValueError, match="must be positive"):
         ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=0)
 
 

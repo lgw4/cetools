@@ -1,4 +1,11 @@
-from cetools.engine.ships import ShipDesign, build_ship, load_design, render_sheet
+from cetools.engine.ships import (
+    AmmoFit,
+    ShipDesign,
+    TurretFit,
+    build_ship,
+    load_design,
+    render_sheet,
+)
 
 _EXAMPLES = "specs/010-starship-generator/examples"
 
@@ -84,3 +91,22 @@ def test_render_sheet_shows_screen_operators_in_crew():
     ship = build_ship(load_design(f"{_EXAMPLES}/heavy-cruiser.toml"))
     sheet = render_sheet(ship)
     assert "screen operators 1" in sheet
+
+
+def test_render_sheet_shows_loaded_ammunition_in_armaments():
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        turrets=(
+            TurretFit(
+                mount="single",
+                weapons=("missile_rack",),
+                ammo=(AmmoFit(kind="missile", type="standard", count=12),),
+            ),
+        ),
+    )
+    ship = build_ship(design)
+    sheet = render_sheet(ship)
+    assert "Armaments:" in sheet
+    assert "standard missile ammo x12" in sheet

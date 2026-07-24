@@ -8,11 +8,6 @@ several reports the first violation in build order (FR-015, SC-005).
 `ShipDesign.__post_init__` already guarantees the record is well-formed; this
 module only ever rejects *rules* violations.
 
-Ammunition (`TurretFit.ammo`) is accepted and carried on the design for the
-sheet and round-trip, but is not tabulated in `tables.py` (the SRD ammunition
-price list is not part of this feature's research digest), so it adds no
-tonnage or cost here.
-
 `HullClass.SMALL_CRAFT` designs (10-95 tons) follow the same build order under
 a distinct ruleset (research.md Part K): a cockpit instead of a bridge, no
 jump drive, power-plant fuel rounded to 0.1 ton with a one-week floor, exactly
@@ -25,6 +20,7 @@ import math
 
 from cetools.engine.ships.models import Configuration, Crew, HullClass, LineItem, Ship, ShipDesign
 from cetools.engine.ships.tables import (
+    AMMO,
     ARMOR,
     BAYS,
     BRIDGE_SIZES,
@@ -51,6 +47,13 @@ BAY_FIRE_CONTROL_TONS = 1.0
 """Fire control a weapon bay needs beyond its own 50 t (research Part H). Not
 tabulated data—applied uniformly to every bay kind—so it lives here rather
 than in `tables.BAYS`, and `generator.py` imports it for the same allocation."""
+
+JUMP_CONTROL_RATING_BONUS = 5
+"""The jump-control computer option's "+5 jump rating" (research.md Part E):
+raises the effective computer rating available for installed software by 5,
+letting a jump-control computer run 5 more points of software than its bare
+model rating allows. Not tabulated data (it modifies a `COMPUTERS` row rather
+than being one), so it lives here rather than in `tables.py`."""
 
 
 def _drive_letter(code: str) -> str:
@@ -85,6 +88,8 @@ def _build_armor(
     design: ShipDesign, items: list[LineItem], hull_tons: int, base_hull_cost: float
 ) -> None:
     for fit in design.armor:
+        if fit.percent % 5 != 0:
+            raise ValueError("armor must be added in 5% increments (min 1 ton)")
         row = ARMOR[fit.type.value]
         increments = fit.percent // 5
         tons_per_increment = max(1.0, hull_tons * 0.05)
@@ -184,8 +189,11 @@ def _build_computer(design: ShipDesign, items: list[LineItem]) -> None:
         total_rating += rating
         items.append(LineItem(name=f"{software.name} software", tons=0.0, cost=cost))
 
-    if total_rating > row.rating:
-        raise ValueError(f"software rating {total_rating:g} exceeds computer rating {row.rating}")
+    effective_rating = row.rating + JUMP_CONTROL_RATING_BONUS if fit.jump_control else row.rating
+    if total_rating > effective_rating:
+        raise ValueError(
+            f"software rating {total_rating:g} exceeds computer rating {effective_rating:g}"
+        )
 
 
 def _build_electronics(design: ShipDesign, items: list[LineItem]) -> None:
@@ -225,6 +233,12 @@ def _build_fittings(design: ShipDesign, items: list[LineItem]) -> int:
     return bonus
 
 
+def _ammo_key(ammo) -> str:
+    """`AMMO`'s key for one `AmmoFit`: the kind, or ``missile_<type>`` for a
+    missile (whose price depends on standard/smart/nuclear, not the kind alone)."""
+    return f"missile_{ammo.type}" if ammo.kind == "missile" else ammo.kind
+
+
 def _build_turrets(design: ShipDesign, items: list[LineItem]) -> int:
     for turret in design.turrets:
         mount = TURRET_MOUNTS[turret.mount]
@@ -232,6 +246,15 @@ def _build_turrets(design: ShipDesign, items: list[LineItem]) -> int:
         items.append(
             LineItem(name=f"{turret.mount} turret", tons=mount.tons, cost=mount.cost + weapon_cost)
         )
+        for ammo in turret.ammo:
+            row = AMMO[_ammo_key(ammo)]
+            items.append(
+                LineItem(
+                    name=f"{ammo.kind} ammo" if ammo.type is None else f"{ammo.type} missile ammo",
+                    tons=ammo.count / row.rounds_per_ton,
+                    cost=ammo.count * row.cost_per_round,
+                )
+            )
     return len(design.turrets)
 
 
@@ -278,6 +301,17 @@ def _build_crew(design: ShipDesign, drive_tons: float, hardpoints_used: int) -> 
         medic=medic,
         stewards=stewards,
     )
+
+
+def _total_cost(items: list[LineItem], *, discount: bool) -> float:
+    """Sum every `LineItem`'s cost, applying the 10% standard-design discount
+    (research Part J) to everything except fuel and ammunition, which the SRD
+    never discounts."""
+    exempt = sum(item.cost for item in items if item.name.endswith(("fuel", "ammo")))
+    discountable = sum(item.cost for item in items) - exempt
+    if discount:
+        discountable *= 0.9
+    return discountable + exempt
 
 
 def build_ship(design: ShipDesign) -> Ship:
@@ -353,9 +387,7 @@ def build_ship(design: ShipDesign) -> Ship:
     jump_tons = DRIVE_COSTS[_drive_letter(design.jump_code)].jump_tons if design.jump_code else 0
     crew = _build_crew(design, maneuver_tons + jump_tons + power_tons, hardpoints_used)
 
-    total_cost = sum(item.cost for item in items)
-    if design.standard_design:
-        total_cost *= 0.9
+    total_cost = _total_cost(items, discount=design.standard_design)
 
     return Ship(
         design=design,

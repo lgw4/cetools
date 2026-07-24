@@ -11,6 +11,21 @@ from __future__ import annotations
 from cetools.engine.ships.models import Ship
 
 
+def _format_turret(turret) -> str:
+    text = f"{turret.mount} turret [{', '.join(turret.weapons)}]"
+    if turret.ammo:
+        ammo_strs = [
+            (
+                f"{ammo.kind} ammo x{ammo.count}"
+                if ammo.type is None
+                else f"{ammo.type} missile ammo x{ammo.count}"
+            )
+            for ammo in turret.ammo
+        ]
+        text += f" (ammo: {', '.join(ammo_strs)})"
+    return text
+
+
 def render_sheet(ship: Ship) -> str:
     design = ship.design
     lines = [design.name if design.name is not None else "Unnamed Ship"]
@@ -84,9 +99,7 @@ def render_sheet(ship: Ship) -> str:
         lines.append(f"Armor: {armor_strs}")
 
     if design.turrets or design.bays or design.screens:
-        armament_strs = [
-            f"{turret.mount} turret [{', '.join(turret.weapons)}]" for turret in design.turrets
-        ]
+        armament_strs = [_format_turret(turret) for turret in design.turrets]
         armament_strs += [f"{bay.kind} bay" for bay in design.bays]
         armament_strs += [f"{screen.kind} screen" for screen in design.screens]
         lines.append(f"Armaments: {'; '.join(armament_strs)}")

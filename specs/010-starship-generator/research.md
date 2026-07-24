@@ -125,6 +125,12 @@ Ship **software** each has a rating cost against the computer's rating and an MC
 5/weapon @ MCr 2, Jump Control 5×Jn @ MCr 0.1×Jn, Evade, Auto-Repair, etc.); total software rating
 MUST NOT exceed the computer's rating (reject otherwise).
 
+**Ambiguity resolved**: jump-control specialization's "+5 jump rating" raises the computer's
+*effective rating* by 5 for the software-rating check, not the ship's Jump-N drive number (which is
+derived from hull + drive code alone, Part C2)—the option lets the computer run 5 more points of
+software than its bare model rating would allow. The builder applies this bonus in the same step
+that rejects over-rating software.
+
 **Electronics** (FR-009)—packages with (tons, cost): Standard (0t, included in bridge), Basic
 Civilian (1t, Cr 50k), Basic Military (2t, MCr 1), Advanced (3t, MCr 2), Very Advanced (5t, MCr 4).
 

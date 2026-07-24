@@ -194,6 +194,7 @@ reports the first one (FR-015):
 | `FITTINGS` | `dict[str, FittingRow]` | fitting name → (tons, cost, extra rules) |
 | `TURRET_MOUNTS` | `dict[str, MountRow]` | mount → (tons, cost, weapon slots) |
 | `TURRET_WEAPONS` | `dict[str, WeaponRow]` | weapon → cost (+ ammo rules) |
+| `AMMO` | `dict[str, AmmoRow]` | ammunition kind (sand barrels, missile by type) → (rounds/ton, cost/round) |
 | `BAYS` | `dict[str, BayRow]` | bay → (50 t, cost, +1 t fire control) |
 | `SCREENS` | `dict[str, ScreenRow]` | screen → (50 t, cost) |
 | `COCKPITS` | `dict[str, CockpitRow]` | small-craft cockpit → (tons, crew, cost) |

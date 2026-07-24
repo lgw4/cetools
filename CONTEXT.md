@@ -117,7 +117,10 @@ Psi strength is appended after a hyphen.
 **Ship design**—the Cepheus Engine SRD "Ship Design and Construction" rules, digested in
 `specs/010-starship-generator/research.md`. Where the SRD defers a step to referee discretion—crew
 role assignment beyond the stated minimums, mission-specific fittings—cetools invents nothing: those
-steps are out of automated scope and documented here as omitted (FR-002).
+steps are out of automated scope and documented here as omitted (FR-002). The same discipline
+applies to catalog entries the SRD names but never prices: a beam laser is named in the Turret
+Weapons prose (FR-010) alongside pulse laser, sandcaster, and particle beam, but the source page
+lists no cost for it, so `TURRET_WEAPONS` omits it rather than guessing a figure.
 
 **`ShipDesign`**—the input record: hull, configuration, drives, power plant, bridge or cockpit,
 computer, software, electronics, armor, quarters, fittings, turrets, bays, screens, and the

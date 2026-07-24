@@ -305,3 +305,12 @@ Each increment leaves the suite green and adds no regression to the previous one
   (SC-006)—if a story tempts you to branch on a table key in `builder.py`, add a table column instead
 - Engine modules must never import from `cli/` (Constitution II)
 - Commit after each task or logical group; stop at any checkpoint to validate a story independently
+
+---
+
+## Phase 8: Convergence
+
+- [X] T068 Move the 5%-armor-increment rule out of `ArmorFit.__post_init__` in `src/cetools/engine/ships/models.py` and into the armor step of `build_ship` in `src/cetools/engine/ships/builder.py`, rejecting with the data-model message shape `armor must be added in 5% increments (min 1 ton)`, and add tests proving a design with both an untabulated hull size and a non-5% armor layer reports the *hull* error (hull precedes armor in build order) and that `loads_design` accepts a 7% armor layer without raising, per FR-015 / data-model.md "Builder-enforced constraints" #2 / contracts/design-schema.md "Rules enforced at load" (contradicts)
+- [X] T069 Cost and allocate turret ammunition: add an ammunition table (missiles at 12 per ton with per-type cost, sand barrels) to `src/cetools/engine/ships/tables.py`, consume its tonnage and cost as `LineItem`s in `src/cetools/engine/ships/builder.py`, exclude fuel and ammunition line items from the 10% standard-design discount, render loaded ammunition in the armaments section of `src/cetools/engine/ships/sheet.py`, and add tests asserting that 120 missiles add 10 tons and that the discount leaves ammunition untouched, per FR-010 / FR-013 / FR-022 / research.md Part H (partial)
+- [X] T070 Resolve the computer jump-control specialization's "+5 jump rating" from research.md Part E in `src/cetools/engine/ships/builder.py`: either add the rating bonus to the software-rating check with a covering test in `tests/test_ship_builder.py`, or record the cost-only reading as an explicit SRD-ambiguity resolution in `specs/010-starship-generator/research.md` Part E, per FR-007 (partial)
+- [X] T071 Extend the FR-002 omissions note in `CONTEXT.md` to name the SRD entries left out because the source page never prices them — the beam laser named in FR-010 and any ammunition entry T069 cannot source — so every deliberate omission is documented where FR-002 requires rather than only in a `tables.py` docstring, per FR-002 / FR-010 (partial)

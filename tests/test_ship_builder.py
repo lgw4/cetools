@@ -1,6 +1,7 @@
 import pytest
 
 from cetools.engine.ships import (
+    AmmoFit,
     ArmorFit,
     ArmorType,
     BayFit,
@@ -180,6 +181,17 @@ def test_rejects_an_untabulated_hull_size():
         build_ship(design)
 
 
+def test_rejects_a_non_5_percent_armor_increment():
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        armor=(ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=7),),
+    )
+    with pytest.raises(ValueError, match="armor must be added in 5% increments"):
+        build_ship(design)
+
+
 def test_rejects_a_drive_code_not_available_on_this_hull():
     design = ShipDesign(hull_tons=200, jump_code="Z", power_code="A")
     with pytest.raises(ValueError, match="not available on"):
@@ -274,6 +286,36 @@ def test_hull_size_violation_precedes_a_drive_violation():
         build_ship(design)
 
 
+def test_hull_size_violation_precedes_an_armor_increment_violation():
+    # Hull (build order 1) precedes armor (build order 2); a design broken in
+    # both places must report the hull error, not the armor error.
+    design = ShipDesign(
+        hull_tons=150,
+        jump_code="A",
+        power_code="A",
+        armor=(ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=7),),
+    )
+    with pytest.raises(ValueError, match="not a tabulated hull size"):
+        build_ship(design)
+
+
+# --- FR-007: jump-control's "+5 jump rating" (research.md Part E) ---
+
+
+def test_jump_control_option_raises_the_effective_software_rating_by_5():
+    # Model 1's bare rating is 5; fire_control at level 2 costs rating 10,
+    # which exceeds a plain model 1 but fits under jump_control's +5 bonus.
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        computer=ComputerFit(
+            model=1, jump_control=True, software=(SoftwareFit(name="fire_control", level=2),)
+        ),
+    )
+    build_ship(design)  # does not raise
+
+
 # --- computer hardware option cost combinations ---
 
 
@@ -337,6 +379,77 @@ def test_armor_options_add_a_per_ton_cost():
         )
     )
     assert with_reflec.total_cost > bare.total_cost
+
+
+# --- FR-010 / FR-013: turret ammunition tonnage, cost, and the discount ---
+
+
+def test_120_missiles_add_10_tons():
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        turrets=(
+            TurretFit(
+                mount="single",
+                weapons=("missile_rack",),
+                ammo=(AmmoFit(kind="missile", type="standard", count=120),),
+            ),
+        ),
+    )
+    ship = build_ship(design)
+    ammo_item = next(item for item in ship.line_items if item.name.endswith("ammo"))
+    assert ammo_item.tons == pytest.approx(10.0)
+    assert ammo_item.cost == pytest.approx(120 * 1_250 / 1_000_000)
+
+
+def test_sand_barrels_add_tonnage_and_cost():
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        turrets=(
+            TurretFit(
+                mount="single",
+                weapons=("sandcaster",),
+                ammo=(AmmoFit(kind="sand_barrels", count=20),),
+            ),
+        ),
+    )
+    ship = build_ship(design)
+    ammo_item = next(item for item in ship.line_items if item.name.endswith("ammo"))
+    assert ammo_item.tons == pytest.approx(1.0)
+    assert ammo_item.cost == pytest.approx(10_000 / 1_000_000)
+
+
+def test_standard_design_discount_leaves_ammunition_untouched():
+    def make(standard_design):
+        return ShipDesign(
+            hull_tons=200,
+            jump_code="A",
+            power_code="A",
+            standard_design=standard_design,
+            turrets=(
+                TurretFit(
+                    mount="single",
+                    weapons=("missile_rack",),
+                    ammo=(AmmoFit(kind="missile", type="standard", count=120),),
+                ),
+            ),
+        )
+
+    plain = build_ship(make(False))
+    discounted = build_ship(make(True))
+
+    plain_ammo_cost = next(item.cost for item in plain.line_items if item.name.endswith("ammo"))
+    discounted_ammo_cost = next(
+        item.cost for item in discounted.line_items if item.name.endswith("ammo")
+    )
+    assert discounted_ammo_cost == pytest.approx(plain_ammo_cost)
+
+    non_ammo_plain = plain.total_cost - plain_ammo_cost
+    non_ammo_discounted = discounted.total_cost - discounted_ammo_cost
+    assert non_ammo_discounted == pytest.approx(non_ammo_plain * 0.9)
 
 
 # --- US3: small craft (research.md Part K) ---

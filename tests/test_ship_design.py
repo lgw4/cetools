@@ -120,6 +120,15 @@ def test_a_well_formed_but_rules_illegal_design_loads_cleanly():
         build_ship(design)
 
 
+def test_loads_design_accepts_a_7_percent_armor_layer():
+    # The 5%-increment rule is build_ship's job, not loads_design's (FR-015;
+    # contracts/design-schema.md "Rules enforced at load").
+    design = loads_design('hull_tons = 200\n\n[[armor]]\ntype = "titanium_steel"\npercent = 7')
+    assert design.armor[0].percent == 7
+    with pytest.raises(ValueError, match="armor must be added in 5% increments"):
+        build_ship(design)
+
+
 # --- US3: small craft cockpit I/O (research.md Part K) ---
 
 

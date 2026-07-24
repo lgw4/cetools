@@ -116,6 +116,14 @@ class WeaponRow:
 
 
 @dataclass(frozen=True)
+class AmmoRow:
+    """One row of the Ammunition table: rounds per ton and cost per round."""
+
+    rounds_per_ton: int
+    cost_per_round: float
+
+
+@dataclass(frozen=True)
 class BayRow:
     """One row of the Weapon Bays table: fixed 50 t plus SRD cost.
 
@@ -687,6 +695,18 @@ TURRET_WEAPONS: dict[str, WeaponRow] = {
 """Turret weapon -> (cost MCr, whether it counts against a small craft's energy-weapon
 cap). The SRD page's Turret Weapons table lists exactly these four; a "beam laser" is
 named in the surrounding prose but never priced, so it is omitted rather than guessed."""
+
+AMMO: dict[str, AmmoRow] = {
+    "sand_barrels": AmmoRow(rounds_per_ton=20, cost_per_round=10_000 / 20 / 1_000_000),
+    "missile_standard": AmmoRow(rounds_per_ton=12, cost_per_round=1_250 / 1_000_000),
+    "missile_smart": AmmoRow(rounds_per_ton=12, cost_per_round=2_500 / 1_000_000),
+    "missile_nuclear": AmmoRow(rounds_per_ton=12, cost_per_round=3_750 / 1_000_000),
+}
+"""Ammunition kind -> (rounds per ton, MCr cost per round). Sand barrels: 20/ton,
+Cr10,000 per ton (Cr500/barrel). Missiles: 12/ton regardless of type, priced per
+missile (standard Cr1,250, smart Cr2,500, nuclear Cr3,750). Keyed by
+`AmmoFit.kind` for sand barrels, or ``f"missile_{AmmoFit.type}"`` for missiles
+(kind is always ``"missile"`` there; the type selects the price)."""
 
 BAYS: dict[str, BayRow] = {
     "missile_bank": BayRow(tons=50, cost=12),

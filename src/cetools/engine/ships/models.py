@@ -62,8 +62,11 @@ class HullClass(Enum):
 
 
 def _validate_armor_fit(fit: ArmorFit) -> None:
-    if fit.percent <= 0 or fit.percent % 5 != 0:
-        raise ValueError(f"armor percent must be a positive multiple of 5, got {fit.percent}")
+    """Shape only: `percent` must be a positive integer. Whether it is a multiple
+    of 5 is an SRD *rule*, checked by `build_ship`'s armor step, not here
+    (FR-015; data-model.md "Builder-enforced constraints" #2)."""
+    if fit.percent <= 0:
+        raise ValueError(f"armor percent must be positive, got {fit.percent}")
     unknown = set(fit.options) - _ARMOR_OPTIONS
     if unknown:
         raise ValueError(f"unknown armor option(s): {sorted(unknown)}")
