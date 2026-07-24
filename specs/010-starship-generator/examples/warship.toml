@@ -1,0 +1,60 @@
+# Warship "Ironclad" -- an 800-ton turret-armed cruiser: titanium steel
+# armor, a hardened computer, two double turrets and a missile turret, with
+# sand barrels and missiles loaded (research Part H).
+#
+# Hand-worked SRD reference figures (SC-002):
+#   jump_rating = 1, maneuver_rating = 1, power_rating = 1
+#   jump_fuel = 80.0 (assumed_jump_distance = 1), power_fuel = 8.0
+#   tonnage_used = 268.0, cargo_tons = 532.0
+#     (= 264.0 unarmed-turret baseline + 1.0 sand barrels at 20/ton
+#        + 1.0 single mount + 2.0 for 24 missiles at 12/ton)
+#   hull_points = 16, structure_points = 16, armor_protection = 4 (10% titanium steel)
+#   hardpoints = 8, hardpoints_used = 3
+#   crew: pilot=1 navigator=1 engineers=2 gunners=3 screen_operators=0
+#         medic=0 stewards=0 (total=7)
+#   total_cost = 184.72 MCr (10% standard-design discount applied)
+#     (= 183.825 baseline + 0.9 x MCr0.95 for the discountable missile turret
+#        + MCr0.01 sand barrels + MCr0.03 missiles, ammunition never discounted)
+#   build_weeks = 92
+
+name = "Ironclad"
+hull_tons = 800
+standard_design = true
+electronics = "advanced"
+
+[drives]
+jump = "D"
+maneuver = "D"
+power = "D"
+
+[computer]
+model = 4
+hardened = true
+software = [
+  { name = "fire_control", level = 2 },
+  { name = "evade", level = 1 },
+]
+
+[quarters]
+staterooms = 6
+
+[[armor]]
+type = "titanium_steel"
+percent = 10
+
+[[fittings]]
+kind = "armory"
+
+[[turrets]]
+mount = "double"
+weapons = ["pulse_laser", "pulse_laser"]
+
+[[turrets]]
+mount = "double"
+weapons = ["particle_beam", "sandcaster"]
+ammo = [{ kind = "sand_barrels", count = 20 }]
+
+[[turrets]]
+mount = "single"
+weapons = ["missile_rack"]
+ammo = [{ kind = "missile", type = "standard", count = 24 }]

@@ -1,0 +1,33 @@
+# Heavy Cruiser "Dreadnought" -- a 1,000-ton bay-and-screen-equipped warship:
+# a 50-ton particle bay and a meson screen alongside modest drives and quarters.
+#
+# Hand-worked SRD reference figures (SC-002):
+#   jump_rating = 1, maneuver_rating = 1, power_rating = 1
+#   jump_fuel = 100.0 (assumed_jump_distance = 1), power_fuel = 10.0
+#   tonnage_used = 302.0, cargo_tons = 698.0
+#   hull_points = 20, structure_points = 20
+#   hardpoints = 10, hardpoints_used = 1
+#   crew: pilot=1 navigator=1 engineers=2 gunners=1 screen_operators=1
+#         medic=0 stewards=0 (total=6)
+#   total_cost = 297.16 MCr (no standard-design discount)
+#   build_weeks = 108
+
+name = "Dreadnought"
+hull_tons = 1000
+
+[drives]
+jump = "E"
+maneuver = "E"
+power = "E"
+
+[computer]
+model = 2
+
+[quarters]
+staterooms = 4
+
+[[bays]]
+kind = "particle"
+
+[[screens]]
+kind = "meson_screen"

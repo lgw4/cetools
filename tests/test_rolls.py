@@ -147,6 +147,30 @@ def test_roll_names_are_unique() -> None:
     assert len(values) == len(set(values))
 
 
+def test_ship_roll_names_exist() -> None:
+    # Every selection the ship builder/generator makes across all four ship
+    # user stories gets its own named roll (research.md Part L).
+    expected = {
+        "SHIP_HULL_SIZE",
+        "SHIP_CONFIGURATION",
+        "SHIP_JUMP_CODE",
+        "SHIP_MANEUVER_CODE",
+        "SHIP_POWER_CODE",
+        "SHIP_ARMOR",
+        "SHIP_COMPUTER",
+        "SHIP_ELECTRONICS",
+        "SHIP_STATEROOMS",
+        "SHIP_FITTING",
+        "SHIP_TURRET_COUNT",
+        "SHIP_TURRET_MOUNT",
+        "SHIP_WEAPON",
+        "SHIP_COCKPIT",
+        "SHIP_BAY",
+        "SHIP_SCREEN",
+    }
+    assert expected <= set(RollName.__members__)
+
+
 def test_bounded_retry_returns_the_first_accepted_candidate() -> None:
     produced = iter([1, 2, 3, 4])
     assert bounded_retry(lambda: next(produced), lambda n: n >= 3) == 3

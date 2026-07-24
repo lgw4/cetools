@@ -1,0 +1,564 @@
+import dataclasses
+
+import pytest
+
+from cetools.engine.ships import build_ship, load_design
+from cetools.engine.ships.models import (
+    AmmoFit,
+    ArmorFit,
+    ArmorType,
+    BayFit,
+    Configuration,
+    FittingFit,
+    ScreenFit,
+    ShipDesign,
+    TurretFit,
+)
+from cetools.engine.ships.tables import (
+    AMMO,
+    ARMOR,
+    ARMOR_OPTIONS,
+    BAYS,
+    BRIDGE_SIZES,
+    COCKPITS,
+    COMPUTERS,
+    CONFIG_MODIFIERS,
+    DRIVE_COSTS,
+    DRIVE_PERFORMANCE,
+    ELECTRONICS,
+    FITTINGS,
+    HULLS,
+    QUARTERS,
+    SCREENS,
+    SMALL_CRAFT_DRIVE_PERFORMANCE,
+    SMALL_CRAFT_ENERGY_CAPS,
+    SMALL_CRAFT_HULLS,
+    SOFTWARE,
+    TURRET_MOUNTS,
+    TURRET_WEAPONS,
+    AmmoRow,
+    ArmorOptionRow,
+    ArmorRow,
+    BayRow,
+    CockpitRow,
+    ComputerRow,
+    DriveRow,
+    ElectronicsRow,
+    FittingRow,
+    HullRow,
+    MountRow,
+    QuartersRow,
+    ScreenRow,
+    SoftwareRow,
+    WeaponRow,
+)
+
+# --- HULLS ---
+
+
+def test_hulls_keys_match_research_part_b_exactly():
+    assert set(HULLS) == {
+        100,
+        200,
+        300,
+        400,
+        500,
+        600,
+        700,
+        800,
+        900,
+        1000,
+        1200,
+        1400,
+        1600,
+        1800,
+        2000,
+        3000,
+        4000,
+        5000,
+    }
+
+
+def test_hulls_keys_are_monotonically_ordered():
+    tons = list(HULLS)
+    assert tons == sorted(tons)
+
+
+def test_hulls_codes_are_unique():
+    codes = [row.code for row in HULLS.values()]
+    assert len(codes) == len(set(codes))
+
+
+def test_hulls_smallest_and_largest_rows():
+    assert HULLS[100] == HullRow(code="1", cost=2, build_weeks=36)
+    assert HULLS[5000] == HullRow(code="P", cost=500, build_weeks=428)
+
+
+# --- Drive costs and performance ---
+
+
+def test_every_drive_costs_code_is_present_in_drive_performance():
+    assert set(DRIVE_COSTS) == set(DRIVE_PERFORMANCE)
+
+
+def test_drive_codes_skip_i_and_o():
+    assert "I" not in DRIVE_COSTS
+    assert "O" not in DRIVE_COSTS
+
+
+def test_drive_codes_run_a_to_z_skipping_i_and_o():
+    expected = "ABCDEFGHJKLMNPQRSTUVWXYZ"
+    assert set(DRIVE_COSTS) == set(expected)
+    assert len(DRIVE_COSTS) == len(expected)
+
+
+def test_drive_performance_matrix_cells_are_ints():
+    for ratings in DRIVE_PERFORMANCE.values():
+        for hull_tons, rating in ratings.items():
+            assert isinstance(hull_tons, int)
+            assert isinstance(rating, int)
+
+
+def test_drive_performance_hull_tons_are_a_subset_of_hulls():
+    all_hulls = set(HULLS)
+    for ratings in DRIVE_PERFORMANCE.values():
+        assert set(ratings) <= all_hulls
+
+
+def test_drive_a_is_the_cheapest_smallest_drive():
+    assert DRIVE_COSTS["A"] == DriveRow(
+        jump_tons=10,
+        jump_cost=10,
+        maneuver_tons=2,
+        maneuver_cost=4,
+        power_tons=4,
+        power_cost=8,
+    )
+
+
+def test_drive_z_matches_the_srd_top_row():
+    assert DRIVE_COSTS["Z"] == DriveRow(
+        jump_tons=125,
+        jump_cost=240,
+        maneuver_tons=47,
+        maneuver_cost=96,
+        power_tons=73,
+        power_cost=192,
+    )
+
+
+def test_drive_performance_a_on_100_tons_is_jump_2():
+    assert DRIVE_PERFORMANCE["A"][100] == 2
+
+
+def test_drive_performance_missing_cell_means_not_installable():
+    assert 5000 not in DRIVE_PERFORMANCE["A"]
+
+
+def test_drive_performance_z_on_5000_tons_is_2():
+    assert DRIVE_PERFORMANCE["Z"][5000] == 2
+
+
+# --- Configuration / armor ---
+
+
+def test_config_modifiers_match_srd():
+    assert CONFIG_MODIFIERS == {"distributed": 0.9, "standard": 1.0, "streamlined": 1.1}
+
+
+def test_armor_rows_match_srd():
+    assert ARMOR["titanium_steel"] == ArmorRow(
+        protection_per_5_percent=2, cost_percent_per_5_percent=5, min_tl=7
+    )
+    assert ARMOR["crystaliron"] == ArmorRow(
+        protection_per_5_percent=4, cost_percent_per_5_percent=20, min_tl=10
+    )
+    assert ARMOR["bonded_superdense"] == ArmorRow(
+        protection_per_5_percent=6, cost_percent_per_5_percent=50, min_tl=14
+    )
+
+
+# --- Bridge ---
+
+
+def test_bridge_steps_are_ordered_by_max_tons_with_none_last():
+    max_tons = [step[0] for step in BRIDGE_SIZES]
+    assert max_tons[-1] is None
+    finite = max_tons[:-1]
+    assert finite == sorted(finite)
+    assert all(isinstance(t, int) for t in finite)
+
+
+def test_bridge_sizes_match_srd_steps():
+    assert BRIDGE_SIZES == ((200, 10), (1000, 20), (2000, 40), (None, 60))
+
+
+# --- Computers / software / electronics / quarters ---
+
+
+def test_computers_cover_models_one_through_seven():
+    assert set(COMPUTERS) == {1, 2, 3, 4, 5, 6, 7}
+
+
+def test_computer_model_one_matches_srd():
+    assert COMPUTERS[1] == ComputerRow(tl=7, rating=5, cost=0.03)
+
+
+def test_computer_model_seven_matches_srd():
+    assert COMPUTERS[7] == ComputerRow(tl=15, rating=35, cost=30)
+
+
+def test_software_fire_control_matches_srd():
+    assert SOFTWARE["fire_control"] == SoftwareRow(rating_per_level=5, cost_per_level=2)
+
+
+def test_software_jump_control_matches_srd():
+    assert SOFTWARE["jump_control"] == SoftwareRow(rating_per_level=5, cost_per_level=0.1)
+
+
+def test_electronics_standard_is_included_in_bridge():
+    assert ELECTRONICS["standard"] == ElectronicsRow(tons=0, cost=0)
+
+
+def test_electronics_very_advanced_matches_srd():
+    assert ELECTRONICS["very_advanced"] == ElectronicsRow(tons=5, cost=4)
+
+
+def test_quarters_stateroom_matches_srd():
+    assert QUARTERS["stateroom"] == QuartersRow(tons=4, cost=0.5)
+
+
+def test_quarters_low_berth_matches_srd():
+    assert QUARTERS["low_berth"] == QuartersRow(tons=0.5, cost=0.05)
+
+
+# --- Fittings ---
+
+
+def test_fuel_scoops_is_forbidden_on_distributed_hulls():
+    assert FITTINGS["fuel_scoops"].forbidden_on_distributed is True
+
+
+def test_vault_grants_a_hull_structure_bonus():
+    assert FITTINGS["vault"].hull_structure_bonus == 4
+
+
+def test_vehicle_hangar_tonnage_and_cost_are_computed_not_fixed():
+    assert FITTINGS["vehicle_hangar"].tons is None
+    assert FITTINGS["vehicle_hangar"].cost is None
+
+
+def test_ordinary_fittings_have_fixed_tons_and_cost():
+    for name, row in FITTINGS.items():
+        if name == "vehicle_hangar":
+            continue
+        assert row.tons is not None
+        assert row.cost is not None
+
+
+# --- Turrets ---
+
+
+def test_turret_mounts_cover_all_five_srd_mount_types():
+    assert set(TURRET_MOUNTS) == {"single", "double", "triple", "pop_up", "fixed"}
+
+
+def test_single_double_triple_turret_costs_match_srd():
+    assert TURRET_MOUNTS["single"] == MountRow(tons=1, cost=0.2, weapon_slots=1)
+    assert TURRET_MOUNTS["double"] == MountRow(tons=1, cost=0.5, weapon_slots=2)
+    assert TURRET_MOUNTS["triple"] == MountRow(tons=1, cost=1, weapon_slots=3)
+
+
+def test_fixed_mounting_occupies_no_tonnage_at_half_a_single_turrets_cost():
+    assert TURRET_MOUNTS["fixed"] == MountRow(tons=0, cost=0.1, weapon_slots=1)
+
+
+def test_turret_weapons_cover_the_four_priced_srd_weapons():
+    assert set(TURRET_WEAPONS) == {"missile_rack", "pulse_laser", "sandcaster", "particle_beam"}
+
+
+def test_energy_weapons_are_flagged_for_the_small_craft_cap():
+    assert TURRET_WEAPONS["pulse_laser"].energy is True
+    assert TURRET_WEAPONS["particle_beam"].energy is True
+    assert TURRET_WEAPONS["missile_rack"].energy is False
+    assert TURRET_WEAPONS["sandcaster"].energy is False
+
+
+# --- Bays / screens (US4, research.md Part H) ---
+
+
+def test_bays_cover_the_four_srd_kinds_at_50_tons_each():
+    assert set(BAYS) == {"missile_bank", "particle", "meson", "fusion"}
+    for row in BAYS.values():
+        assert row.tons == 50
+
+
+def test_bays_match_srd_costs():
+    assert BAYS["missile_bank"] == BayRow(tons=50, cost=12)
+    assert BAYS["particle"] == BayRow(tons=50, cost=20)
+    assert BAYS["meson"] == BayRow(tons=50, cost=50)
+    assert BAYS["fusion"] == BayRow(tons=50, cost=8)
+
+
+def test_screens_cover_the_two_srd_kinds_at_50_tons_each():
+    assert set(SCREENS) == {"meson_screen", "nuclear_damper"}
+    for row in SCREENS.values():
+        assert row.tons == 50
+
+
+def test_screens_match_srd_costs():
+    assert SCREENS["meson_screen"] == ScreenRow(tons=50, cost=60)
+    assert SCREENS["nuclear_damper"] == ScreenRow(tons=50, cost=50)
+
+
+# --- Small craft (US3) ---
+
+
+def test_small_craft_hulls_cover_10_to_95_tons_in_5_ton_steps():
+    assert set(SMALL_CRAFT_HULLS) == set(range(10, 100, 5))
+
+
+def test_small_craft_hulls_codes_run_s1_to_sj():
+    assert SMALL_CRAFT_HULLS[10] == HullRow(code="s1", cost=1.1, build_weeks=28)
+    assert SMALL_CRAFT_HULLS[50] == HullRow(code="s9", cost=1.5, build_weeks=32)
+    assert SMALL_CRAFT_HULLS[95] == HullRow(code="sJ", cost=1.95, build_weeks=35)
+
+
+def test_small_craft_hulls_codes_are_unique():
+    codes = [row.code for row in SMALL_CRAFT_HULLS.values()]
+    assert len(codes) == len(set(codes))
+
+
+def test_small_craft_hulls_keys_are_monotonically_ordered():
+    tons = list(SMALL_CRAFT_HULLS)
+    assert tons == sorted(tons)
+
+
+def test_cockpits_hold_exactly_the_two_srd_cockpits():
+    assert set(COCKPITS) == {"1_man", "2_man"}
+    assert COCKPITS["1_man"] == CockpitRow(tons=1.5)
+    assert COCKPITS["2_man"] == CockpitRow(tons=3.0)
+
+
+def test_small_craft_energy_caps_bands_are_exhaustive_over_power_plant_codes():
+    assert set(SMALL_CRAFT_ENERGY_CAPS) == set(DRIVE_COSTS)
+
+
+def test_small_craft_energy_caps_match_srd_bands():
+    for code in "ABCDEF":
+        assert SMALL_CRAFT_ENERGY_CAPS[code] == 0
+    for code in "GHJK":
+        assert SMALL_CRAFT_ENERGY_CAPS[code] == 1
+    for code in "LMNPQR":
+        assert SMALL_CRAFT_ENERGY_CAPS[code] == 2
+    for code in "STUVWXYZ":
+        assert SMALL_CRAFT_ENERGY_CAPS[code] == 3
+
+
+def test_small_craft_drive_performance_keys_are_a_subset_of_drive_costs():
+    assert set(SMALL_CRAFT_DRIVE_PERFORMANCE) <= set(DRIVE_COSTS)
+
+
+def test_small_craft_drive_performance_hull_tons_are_a_subset_of_small_craft_hulls():
+    all_hulls = set(SMALL_CRAFT_HULLS)
+    for ratings in SMALL_CRAFT_DRIVE_PERFORMANCE.values():
+        assert set(ratings) <= all_hulls
+
+
+def test_small_craft_drive_performance_a_on_10_tons_is_2():
+    assert SMALL_CRAFT_DRIVE_PERFORMANCE["A"][10] == 2
+
+
+def test_small_craft_drive_performance_w_on_95_tons_is_6():
+    assert SMALL_CRAFT_DRIVE_PERFORMANCE["W"][95] == 6
+
+
+def test_small_craft_drive_performance_missing_cell_means_not_installable():
+    assert 95 not in SMALL_CRAFT_DRIVE_PERFORMANCE["A"]
+
+
+# --- Every row dataclass field is typed ---
+
+
+ROW_TYPES = (
+    HullRow,
+    DriveRow,
+    ArmorRow,
+    ArmorOptionRow,
+    AmmoRow,
+    ComputerRow,
+    SoftwareRow,
+    ElectronicsRow,
+    QuartersRow,
+    FittingRow,
+    MountRow,
+    WeaponRow,
+    CockpitRow,
+    BayRow,
+    ScreenRow,
+)
+
+
+@pytest.mark.parametrize("row_type", ROW_TYPES, ids=[t.__name__ for t in ROW_TYPES])
+def test_every_row_dataclass_field_is_typed(row_type):
+    assert dataclasses.is_dataclass(row_type)
+    for field in dataclasses.fields(row_type):
+        assert field.type not in (None, "")
+
+
+# --- SC-006: a new SRD entry is a data-only edit, no builder/generator change ---
+
+
+def test_a_new_fitting_row_costs_and_allocates_correctly_with_no_code_change(monkeypatch):
+    monkeypatch.setitem(FITTINGS, "synthetic_gadget", FittingRow(tons=3, cost=1.25))
+
+    design = load_design("specs/010-starship-generator/examples/free-trader.toml")
+    design = dataclasses.replace(
+        design,
+        fittings=design.fittings + (FittingFit(kind="synthetic_gadget", quantity=2),),
+    )
+
+    ship = build_ship(design)
+
+    gadget_items = [item for item in ship.line_items if item.name == "synthetic_gadget"]
+    assert len(gadget_items) == 1
+    assert gadget_items[0].tons == pytest.approx(6.0)
+    assert gadget_items[0].cost == pytest.approx(2.5)
+    assert ship.tonnage_used == pytest.approx(65.0 + 6.0)
+    assert ship.cargo_tons == pytest.approx(135.0 - 6.0)
+
+
+def test_a_new_distributed_forbidden_fitting_rejects_on_a_distributed_hull_with_no_code_change(
+    monkeypatch,
+):
+    # T079: builder.py reads `FittingRow.forbidden_on_distributed`, not a
+    # hardcoded `fit.kind == "fuel_scoops"` comparison, so a second SRD fitting
+    # forbidden on a distributed hull is a data-only edit (SC-006).
+    monkeypatch.setitem(
+        FITTINGS, "synthetic_shield", FittingRow(tons=1, cost=0.1, forbidden_on_distributed=True)
+    )
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        configuration=Configuration.DISTRIBUTED,
+        fittings=(FittingFit(kind="synthetic_shield"),),
+    )
+    with pytest.raises(ValueError, match="a distributed hull cannot mount synthetic shield"):
+        build_ship(design)
+
+
+def test_a_new_bay_row_is_accepted_and_allocated_with_no_code_change(monkeypatch):
+    # T087: BayFit validates against BAYS itself, not a hardcoded copy of its
+    # keys, so a new SRD bay is a data-only edit (SC-006).
+    monkeypatch.setitem(BAYS, "synthetic_bay", BayRow(tons=50, cost=17.5))
+
+    design = load_design("specs/010-starship-generator/examples/free-trader.toml")
+    design = dataclasses.replace(design, bays=(BayFit(kind="synthetic_bay"),))
+
+    ship = build_ship(design)
+
+    bay_item = next(item for item in ship.line_items if item.name == "synthetic_bay bay")
+    assert bay_item.tons == pytest.approx(50.0)
+    assert bay_item.cost == pytest.approx(17.5)
+    assert ship.hardpoints_used == 1
+    assert ship.crew.gunners == 1
+
+
+def test_a_new_screen_row_is_accepted_and_allocated_with_no_code_change(monkeypatch):
+    monkeypatch.setitem(SCREENS, "synthetic_screen", ScreenRow(tons=50, cost=42.0))
+
+    design = load_design("specs/010-starship-generator/examples/free-trader.toml")
+    design = dataclasses.replace(design, screens=(ScreenFit(kind="synthetic_screen"),))
+
+    ship = build_ship(design)
+
+    screen_item = next(item for item in ship.line_items if item.name == "synthetic_screen screen")
+    assert screen_item.tons == pytest.approx(50.0)
+    assert screen_item.cost == pytest.approx(42.0)
+    assert ship.crew.screen_operators == 1
+
+
+def test_a_new_ammo_row_is_accepted_and_costed_with_no_code_change(monkeypatch):
+    # The AMMO key is descriptive only: models.py and builder.py both match an
+    # AmmoFit on the row's kind/type columns (SC-006).
+    monkeypatch.setitem(
+        AMMO,
+        "missile_decoy",
+        AmmoRow(kind="missile", type="decoy", rounds_per_ton=12, cost_per_round=0.002),
+    )
+
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        turrets=(
+            TurretFit(
+                mount="single",
+                weapons=("missile_rack",),
+                ammo=(AmmoFit(kind="missile", type="decoy", count=24),),
+            ),
+        ),
+    )
+    ship = build_ship(design)
+
+    ammo_item = next(item for item in ship.line_items if item.name == "decoy missile ammo")
+    assert ammo_item.tons == pytest.approx(2.0)
+    assert ammo_item.cost == pytest.approx(0.048)
+    assert ammo_item.discountable is False
+
+
+def test_a_new_armor_option_row_is_accepted_and_costed_with_no_code_change(monkeypatch):
+    # T087: the armor-option surcharge is table data read by builder.py, not a
+    # dict living in the builder, so a new SRD option is a data-only edit.
+    monkeypatch.setitem(ARMOR_OPTIONS, "synthetic_coating", ArmorOptionRow(cost_per_ton=0.25))
+
+    def armor_cost(options):
+        design = ShipDesign(
+            hull_tons=200,
+            jump_code="A",
+            power_code="A",
+            armor=(ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5, options=options),),
+        )
+        item = next(i for i in build_ship(design).line_items if i.name == "titanium_steel armor")
+        return item.tons, item.cost
+
+    bare_tons, bare_cost = armor_cost(())
+    coated_tons, coated_cost = armor_cost(("synthetic_coating",))
+
+    assert bare_tons == pytest.approx(10.0)
+    assert coated_tons == pytest.approx(10.0)
+    assert coated_cost == pytest.approx(bare_cost + 0.25 * 10.0)
+
+
+def test_a_new_hull_row_costs_and_allocates_correctly_with_no_code_change(monkeypatch):
+    # T091/SC-006: a new hull size is a data edit to HULLS plus the drive
+    # performance the SRD tabulates for it -- no builder or generator change.
+    monkeypatch.setitem(HULLS, 250, HullRow(code="X", cost=10, build_weeks=50))
+    monkeypatch.setitem(DRIVE_PERFORMANCE, "A", {**DRIVE_PERFORMANCE["A"], 250: 1})
+
+    ship = build_ship(ShipDesign(hull_tons=250, jump_code="A", power_code="A"))
+
+    assert ship.build_weeks == 50
+    assert ship.hull_points == 5
+    assert ship.structure_points == 5
+    assert ship.hardpoints == 2
+    assert next(i for i in ship.line_items if i.name == "hull").cost == pytest.approx(10.0)
+    assert ship.jump_fuel == pytest.approx(25.0)
+    assert ship.tonnage_used == pytest.approx(10 + 4 + 20 + 25 + 2)
+
+
+def test_a_new_turret_weapon_row_costs_correctly_with_no_code_change(monkeypatch):
+    monkeypatch.setitem(TURRET_WEAPONS, "synthetic_cannon", WeaponRow(cost=3.5))
+
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        turrets=(TurretFit(mount="single", weapons=("synthetic_cannon",)),),
+    )
+    ship = build_ship(design)
+
+    turret_item = next(item for item in ship.line_items if item.name == "single turret")
+    assert turret_item.tons == pytest.approx(TURRET_MOUNTS["single"].tons)
+    assert turret_item.cost == pytest.approx(TURRET_MOUNTS["single"].cost + 3.5)

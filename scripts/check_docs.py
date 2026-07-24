@@ -9,6 +9,9 @@ exists because the thing it catches actually happened:
    printed a whole dataclass where it meant to print a name.
 3. CONTRIBUTING.md's module map silently omitted ranks.py the day it was added.
 4. Spaced em-dashes accumulated against the project's punctuation rule.
+5. The README's `cetools ship build` console block kept `Jump-1 Maneuver-1 Power-1` on the
+   drives line after the code started printing `Drives: Jump-1 (A)  Maneuver-1 (A)  Power-1
+   (A), 4t power plant`; nothing ran non-Python console examples to catch it.
 
 Run: uv run python scripts/check_docs.py
 """
@@ -21,6 +24,8 @@ import inspect
 import io
 import pkgutil
 import re
+import shlex
+import subprocess
 import sys
 from pathlib import Path
 
@@ -33,6 +38,9 @@ DOCS = ("README.md", "CONTEXT.md", "CONTRIBUTING.md", "AGENTS.md")
 PROSE = [ROOT / doc for doc in DOCS] + sorted(ROOT.glob("docs/adr/*.md"))
 SOURCES = sorted((ROOT / "src").rglob("*.py"))
 ENGINE = ROOT / "src" / "cetools" / "engine"
+
+# The only command `check_readme_ship_console_examples` will run. See its docstring.
+SHIP_CONSOLE_PREFIX = "uv run cetools ship"
 
 # Backticked things that are prose, tooling, or SRD notation rather than cetools code.
 NOT_CODE = {
@@ -143,6 +151,40 @@ def check_readme_examples() -> None:
             failures.append(f"README.md: example {i} fails to run: {type(exc).__name__}: {exc}")
 
 
+def check_readme_ship_console_examples() -> None:
+    """Every `cetools ship` console example in the README must match real output.
+
+    `check_readme_examples` runs the Python blocks; a `console` block has no such
+    check, so the drives line (`Jump-1 Maneuver-1 Power-1`) drifted silently after
+    T080 changed it until someone ran the command by hand. This closes that gap
+    for `cetools ship` invocations specifically.
+
+    Only the exact `$ uv run cetools ship ` prefix is run. This check executes what
+    the README says, so a looser match would let any future README edit run any
+    command in CI; the prefix keeps the executed program pinned to this CLI.
+    """
+    prefix = "$ " + SHIP_CONSOLE_PREFIX + " "
+    blocks = re.findall(r"```console\n(.*?)```", (ROOT / "README.md").read_text(), re.S)
+    for block in blocks:
+        lines = block.splitlines()
+        if not lines or not lines[0].startswith(prefix):
+            if lines and lines[0].startswith("$ ") and "cetools ship" in lines[0]:
+                failures.append(
+                    f"README.md: `{lines[0][2:]}` is not checked; a `cetools ship` console "
+                    f"block must invoke it as `{SHIP_CONSOLE_PREFIX} ...`"
+                )
+            continue
+        command = SHIP_CONSOLE_PREFIX.split() + shlex.split(lines[0][len(prefix) :])
+        expected = "\n".join(lines[1:]).rstrip("\n")
+        result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)
+        actual = result.stdout.rstrip("\n")
+        if actual != expected:
+            failures.append(
+                f"README.md: `{lines[0][2:]}` output does not match the documented console block\n"
+                f"    expected:\n{expected}\n    actual:\n{actual}"
+            )
+
+
 def check_module_map() -> None:
     """CONTRIBUTING.md's module map must name every engine module.
 
@@ -174,6 +216,7 @@ def main() -> int:
     sys.path.insert(0, str(ROOT / "src"))
     check_symbols(public_names())
     check_readme_examples()
+    check_readme_ship_console_examples()
     check_module_map()
     check_punctuation()
 
@@ -183,7 +226,10 @@ def main() -> int:
             print(f"  {failure}", file=sys.stderr)
         return 1
 
-    print("docs OK: symbols resolve, README examples run, module map complete, dashes tight")
+    print(
+        "docs OK: symbols resolve, README examples run, `cetools ship` console blocks match, "
+        "module map complete, dashes tight"
+    )
     return 0
 
 
