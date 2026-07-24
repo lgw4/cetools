@@ -152,9 +152,12 @@ Only high and middle passengers count as "carries passengers" for the steward an
 
 ### `LineItem`
 
-`name: str`, `tons: float`, `cost: float` (MCr). The builder appends one per component in build
-order; the sheet and the tonnage/cost totals both read from this list, so "the numbers" and "the
-breakdown" can never disagree.
+`name: str`, `tons: float`, `cost: float` (MCr), `discountable: bool` (default `True`). The builder
+appends one per component in build order; the sheet and the tonnage/cost totals both read from this
+list, so "the numbers" and "the breakdown" can never disagree. `discountable=False` is set on jump
+fuel, power-plant fuel, and ammunition—the SRD items the 10% standard-design discount never
+applies to (FR-013)—as an explicit flag rather than a name-suffix check, so a future SRD entry whose
+name happens to end in "fuel" or "ammo" is not silently exempted (SC-006).
 
 ## Builder-enforced constraints (rejections → `ValueError`, FR-015 / SC-005)
 
@@ -170,12 +173,14 @@ reports the first one (FR-015):
 | 4 | Missing required system | drives / power | `"starship requires a jump drive"` / `"powered craft requires a power plant"` |
 | 5 | Small-craft jump drive | drives | `"small craft cannot mount a jump drive"` |
 | 6 | Power-plant below drives | power | `"power plant rating N below required M (higher of jump/maneuver)"` |
-| 7 | Software over computer rating | computer | `"software rating N exceeds computer rating M"` |
-| 8 | Fuel scoops on a distributed hull | fittings | `"a distributed hull cannot mount fuel scoops"` |
-| 9 | Hardpoint limit | armaments | `"K weapon systems exceed J hardpoints (1 per 100 tons)"` |
-| 10 | Small-craft bay weapon | armaments | `"small craft cannot mount a weapon bay"` |
-| 11 | Small-craft energy-weapon cap | armaments | `"power plant code X allows at most K energy weapons"` |
-| 12 | Tonnage over-allocation | cargo | `"components use N tons, hull holds M"` |
+| 7 | Small-craft hull built with a bridge | bridge/cockpit | `"small craft requires a cockpit, not a bridge"` |
+| 8 | Starship hull built with a cockpit | bridge/cockpit | `"a starship requires a bridge, not a cockpit"` |
+| 9 | Software over computer rating | computer | `"software rating N exceeds computer rating M"` |
+| 10 | Fuel scoops on a distributed hull | fittings | `"a distributed hull cannot mount fuel scoops"` |
+| 11 | Hardpoint limit | armaments | `"K weapon systems exceed J hardpoints (1 per 100 tons)"` |
+| 12 | Small-craft bay weapon | armaments | `"small craft cannot mount a weapon bay"` |
+| 13 | Small-craft energy-weapon cap | armaments | `"power plant code X allows at most K energy weapons"` |
+| 14 | Tonnage over-allocation | cargo | `"components use N tons, hull holds M"` |
 
 ## Static tables (`ships/tables.py`)—data, not logic
 

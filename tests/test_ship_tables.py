@@ -3,7 +3,7 @@ import dataclasses
 import pytest
 
 from cetools.engine.ships import build_ship, load_design
-from cetools.engine.ships.models import FittingFit
+from cetools.engine.ships.models import Configuration, FittingFit, ShipDesign
 from cetools.engine.ships.tables import (
     ARMOR,
     BAYS,
@@ -410,3 +410,23 @@ def test_a_new_fitting_row_costs_and_allocates_correctly_with_no_code_change(mon
     assert gadget_items[0].cost == pytest.approx(2.5)
     assert ship.tonnage_used == pytest.approx(65.0 + 6.0)
     assert ship.cargo_tons == pytest.approx(135.0 - 6.0)
+
+
+def test_a_new_distributed_forbidden_fitting_rejects_on_a_distributed_hull_with_no_code_change(
+    monkeypatch,
+):
+    # T079: builder.py reads `FittingRow.forbidden_on_distributed`, not a
+    # hardcoded `fit.kind == "fuel_scoops"` comparison, so a second SRD fitting
+    # forbidden on a distributed hull is a data-only edit (SC-006).
+    monkeypatch.setitem(
+        FITTINGS, "synthetic_shield", FittingRow(tons=1, cost=0.1, forbidden_on_distributed=True)
+    )
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        configuration=Configuration.DISTRIBUTED,
+        fittings=(FittingFit(kind="synthetic_shield"),),
+    )
+    with pytest.raises(ValueError, match="a distributed hull cannot mount synthetic shield"):
+        build_ship(design)

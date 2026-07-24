@@ -8,7 +8,7 @@ equal ships, SC-004).
 
 from __future__ import annotations
 
-from cetools.engine.ships.models import Ship
+from cetools.engine.ships.models import HullClass, Ship
 
 
 def _format_turret(turret) -> str:
@@ -26,6 +26,10 @@ def _format_turret(turret) -> str:
     return text
 
 
+def _format_drive(label: str, rating: int, code: str | None) -> str:
+    return f"{label}-{rating} ({code})" if code is not None else f"{label}-{rating}"
+
+
 def render_sheet(ship: Ship) -> str:
     design = ship.design
     lines = [design.name if design.name is not None else "Unnamed Ship"]
@@ -33,13 +37,25 @@ def render_sheet(ship: Ship) -> str:
     lines.append(f"Hull: {ship.hull_tons} tons, {ship.configuration.value} configuration")
 
     week_word = "week" if design.power_weeks == 1 else "weeks"
-    is_small_craft = design.cockpit is not None
+    is_small_craft = design.hull_class is HullClass.SMALL_CRAFT
+    power_item = next(
+        item for item in ship.line_items if item.name == f"power plant {design.power_code}"
+    )
     if is_small_craft:
-        lines.append(f"Maneuver-{ship.maneuver_rating} Power-{ship.power_rating}")
+        lines.append(
+            "Drives: "
+            f"{_format_drive('Maneuver', ship.maneuver_rating, design.maneuver_code)}  "
+            f"{_format_drive('Power', ship.power_rating, design.power_code)}, "
+            f"{power_item.tons:g}t power plant"
+        )
         lines.append(f"Fuel: {ship.power_fuel:g}t power plant ({design.power_weeks} {week_word})")
     else:
         lines.append(
-            f"Jump-{ship.jump_rating} Maneuver-{ship.maneuver_rating} Power-{ship.power_rating}"
+            "Drives: "
+            f"{_format_drive('Jump', ship.jump_rating, design.jump_code)}  "
+            f"{_format_drive('Maneuver', ship.maneuver_rating, design.maneuver_code)}  "
+            f"{_format_drive('Power', ship.power_rating, design.power_code)}, "
+            f"{power_item.tons:g}t power plant"
         )
         lines.append(
             f"Fuel: {ship.jump_fuel:g}t jump (assumes range {ship.assumed_jump_distance}), "

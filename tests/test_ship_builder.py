@@ -15,6 +15,7 @@ from cetools.engine.ships import (
     build_ship,
     load_design,
 )
+from cetools.engine.ships.tables import FITTINGS, FittingRow
 
 _EXAMPLES = "specs/010-starship-generator/examples"
 
@@ -484,6 +485,26 @@ def test_standard_design_discount_leaves_ammunition_untouched():
     assert non_ammo_discounted == pytest.approx(non_ammo_plain * 0.9)
 
 
+def test_a_fitting_whose_name_ends_in_fuel_is_still_discounted(monkeypatch):
+    # T081: the discount exemption is `LineItem.discountable`, not a
+    # `name.endswith("fuel"/"ammo")` check, so a fitting that happens to be
+    # named like fuel is not silently exempted (SC-006).
+    monkeypatch.setitem(FITTINGS, "backup_fuel", FittingRow(tons=1, cost=1.0))
+
+    def make(standard_design):
+        return ShipDesign(
+            hull_tons=200,
+            jump_code="A",
+            power_code="A",
+            standard_design=standard_design,
+            fittings=(FittingFit(kind="backup_fuel"),),
+        )
+
+    plain = build_ship(make(False))
+    discounted = build_ship(make(True))
+    assert discounted.total_cost == pytest.approx(plain.total_cost * 0.9)
+
+
 def test_small_craft_armor_floors_at_1_ton_per_5_percent_rather_than_rejecting():
     # research.md Part F: the SRD armor-by-type table's "minimum 1 ton" applies
     # even when 5% of a small hull is under 1 ton (10 t x 5% = 0.5 t); the SRD
@@ -498,6 +519,27 @@ def test_small_craft_armor_floors_at_1_ton_per_5_percent_rather_than_rejecting()
     ship = build_ship(design)  # does not raise
     armor_item = next(item for item in ship.line_items if item.name.endswith("armor"))
     assert armor_item.tons == pytest.approx(1.0)
+
+
+# --- T078: bridge/cockpit must pair with the hull's HullClass (FR-019 / FR-007) ---
+
+
+def test_rejects_a_small_craft_built_with_a_bridge():
+    design = ShipDesign(hull_tons=40, maneuver_code="sB", power_code="sG", bridge=True)
+    with pytest.raises(ValueError, match="small craft requires a cockpit, not a bridge"):
+        build_ship(design)
+
+
+def test_rejects_a_starship_built_with_a_cockpit():
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        bridge=False,
+        cockpit="1_man",
+    )
+    with pytest.raises(ValueError, match="a starship requires a bridge, not a cockpit"):
+        build_ship(design)
 
 
 # --- US3: small craft (research.md Part K) ---

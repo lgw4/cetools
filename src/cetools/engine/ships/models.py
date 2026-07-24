@@ -382,11 +382,19 @@ def _validate_line_item(item: LineItem) -> None:
 
 @dataclass(frozen=True)
 class LineItem:
-    """One costed, tonnage-consuming component on the ship sheet."""
+    """One costed, tonnage-consuming component on the ship sheet.
+
+    `discountable` defaults to `True`; the builder sets it `False` on jump
+    fuel, power-plant fuel, and ammunition, which the SRD never discounts
+    (FR-013). This is an explicit flag rather than a name-suffix check, so a
+    future SRD entry whose name happens to end in "fuel" or "ammo" is not
+    silently exempted from the 10% standard-design discount (SC-006).
+    """
 
     name: str
     tons: float
     cost: float
+    discountable: bool = True
 
     def __post_init__(self) -> None:
         _validate_line_item(self)

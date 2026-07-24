@@ -1,5 +1,9 @@
 from cetools.engine.ships import (
     AmmoFit,
+    Configuration,
+    Crew,
+    LineItem,
+    Ship,
     ShipDesign,
     TurretFit,
     build_ship,
@@ -8,6 +12,10 @@ from cetools.engine.ships import (
 )
 
 _EXAMPLES = "specs/010-starship-generator/examples"
+
+_EMPTY_CREW = Crew(
+    pilot=1, navigator=1, engineers=0, gunners=0, screen_operators=0, medic=0, stewards=0
+)
 
 
 def _ships():
@@ -97,6 +105,89 @@ def test_render_sheet_shows_screen_operators_in_crew():
     ship = build_ship(load_design(f"{_EXAMPLES}/heavy-cruiser.toml"))
     sheet = render_sheet(ship)
     assert "screen operators 1" in sheet
+
+
+# --- T077: sheet variant follows design.hull_class, not the cockpit/bridge field ---
+#
+# `build_ship` now rejects a hull_class/bridge-cockpit mismatch (T078), so these
+# `Ship` instances are built by hand rather than via `build_ship`, to exercise
+# `render_sheet`'s branching in isolation.
+
+
+def test_render_sheet_shows_jump_lines_for_a_starship_carrying_a_cockpit_field():
+    # A 200-ton hull is a STARSHIP by hull_tons alone, even though `cockpit` is
+    # set here (an SRD-illegal combination render_sheet must not be fooled by).
+    design = ShipDesign(
+        hull_tons=200, jump_code="B", power_code="B", cockpit="1_man", bridge=False
+    )
+    ship = Ship(
+        design=design,
+        hull_tons=200,
+        configuration=Configuration.STANDARD,
+        jump_rating=2,
+        maneuver_rating=0,
+        power_rating=2,
+        jump_fuel=40.0,
+        assumed_jump_distance=2,
+        power_fuel=2.0,
+        tonnage_used=22.0,
+        cargo_tons=178.0,
+        hull_points=4,
+        structure_points=4,
+        armor_protection=0,
+        hardpoints=2,
+        hardpoints_used=0,
+        crew=_EMPTY_CREW,
+        total_cost=36.0,
+        build_weeks=44,
+        line_items=(LineItem(name="power plant B", tons=7, cost=16),),
+    )
+    sheet = render_sheet(ship)
+    assert "Jump-2 (B)" in sheet
+    assert "40t jump" in sheet
+
+
+def test_render_sheet_omits_jump_lines_for_a_small_craft_carrying_a_bridge_field():
+    # A 95-ton hull is SMALL_CRAFT by hull_tons alone, even though `bridge` is
+    # set here (an SRD-illegal combination render_sheet must not be fooled by).
+    design = ShipDesign(hull_tons=95, bridge=True, power_code="sJ")
+    ship = Ship(
+        design=design,
+        hull_tons=95,
+        configuration=Configuration.STANDARD,
+        jump_rating=0,
+        maneuver_rating=1,
+        power_rating=3,
+        jump_fuel=0.0,
+        assumed_jump_distance=0,
+        power_fuel=7.3,
+        tonnage_used=30.0,
+        cargo_tons=65.0,
+        hull_points=1,
+        structure_points=2,
+        armor_protection=0,
+        hardpoints=1,
+        hardpoints_used=0,
+        crew=_EMPTY_CREW,
+        total_cost=20.0,
+        build_weeks=35,
+        line_items=(LineItem(name="power plant sJ", tons=25, cost=140),),
+    )
+    sheet = render_sheet(ship)
+    assert "Jump-" not in sheet
+    assert "jump" not in sheet.lower()
+
+
+# --- T080: the drives line names the drive codes and power-plant tonnage ---
+
+
+def test_render_sheet_drives_line_names_the_drive_codes():
+    ship = build_ship(load_design(f"{_EXAMPLES}/free-trader.toml"))
+    sheet = render_sheet(ship)
+    assert "Jump-1 (A)" in sheet
+    assert "Maneuver-1 (A)" in sheet
+    assert "Power-1 (A)" in sheet
+    assert "4t power plant" in sheet
 
 
 def test_render_sheet_shows_loaded_ammunition_in_armaments():

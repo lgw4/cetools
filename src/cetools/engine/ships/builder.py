@@ -162,6 +162,10 @@ def _bridge_tons(hull_tons: int) -> int:
 
 
 def _build_bridge_or_cockpit(design: ShipDesign, items: list[LineItem], hull_tons: int) -> None:
+    if design.hull_class is HullClass.SMALL_CRAFT and design.bridge:
+        raise ValueError("small craft requires a cockpit, not a bridge")
+    if design.hull_class is HullClass.STARSHIP and design.cockpit is not None:
+        raise ValueError("a starship requires a bridge, not a cockpit")
     if design.cockpit is not None:
         row = COCKPITS[design.cockpit]
         cost = hull_tons / 20 * _COCKPIT_COST_PER_20_TONS
@@ -226,8 +230,8 @@ def _build_fittings(design: ShipDesign, items: list[LineItem]) -> int:
     bonus = 0
     for fit in design.fittings:
         row = FITTINGS[fit.kind]
-        if fit.kind == "fuel_scoops" and design.configuration is Configuration.DISTRIBUTED:
-            raise ValueError("a distributed hull cannot mount fuel scoops")
+        if row.forbidden_on_distributed and design.configuration is Configuration.DISTRIBUTED:
+            raise ValueError(f"a distributed hull cannot mount {fit.kind.replace('_', ' ')}")
         if fit.kind == "vehicle_hangar":
             tons = fit.vehicle_tons * 1.3 * fit.quantity
             cost = fit.vehicle_tons * 0.2 * fit.quantity
@@ -259,6 +263,7 @@ def _build_turrets(design: ShipDesign, items: list[LineItem]) -> int:
                     name=f"{ammo.kind} ammo" if ammo.type is None else f"{ammo.type} missile ammo",
                     tons=ammo.count / row.rounds_per_ton,
                     cost=ammo.count * row.cost_per_round,
+                    discountable=False,
                 )
             )
     return len(design.turrets)
@@ -311,10 +316,10 @@ def _build_crew(design: ShipDesign, drive_tons: float, hardpoints_used: int) -> 
 
 def _total_cost(items: list[LineItem], *, discount: bool) -> float:
     """Sum every `LineItem`'s cost, applying the 10% standard-design discount
-    (research Part J) to everything except fuel and ammunition, which the SRD
-    never discounts."""
-    exempt = sum(item.cost for item in items if item.name.endswith(("fuel", "ammo")))
-    discountable = sum(item.cost for item in items) - exempt
+    (research Part J) to every discountable item; fuel and ammunition are
+    marked `discountable=False` and are never discounted."""
+    exempt = sum(item.cost for item in items if not item.discountable)
+    discountable = sum(item.cost for item in items if item.discountable)
     if discount:
         discountable *= 0.9
     return discountable + exempt
@@ -345,8 +350,8 @@ def build_ship(design: ShipDesign) -> Ship:
     else:
         power_fuel_per_week = power_tons // 3
     power_fuel = power_fuel_per_week * design.power_weeks
-    items.append(LineItem(name="jump fuel", tons=jump_fuel, cost=0.0))
-    items.append(LineItem(name="power plant fuel", tons=power_fuel, cost=0.0))
+    items.append(LineItem(name="jump fuel", tons=jump_fuel, cost=0.0, discountable=False))
+    items.append(LineItem(name="power plant fuel", tons=power_fuel, cost=0.0, discountable=False))
 
     _build_bridge_or_cockpit(design, items, hull_tons)
 
