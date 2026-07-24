@@ -383,12 +383,15 @@ wording appears and the computer sentence refers to its cockpit.
   output.
 - **SC-004**: Every sentence in the FR-004 order that applies to a given ship appears in that
   ship's description, and no sentence appears for equipment the ship lacks.
-- **SC-005**: Every ship build, generation, TOML round-trip and cost test that passes before
-  this feature continues to pass afterwards, unmodified. Only the tests that assert rendered
-  output are replaced.
-- **SC-006**: A reader can determine a ship's jump rating, thrust, crew size, cargo
-  capacity, cost and build time from the description alone, without consulting the design
-  file — from the sentences required by FR-006, FR-018, FR-015 and FR-020 respectively.
+- **SC-005**: Every assertion about a computed ship value — tonnage, cost, crew, hull and
+  structure points, hardpoints, build time — that passes before this feature continues to pass
+  afterwards. No such assertion is weakened, retargeted or deleted. Existing tests are edited
+  only where this feature renames or removes a symbol they name (`CONFIG_MODIFIERS`,
+  `ArmorRow.min_tl`) or where a direct `Ship(...)` construction must supply the new required
+  `tech_level`; the tests that assert rendered output are replaced outright.
+- **SC-006**: A reader can determine a ship's jump rating and thrust (FR-006), crew size
+  (FR-018), cargo capacity (FR-015), and cost and build time (FR-020) from the description
+  alone, without consulting the design file.
 - **SC-007**: Adding a new component row to the rules data — carrying the display name, the
   plural where the paragraph can count it, and the tech level where the SRD tabulates one —
   produces correct description wording and a correct derived tech level, with no change to the
@@ -436,7 +439,11 @@ wording appears and the computer sentence refers to its cockpit.
   dump remains for detail the paragraph does not carry (FR-002).
 - Q: Which rules tables gain display names for prose rendering? → A: Every nameable
   component kind, not electronics alone — mounts, weapons, ammunition, bays, screens,
-  fittings, armour types and options, configurations and cockpits (FR-030, FR-030a).
+  fittings, armour types and options, and configurations (FR-030, FR-030a). *Amended during
+  the post-plan checklist review*: the original answer also named cockpits. A cockpit is never
+  named as a catalog item — FR-027 needs only the word "cockpit", which is a hull-class
+  distinction rather than a component spelling — so cockpits carry no display name and FR-030's
+  list does not name them.
 - Q: Which numbers are spelled as words? → A: Counts of things in prose only (one to ten);
   measured and rated values — tonnage, Hull/Structure, DMs, costs, TL, ratings — are always
   digits, per the SRD examples (FR-022, FR-022a).

@@ -114,6 +114,17 @@ fighter") because their designers chose them; `FittingFit` records `vehicle_tons
 inventing a craft name would violate Principle I. "There are two small craft hangars, each
 holding 20 tons of small craft" states exactly what the design determines.
 
+**Decision — the screens sentence drops the examples' "In addition," connective.**
+Rationale: Chapter 9 prints "In addition, this vessel has two screens: a meson screen and a
+nuclear damper", but "In addition" presupposes the installed-weapons sentence immediately
+before it. FR-021 omits that sentence for a screened ship carrying no turrets or bays, which
+would leave the connective dangling — exactly what FR-021a forbids. The template's own "This
+ship has \[Number of Screens Installed\] screens:" is used instead. This is the
+worked-examples-win assumption yielding to a grammar rule, the same way FR-019a yields to
+Chapter 8's rule on emergency low berths. Alternatives considered: emitting "In addition,"
+only when the weapons sentence is present (makes one sentence's wording depend on another's,
+which the omission design explicitly forbids — see data-model.md §6).
+
 **Decision — an unarmed ship keeps the SRD's "but has no weapons installed" clause.**
 Rationale: the Courier, Merchant Freighter and Yacht all print "The ship has one hardpoint and
 one ton allocated to fire control, but has no weapons installed." This satisfies FR-021 (no

@@ -182,11 +182,16 @@ render_description(ship) -> str
     return heading + "\n\n" + " ".join(sentences)
 ```
 
-Sixteen private sentence builders, one per FR-004 sentence, called in that fixed order. Each
-returns `str | None`; `None` means the ship carries nothing for that sentence and it is
-omitted entirely (FR-021). Omission is the *only* control flow between sentences — no builder
-reads another's output — so the paragraph stays grammatical however many drop out, and
-sentence order is a single literal tuple.
+Sixteen private builders, one per FR-004 sentence **slot**, called in that fixed order. Each
+returns `str | None`; `None` means the ship carries nothing for that slot and it is omitted
+entirely (FR-021). Omission is the *only* control flow between slots — no builder reads
+another's output — so the paragraph stays grammatical however many drop out, and slot order is
+a single literal tuple.
+
+A slot normally yields exactly one sentence. `_weapons` is the sole exception: it returns the
+installed-weapons sentence followed by one ammunition sentence per `(kind, type)` group
+(contract §8), so a paragraph carrying ammunition has **more than sixteen sentences while
+still having sixteen slots**. Sentence order is asserted over the slots, not over a count.
 
 | # | Builder | Omitted when |
 |---|---|---|

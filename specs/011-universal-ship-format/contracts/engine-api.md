@@ -73,8 +73,11 @@ the fitted components (FR-028, FR-028a). Always an `int` — the Standard electr
 every ship carries sets a floor of 8. Derivation table:
 [data-model.md §3](../data-model.md).
 
-`Ship` is constructed positionally nowhere in the codebase (`build_ship` passes keywords), so
-the added field is source-compatible for every caller.
+`build_ship` passes keywords, so field order is not a concern. But `tech_level` is **required
+and carries no default**, so every direct `Ship(...)` construction must supply it or fail with
+a missing-argument `TypeError`. Two such sites exist outside `build_ship` —
+`tests/test_ship_models.py:368` and `:401` — and are updated alongside the rest of this
+feature's test edits (spec SC-005).
 
 ### `build_ship`
 

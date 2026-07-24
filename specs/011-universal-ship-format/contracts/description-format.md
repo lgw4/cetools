@@ -160,7 +160,9 @@ renders `{article} {WeaponRow.name}` ("a pulse laser"); filling more than one it
 missiles".
 
 Ammunition follows as its own sentence per `(kind, type)` group, aggregated across every
-turret, in first-appearance order:
+turret, in first-appearance order. These sentences are emitted by the *same* builder as the
+installed-weapons sentence, so this slot can yield more than one sentence and a paragraph
+carrying ammunition runs past sixteen sentences (data-model.md §6):
 
 ```text
 {count(n)} {AmmoRow.name|plural} {is|are} carried as ammunition for the {WeaponRow.name} {turret|turrets}.
@@ -177,6 +179,11 @@ This ship has {count(n)} {screen|screens}: {join(groups)}.
 
 Groups by `kind` in first-appearance order: `{article} {ScreenRow.name}` at count one
 ("a meson screen"), `{count(n)} {ScreenRow.plural}` above.
+
+The Chapter 9 examples open this sentence "In addition, this vessel has two screens: …". The
+connective is dropped in favour of the template's own wording, because FR-021 can omit the
+installed-weapons sentence that "In addition" presupposes — leaving a dangling connective that
+FR-021a forbids. Recorded in [research.md Part B](../research.md#part-b--sentence-templates-from-the-worked-examples).
 
 ## 10. Small craft hangars (FR-014) — omitted when no vehicle-sized fitting is installed
 

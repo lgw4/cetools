@@ -146,6 +146,11 @@ SRD `name`, `plural` and `tl` — and fit it in a design. Its wording appears in
 sentence and its tech level in the derived heading, with **no** edit to
 `description.py` or `builder.py`.
 
+This walkthrough proves the property once, by hand. The permanent guard is the SC-007
+regression test (tasks.md T051), which injects a synthetic row and asserts the same thing on
+every run — a manual check cannot stop a later change from quietly re-hardcoding component
+wording.
+
 ## 11. Quality gate
 
 ```bash

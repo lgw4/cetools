@@ -7,10 +7,12 @@
 ## Summary
 
 Replace the label-per-line ship sheet with the SRD's Universal Ship Description Format: a
-`TL<n> <name>` heading line, a blank line, and one prose paragraph whose sixteen sentences run
-in the SRD's prescribed order. A new `engine/ships/description.py` holds one sentence builder
-per sentence, each returning `str | None` so equipment the ship lacks drops out whole and the
-paragraph stays grammatical; a new `engine/ships/prose.py` holds the number, plural, list and
+`TL<n> <name>` heading line, a blank line, and one prose paragraph whose sixteen sentence slots
+run in the SRD's prescribed order. A new `engine/ships/description.py` holds one builder per
+slot, each returning `str | None` so equipment the ship lacks drops out whole and the
+paragraph stays grammatical; a slot normally yields one sentence, and the weapons slot yields
+one more per ammunition group, so a paragraph carrying ammunition runs past sixteen sentences
+while still having sixteen slots; a new `engine/ships/prose.py` holds the number, plural, list and
 article primitives the SRD's style demands, with no ship knowledge, so FR-022 through FR-025 are
 testable without building a ship. `engine/ships/sheet.py` and `render_sheet` are deleted, per
 FR-002 and the feature 006 precedent.
@@ -65,7 +67,7 @@ component catalog.
 | I. SRD-Fidelity | ✅ PASS *(two recorded deviations)* | The USDF template and all 20 Chapter 9 worked examples were read verbatim and are quoted in [research.md](./research.md) Parts A and B. Every table was read column by column to establish which categories carry a tech level and which do not (Part D); none was invented. Where the template and the worked examples disagree, the examples win, per the spec's Assumptions. Two deliberate deviations are recorded below. |
 | II. Library-First | ✅ PASS | All rendering in `src/cetools/engine/ships/`; `render_description` is importable and callable with no CLI. `prose.py` and `tables.py` import nothing from the package; `description.py` imports only `models`, `tables` and `prose`. Engine has zero `cli/` imports. |
 | III. CLI Interface | ✅ PASS | `cli/ship.py` changes by one symbol — it calls `render_description` instead of `render_sheet`. Argument parsing, `--toml`, `--out`, seed-on-stderr and exit codes (0 success, 1 user-facing failure on stderr) are untouched. No game logic enters CLI code. |
-| IV. Test-First | ✅ PASS | Red-green-refactor throughout. `prose.py` gets table-driven tests per FR-022/022a/023/024/025 before implementation; each of the sixteen sentence builders gets its assertion and each spec edge case its fixture before `description.py` exists; the tech-level derivation is tested through `build_ship` before the column additions land. `tests/test_ship_sheet.py` is replaced by `tests/test_ship_description.py` and `tests/test_ship_prose.py`. |
+| IV. Test-First | ✅ PASS | Red-green-refactor throughout. `prose.py` gets table-driven tests per FR-022/022a/023/024/025 before implementation; each of the sixteen sentence-slot builders gets its assertion and each spec edge case its fixture before `description.py` exists; the tech-level derivation is tested through `build_ship` before the column additions land. `tests/test_ship_sheet.py` is replaced by `tests/test_ship_description.py` and `tests/test_ship_prose.py`. |
 | V. Data-Driven Extensibility | ✅ PASS | This feature *increases* data-drivenness: the outgoing sheet hardcoded component wording (`f"{fit.kind} x{fit.quantity}"`, `f"{fit.type.value} {fit.percent}%"`); the new renderer reads `name`/`plural`/`tl`/`dm` columns instead. Hangars are identified by `tons_per_vehicle_ton is not None` and fuel processors by `unrefined_fuel_per_ton`, never by key comparison, so a new SRD row of either kind stays a data-only edit (SC-007). Crew position spellings and their print order move into a `CREW_POSITIONS` table. |
 
 ### Deliberate deviations (Principle I)
@@ -106,8 +108,8 @@ paragraph that contradicts itself. Recorded in
 renamed public function. Both justified in Complexity Tracking below.
 
 **Result**: PASS — no unjustified violations. The two deviations are recorded with rationale as
-Principle I requires; deviation 1 needs the FR-022a wording narrowed when the spec is next
-touched.
+Principle I requires, and the FR-022a narrowing they once called for has since landed in the
+spec (FR-022a as amended, plus the new FR-022b).
 
 **Post-Phase-1 re-check**: PASS. The design added no dependency, no delivery-layer coupling and
 no hardcoded component wording; every Phase 1 decision made the renderer *more* data-driven, not
