@@ -66,6 +66,22 @@ class RollName(StrEnum):
     FIRST_NAME = "first_name"
     LAST_NAME = "last_name"
     WORLD_NAME_STEM = "world_name_stem"
+    SHIP_HULL_SIZE = "ship_hull_size"
+    SHIP_CONFIGURATION = "ship_configuration"
+    SHIP_JUMP_CODE = "ship_jump_code"
+    SHIP_MANEUVER_CODE = "ship_maneuver_code"
+    SHIP_POWER_CODE = "ship_power_code"
+    SHIP_ARMOR = "ship_armor"
+    SHIP_COMPUTER = "ship_computer"
+    SHIP_ELECTRONICS = "ship_electronics"
+    SHIP_STATEROOMS = "ship_staterooms"
+    SHIP_FITTING = "ship_fitting"
+    SHIP_TURRET_COUNT = "ship_turret_count"
+    SHIP_TURRET_MOUNT = "ship_turret_mount"
+    SHIP_WEAPON = "ship_weapon"
+    SHIP_COCKPIT = "ship_cockpit"
+    SHIP_BAY = "ship_bay"
+    SHIP_SCREEN = "ship_screen"
 
 
 class Rolls(Protocol):

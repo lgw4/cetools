@@ -23,13 +23,11 @@ def _json_line(payload: object) -> str:
     return json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n"
 
 
-_STOP_WORDS = frozenset(
-    """
+_STOP_WORDS = frozenset("""
     i a an the to for of in on at by with from is are was were be been being
     have has had do does did will would should could can may might must shall
     this that these those my your our their want need add get set
-    """.split()
-)
+    """.split())
 
 _MAX_BRANCH_LENGTH = 244
 _MAX_FEATURE_NUMBER = 2**63 - 1
@@ -195,9 +193,7 @@ def _get_highest_from_specs(specs_dir: Path) -> int:
             continue
         name = entry.name
         # Match sequential prefixes (>=3 digits), but skip timestamp dirs.
-        if re.match(r"^[0-9]{3,}-", name) and not re.match(
-            r"^[0-9]{8}-[0-9]{6}-", name
-        ):
+        if re.match(r"^[0-9]{3,}-", name) and not re.match(r"^[0-9]{8}-[0-9]{6}-", name):
             number = _int64_from_digits(re.match(r"^[0-9]+", name).group())
             if number is not None:
                 highest = max(highest, number)
@@ -235,8 +231,7 @@ def main(argv: list[str] | None = None) -> int:
             # characters that int() would otherwise tolerate.
             if not re.fullmatch(r"[0-9]+", branch_number):
                 print(
-                    "Error: --number must be an unsigned integer, "
-                    f"got '{branch_number}'",
+                    "Error: --number must be an unsigned integer, " f"got '{branch_number}'",
                     file=sys.stderr,
                 )
                 return 1
@@ -278,8 +273,7 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         print(
-            f"[specify] Original: {original_branch_name} "
-            f"({len(original_branch_name)} bytes)",
+            f"[specify] Original: {original_branch_name} " f"({len(original_branch_name)} bytes)",
             file=sys.stderr,
         )
         print(
