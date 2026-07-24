@@ -38,8 +38,8 @@ reproducibility tests, and Typer's `CliRunner` drives CLI tests.
 
 **Project Type**: Single project—engine library plus Typer CLI (existing layout).
 
-**Performance Goals**: Building or generating a single ship is effectively instant, well under one
-second (SC-007).
+**Performance Goals**: Building or generating a single ship is effectively instant—under 0.1 seconds
+each on ordinary hardware (SC-007).
 
 **Constraints**: Engine code MUST NOT import from `cli/`. Generation MUST be deterministic given a
 seed (reproducibility via `RandomRolls.seeded(seed)`). The random generator MUST reuse the builder so
@@ -80,6 +80,7 @@ specs/010-starship-generator/
 │   ├── cli.md           # `cetools ship` command schema
 │   ├── engine-api.md    # Engine public functions and types
 │   └── design-schema.md # TOML design-file schema (builder input / round-trip output)
+├── examples/            # Golden SRD reference designs (TOML) used as test fixtures (SC-002)
 └── tasks.md             # Phase 2 output (/speckit-tasks—NOT created here)
 ```
 
@@ -94,12 +95,12 @@ src/cetools/
 │   └── ship.py          # NEW: `cetools ship` Typer sub-app (I/O routing only)
 ├── engine/
 │   ├── ships/           # NEW subpackage—the ship-design domain
-│   │   ├── __init__.py  # Public surface: build_ship, generate_ship, load_design, dump_design, models
+│   │   ├── __init__.py  # Public surface: build_ship, generate_ship, load/loads/dump_design, models
 │   │   ├── tables.py    # SRD static data (all ship-construction tables as data)
 │   │   ├── models.py    # ShipDesign (input) + Ship (output) + component value objects, frozen
 │   │   ├── builder.py   # build_ship(design) -> Ship: deterministic allocation, costing, validation
-│   │   ├── generator.py # generate_ship(rolls, *, hull_size=None, small_craft=False) -> Ship
-│   │   ├── design.py    # load_design() via tomllib; dump_design() TOML serializer (round-trip)
+│   │   ├── generator.py # generate_ship(rolls=None, *, hull_size=None, small_craft=False) -> Ship
+│   │   ├── design.py    # load_design()/loads_design() via tomllib; dump_design() writer (round-trip)
 │   │   └── sheet.py     # render_sheet(ship) -> human-readable ship sheet
 │   ├── rolls.py         # MODIFIED: add SHIP_* RollName members
 │   └── ...              # (all existing modules unchanged)

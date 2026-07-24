@@ -8,7 +8,7 @@ routing: parse args / read TOML → call `cetools.engine.ships` → write stdout
 
 | Argument / Option | Type | Default | Meaning |
 |-------------------|------|---------|---------|
-| `FILE` | path (positional) | — | TOML design file to build (FR-021) |
+| `FILE` | path (positional) | (required) | TOML design file to build (FR-021) |
 | `--toml` | flag | off | Emit the built ship as a TOML design file to stdout instead of a sheet |
 | `--out` | path | none | Write the emitted TOML to a file (with `--toml`) |
 
@@ -30,22 +30,26 @@ Tonnage: 191 used / 9 cargo            Cost: MCr 61.06        Build: 44 weeks
 
 | Option | Type | Default | Meaning |
 |--------|------|---------|---------|
-| `--hull` | `int` | none | Constrain to a hull size (100–5,000, or 10–95 with `--small-craft`) (FR-018) |
+| `--hull` | `int` | none | Constrain to a tabulated hull size (100–5,000, or 10–95 with `--small-craft`) (FR-018) |
 | `--small-craft` | flag | off | Generate under the small-craft ruleset (FR-019) |
 | `--toml` | flag | off | Emit the generated ship as a TOML design file instead of a sheet (FR-023) |
 | `--out` | path | none | Write the emitted TOML to a file (with `--toml`) |
 | `--seed` | `int` | none | Seed for reproducible output (FR-017) |
 
 **Behavior**: builds a random rules-legal ship through the engine and prints its sheet (default) or
-its round-trippable TOML (`--toml`). When `--seed` is omitted, the chosen seed is reported (to stderr)
-so the run can be reproduced. Exit 0.
+its round-trippable TOML (`--toml`). When `--seed` is omitted, the chosen seed is reported **on
+stderr** so the run can be reproduced; stdout carries only the sheet, which `render_sheet` derives
+from the `Ship` alone and which therefore never contains the seed. Exit 0.
 
 Example:
 
 ```text
 $ cetools ship generate --seed 42
-Ship: (generated, seed 42)
 Hull: 400 tons, standard (hull 4)  ...
+
+$ cetools ship generate            # seed chosen for you, reported on stderr
+seed: 8613427                      # stderr
+Hull: 600 tons, streamlined (hull 6)  ...   # stdout
 ```
 
 ## Error handling
@@ -53,7 +57,7 @@ Hull: 400 tons, standard (hull 4)  ...
 | Condition | Exit | stderr |
 |-----------|------|--------|
 | Design file not found / unreadable | 1 | `"cannot read design file: <path>"` |
-| Malformed TOML or schema-invalid design | 1 | The `ValueError` message from `load_design` |
+| Malformed TOML or schema-invalid design | 1 | The `ValueError` message from `load_design` (shape errors only) |
 | Rules-illegal design (e.g. over-allocation) | 1 | The `ValueError` message from `build_ship` (names the violated rule) |
 | Invalid `--hull` value | 1 | Typer validation / `ValueError` listing valid sizes |
 | `--out` without `--toml` | 1 | `"--out requires --toml"` |

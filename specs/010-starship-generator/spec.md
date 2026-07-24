@@ -135,7 +135,7 @@ rejected on hulls too small to support them.
 - **Fuel for a stated jump range**: jump fuel scales with the intended jump distance (0.1 × hull ×
   jump number); the tool must state the assumed range used when reporting fuel.
 - **Crew scaling**: engineers scale with drive-plus-plant tonnage, stewards and medics with passenger
-  counts; a ship with no passengers needs no steward.
+  counts; a ship with no high or middle passengers needs neither a steward nor a medic.
 - **Standard vs. custom cost**: the 10% common-design discount applies only when the design is marked
   standard, and never to fuel or ammunition; custom designs do not receive it.
 
@@ -189,19 +189,26 @@ rejected on hulls too small to support them.
 - **FR-011**: The tool MUST treat all tonnage not consumed by other components as cargo capacity and
   report it.
 - **FR-012**: The tool MUST compute minimum crew per the SRD crew rules: a pilot always; an engineer
-  scaled by drive-plus-plant tonnage; gunners for turrets, bays, and screens; a navigator unless the
-  computer carries Jump-Control software (which reduces the navigator minimum to zero); and a medic and
-  steward only when the ship carries passengers.
+  scaled by drive-plus-plant tonnage; a gunner per turret and per bay; an operator per defensive
+  screen; a navigator unless the computer carries Jump-Control software (which reduces the navigator
+  minimum to zero); and a medic and steward only when the ship carries high or middle passengers.
+  A ship with no high or middle passengers needs neither a steward nor a medic; occupied low berths
+  trigger neither role.
 - **FR-013**: The tool MUST compute total cost in MCr as the sum of all components. It MUST apply a 10%
   discount only when the design is marked as a common/standard design, and that discount applies to the
   hull and components but never to fuel or ammunition (per the SRD).
 - **FR-014**: The tool MUST report build time from the SRD hull table.
 - **FR-015**: The tool MUST reject any design whose combined component tonnage exceeds the hull
-  tonnage, and MUST report which constraint each rejected design violates (over-allocation, drive/plant
-  mismatch, hardpoint limit, missing required system, or an armament disallowed for the hull class).
-  When a design violates more than one constraint, the tool reports the first violation encountered in
-  the SRD build order (hull and configuration, armor, drives, power plant, fuel, bridge/cockpit,
-  computer and software, electronics, quarters, fittings, armaments, cargo).
+  tonnage, and MUST report which constraint each rejected design violates: over-allocation, drive/plant
+  mismatch, a drive code not available on the chosen hull, a missing required system, an armor
+  increment that is not a legal 5% step, ship software exceeding the computer's rating, the hardpoint
+  limit, a fitting disallowed by the hull configuration (fuel scoops on a distributed hull), or an
+  armament disallowed for the hull class. When a design violates more than one constraint, the tool
+  reports the first violation encountered in the SRD build order (hull and configuration, armor,
+  drives, power plant, fuel, bridge/cockpit, computer and software, electronics, quarters, fittings,
+  armaments, cargo). To make that ordering observable, every rule check MUST be evaluated by the
+  builder in build order; reading a design file rejects only malformed input (bad TOML, unknown key,
+  wrong value type, unknown enum value), never a rule violation.
 
 **Random generator (P2)**
 
@@ -237,7 +244,8 @@ rejected on hulls too small to support them.
   the standard-library `tomllib`, introducing no new runtime dependency), and MUST report a clear
   error for a malformed or schema-invalid design file.
 - **FR-022**: A completed ship MUST be presentable as a human-readable ship sheet listing hull and
-  configuration, drives and performance, power plant, fuel, computer and software, electronics, crew,
+  configuration, drives and performance, power plant, fuel (including the assumed jump range used, per
+  FR-006), computer and software, electronics, crew,
   quarters, fittings, armaments, tonnage summary (used/cargo), hull/structure points, total cost, and
   build time. For a small craft the sheet reflects the small-craft ruleset: a cockpit line in place of
   the bridge, and no jump drive or jump-fuel line. The CLI MUST also, on request, emit a completed ship
@@ -288,7 +296,8 @@ rejected on hulls too small to support them.
   specific violated rule, with no false acceptances across the reference test set.
 - **SC-006**: Adding or adjusting an SRD table entry (a new hull size, weapon, or fitting) requires
   only changing the corresponding data, with no change to the generation or costing logic.
-- **SC-007**: Generating a single ship completes effectively instantly (well under one second).
+- **SC-007**: Generating a single ship completes effectively instantly: under 0.1 seconds per build or
+  generation on ordinary hardware.
 - **SC-008**: A ship emitted as a TOML design file and fed back to the builder reproduces the same
   ship sheet, 100% of the time, including for randomly generated ships (design round-trip is lossless).
 

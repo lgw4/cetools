@@ -2,7 +2,7 @@
 
 All types are frozen dataclasses / enums in `src/cetools/engine/ships/models.py`, following the
 project's immutable-value-object convention (`__post_init__` calls a module-level `_validate_*` that
-raises `ValueError` with a rule-specific message). SRD numbers are the small integers / MCr floats
+raises `ValueError` with a specific message). SRD numbers are the small integers / MCr floats
 from [research.md](./research.md). Two record families exist: **`ShipDesign`** (declarative input,
 mirrors the TOML schema) and **`Ship`** (computed output / sheet, carries its `ShipDesign`).
 
@@ -64,13 +64,26 @@ The declarative build order, produced by `load_design` or the generator; consume
 | `standard_design` | `bool` | default `False`; `True` applies the 10% discount |
 | `name` | `str \| None` | optional ship name for the sheet |
 
-**Validation (raises `ValueError`):** `hull_tons` is a known size; `jump_code`/`maneuver_code`/
-`power_code` are legal letters; small craft has no `jump_code`, no bays, no bridge; a starship has a
-`jump_code` and `power_code`; armor increments are multiples of 5% (min 1 t); cockpit XOR bridge.
-Component-*interaction* checks (tonnage budget, power-plant rating, hardpoints, software rating) live
-in the builder, not here, because they need derived totals.
+**Validation (raises `ValueError`)—shape only.** `ShipDesign.__post_init__` checks that the record is
+*well-formed*, never that it is *rules-legal*: field types and ranges (`staterooms ≥ 0`,
+`computer.model` in 1–7), enum membership (`configuration`, `ArmorType`, mount/kind strings), drive
+codes being letters in the SRD sequence, and `bridge` XOR `cockpit` (a structurally impossible record,
+not an SRD rule).
+
+**Every SRD rule check belongs to the builder** (FR-015), including the ones a reader might expect
+here: `hull_tons` being a tabulated size, a starship having a `jump_code` and `power_code`, a small
+craft carrying no jump drive and no bays, and armor arriving in 5% increments. This keeps a single
+validation authority and is what makes FR-015's "first violation in SRD build order" observable—if
+`__post_init__` rejected an armor increment, a design that *also* had an earlier hull error would
+report the wrong rule. `load_design` is likewise shape-only (see contracts/design-schema.md).
+
+Component-*interaction* checks (tonnage budget, power-plant rating, hardpoints, software rating) are
+in the builder for the same reason, and additionally because they need derived totals.
 
 ### Component fits
+
+All eight are part of the package's public surface (contracts/engine-api.md): building a `ShipDesign`
+in code needs them.
 
 - **`ArmorFit`**: `type: ArmorType`, `percent: int` (multiple of 5), `options: tuple[str, ...]`
   (`reflec`/`self_sealing`/`stealth`).
@@ -98,7 +111,7 @@ The computed sheet, produced by `build_ship(design)` and `generate_ship(...)`.
 | `maneuver_rating` | `int` | derived from `maneuver_code` + hull (0 if none) |
 | `power_rating` | `int` | derived from `power_code` + hull |
 | `jump_fuel` | `float` | 0.1 × hull × jump distance |
-| `assumed_jump_distance` | `int` | the jump range used for fuel (reported per FR-006) |
+| `assumed_jump_distance` | `int` | the jump range used for fuel; rendered on the sheet (FR-006, FR-022) |
 | `power_fuel` | `float` | ⌊power tons ÷ 3⌋ × weeks (small craft: rounded to 0.1 t) |
 | `tonnage_used` | `float` | sum of every component's tonnage |
 | `cargo_tons` | `float` | `hull_tons − tonnage_used` (≥ 0; may be exactly 0) |
@@ -111,11 +124,13 @@ The computed sheet, produced by `build_ship(design)` and `generate_ship(...)`.
 | `build_weeks` | `int` | from the hull table |
 | `line_items` | `tuple[LineItem, ...]` | per-component (name, tons, cost) for the sheet |
 
-**Derived (methods/properties):**
+**Derived:**
 
-- `sheet` → the human-readable ship sheet (delegates to `ships/sheet.py`).
 - `is_valid` is implicit: a returned `Ship` is always valid; invalid designs never produce a `Ship`
   (the builder raises `ValueError` first).
+
+`Ship` carries no rendering method: the sheet is produced by the free function `render_sheet(ship)` in
+`ships/sheet.py`, so `models.py` never imports `sheet.py` and the dependency runs one way only.
 
 ### `Crew`
 
@@ -124,9 +139,13 @@ The computed sheet, produced by `build_ship(design)` and `generate_ship(...)`.
 | `pilot` | `int` | 1 |
 | `navigator` | `int` | 1, or 0 if Jump-Control software present |
 | `engineers` | `int` | ⌈(drive+plant tons) ÷ 35⌉ (0 if no drives/plant) |
-| `gunners` | `int` | turrets + bays + screens |
-| `medic` | `int` | ⌈(crew+passengers) ÷ 120⌉ |
+| `gunners` | `int` | turrets + bays |
+| `screen_operators` | `int` | 1 per screen |
+| `medic` | `int` | 0 when `passengers_high + passengers_middle == 0`; otherwise ⌈(crew + passengers) ÷ 120⌉ |
 | `stewards` | `int` | per 4 high / 10 middle passengers (0 with no passengers) |
+
+Only high and middle passengers count as "carries passengers" for the steward and medic triggers
+(FR-012); occupied low berths trigger neither role and are excluded from the medic headcount.
 
 **Derived:** `total` → sum of all roles.
 
@@ -138,19 +157,24 @@ breakdown" can never disagree.
 
 ## Builder-enforced constraints (rejections → `ValueError`, FR-015 / SC-005)
 
-Each rejection message names the violated rule:
+Each rejection message names the violated rule. The table is ordered by the SRD build order below, and
+the builder evaluates the checks in exactly that order, so a design violating several constraints
+reports the first one (FR-015):
 
-| Constraint | Message shape |
-|------------|---------------|
-| Tonnage over-allocation | `"components use N tons, hull holds M"` |
-| Power-plant below drives | `"power plant rating N below required M (higher of jump/maneuver)"` |
-| Hardpoint limit | `"K weapon systems exceed J hardpoints (1 per 100 tons)"` |
-| Missing required system | `"starship requires a jump drive"` / `"powered craft requires a power plant"` |
-| Small-craft violation | `"small craft cannot mount a jump drive"` / `"…a weapon bay"` |
-| Drive not on this hull | `"drive code X is not available on an N-ton hull"` |
-| Software over computer rating | `"software rating N exceeds computer rating M"` |
-| Armor increment | `"armor must be added in 5% increments (min 1 ton)"` |
-| Small-craft energy-weapon cap | `"power plant code X allows at most K energy weapons"` |
+| # | Constraint | Build step | Message shape |
+|---|------------|------------|---------------|
+| 1 | Unknown hull size | hull | `"N tons is not a tabulated hull size"` |
+| 2 | Armor increment | armor | `"armor must be added in 5% increments (min 1 ton)"` |
+| 3 | Drive not on this hull | drives | `"drive code X is not available on an N-ton hull"` |
+| 4 | Missing required system | drives / power | `"starship requires a jump drive"` / `"powered craft requires a power plant"` |
+| 5 | Small-craft jump drive | drives | `"small craft cannot mount a jump drive"` |
+| 6 | Power-plant below drives | power | `"power plant rating N below required M (higher of jump/maneuver)"` |
+| 7 | Software over computer rating | computer | `"software rating N exceeds computer rating M"` |
+| 8 | Fuel scoops on a distributed hull | fittings | `"a distributed hull cannot mount fuel scoops"` |
+| 9 | Hardpoint limit | armaments | `"K weapon systems exceed J hardpoints (1 per 100 tons)"` |
+| 10 | Small-craft bay weapon | armaments | `"small craft cannot mount a weapon bay"` |
+| 11 | Small-craft energy-weapon cap | armaments | `"power plant code X allows at most K energy weapons"` |
+| 12 | Tonnage over-allocation | cargo | `"components use N tons, hull holds M"` |
 
 ## Static tables (`ships/tables.py`)—data, not logic
 

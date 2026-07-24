@@ -1,8 +1,8 @@
 # Contract: TOML Design-File Schema
 
 The structured design a caller feeds to `cetools ship build`, and the format `--toml` emits. Parsed
-with stdlib `tomllib` into a `ShipDesign` (`load_design`); emitted by the in-repo writer
-(`dump_design`). The schema is expressive enough to represent any ship the builder or random
+with stdlib `tomllib` into a `ShipDesign` (`load_design` from a path, `loads_design` from TOML text);
+emitted by the in-repo writer (`dump_design`). The schema is expressive enough to represent any ship the builder or random
 generator can produce (FR-023), so any built or generated ship round-trips losslessly (SC-008).
 
 ## Top-level keys
@@ -22,7 +22,7 @@ power_weeks = 2           # optional; >= 2 (starship) or >= 1 (small craft)
 
 [bridge]
 present = true            # starships; omit / false for small craft
-cockpit = "1_man"         # small craft only: "1_man" | "2_man" | "1_man_cabin" | "2_man_cabin"
+cockpit = "1_man"         # small craft only: "1_man" | "2_man" (the two SRD cockpits, research Part K)
 
 [computer]
 model = 1                 # 1..7
@@ -70,12 +70,16 @@ middle = 0
 
 ## Rules enforced at load
 
-`load_design` raises `ValueError` for: a missing/unknown `hull_tons`; an unknown enum string
-(`configuration`, armor `type`, turret `mount`, bay/screen/fitting `kind`); a wrong value type; an
-unknown top-level or section key; a small-craft hull carrying `[drives].jump` or a `[[bays]]` entry;
-a starship missing `[drives].jump` or `[drives].power`; a bridge-and-cockpit conflict. Deeper
-interaction checks (tonnage budget, power-plant rating, hardpoints, software rating) are the builder's
-job and surface when `build_ship` runs.
+Loading is **shape-only**. `load_design` / `loads_design` raise `ValueError` for malformed input:
+unparseable TOML; a missing `hull_tons`; an unknown enum string (`configuration`, armor `type`,
+`cockpit`, turret `mount`, bay/screen/fitting `kind`); a wrong value type; an unknown top-level or
+section key; and a bridge-and-cockpit conflict (a structurally impossible record).
+
+Loading never rejects a *rules* violation. A small-craft hull carrying `[drives].jump` or a `[[bays]]`
+entry, a starship missing `[drives].jump` or `[drives].power`, a bad armor increment, an unknown hull
+size, and every interaction check (tonnage budget, power-plant rating, hardpoints, software rating)
+are the builder's job and surface when `build_ship` runs—so the violations are reported in SRD build
+order from a single authority (FR-015).
 
 ## Emission (`dump_design`)
 
