@@ -116,15 +116,15 @@ on stderr when none is given. (`small_craft=` is wired here; its behaviour lands
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T030 [P] [US2] Write failing generator tests: `ScriptedRolls` pins a known component selection to an exact `Ship`; `RandomRolls.seeded(42)` twice yields equal ships (SC-004); a sweep of many seeds all produce ships (SC-003, no `ValueError`); `hull_size=` is honoured (FR-018); each generated ship satisfies `build_ship(loads_design(dump_design(ship.design))) == ship` (SC-008)—in `tests/test_ship_generator.py`
-- [ ] T031 [P] [US2] Write failing CLI tests for `cetools ship generate` (two `--seed 42` runs byte-identical on stdout; `--hull 400` reflected in the sheet; `--toml` and `--out`; the chosen seed reported on **stderr** when `--seed` is omitted, with stdout carrying the sheet alone and no seed in it; invalid `--hull` exits 1) in `tests/test_cli.py`
+- [X] T030 [P] [US2] Write failing generator tests: `ScriptedRolls` pins a known component selection to an exact `Ship`; `RandomRolls.seeded(42)` twice yields equal ships (SC-004); a sweep of many seeds all produce ships (SC-003, no `ValueError`); `hull_size=` is honoured (FR-018); each generated ship satisfies `build_ship(loads_design(dump_design(ship.design))) == ship` (SC-008)—in `tests/test_ship_generator.py`
+- [X] T031 [P] [US2] Write failing CLI tests for `cetools ship generate` (two `--seed 42` runs byte-identical on stdout; `--hull 400` reflected in the sheet; `--toml` and `--out`; the chosen seed reported on **stderr** when `--seed` is omitted, with stdout carrying the sheet alone and no seed in it; invalid `--hull` exits 1) in `tests/test_cli.py`
 
 ### Implementation for User Story 2
 
-- [ ] T032 [US2] Implement the component-selection helpers (hull size, configuration, drive codes constrained so the power plant meets the drive requirement, armor, computer and software, electronics, staterooms, fittings, turrets and weapons) reading the same `tables.py` data the builder validates against, each using a named `SHIP_*` roll, in `src/cetools/engine/ships/generator.py`
-- [ ] T033 [US2] Implement `generate_ship(rolls=None, *, hull_size=None, small_craft=False)`—defaulting `rolls` to `RandomRolls()`—assembling a `ShipDesign` that is legal by construction (tonnage budget respected before the build) and returning `build_ship(design)`, in `src/cetools/engine/ships/generator.py`
-- [ ] T034 [US2] Export `generate_ship` from `src/cetools/engine/ships/__init__.py`
-- [ ] T035 [US2] Add the `generate` command (`--hull`, `--seed`, `--toml`, `--out`) to `src/cetools/cli/ship.py`, seeding via `RandomRolls.seeded(seed)` and reporting the chosen seed on stderr when `--seed` is omitted
+- [X] T032 [US2] Implement the component-selection helpers (hull size, configuration, drive codes constrained so the power plant meets the drive requirement, armor, computer and software, electronics, staterooms, fittings, turrets and weapons) reading the same `tables.py` data the builder validates against, each using a named `SHIP_*` roll, in `src/cetools/engine/ships/generator.py`
+- [X] T033 [US2] Implement `generate_ship(rolls=None, *, hull_size=None, small_craft=False)`—defaulting `rolls` to `RandomRolls()`—assembling a `ShipDesign` that is legal by construction (tonnage budget respected before the build) and returning `build_ship(design)`, in `src/cetools/engine/ships/generator.py`
+- [X] T034 [US2] Export `generate_ship` from `src/cetools/engine/ships/__init__.py`
+- [X] T035 [US2] Add the `generate` command (`--hull`, `--seed`, `--toml`, `--out`) to `src/cetools/cli/ship.py`, seeding via `RandomRolls.seeded(seed)` and reporting the chosen seed on stderr when `--seed` is omitted
 
 **Checkpoint**: User Stories 1 and 2 both work. Seeded generation is reproducible and always legal.
 

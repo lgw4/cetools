@@ -809,3 +809,57 @@ def test_ship_build_rules_illegal_design_exits_1(tmp_path):
     result = runner.invoke(app, ["ship", "build", str(illegal)])
     assert result.exit_code == 1
     assert "not a tabulated hull size" in result.stderr
+
+
+# --- `cetools ship generate` (T031) ---
+
+
+def test_ship_generate_seed_is_byte_identical():
+    args = ["ship", "generate", "--seed", "42"]
+    first = runner.invoke(app, args)
+    second = runner.invoke(app, args)
+    assert first.exit_code == 0
+    assert second.exit_code == 0
+    assert first.stdout == second.stdout
+
+
+def test_ship_generate_hull_reflected_in_sheet():
+    result = runner.invoke(app, ["ship", "generate", "--seed", "42", "--hull", "400"])
+    assert result.exit_code == 0
+    assert "Hull: 400 tons" in result.stdout
+
+
+def test_ship_generate_toml_emits_round_trippable_design():
+    result = runner.invoke(app, ["ship", "generate", "--seed", "42", "--toml"])
+    assert result.exit_code == 0
+
+    from cetools.engine.ships import build_ship, loads_design
+
+    design = loads_design(result.stdout)
+    build_ship(design)  # generated design must be legal
+
+
+def test_ship_generate_out_writes_a_file(tmp_path):
+    out_path = tmp_path / "generated.toml"
+    result = runner.invoke(
+        app, ["ship", "generate", "--seed", "42", "--toml", "--out", str(out_path)]
+    )
+    assert result.exit_code == 0
+    assert out_path.exists()
+
+    from cetools.engine.ships import build_ship, loads_design
+
+    build_ship(loads_design(out_path.read_text()))
+
+
+def test_ship_generate_reports_seed_on_stderr_when_omitted():
+    result = runner.invoke(app, ["ship", "generate"])
+    assert result.exit_code == 0
+    assert "seed" in result.stderr.lower()
+    assert "seed" not in result.stdout.lower()
+
+
+def test_ship_generate_invalid_hull_exits_1():
+    result = runner.invoke(app, ["ship", "generate", "--hull", "150"])
+    assert result.exit_code == 1
+    assert result.stderr.strip()
