@@ -153,25 +153,41 @@ def test_warship_golden_figures():
     assert ship.assumed_jump_distance == 1
     assert ship.jump_fuel == pytest.approx(80.0)
     assert ship.power_fuel == pytest.approx(8.0)
-    assert ship.tonnage_used == pytest.approx(264.0)
-    assert ship.cargo_tons == pytest.approx(536.0)
+    assert ship.tonnage_used == pytest.approx(268.0)
+    assert ship.cargo_tons == pytest.approx(532.0)
     assert ship.hull_points == 16
     assert ship.structure_points == 16
     assert ship.armor_protection == 4
     assert ship.hardpoints == 8
-    assert ship.hardpoints_used == 2
-    assert ship.total_cost == pytest.approx(183.825)
+    assert ship.hardpoints_used == 3
+    assert ship.total_cost == pytest.approx(184.72)
     assert ship.build_weeks == 92
 
     crew = ship.crew
     assert crew.pilot == 1
     assert crew.navigator == 1
     assert crew.engineers == 2
-    assert crew.gunners == 2
+    assert crew.gunners == 3
     assert crew.screen_operators == 0
     assert crew.medic == 0
     assert crew.stewards == 0
-    assert crew.total == 6
+    assert crew.total == 7
+
+
+def test_warship_loaded_ammunition_is_allocated_and_never_discounted():
+    # The fixture's ammunition (FR-010) rides a standard_design hull, so it
+    # also pins FR-013's rule that the 10% discount never touches ammunition.
+    ship = build_ship(load_design(f"{_EXAMPLES}/warship.toml"))
+
+    sand = next(item for item in ship.line_items if item.name == "sand_barrels ammo")
+    assert sand.tons == pytest.approx(1.0)
+    assert sand.cost == pytest.approx(0.01)
+    assert sand.discountable is False
+
+    missiles = next(item for item in ship.line_items if item.name == "standard missile ammo")
+    assert missiles.tons == pytest.approx(2.0)
+    assert missiles.cost == pytest.approx(0.03)
+    assert missiles.discountable is False
 
 
 # --- FR-015 / SC-005: rejections, one per builder-enforced constraint ---

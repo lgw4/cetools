@@ -1,6 +1,7 @@
 import pytest
 
 from cetools.engine.ships import (
+    AmmoFit,
     ArmorFit,
     ArmorType,
     BayFit,
@@ -212,3 +213,203 @@ def test_a_bay_on_a_small_craft_hull_loads_cleanly():
     assert design.bays == (BayFit(kind="particle"),)
     with pytest.raises(ValueError, match="small craft cannot mount a weapon bay"):
         build_ship(design)
+
+
+# --- T093: schema sections no golden fixture exercised (FR-010, FR-023, SC-008) ---
+
+
+def test_loads_design_parses_both_ammunition_forms():
+    design = loads_design(
+        'hull_tons = 200\n\n[drives]\njump = "A"\npower = "A"\n\n'
+        "[[turrets]]\n"
+        'mount = "double"\n'
+        'weapons = ["missile_rack", "sandcaster"]\n'
+        "ammo = [\n"
+        '  { kind = "sand_barrels", count = 20 },\n'
+        '  { kind = "missile", type = "smart", count = 24 },\n'
+        "]\n"
+    )
+
+    assert design.turrets[0].ammo == (
+        AmmoFit(kind="sand_barrels", count=20),
+        AmmoFit(kind="missile", type="smart", count=24),
+    )
+
+
+def test_ammunition_round_trips_losslessly():
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        turrets=(
+            TurretFit(
+                mount="double",
+                weapons=("missile_rack", "sandcaster"),
+                ammo=(
+                    AmmoFit(kind="missile", type="nuclear", count=12),
+                    AmmoFit(kind="sand_barrels", count=40),
+                ),
+            ),
+        ),
+    )
+    assert loads_design(dump_design(design)) == design
+    ship = build_ship(design)
+    assert build_ship(loads_design(dump_design(ship.design))) == ship
+
+
+def test_dump_design_emits_every_ammunition_key():
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        turrets=(
+            TurretFit(
+                mount="single",
+                weapons=("missile_rack",),
+                ammo=(AmmoFit(kind="missile", type="standard", count=12),),
+            ),
+        ),
+    )
+    text = dump_design(design)
+    assert 'kind = "missile"' in text
+    assert 'type = "standard"' in text
+    assert "count = 12" in text
+
+
+def test_a_non_default_power_weeks_round_trips():
+    design = ShipDesign(hull_tons=200, jump_code="A", power_code="A", power_weeks=8)
+    text = dump_design(design)
+    assert "power_weeks = 8" in text
+    assert loads_design(text) == design
+
+
+def test_a_default_power_weeks_is_omitted_from_the_dump():
+    starship = ShipDesign(hull_tons=200, jump_code="A", power_code="A")
+    assert "power_weeks" not in dump_design(starship)
+
+    small_craft = ShipDesign(
+        hull_tons=40, maneuver_code="sB", power_code="sG", bridge=False, cockpit="1_man"
+    )
+    assert "power_weeks" not in dump_design(small_craft)
+
+
+def test_a_fitting_quantity_and_vehicle_tons_round_trip():
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        fittings=(
+            FittingFit(kind="armory", quantity=3),
+            FittingFit(kind="vehicle_hangar", vehicle_tons=13),
+        ),
+    )
+    text = dump_design(design)
+    assert "quantity = 3" in text
+    assert "vehicle_tons = 13" in text
+    assert loads_design(text) == design
+
+
+def test_a_single_quantity_fitting_omits_the_quantity_key():
+    design = ShipDesign(
+        hull_tons=200, jump_code="A", power_code="A", fittings=(FittingFit(kind="armory"),)
+    )
+    assert "quantity" not in dump_design(design)
+
+
+# --- T094: FR-021 schema-invalid load errors (design-schema.md "Rules enforced at load") ---
+
+
+def test_loads_design_rejects_a_section_that_is_not_a_table():
+    with pytest.raises(ValueError, match="must be a table"):
+        loads_design("hull_tons = 200\ndrives = 5")
+
+
+def test_loads_design_rejects_a_non_string_drive_code():
+    with pytest.raises(ValueError, match="must be a string"):
+        loads_design("hull_tons = 200\n\n[drives]\njump = 5")
+
+
+def test_loads_design_rejects_a_non_boolean_bridge_present():
+    with pytest.raises(ValueError, match="must be a boolean"):
+        loads_design('hull_tons = 200\n\n[bridge]\npresent = "yes"')
+
+
+def test_loads_design_rejects_a_computer_without_a_model():
+    with pytest.raises(ValueError, match="requires 'model'"):
+        loads_design("hull_tons = 200\n\n[computer]\nhardened = true")
+
+
+def test_loads_design_rejects_software_without_a_name():
+    with pytest.raises(ValueError, match="entry requires 'name'"):
+        loads_design("hull_tons = 200\n\n[computer]\nmodel = 1\nsoftware = [{ level = 1 }]")
+
+
+def test_loads_design_rejects_software_without_a_level():
+    with pytest.raises(ValueError, match="entry requires 'level'"):
+        loads_design('hull_tons = 200\n\n[computer]\nmodel = 1\nsoftware = [{ name = "evade" }]')
+
+
+def test_loads_design_rejects_armor_without_a_type():
+    with pytest.raises(ValueError, match="entry requires 'type'"):
+        loads_design("hull_tons = 200\n\n[[armor]]\npercent = 5")
+
+
+def test_loads_design_rejects_armor_without_a_percent():
+    with pytest.raises(ValueError, match="entry requires 'percent'"):
+        loads_design('hull_tons = 200\n\n[[armor]]\ntype = "titanium_steel"')
+
+
+def test_loads_design_rejects_a_fitting_without_a_kind():
+    with pytest.raises(ValueError, match="entry requires 'kind'"):
+        loads_design("hull_tons = 200\n\n[[fittings]]\nquantity = 2")
+
+
+def test_loads_design_rejects_a_non_integer_vehicle_tons():
+    with pytest.raises(ValueError, match="must be an integer"):
+        loads_design(
+            'hull_tons = 200\n\n[[fittings]]\nkind = "vehicle_hangar"\nvehicle_tons = "13"'
+        )
+
+
+def test_loads_design_rejects_a_turret_without_a_mount():
+    with pytest.raises(ValueError, match="entry requires 'mount'"):
+        loads_design('hull_tons = 200\n\n[[turrets]]\nweapons = ["pulse_laser"]')
+
+
+def test_loads_design_rejects_ammunition_without_a_kind():
+    with pytest.raises(ValueError, match="entry requires 'kind'"):
+        loads_design(
+            'hull_tons = 200\n\n[[turrets]]\nmount = "single"\n'
+            'weapons = ["missile_rack"]\nammo = [{ count = 12 }]'
+        )
+
+
+def test_loads_design_rejects_ammunition_without_a_count():
+    with pytest.raises(ValueError, match="entry requires 'count'"):
+        loads_design(
+            'hull_tons = 200\n\n[[turrets]]\nmount = "single"\n'
+            'weapons = ["missile_rack"]\nammo = [{ kind = "sand_barrels" }]'
+        )
+
+
+def test_loads_design_rejects_an_unknown_ammunition_key():
+    with pytest.raises(ValueError, match="unknown key"):
+        loads_design(
+            'hull_tons = 200\n\n[[turrets]]\nmount = "single"\n'
+            'weapons = ["missile_rack"]\nammo = [{ kind = "sand_barrels", count = 1, bogus = 2 }]'
+        )
+
+
+def test_loads_design_rejects_a_bay_without_a_kind():
+    with pytest.raises(ValueError, match="entry requires 'kind'"):
+        loads_design("hull_tons = 1000\n\n[[bays]]\n")
+
+
+def test_loads_design_rejects_a_screen_without_a_kind():
+    with pytest.raises(ValueError, match="entry requires 'kind'"):
+        loads_design("hull_tons = 1000\n\n[[screens]]\n")
+
+
+def test_loads_design_rejects_a_non_string_enum_value():
+    with pytest.raises(ValueError, match="must be a string"):
+        loads_design("hull_tons = 200\nconfiguration = 5")

@@ -364,15 +364,14 @@ def dump_design(design: ShipDesign) -> str:
         lines.append("[drives]")
         lines.extend(drives_lines)
 
-    bridge_lines = []
+    # Only the cockpit form is emitted: `bridge = False` with no cockpit is a
+    # record `ShipDesign.__post_init__` rejects outright ("exactly one of bridge
+    # or cockpit must be set"), so a bare `present = false` can never describe a
+    # design that exists, and emitting one would produce TOML that fails to load.
     if design.cockpit is not None:
-        bridge_lines.append(f"cockpit = {_toml_str(design.cockpit)}")
-    elif not design.bridge:
-        bridge_lines.append("present = false")
-    if bridge_lines:
         lines.append("")
         lines.append("[bridge]")
-        lines.extend(bridge_lines)
+        lines.append(f"cockpit = {_toml_str(design.cockpit)}")
 
     if design.computer is not None:
         lines.append("")
