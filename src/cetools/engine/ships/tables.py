@@ -1,9 +1,9 @@
 """SRD Chapter 8 "Ship Design and Construction" tables, encoded as data.
 
-Every table here carries only the starship (100-5,000 ton) rules the Foundational
-phase and User Story 1 need. Small-craft tables (``SMALL_CRAFT_HULLS``,
-``COCKPITS``, ``SMALL_CRAFT_ENERGY_CAPS``) and bay/screen tables (``BAYS``,
-``SCREENS``) are added in their own story phases.
+Small-craft tables (``SMALL_CRAFT_HULLS``, ``COCKPITS``, ``SMALL_CRAFT_ENERGY_CAPS``,
+``SMALL_CRAFT_DRIVE_PERFORMANCE``) mirror the starship tables under their own
+ruleset (research.md Part K). Bay/screen tables (``BAYS``, ``SCREENS``) are added
+in their own story phase.
 
 Tables keyed by an enum's *value* (a lowercase string, e.g. ``"standard"`` for
 ``Configuration.STANDARD``) rather than by the enum itself, so this module has no
@@ -113,6 +113,17 @@ class WeaponRow:
 
     cost: float
     energy: bool = False
+
+
+@dataclass(frozen=True)
+class CockpitRow:
+    """One row of the Small Craft Cockpit table: tonnage only.
+
+    Cost is not fixed per cockpit: it scales with the ship, MCr 0.1 per 20 tons
+    of hull (research Part K), the same way bridge cost scales with hull tons.
+    """
+
+    tons: float
 
 
 HULLS: dict[int, HullRow] = {
@@ -655,3 +666,197 @@ TURRET_WEAPONS: dict[str, WeaponRow] = {
 """Turret weapon -> (cost MCr, whether it counts against a small craft's energy-weapon
 cap). The SRD page's Turret Weapons table lists exactly these four; a "beam laser" is
 named in the surrounding prose but never priced, so it is omitted rather than guessed."""
+
+SMALL_CRAFT_HULLS: dict[int, HullRow] = {
+    10: HullRow(code="s1", cost=1.1, build_weeks=28),
+    15: HullRow(code="s2", cost=1.15, build_weeks=29),
+    20: HullRow(code="s3", cost=1.2, build_weeks=29),
+    25: HullRow(code="s4", cost=1.25, build_weeks=30),
+    30: HullRow(code="s5", cost=1.3, build_weeks=30),
+    35: HullRow(code="s6", cost=1.35, build_weeks=30),
+    40: HullRow(code="s7", cost=1.4, build_weeks=31),
+    45: HullRow(code="s8", cost=1.45, build_weeks=31),
+    50: HullRow(code="s9", cost=1.5, build_weeks=32),
+    55: HullRow(code="sA", cost=1.55, build_weeks=32),
+    60: HullRow(code="sB", cost=1.6, build_weeks=32),
+    65: HullRow(code="sC", cost=1.65, build_weeks=33),
+    70: HullRow(code="sD", cost=1.7, build_weeks=33),
+    75: HullRow(code="sE", cost=1.75, build_weeks=34),
+    80: HullRow(code="sF", cost=1.8, build_weeks=34),
+    85: HullRow(code="sG", cost=1.85, build_weeks=34),
+    90: HullRow(code="sH", cost=1.9, build_weeks=35),
+    95: HullRow(code="sJ", cost=1.95, build_weeks=35),
+}
+"""Small-craft tons (10-95, 5-ton steps) -> (code, cost MCr, build weeks)."""
+
+COCKPITS: dict[str, CockpitRow] = {
+    "1_man": CockpitRow(tons=1.5),
+    "2_man": CockpitRow(tons=3.0),
+}
+"""Small-craft cockpit name -> tonnage (research Part K). The SRD's two cockpits
+only; the larger "control cabin" variants are out of this feature's scope."""
+
+SMALL_CRAFT_ENERGY_CAPS: dict[str, int] = {
+    **{code: 0 for code in "ABCDEF"},
+    **{code: 1 for code in "GHJK"},
+    **{code: 2 for code in "LMNPQR"},
+    **{code: 3 for code in "STUVWXYZ"},
+}
+"""Drive-code letter (unprefixed) -> max lasers/particle weapons a small craft's
+power plant allows (research Part K: sA-sF 0, sG-sK 1, sL-sR 2, sS-sZ 3)."""
+
+SMALL_CRAFT_DRIVE_PERFORMANCE: dict[str, dict[int, int]] = {
+    "A": {10: 2, 15: 1, 20: 1},
+    "B": {10: 4, 15: 2, 20: 2, 25: 1, 30: 1, 35: 1, 40: 1},
+    "C": {10: 6, 15: 4, 20: 3, 25: 2, 30: 2, 35: 1, 40: 1, 45: 1, 50: 1, 55: 1, 60: 1},
+    "D": {
+        15: 5,
+        20: 4,
+        25: 3,
+        30: 2,
+        35: 2,
+        40: 2,
+        45: 1,
+        50: 1,
+        55: 1,
+        60: 1,
+        65: 1,
+        70: 1,
+        75: 1,
+        80: 1,
+    },
+    "E": {
+        15: 6,
+        20: 5,
+        25: 4,
+        30: 3,
+        35: 2,
+        40: 2,
+        45: 2,
+        50: 2,
+        55: 1,
+        60: 1,
+        65: 1,
+        70: 1,
+        75: 1,
+        80: 1,
+        85: 1,
+        90: 1,
+        95: 1,
+    },
+    "F": {
+        20: 6,
+        25: 4,
+        30: 4,
+        35: 3,
+        40: 3,
+        45: 2,
+        50: 2,
+        55: 2,
+        60: 2,
+        65: 1,
+        70: 1,
+        75: 1,
+        80: 1,
+        85: 1,
+        90: 1,
+        95: 1,
+    },
+    "G": {
+        25: 5,
+        30: 4,
+        35: 4,
+        40: 3,
+        45: 3,
+        50: 2,
+        55: 2,
+        60: 2,
+        65: 2,
+        70: 2,
+        75: 1,
+        80: 1,
+        85: 1,
+        90: 1,
+        95: 1,
+    },
+    "H": {
+        25: 6,
+        30: 5,
+        35: 4,
+        40: 4,
+        45: 3,
+        50: 3,
+        55: 2,
+        60: 2,
+        65: 2,
+        70: 2,
+        75: 2,
+        80: 2,
+        85: 1,
+        90: 1,
+        95: 1,
+    },
+    "J": {
+        30: 6,
+        35: 5,
+        40: 4,
+        45: 4,
+        50: 3,
+        55: 3,
+        60: 3,
+        65: 2,
+        70: 2,
+        75: 2,
+        80: 2,
+        85: 2,
+        90: 2,
+        95: 1,
+    },
+    "K": {
+        30: 6,
+        35: 5,
+        40: 5,
+        45: 4,
+        50: 4,
+        55: 3,
+        60: 3,
+        65: 3,
+        70: 2,
+        75: 2,
+        80: 2,
+        85: 2,
+        90: 2,
+        95: 2,
+    },
+    "L": {
+        35: 6,
+        40: 6,
+        45: 5,
+        50: 4,
+        55: 4,
+        60: 4,
+        65: 3,
+        70: 3,
+        75: 3,
+        80: 3,
+        85: 2,
+        90: 2,
+        95: 2,
+    },
+    "M": {45: 6, 50: 5, 55: 5, 60: 4, 65: 4, 70: 4, 75: 3, 80: 3, 85: 3, 90: 3, 95: 2},
+    "N": {50: 6, 55: 5, 60: 5, 65: 4, 70: 4, 75: 4, 80: 4, 85: 3, 90: 3, 95: 3},
+    "P": {55: 6, 60: 6, 65: 5, 70: 5, 75: 4, 80: 4, 85: 4, 90: 4, 95: 3},
+    "Q": {60: 6, 65: 6, 70: 5, 75: 5, 80: 5, 85: 4, 90: 4, 95: 4},
+    "R": {65: 6, 70: 6, 75: 5, 80: 5, 85: 5, 90: 4, 95: 4},
+    "S": {70: 6, 75: 6, 80: 6, 85: 5, 90: 5, 95: 5},
+    "T": {75: 6, 80: 6, 85: 6, 90: 5, 95: 5},
+    "U": {85: 6, 90: 6, 95: 5},
+    "V": {90: 6, 95: 6},
+    "W": {95: 6},
+}
+"""Small-craft "Drive Performance by Hull Volume" table, keyed by the drive-code
+letter without its "s" prefix (research Part K). A separate matrix from
+``DRIVE_PERFORMANCE``: small-craft hull tons (10-95) never appear in the starship
+matrix, and the same code letter performs differently at small-craft scale. Codes
+sX-sZ price and cap energy weapons (``SMALL_CRAFT_ENERGY_CAPS``) but have no
+tabulated performance on any small-craft hull."""

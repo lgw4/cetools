@@ -105,6 +105,8 @@ def _parse_drives(data: dict, kwargs: dict) -> None:
 def _parse_bridge(data: dict, kwargs: dict) -> None:
     bridge = _require_table(data.get("bridge", {}), "[bridge]")
     _reject_unknown(bridge, {"present", "cockpit"}, "[bridge]")
+    if "cockpit" in bridge and "present" in bridge:
+        raise ValueError("[bridge] cannot specify both cockpit and present")
     if "cockpit" in bridge:
         kwargs["cockpit"] = _require_str(bridge["cockpit"], "bridge.cockpit")
         kwargs["bridge"] = False

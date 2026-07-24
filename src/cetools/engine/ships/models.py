@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from cetools.engine.ships.tables import (
+    COCKPITS,
     COMPUTERS,
     CONFIG_MODIFIERS,
     ELECTRONICS,
@@ -248,6 +249,8 @@ def _validate_ship_design(design: ShipDesign) -> None:
     has_cockpit = design.cockpit is not None
     if has_cockpit == design.bridge:
         raise ValueError("exactly one of bridge or cockpit must be set")
+    if has_cockpit and design.cockpit not in COCKPITS:
+        raise ValueError(f"unknown cockpit {design.cockpit!r}; known: {sorted(COCKPITS)}")
 
     if design.electronics is not None and design.electronics not in ELECTRONICS:
         raise ValueError(f"unknown electronics package {design.electronics!r}")

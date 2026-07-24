@@ -20,6 +20,7 @@ _GOLDEN_FILES = (
     f"{_EXAMPLES}/free-trader.toml",
     f"{_EXAMPLES}/scout-courier.toml",
     f"{_EXAMPLES}/warship.toml",
+    f"{_EXAMPLES}/fighter.toml",
 )
 
 
@@ -113,4 +114,43 @@ def test_a_well_formed_but_rules_illegal_design_loads_cleanly():
     design = loads_design('hull_tons = 150\n\n[drives]\njump = "A"\npower = "A"')
     assert design.hull_tons == 150
     with pytest.raises(ValueError, match="not a tabulated hull size"):
+        build_ship(design)
+
+
+# --- US3: small craft cockpit I/O (research.md Part K) ---
+
+
+@pytest.mark.parametrize("cockpit", ["1_man", "2_man"])
+def test_cockpit_round_trips_for_both_srd_cockpits(cockpit):
+    design = ShipDesign(
+        hull_tons=40, maneuver_code="sB", power_code="sG", bridge=False, cockpit=cockpit
+    )
+    assert loads_design(dump_design(design)) == design
+
+
+def test_loads_design_rejects_an_unknown_cockpit():
+    with pytest.raises(ValueError, match="unknown cockpit"):
+        loads_design(
+            'hull_tons = 40\n\n[drives]\nmaneuver = "sB"\npower = "sG"\n\n'
+            '[bridge]\ncockpit = "3_man"'
+        )
+
+
+def test_loads_design_rejects_a_bridge_and_cockpit_conflict():
+    with pytest.raises(ValueError, match="cannot specify both cockpit and present"):
+        loads_design(
+            'hull_tons = 40\n\n[drives]\nmaneuver = "sB"\npower = "sG"\n\n'
+            '[bridge]\npresent = true\ncockpit = "1_man"'
+        )
+
+
+def test_a_small_craft_carrying_a_jump_drive_loads_cleanly():
+    # The jump drive is a small-craft rules violation, not a shape error
+    # (FR-015): loads_design accepts it and build_ship rejects it.
+    design = loads_design(
+        'hull_tons = 40\n\n[drives]\njump = "sB"\nmaneuver = "sB"\npower = "sG"\n\n'
+        '[bridge]\ncockpit = "1_man"'
+    )
+    assert design.jump_code == "sB"
+    with pytest.raises(ValueError, match="small craft cannot mount a jump drive"):
         build_ship(design)

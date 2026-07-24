@@ -50,6 +50,9 @@ def generate(
     hull: Annotated[
         int | None, typer.Option("--hull", help="Constrain to a tabulated hull size.")
     ] = None,
+    small_craft: Annotated[
+        bool, typer.Option("--small-craft", help="Generate a 10-95 ton small craft.")
+    ] = False,
     toml: Annotated[
         bool, typer.Option("--toml", help="Emit round-trippable TOML instead of a sheet.")
     ] = False,
@@ -70,7 +73,7 @@ def generate(
         typer.echo(f"seed: {seed}", err=True)
 
     try:
-        ship = generate_ship(RandomRolls.seeded(seed), hull_size=hull)
+        ship = generate_ship(RandomRolls.seeded(seed), hull_size=hull, small_craft=small_craft)
     except ValueError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1)

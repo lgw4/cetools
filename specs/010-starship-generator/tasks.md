@@ -143,22 +143,22 @@ line on the sheet; a small-craft design carrying a jump drive is rejected;
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T036 [P] [US3] Write failing small-craft table tests (`SMALL_CRAFT_HULLS` covers 10–95 t with codes/cost/build weeks, `COCKPITS` holds exactly the two SRD cockpits `1_man` and `2_man` with their research Part K tonnage/cost, `SMALL_CRAFT_ENERGY_CAPS` bands are exhaustive over power-plant codes) in `tests/test_ship_tables.py`
-- [ ] T037 [P] [US3] Add the small-craft golden design `specs/010-starship-generator/examples/fighter.toml` with its hand-worked expected figures in a comment header
-- [ ] T038 [US3] Write failing small-craft builder tests (fighter golden figures; cockpit in place of bridge; one-week fuel floor rounded down to 0.1 t; exactly one hardpoint; jump drive rejected with `small craft cannot mount a jump drive`; energy-weapon count over the power-plant cap rejected) in `tests/test_ship_builder.py`
-- [ ] T039 [P] [US3] Write failing small-craft design I/O tests (`[bridge].cockpit` load and dump for both `1_man` and `2_man`; unknown cockpit string rejected at load; bridge-and-cockpit conflict rejected at load; a small craft carrying `[drives].jump` *loads* cleanly and is rejected by `build_ship`, not by `loads_design`; fighter round-trips losslessly) in `tests/test_ship_design.py`
-- [ ] T040 [P] [US3] Write failing small-craft sheet tests (cockpit line present, no jump-drive or jump-fuel lines) in `tests/test_ship_sheet.py`
-- [ ] T041 [P] [US3] Write failing small-craft generator tests (`small_craft=True` yields a 10–95 t ship with no jump drive, reproducible from a seed) in `tests/test_ship_generator.py`
-- [ ] T042 [P] [US3] Write failing CLI tests for `cetools ship generate --small-craft` (with and without `--hull`; `--hull 95` accepted; `--hull 100 --small-craft` is out of range and exits 1) in `tests/test_cli.py`
+- [X] T036 [P] [US3] Write failing small-craft table tests (`SMALL_CRAFT_HULLS` covers 10–95 t with codes/cost/build weeks, `COCKPITS` holds exactly the two SRD cockpits `1_man` and `2_man` with their research Part K tonnage/cost, `SMALL_CRAFT_ENERGY_CAPS` bands are exhaustive over power-plant codes) in `tests/test_ship_tables.py`
+- [X] T037 [P] [US3] Add the small-craft golden design `specs/010-starship-generator/examples/fighter.toml` with its hand-worked expected figures in a comment header
+- [X] T038 [US3] Write failing small-craft builder tests (fighter golden figures; cockpit in place of bridge; one-week fuel floor rounded down to 0.1 t; exactly one hardpoint; jump drive rejected with `small craft cannot mount a jump drive`; energy-weapon count over the power-plant cap rejected) in `tests/test_ship_builder.py`
+- [X] T039 [P] [US3] Write failing small-craft design I/O tests (`[bridge].cockpit` load and dump for both `1_man` and `2_man`; unknown cockpit string rejected at load; bridge-and-cockpit conflict rejected at load; a small craft carrying `[drives].jump` *loads* cleanly and is rejected by `build_ship`, not by `loads_design`; fighter round-trips losslessly) in `tests/test_ship_design.py`
+- [X] T040 [P] [US3] Write failing small-craft sheet tests (cockpit line present, no jump-drive or jump-fuel lines) in `tests/test_ship_sheet.py`
+- [X] T041 [P] [US3] Write failing small-craft generator tests (`small_craft=True` yields a 10–95 t ship with no jump drive, reproducible from a seed) in `tests/test_ship_generator.py`
+- [X] T042 [P] [US3] Write failing CLI tests for `cetools ship generate --small-craft` (with and without `--hull`; `--hull 95` accepted; `--hull 100 --small-craft` is out of range and exits 1) in `tests/test_cli.py`
 
 ### Implementation for User Story 3
 
-- [ ] T043 [US3] Add `SMALL_CRAFT_HULLS`, `COCKPITS` (the two SRD cockpits only) and `SMALL_CRAFT_ENERGY_CAPS` from research.md Part K to `src/cetools/engine/ships/tables.py`
-- [ ] T044 [US3] Implement the small-craft branch in `src/cetools/engine/ships/builder.py`: `HullClass.SMALL_CRAFT` hull lookup, cockpit in place of the bridge, one-week power-fuel floor rounded down to 0.1 ton, exactly one hardpoint, jump-drive rejection, and the power-plant energy-weapon cap—each check placed at its SRD build-order step (FR-015)
-- [ ] T045 [P] [US3] Add the `[bridge].cockpit` key to `loads_design` and `dump_design` with the bridge/cockpit conflict check in `src/cetools/engine/ships/design.py`
-- [ ] T046 [P] [US3] Render the small-craft sheet variant (cockpit line, jump lines omitted) in `src/cetools/engine/ships/sheet.py`
-- [ ] T047 [P] [US3] Implement `small_craft=True` selection (small-craft hull sizes, cockpit chosen with `SHIP_COCKPIT`, no jump drive, energy-weapon cap respected) in `src/cetools/engine/ships/generator.py`
-- [ ] T048 [P] [US3] Add the `--small-craft` flag to the `generate` command, validating `--hull` against 10–95 when it is set, in `src/cetools/cli/ship.py`
+- [X] T043 [US3] Add `SMALL_CRAFT_HULLS`, `COCKPITS` (the two SRD cockpits only) and `SMALL_CRAFT_ENERGY_CAPS` from research.md Part K to `src/cetools/engine/ships/tables.py`
+- [X] T044 [US3] Implement the small-craft branch in `src/cetools/engine/ships/builder.py`: `HullClass.SMALL_CRAFT` hull lookup, cockpit in place of the bridge, one-week power-fuel floor rounded down to 0.1 ton, exactly one hardpoint, jump-drive rejection, and the power-plant energy-weapon cap—each check placed at its SRD build-order step (FR-015)
+- [X] T045 [P] [US3] Add the `[bridge].cockpit` key to `loads_design` and `dump_design` with the bridge/cockpit conflict check in `src/cetools/engine/ships/design.py`
+- [X] T046 [P] [US3] Render the small-craft sheet variant (cockpit line, jump lines omitted) in `src/cetools/engine/ships/sheet.py`
+- [X] T047 [P] [US3] Implement `small_craft=True` selection (small-craft hull sizes, cockpit chosen with `SHIP_COCKPIT`, no jump drive, energy-weapon cap respected) in `src/cetools/engine/ships/generator.py`
+- [X] T048 [P] [US3] Add the `--small-craft` flag to the `generate` command, validating `--hull` against 10–95 when it is set, in `src/cetools/cli/ship.py`
 
 **Checkpoint**: Small craft build and generate correctly alongside standard hulls.
 

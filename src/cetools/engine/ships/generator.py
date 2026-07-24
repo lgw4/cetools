@@ -6,8 +6,12 @@ that is legal by construction: tonnage is tracked against a running budget so
 no candidate is ever chosen that would over-allocate the hull. Ends by calling
 `build_ship`, so a generated ship can never be rules-illegal (FR-016, SC-003).
 
-`small_craft=True` is not yet implemented (its ruleset lands with the builder
-support added in User Story 3); passing it raises `NotImplementedError`.
+`small_craft=True` selects under the small-craft ruleset (research.md Part K):
+a 10-95 ton hull, a cockpit instead of a bridge, no jump drive, and turret
+weapons constrained to the power plant's energy-weapon cap. Maneuver and power
+drive codes are chosen together, since a small hull's tight tonnage budget
+means the choice must be filtered for affordability up front rather than
+corrected after the fact (unlike the starship path's looser margins).
 """
 
 from __future__ import annotations
@@ -29,17 +33,23 @@ from cetools.engine.ships.models import (
 )
 from cetools.engine.ships.tables import (
     BRIDGE_SIZES,
+    COCKPITS,
     DRIVE_COSTS,
     DRIVE_PERFORMANCE,
     ELECTRONICS,
     FITTINGS,
     HULLS,
     QUARTERS,
+    SMALL_CRAFT_DRIVE_PERFORMANCE,
+    SMALL_CRAFT_ENERGY_CAPS,
+    SMALL_CRAFT_HULLS,
     TURRET_MOUNTS,
     TURRET_WEAPONS,
 )
 
 _STANDARD_POWER_WEEKS = 2
+_SMALL_CRAFT_POWER_WEEKS = 1
+_MIN_COCKPIT_TONS = min(row.tons for row in COCKPITS.values())
 
 _ARMOR_CHOICES: tuple[ArmorFit | None, ...] = (
     None,
@@ -70,6 +80,15 @@ _FITTING_CHOICES: tuple[str | None, ...] = (
 
 _TURRET_MOUNTS: tuple[str, ...] = tuple(sorted(TURRET_MOUNTS))
 _TURRET_WEAPONS: tuple[str, ...] = tuple(sorted(TURRET_WEAPONS))
+_NON_ENERGY_TURRET_WEAPONS: tuple[str, ...] = tuple(
+    w for w in _TURRET_WEAPONS if not TURRET_WEAPONS[w].energy
+)
+_SMALL_CRAFT_TURRET_MOUNTS: tuple[str, ...] = tuple(
+    sorted(name for name, row in TURRET_MOUNTS.items() if row.weapon_slots == 1)
+)
+"""Small craft get one hardpoint and one weapon; restricting to single-slot
+mounts keeps a turret's energy-weapon contribution at 0 or 1, so it can be
+checked directly against the power plant's cap without summing per-slot."""
 
 
 def _select_hull_tons(rolls: Rolls, hull_size: int | None) -> int:
@@ -173,6 +192,109 @@ def _select_turrets(
     return tuple(turrets), remaining
 
 
+def _select_small_craft_hull_tons(rolls: Rolls, hull_size: int | None) -> int:
+    if hull_size is not None:
+        if hull_size not in SMALL_CRAFT_HULLS:
+            raise ValueError(
+                f"{hull_size} tons is not a tabulated small-craft hull size; "
+                f"valid: {sorted(SMALL_CRAFT_HULLS)}"
+            )
+        return hull_size
+    return rolls.choose(sorted(SMALL_CRAFT_HULLS), RollName.SHIP_HULL_SIZE)
+
+
+def _small_craft_power_fuel(power_tons: float) -> float:
+    return math.floor(power_tons / 3 * 10) / 10
+
+
+def _select_small_craft_drives(rolls: Rolls, hull_tons: int) -> tuple[str, str]:
+    """Pick maneuver+power codes that fit the hull, reserving room for at least
+    the smallest cockpit so `_select_cockpit` always has a legal candidate."""
+    valid = sorted(
+        c for c, ratings in SMALL_CRAFT_DRIVE_PERFORMANCE.items() if hull_tons in ratings
+    )
+
+    def power_options(maneuver_letter: str) -> list[str]:
+        maneuver_tons = DRIVE_COSTS[maneuver_letter].maneuver_tons
+        maneuver_rating = SMALL_CRAFT_DRIVE_PERFORMANCE[maneuver_letter][hull_tons]
+        options = []
+        for power_letter in valid:
+            if SMALL_CRAFT_DRIVE_PERFORMANCE[power_letter][hull_tons] < maneuver_rating:
+                continue
+            power_tons = DRIVE_COSTS[power_letter].power_tons
+            power_fuel = _small_craft_power_fuel(power_tons)
+            if maneuver_tons + power_tons + power_fuel + _MIN_COCKPIT_TONS <= hull_tons:
+                options.append(power_letter)
+        return options
+
+    maneuver_candidates = [c for c in valid if power_options(c)]
+    if not maneuver_candidates:
+        raise ValueError(f"no small-craft drive combination fits a {hull_tons}-ton hull")
+    maneuver_letter = rolls.choose(maneuver_candidates, RollName.SHIP_MANEUVER_CODE)
+    power_letter = rolls.choose(power_options(maneuver_letter), RollName.SHIP_POWER_CODE)
+    return f"s{maneuver_letter}", f"s{power_letter}"
+
+
+def _select_cockpit(rolls: Rolls, remaining: float) -> str:
+    candidates = [name for name, row in COCKPITS.items() if row.tons <= remaining]
+    return rolls.choose(candidates, RollName.SHIP_COCKPIT)
+
+
+def _select_small_craft_turret(
+    rolls: Rolls, remaining: float, energy_cap: int
+) -> tuple[tuple[TurretFit, ...], float]:
+    if rolls.d6(RollName.SHIP_TURRET_COUNT) <= 3:
+        return (), remaining
+    mount_name = rolls.choose(_SMALL_CRAFT_TURRET_MOUNTS, RollName.SHIP_TURRET_MOUNT)
+    mount = TURRET_MOUNTS[mount_name]
+    if mount.tons > remaining:
+        return (), remaining
+    weapon_choices = _TURRET_WEAPONS if energy_cap > 0 else _NON_ENERGY_TURRET_WEAPONS
+    weapon = rolls.choose(weapon_choices, RollName.SHIP_WEAPON)
+    return (TurretFit(mount=mount_name, weapons=(weapon,)),), remaining - mount.tons
+
+
+def _generate_small_craft(rolls: Rolls, hull_size: int | None) -> Ship:
+    hull_tons = _select_small_craft_hull_tons(rolls, hull_size)
+    configuration = _select_configuration(rolls)
+    maneuver_code, power_code = _select_small_craft_drives(rolls, hull_tons)
+    maneuver_letter, power_letter = maneuver_code[1:], power_code[1:]
+
+    maneuver_tons = DRIVE_COSTS[maneuver_letter].maneuver_tons
+    power_tons = DRIVE_COSTS[power_letter].power_tons
+    power_fuel_tons = _small_craft_power_fuel(power_tons)
+
+    remaining = hull_tons - (maneuver_tons + power_tons + power_fuel_tons)
+    cockpit = _select_cockpit(rolls, remaining)
+    remaining -= COCKPITS[cockpit].tons
+
+    armor, remaining = _select_armor(rolls, hull_tons, remaining)
+    computer = _select_computer(rolls)
+    electronics, remaining = _select_electronics(rolls, remaining)
+    staterooms, remaining = _select_staterooms(rolls, remaining)
+    fitting, remaining = _select_fitting(rolls, remaining)
+
+    energy_cap = SMALL_CRAFT_ENERGY_CAPS[power_letter]
+    turrets, remaining = _select_small_craft_turret(rolls, remaining, energy_cap)
+
+    design = ShipDesign(
+        hull_tons=hull_tons,
+        configuration=configuration,
+        maneuver_code=maneuver_code,
+        power_code=power_code,
+        power_weeks=_SMALL_CRAFT_POWER_WEEKS,
+        bridge=False,
+        cockpit=cockpit,
+        armor=(armor,) if armor is not None else (),
+        computer=computer,
+        electronics=electronics,
+        staterooms=staterooms,
+        fittings=(fitting,) if fitting is not None else (),
+        turrets=turrets,
+    )
+    return build_ship(design)
+
+
 def generate_ship(
     rolls: Rolls | None = None,
     *,
@@ -184,11 +306,12 @@ def generate_ship(
     `rolls` defaults to `RandomRolls()`; pass `RandomRolls.seeded(seed)` for
     reproducibility (FR-017). `hull_size` constrains generation to a tabulated
     hull size while staying legal (FR-018); when `None`, one is chosen.
+    `small_craft` generates under the 10-95 ton small-craft ruleset (FR-019).
     """
-    if small_craft:
-        raise NotImplementedError("small-craft generation is not yet implemented")
-
     rolls = rolls or RandomRolls()
+
+    if small_craft:
+        return _generate_small_craft(rolls, hull_size)
 
     hull_tons = _select_hull_tons(rolls, hull_size)
     configuration = _select_configuration(rolls)

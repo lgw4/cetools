@@ -863,3 +863,41 @@ def test_ship_generate_invalid_hull_exits_1():
     result = runner.invoke(app, ["ship", "generate", "--hull", "150"])
     assert result.exit_code == 1
     assert result.stderr.strip()
+
+
+# --- `cetools ship generate --small-craft` (T042) ---
+
+
+def test_ship_generate_small_craft_without_hull():
+    result = runner.invoke(app, ["ship", "generate", "--small-craft", "--seed", "7", "--toml"])
+    assert result.exit_code == 0
+
+    from cetools.engine.ships import build_ship, loads_design
+
+    design = loads_design(result.stdout)
+    assert 10 <= design.hull_tons <= 95
+    build_ship(design)
+
+
+def test_ship_generate_small_craft_with_hull():
+    result = runner.invoke(
+        app, ["ship", "generate", "--small-craft", "--hull", "40", "--seed", "7"]
+    )
+    assert result.exit_code == 0
+    assert "Hull: 40 tons" in result.stdout
+
+
+def test_ship_generate_small_craft_hull_95_accepted():
+    result = runner.invoke(
+        app, ["ship", "generate", "--small-craft", "--hull", "95", "--seed", "7"]
+    )
+    assert result.exit_code == 0
+    assert "Hull: 95 tons" in result.stdout
+
+
+def test_ship_generate_small_craft_hull_100_out_of_range_exits_1():
+    result = runner.invoke(
+        app, ["ship", "generate", "--small-craft", "--hull", "100", "--seed", "7"]
+    )
+    assert result.exit_code == 1
+    assert result.stderr.strip()

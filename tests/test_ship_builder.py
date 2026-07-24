@@ -16,6 +16,12 @@ from cetools.engine.ships import (
 _EXAMPLES = "specs/010-starship-generator/examples"
 
 
+def _small_craft(**overrides):
+    kwargs = dict(hull_tons=40, maneuver_code="sB", power_code="sG", bridge=False, cockpit="1_man")
+    kwargs.update(overrides)
+    return ShipDesign(**kwargs)
+
+
 # --- SC-002: golden SRD reference designs ---
 
 
@@ -75,6 +81,34 @@ def test_scout_courier_golden_figures():
     assert crew.medic == 0
     assert crew.stewards == 0
     assert crew.total == 3
+
+
+def test_fighter_golden_figures():
+    ship = build_ship(load_design(f"{_EXAMPLES}/fighter.toml"))
+
+    assert ship.jump_rating == 0
+    assert ship.maneuver_rating == 1
+    assert ship.power_rating == 3
+    assert ship.jump_fuel == pytest.approx(0.0)
+    assert ship.power_fuel == pytest.approx(7.3)
+    assert ship.tonnage_used == pytest.approx(34.8)
+    assert ship.cargo_tons == pytest.approx(5.2)
+    assert ship.hull_points == 0
+    assert ship.structure_points == 1
+    assert ship.hardpoints == 1
+    assert ship.hardpoints_used == 1
+    assert ship.total_cost == pytest.approx(66.2)
+    assert ship.build_weeks == 31
+
+    crew = ship.crew
+    assert crew.pilot == 1
+    assert crew.navigator == 1
+    assert crew.engineers == 1
+    assert crew.gunners == 1
+    assert crew.screen_operators == 0
+    assert crew.medic == 0
+    assert crew.stewards == 0
+    assert crew.total == 4
 
 
 def test_warship_golden_figures():
@@ -272,3 +306,63 @@ def test_armor_options_add_a_per_ton_cost():
         )
     )
     assert with_reflec.total_cost > bare.total_cost
+
+
+# --- US3: small craft (research.md Part K) ---
+
+
+def test_small_craft_has_a_cockpit_line_not_a_bridge():
+    ship = build_ship(_small_craft())
+    assert any(item.name == "1_man cockpit" for item in ship.line_items)
+    assert not any(item.name == "bridge" for item in ship.line_items)
+
+
+def test_small_craft_power_fuel_is_a_one_week_floor_rounded_to_0_1_ton():
+    ship = build_ship(_small_craft())
+    assert ship.power_fuel == pytest.approx(7.3)
+
+
+def test_small_craft_has_exactly_one_hardpoint():
+    ship = build_ship(_small_craft())
+    assert ship.hardpoints == 1
+
+
+def test_small_craft_jump_rating_is_zero():
+    ship = build_ship(_small_craft())
+    assert ship.jump_rating == 0
+    assert ship.jump_fuel == pytest.approx(0.0)
+
+
+def test_rejects_a_small_craft_with_a_jump_drive():
+    design = _small_craft(jump_code="sB")
+    with pytest.raises(ValueError, match="small craft cannot mount a jump drive"):
+        build_ship(design)
+
+
+def test_rejects_energy_weapon_count_over_the_power_plant_cap():
+    # sA's band (sA-sF) allows zero energy weapons.
+    design = ShipDesign(
+        hull_tons=10,
+        power_code="sA",
+        bridge=False,
+        cockpit="1_man",
+        turrets=(TurretFit(mount="fixed", weapons=("pulse_laser",)),),
+    )
+    with pytest.raises(ValueError, match="power plant code sA allows at most 0 energy weapons"):
+        build_ship(design)
+
+
+def test_allows_energy_weapon_count_at_the_power_plant_cap():
+    design = _small_craft(turrets=(TurretFit(mount="fixed", weapons=("pulse_laser",)),))
+    build_ship(design)  # does not raise: sG's band (sG-sK) allows one
+
+
+def test_non_energy_weapons_are_never_capped_on_small_craft():
+    design = ShipDesign(
+        hull_tons=10,
+        power_code="sA",
+        bridge=False,
+        cockpit="1_man",
+        turrets=(TurretFit(mount="fixed", weapons=("sandcaster",)),),
+    )
+    build_ship(design)  # does not raise: sandcaster is not an energy weapon

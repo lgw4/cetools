@@ -87,3 +87,39 @@ def test_default_rolls_is_random_rolls():
     # No explicit `rolls` argument still produces a valid ship (defaults to RandomRolls()).
     ship = generate_ship()
     assert ship.cargo_tons >= 0
+
+
+# --- US3: small craft (research.md Part K) ---
+
+
+def test_small_craft_yields_a_10_to_95_ton_ship_with_no_jump_drive():
+    for seed in range(200):
+        ship = generate_ship(RandomRolls.seeded(seed), small_craft=True)
+        assert 10 <= ship.hull_tons <= 95
+        assert ship.jump_rating == 0
+        assert ship.jump_fuel == pytest.approx(0.0)
+        assert ship.cargo_tons >= 0
+
+
+def test_small_craft_reproducible_from_a_seed():
+    a = generate_ship(RandomRolls.seeded(42), small_craft=True)
+    b = generate_ship(RandomRolls.seeded(42), small_craft=True)
+    assert a == b
+
+
+def test_small_craft_hull_size_is_honoured():
+    for tons in (10, 40, 95):
+        for seed in range(10):
+            ship = generate_ship(RandomRolls.seeded(seed), hull_size=tons, small_craft=True)
+            assert ship.hull_tons == tons
+
+
+def test_small_craft_unknown_hull_size_raises():
+    with pytest.raises(ValueError, match="not a tabulated small-craft hull size"):
+        generate_ship(RandomRolls.seeded(1), hull_size=100, small_craft=True)
+
+
+def test_small_craft_round_trips_losslessly():
+    for seed in range(50):
+        ship = generate_ship(RandomRolls.seeded(seed), small_craft=True)
+        assert build_ship(loads_design(dump_design(ship.design))) == ship

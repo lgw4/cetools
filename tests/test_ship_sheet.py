@@ -4,7 +4,7 @@ _EXAMPLES = "specs/010-starship-generator/examples"
 
 
 def _ships():
-    for name in ("free-trader", "scout-courier", "warship"):
+    for name in ("free-trader", "scout-courier", "warship", "fighter"):
         yield build_ship(load_design(f"{_EXAMPLES}/{name}.toml"))
 
 
@@ -50,3 +50,20 @@ def test_render_sheet_is_byte_identical_for_equal_ships():
 def test_render_sheet_never_mentions_a_seed():
     for ship in _ships():
         assert "seed" not in render_sheet(ship).lower()
+
+
+# --- US3: small craft sheet (FR-022: cockpit in place of bridge, no jump lines) ---
+
+
+def test_render_sheet_small_craft_has_a_cockpit_line():
+    ship = build_ship(load_design(f"{_EXAMPLES}/fighter.toml"))
+    sheet = render_sheet(ship)
+    assert "Cockpit: 1_man" in sheet
+    assert "Bridge:" not in sheet
+
+
+def test_render_sheet_small_craft_has_no_jump_lines():
+    ship = build_ship(load_design(f"{_EXAMPLES}/fighter.toml"))
+    sheet = render_sheet(ship)
+    assert "Jump-" not in sheet
+    assert "jump" not in sheet.lower()

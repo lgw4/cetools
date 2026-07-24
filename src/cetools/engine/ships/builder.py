@@ -12,6 +12,11 @@ Ammunition (`TurretFit.ammo`) is accepted and carried on the design for the
 sheet and round-trip, but is not tabulated in `tables.py` (the SRD ammunition
 price list is not part of this feature's research digest), so it adds no
 tonnage or cost here.
+
+`HullClass.SMALL_CRAFT` designs (10-95 tons) follow the same build order under
+a distinct ruleset (research.md Part K): a cockpit instead of a bridge, no
+jump drive, power-plant fuel rounded to 0.1 ton with a one-week floor, exactly
+one hardpoint, and an energy-weapon cap keyed by the power plant's code.
 """
 
 from __future__ import annotations
@@ -22,6 +27,7 @@ from cetools.engine.ships.models import Configuration, Crew, HullClass, LineItem
 from cetools.engine.ships.tables import (
     ARMOR,
     BRIDGE_SIZES,
+    COCKPITS,
     COMPUTERS,
     DRIVE_COSTS,
     DRIVE_PERFORMANCE,
@@ -29,23 +35,38 @@ from cetools.engine.ships.tables import (
     FITTINGS,
     HULLS,
     QUARTERS,
+    SMALL_CRAFT_DRIVE_PERFORMANCE,
+    SMALL_CRAFT_ENERGY_CAPS,
+    SMALL_CRAFT_HULLS,
     SOFTWARE,
     TURRET_MOUNTS,
     TURRET_WEAPONS,
 )
 
 _ARMOR_OPTION_COST_PER_TON = {"reflec": 0.1, "self_sealing": 0.01, "stealth": 0.1}
+_COCKPIT_COST_PER_20_TONS = 0.1
 
 
-def _drive_rating(code: str, hull_tons: int) -> int:
-    rating = DRIVE_PERFORMANCE[code].get(hull_tons)
+def _drive_letter(code: str) -> str:
+    """The bare A-Z drive letter a small-craft "s"-prefixed code shares with
+    ``DRIVE_COSTS`` (research Part K: component tonnage/cost is unified across
+    both rulesets; only performance is looked up from a separate table)."""
+    return code[1:] if code.startswith("s") else code
+
+
+def _drive_rating(code: str, hull_tons: int, hull_class: HullClass) -> int:
+    table = (
+        SMALL_CRAFT_DRIVE_PERFORMANCE if hull_class is HullClass.SMALL_CRAFT else DRIVE_PERFORMANCE
+    )
+    rating = table.get(_drive_letter(code), {}).get(hull_tons)
     if rating is None:
         raise ValueError(f"drive code {code} is not available on a {hull_tons}-ton hull")
     return rating
 
 
 def _build_hull(design: ShipDesign, items: list[LineItem]):
-    row = HULLS.get(design.hull_tons)
+    table = HULLS if design.hull_class is HullClass.STARSHIP else SMALL_CRAFT_HULLS
+    row = table.get(design.hull_tons)
     if row is None:
         raise ValueError(f"{design.hull_tons} tons is not a tabulated hull size")
     items.append(
@@ -71,8 +92,8 @@ def _build_armor(
 def _build_maneuver(design: ShipDesign, items: list[LineItem], hull_tons: int) -> int:
     if design.maneuver_code is None:
         return 0
-    row = DRIVE_COSTS[design.maneuver_code]
-    rating = _drive_rating(design.maneuver_code, hull_tons)
+    row = DRIVE_COSTS[_drive_letter(design.maneuver_code)]
+    rating = _drive_rating(design.maneuver_code, hull_tons, design.hull_class)
     items.append(
         LineItem(
             name=f"maneuver drive {design.maneuver_code}",
@@ -84,12 +105,14 @@ def _build_maneuver(design: ShipDesign, items: list[LineItem], hull_tons: int) -
 
 
 def _build_jump(design: ShipDesign, items: list[LineItem], hull_tons: int) -> int:
+    if design.hull_class is HullClass.SMALL_CRAFT and design.jump_code is not None:
+        raise ValueError("small craft cannot mount a jump drive")
     if design.hull_class is HullClass.STARSHIP and design.jump_code is None:
         raise ValueError("starship requires a jump drive")
     if design.jump_code is None:
         return 0
-    row = DRIVE_COSTS[design.jump_code]
-    rating = _drive_rating(design.jump_code, hull_tons)
+    row = DRIVE_COSTS[_drive_letter(design.jump_code)]
+    rating = _drive_rating(design.jump_code, hull_tons, design.hull_class)
     items.append(
         LineItem(name=f"jump drive {design.jump_code}", tons=row.jump_tons, cost=row.jump_cost)
     )
@@ -101,8 +124,8 @@ def _build_power(
 ) -> tuple[int, int]:
     if design.power_code is None:
         raise ValueError("powered craft requires a power plant")
-    row = DRIVE_COSTS[design.power_code]
-    rating = _drive_rating(design.power_code, hull_tons)
+    row = DRIVE_COSTS[_drive_letter(design.power_code)]
+    rating = _drive_rating(design.power_code, hull_tons, design.hull_class)
     if rating < required_rating:
         raise ValueError(
             f"power plant rating {rating} below required {required_rating} "
@@ -119,6 +142,17 @@ def _bridge_tons(hull_tons: int) -> int:
         if max_tons is None or hull_tons <= max_tons:
             return bridge_tons
     raise AssertionError("BRIDGE_SIZES must end with an unbounded (None, tons) step")
+
+
+def _build_bridge_or_cockpit(design: ShipDesign, items: list[LineItem], hull_tons: int) -> None:
+    if design.cockpit is not None:
+        row = COCKPITS[design.cockpit]
+        cost = hull_tons / 20 * _COCKPIT_COST_PER_20_TONS
+        items.append(LineItem(name=f"{design.cockpit} cockpit", tons=row.tons, cost=cost))
+    else:
+        items.append(
+            LineItem(name="bridge", tons=_bridge_tons(hull_tons), cost=hull_tons / 100 * 0.5)
+        )
 
 
 def _build_computer(design: ShipDesign, items: list[LineItem]) -> None:
@@ -244,11 +278,15 @@ def build_ship(design: ShipDesign) -> Ship:
 
     jump_distance = design.jump_distance if design.jump_distance is not None else jump_rating
     jump_fuel = 0.1 * hull_tons * jump_distance
-    power_fuel = (power_tons // 3) * design.power_weeks
+    if design.hull_class is HullClass.SMALL_CRAFT:
+        power_fuel_per_week = math.floor(power_tons / 3 * 10) / 10
+    else:
+        power_fuel_per_week = power_tons // 3
+    power_fuel = power_fuel_per_week * design.power_weeks
     items.append(LineItem(name="jump fuel", tons=jump_fuel, cost=0.0))
     items.append(LineItem(name="power plant fuel", tons=power_fuel, cost=0.0))
 
-    items.append(LineItem(name="bridge", tons=_bridge_tons(hull_tons), cost=hull_tons / 100 * 0.5))
+    _build_bridge_or_cockpit(design, items, hull_tons)
 
     _build_computer(design, items)
     _build_electronics(design, items)
@@ -256,19 +294,36 @@ def build_ship(design: ShipDesign) -> Ship:
     hull_structure_bonus = _build_fittings(design, items)
 
     hardpoints_used = _build_turrets(design, items)
-    hardpoints = hull_tons // 100
+    hardpoints = 1 if design.hull_class is HullClass.SMALL_CRAFT else hull_tons // 100
     if hardpoints_used > hardpoints:
         raise ValueError(
             f"{hardpoints_used} weapon systems exceed {hardpoints} hardpoints (1 per 100 tons)"
         )
+
+    if design.hull_class is HullClass.SMALL_CRAFT:
+        energy_weapon_count = sum(
+            1
+            for turret in design.turrets
+            for weapon in turret.weapons
+            if TURRET_WEAPONS[weapon].energy
+        )
+        energy_cap = SMALL_CRAFT_ENERGY_CAPS[_drive_letter(design.power_code)]
+        if energy_weapon_count > energy_cap:
+            raise ValueError(
+                f"power plant code {design.power_code} allows at most {energy_cap} energy weapons"
+            )
 
     tonnage_used = sum(item.tons for item in items)
     cargo_tons = hull_tons - tonnage_used
     if cargo_tons < 0:
         raise ValueError(f"components use {tonnage_used:g} tons, hull holds {hull_tons}")
 
-    maneuver_tons = DRIVE_COSTS[design.maneuver_code].maneuver_tons if design.maneuver_code else 0
-    jump_tons = DRIVE_COSTS[design.jump_code].jump_tons if design.jump_code else 0
+    maneuver_tons = (
+        DRIVE_COSTS[_drive_letter(design.maneuver_code)].maneuver_tons
+        if design.maneuver_code
+        else 0
+    )
+    jump_tons = DRIVE_COSTS[_drive_letter(design.jump_code)].jump_tons if design.jump_code else 0
     crew = _build_crew(design, maneuver_tons + jump_tons + power_tons, hardpoints_used)
 
     total_cost = sum(item.cost for item in items)

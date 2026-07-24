@@ -5,6 +5,7 @@ import pytest
 from cetools.engine.ships.tables import (
     ARMOR,
     BRIDGE_SIZES,
+    COCKPITS,
     COMPUTERS,
     CONFIG_MODIFIERS,
     DRIVE_COSTS,
@@ -13,10 +14,14 @@ from cetools.engine.ships.tables import (
     FITTINGS,
     HULLS,
     QUARTERS,
+    SMALL_CRAFT_DRIVE_PERFORMANCE,
+    SMALL_CRAFT_ENERGY_CAPS,
+    SMALL_CRAFT_HULLS,
     SOFTWARE,
     TURRET_MOUNTS,
     TURRET_WEAPONS,
     ArmorRow,
+    CockpitRow,
     ComputerRow,
     DriveRow,
     ElectronicsRow,
@@ -255,6 +260,72 @@ def test_energy_weapons_are_flagged_for_the_small_craft_cap():
     assert TURRET_WEAPONS["sandcaster"].energy is False
 
 
+# --- Small craft (US3) ---
+
+
+def test_small_craft_hulls_cover_10_to_95_tons_in_5_ton_steps():
+    assert set(SMALL_CRAFT_HULLS) == set(range(10, 100, 5))
+
+
+def test_small_craft_hulls_codes_run_s1_to_sj():
+    assert SMALL_CRAFT_HULLS[10] == HullRow(code="s1", cost=1.1, build_weeks=28)
+    assert SMALL_CRAFT_HULLS[50] == HullRow(code="s9", cost=1.5, build_weeks=32)
+    assert SMALL_CRAFT_HULLS[95] == HullRow(code="sJ", cost=1.95, build_weeks=35)
+
+
+def test_small_craft_hulls_codes_are_unique():
+    codes = [row.code for row in SMALL_CRAFT_HULLS.values()]
+    assert len(codes) == len(set(codes))
+
+
+def test_small_craft_hulls_keys_are_monotonically_ordered():
+    tons = list(SMALL_CRAFT_HULLS)
+    assert tons == sorted(tons)
+
+
+def test_cockpits_hold_exactly_the_two_srd_cockpits():
+    assert set(COCKPITS) == {"1_man", "2_man"}
+    assert COCKPITS["1_man"] == CockpitRow(tons=1.5)
+    assert COCKPITS["2_man"] == CockpitRow(tons=3.0)
+
+
+def test_small_craft_energy_caps_bands_are_exhaustive_over_power_plant_codes():
+    assert set(SMALL_CRAFT_ENERGY_CAPS) == set(DRIVE_COSTS)
+
+
+def test_small_craft_energy_caps_match_srd_bands():
+    for code in "ABCDEF":
+        assert SMALL_CRAFT_ENERGY_CAPS[code] == 0
+    for code in "GHJK":
+        assert SMALL_CRAFT_ENERGY_CAPS[code] == 1
+    for code in "LMNPQR":
+        assert SMALL_CRAFT_ENERGY_CAPS[code] == 2
+    for code in "STUVWXYZ":
+        assert SMALL_CRAFT_ENERGY_CAPS[code] == 3
+
+
+def test_small_craft_drive_performance_keys_are_a_subset_of_drive_costs():
+    assert set(SMALL_CRAFT_DRIVE_PERFORMANCE) <= set(DRIVE_COSTS)
+
+
+def test_small_craft_drive_performance_hull_tons_are_a_subset_of_small_craft_hulls():
+    all_hulls = set(SMALL_CRAFT_HULLS)
+    for ratings in SMALL_CRAFT_DRIVE_PERFORMANCE.values():
+        assert set(ratings) <= all_hulls
+
+
+def test_small_craft_drive_performance_a_on_10_tons_is_2():
+    assert SMALL_CRAFT_DRIVE_PERFORMANCE["A"][10] == 2
+
+
+def test_small_craft_drive_performance_w_on_95_tons_is_6():
+    assert SMALL_CRAFT_DRIVE_PERFORMANCE["W"][95] == 6
+
+
+def test_small_craft_drive_performance_missing_cell_means_not_installable():
+    assert 95 not in SMALL_CRAFT_DRIVE_PERFORMANCE["A"]
+
+
 # --- Every row dataclass field is typed ---
 
 
@@ -269,6 +340,7 @@ ROW_TYPES = (
     FittingRow,
     MountRow,
     WeaponRow,
+    CockpitRow,
 )
 
 

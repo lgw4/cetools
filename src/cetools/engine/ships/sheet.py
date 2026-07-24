@@ -16,13 +16,34 @@ def render_sheet(ship: Ship) -> str:
     lines = [design.name if design.name is not None else "Unnamed Ship"]
 
     lines.append(f"Hull: {ship.hull_tons} tons, {ship.configuration.value} configuration")
-    lines.append(
-        f"Jump-{ship.jump_rating} Maneuver-{ship.maneuver_rating} Power-{ship.power_rating}"
+
+    week_word = "week" if design.power_weeks == 1 else "weeks"
+    is_small_craft = design.cockpit is not None
+    if is_small_craft:
+        lines.append(f"Maneuver-{ship.maneuver_rating} Power-{ship.power_rating}")
+        lines.append(f"Fuel: {ship.power_fuel:g}t power plant ({design.power_weeks} {week_word})")
+    else:
+        lines.append(
+            f"Jump-{ship.jump_rating} Maneuver-{ship.maneuver_rating} Power-{ship.power_rating}"
+        )
+        lines.append(
+            f"Fuel: {ship.jump_fuel:g}t jump (assumes range {ship.assumed_jump_distance}), "
+            f"{ship.power_fuel:g}t power plant ({design.power_weeks} {week_word})"
+        )
+
+    bridge_item = next(
+        (
+            item
+            for item in ship.line_items
+            if item.name == "bridge" or item.name.endswith("cockpit")
+        ),
+        None,
     )
-    lines.append(
-        f"Fuel: {ship.jump_fuel:g}t jump (assumes range {ship.assumed_jump_distance}), "
-        f"{ship.power_fuel:g}t power plant ({design.power_weeks} weeks)"
-    )
+    if bridge_item is not None:
+        if is_small_craft:
+            lines.append(f"Cockpit: {design.cockpit} ({bridge_item.tons:g}t)")
+        else:
+            lines.append(f"Bridge: {bridge_item.tons:g}t")
 
     if design.computer is not None:
         computer = design.computer
