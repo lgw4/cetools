@@ -86,18 +86,24 @@ def _build_hull(design: ShipDesign, items: list[LineItem]):
 
 def _build_armor(
     design: ShipDesign, items: list[LineItem], hull_tons: int, base_hull_cost: float
-) -> None:
+) -> int:
+    total_protection = 0
     for fit in design.armor:
         if fit.percent % 5 != 0:
             raise ValueError("armor must be added in 5% increments (min 1 ton)")
         row = ARMOR[fit.type.value]
         increments = fit.percent // 5
+        # research.md Part F: the SRD's own armor-by-type table states "minimum
+        # 1 ton" per 5% increment, so a hull whose 5% is under 1 ton still costs
+        # a full ton per increment rather than being rejected.
         tons_per_increment = max(1.0, hull_tons * 0.05)
         tons = tons_per_increment * increments
         cost = base_hull_cost * (row.cost_percent_per_5_percent / 100) * increments
         for option in fit.options:
             cost += _ARMOR_OPTION_COST_PER_TON[option] * tons
         items.append(LineItem(name=f"{fit.type.value} armor", tons=tons, cost=cost))
+        total_protection += row.protection_per_5_percent * increments
+    return total_protection
 
 
 def _build_maneuver(design: ShipDesign, items: list[LineItem], hull_tons: int) -> int:
@@ -324,7 +330,7 @@ def build_ship(design: ShipDesign) -> Ship:
     hull_tons = design.hull_tons
 
     hull_row = _build_hull(design, items)
-    _build_armor(design, items, hull_tons, hull_row.cost)
+    armor_protection = _build_armor(design, items, hull_tons, hull_row.cost)
 
     maneuver_rating = _build_maneuver(design, items, hull_tons)
     jump_rating = _build_jump(design, items, hull_tons)
@@ -403,6 +409,7 @@ def build_ship(design: ShipDesign) -> Ship:
         cargo_tons=cargo_tons,
         hull_points=hull_tons // 50 + hull_structure_bonus,
         structure_points=math.ceil(hull_tons / 50) + hull_structure_bonus,
+        armor_protection=armor_protection,
         hardpoints=hardpoints,
         hardpoints_used=hardpoints_used,
         crew=crew,

@@ -285,7 +285,7 @@ assert world == generate_world(RandomRolls(random.Random(42)))
 
 ## Starship generation
 
-Designs and generates starships following the Cepheus Engine SRD [Ship Design and Construction](https://evolvedexperiment.github.io/cepheus-srd/ships.html) rules: a deterministic **builder** that costs and validates a hull, drives, armor, computer, crew and armaments, and a seed-driven **random generator** layered on top of it.
+Designs and generates starships following the Cepheus Engine SRD [Ship Design and Construction](https://evolvedexperiment.github.io/cepheus-srd/ship-design-and-construction.html) rules: a deterministic **builder** that costs and validates a hull, drives, armor, computer, crew and armaments, and a seed-driven **random generator** layered on top of it.
 
 ### CLI
 

@@ -117,6 +117,7 @@ The computed sheet, produced by `build_ship(design)` and `generate_ship(...)`.
 | `cargo_tons` | `float` | `hull_tons − tonnage_used` (≥ 0; may be exactly 0) |
 | `hull_points` | `int` | ⌊hull ÷ 50⌋ (+4 with a vault) |
 | `structure_points` | `int` | ⌈hull ÷ 50⌉ (+4 with a vault) |
+| `armor_protection` | `int` | Σ over armor layers of `protection_per_5_percent × increments` (0 if unarmored) |
 | `hardpoints` | `int` | ⌊hull ÷ 100⌋ (1 for a small craft) |
 | `hardpoints_used` | `int` | turrets + bays |
 | `crew` | `Crew` | minimum crew breakdown (see below) |

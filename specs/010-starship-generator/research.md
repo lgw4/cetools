@@ -138,9 +138,23 @@ Civilian (1t, Cr 50k), Basic Military (2t, MCr 1), Advanced (3t, MCr 2), Very Ad
 
 Types with (protection per 5% increment, cost as % of **base hull cost** per 5%): Titanium Steel
 (2 pts, 5%), Crystaliron (4 pts, 20%), Bonded Superdense (6 pts, 50%). Armor is added in **5% of hull
-tonnage** increments, minimum 1 ton per 5% (FR-008); a non-5% request is rejected/normalized.
+tonnage** increments, minimum 1 ton per 5% (FR-008).
 Options (once-only where noted): reflec (MCr 0.1/ton), self-sealing (MCr 0.01/ton), stealth
 (MCr 0.1/ton). Small-craft armor caps armor type by TL but the tonnage math is unchanged.
+
+**Ambiguity resolved**: "a non-5% request is rejected/normalized" is two different rules folded into
+one sentence, and each is resolved independently:
+
+- A `percent` that is not a multiple of 5 is a shape violation the *design* could never legally
+  represent (there is no such thing as "7% armor"), so the builder **rejects** it outright
+  (`"armor must be added in 5% increments (min 1 ton)"`).
+- The "minimum 1 ton" clause is different: the SRD's Ship Armor by Type table states, per type,
+  "N per 5%, **minimum 1 ton**"—a literal per-increment tonnage floor, not a conditional rejection.
+  On a hull whose 5% of tonnage is under 1 ton (any small craft ≤ 15 t), the builder **floors** each
+  increment to 1 ton rather than rejecting the layer; this is the SRD's stated rule, not a house
+  normalization. spec.md's Edge Cases section reads "below the 1-ton-per-5% minimum, is rejected as
+  invalid", which describes the *first* rule (a non-multiple-of-5 percent) correctly but does not
+  intend the second (the floor) to be a rejection—the SRD text leaves no room for one.
 
 ## Part G—Quarters and fittings
 
@@ -156,9 +170,13 @@ Fittings are the most likely place for future data-only additions (SC-006).
 ## Part H—Armaments
 
 **Turrets** (FR-010)—single 1t/MCr 0.2 (1 weapon), double 1t/MCr 0.5 (2), triple 1t/MCr 1 (3),
-pop-up (+2t, +MCr 1), fixed mounting (0t, ×0.5 turret cost). Each turret consumes **one hardpoint**.
+pop-up (+2t, +MCr 1), fixed mounting (0t, ×0.5 turret cost—MCr 0.1 for a single, MCr 0.25 for a
+double, MCr 0.5 for a triple). Each turret consumes **one hardpoint**.
 **Turret weapons**—pulse laser MCr 0.5, beam laser, sandcaster MCr 0.25 (+ ammo), particle beam
 MCr 4, missile rack MCr 0.75 (+ missiles by type: standard/smart/nuclear, 12 per ton).
+
+**Ammunition**—sandcaster barrels: 20 per ton, Cr10,000 per ton (Cr500 per barrel). Missiles: 12 per
+ton regardless of type, priced per missile—standard Cr1,250, smart Cr2,500, nuclear Cr3,750.
 
 **Bays** (FR-020, P3)—50t each, one hardpoint, +1t fire control: missile bank MCr 12, particle
 MCr 20, meson MCr 50, fusion MCr 8. **Forbidden on small craft** (reject).

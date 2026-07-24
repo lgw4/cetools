@@ -411,6 +411,7 @@ def _validate_ship(ship: Ship) -> None:
         "total_cost",
         "build_weeks",
         "assumed_jump_distance",
+        "armor_protection",
     ):
         value = getattr(ship, name)
         if value < 0:
@@ -439,6 +440,7 @@ class Ship:
     cargo_tons: float
     hull_points: int
     structure_points: int
+    armor_protection: int
     hardpoints: int
     hardpoints_used: int
     crew: Crew

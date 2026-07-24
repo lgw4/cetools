@@ -5,7 +5,7 @@
 #   jump_rating = 1, maneuver_rating = 1, power_rating = 1
 #   jump_fuel = 80.0 (assumed_jump_distance = 1), power_fuel = 8.0
 #   tonnage_used = 264.0, cargo_tons = 536.0
-#   hull_points = 16, structure_points = 16
+#   hull_points = 16, structure_points = 16, armor_protection = 4 (10% titanium steel)
 #   hardpoints = 8, hardpoints_used = 2
 #   crew: pilot=1 navigator=1 engineers=2 gunners=2 screen_operators=0
 #         medic=0 stewards=0 (total=6)

@@ -96,7 +96,7 @@ def render_sheet(ship: Ship) -> str:
 
     if design.armor:
         armor_strs = ", ".join(f"{fit.type.value} {fit.percent}%" for fit in design.armor)
-        lines.append(f"Armor: {armor_strs}")
+        lines.append(f"Armor: {armor_strs} (protection {ship.armor_protection})")
 
     if design.turrets or design.bays or design.screens:
         armament_strs = [_format_turret(turret) for turret in design.turrets]

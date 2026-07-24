@@ -38,6 +38,12 @@ def test_render_sheet_includes_every_fr_022_section():
     assert "Build time:" in sheet
 
 
+def test_armor_line_includes_the_protection_figure():
+    ship = build_ship(load_design(f"{_EXAMPLES}/warship.toml"))
+    sheet = render_sheet(ship)
+    assert "protection 4" in sheet
+
+
 def test_render_sheet_is_total_for_every_golden_ship():
     for ship in _ships():
         render_sheet(ship)  # must not raise

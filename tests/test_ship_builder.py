@@ -94,8 +94,8 @@ def test_fighter_golden_figures():
     assert ship.power_rating == 3
     assert ship.jump_fuel == pytest.approx(0.0)
     assert ship.power_fuel == pytest.approx(7.3)
-    assert ship.tonnage_used == pytest.approx(34.8)
-    assert ship.cargo_tons == pytest.approx(5.2)
+    assert ship.tonnage_used == pytest.approx(33.8)
+    assert ship.cargo_tons == pytest.approx(6.2)
     assert ship.hull_points == 0
     assert ship.structure_points == 1
     assert ship.hardpoints == 1
@@ -156,6 +156,7 @@ def test_warship_golden_figures():
     assert ship.cargo_tons == pytest.approx(536.0)
     assert ship.hull_points == 16
     assert ship.structure_points == 16
+    assert ship.armor_protection == 4
     assert ship.hardpoints == 8
     assert ship.hardpoints_used == 2
     assert ship.total_cost == pytest.approx(183.825)
@@ -361,6 +362,37 @@ def test_computer_single_option_costs_one_and_a_half_times():
     assert hardened_computer_cost == pytest.approx(plain_computer_cost * 1.5)
 
 
+def test_armor_protection_is_zero_for_an_unarmored_ship():
+    design = ShipDesign(hull_tons=200, jump_code="A", power_code="A")
+    ship = build_ship(design)
+    assert ship.armor_protection == 0
+
+
+def test_armor_protection_sums_a_single_layer():
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        armor=(ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=10),),
+    )
+    ship = build_ship(design)
+    assert ship.armor_protection == 4  # 2 increments x 2 protection/5%
+
+
+def test_armor_protection_sums_stacked_layers_of_different_types():
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        armor=(
+            ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5),
+            ArmorFit(type=ArmorType.CRYSTALIRON, percent=5),
+        ),
+    )
+    ship = build_ship(design)
+    assert ship.armor_protection == 6  # 2 (titanium steel) + 4 (crystaliron)
+
+
 def test_armor_options_add_a_per_ton_cost():
     bare = build_ship(
         ShipDesign(
@@ -450,6 +482,22 @@ def test_standard_design_discount_leaves_ammunition_untouched():
     non_ammo_plain = plain.total_cost - plain_ammo_cost
     non_ammo_discounted = discounted.total_cost - discounted_ammo_cost
     assert non_ammo_discounted == pytest.approx(non_ammo_plain * 0.9)
+
+
+def test_small_craft_armor_floors_at_1_ton_per_5_percent_rather_than_rejecting():
+    # research.md Part F: the SRD armor-by-type table's "minimum 1 ton" applies
+    # even when 5% of a small hull is under 1 ton (10 t x 5% = 0.5 t); the SRD
+    # text makes this a floor, not a rejection.
+    design = ShipDesign(
+        hull_tons=10,
+        power_code="sA",
+        bridge=False,
+        cockpit="1_man",
+        armor=(ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5),),
+    )
+    ship = build_ship(design)  # does not raise
+    armor_item = next(item for item in ship.line_items if item.name.endswith("armor"))
+    assert armor_item.tons == pytest.approx(1.0)
 
 
 # --- US3: small craft (research.md Part K) ---

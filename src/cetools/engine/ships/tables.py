@@ -676,15 +676,16 @@ TURRET_MOUNTS: dict[str, MountRow] = {
     "double": MountRow(tons=1, cost=0.5, weapon_slots=2),
     "triple": MountRow(tons=1, cost=1, weapon_slots=3),
     "pop_up": MountRow(tons=2, cost=1, weapon_slots=1),
-    "fixed": MountRow(tons=1, cost=0.1, weapon_slots=1),
+    "fixed": MountRow(tons=0, cost=0.1, weapon_slots=1),
 }
 """Mount type -> (tons, cost MCr, weapon slots).
 
 The SRD presents pop-up and fixed as *qualities* layered on a single/double/triple
 mount (+2 t and +MCr1 for pop-up; half cost for fixed), but ``TurretFit.mount`` is
 one flat choice among five (design-schema.md), so each is modelled here as its own
-single-weapon-slot mount: pop-up at its literal SRD tons/cost, fixed at half of a
-single turret's cost."""
+single-weapon-slot mount: pop-up at its literal SRD tons/cost, fixed at 0 t (the
+SRD's fixed mounting occupies no separate tonnage) and half of a single turret's
+cost."""
 
 TURRET_WEAPONS: dict[str, WeaponRow] = {
     "missile_rack": WeaponRow(cost=0.75),

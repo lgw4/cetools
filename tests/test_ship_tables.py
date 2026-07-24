@@ -255,6 +255,10 @@ def test_single_double_triple_turret_costs_match_srd():
     assert TURRET_MOUNTS["triple"] == MountRow(tons=1, cost=1, weapon_slots=3)
 
 
+def test_fixed_mounting_occupies_no_tonnage_at_half_a_single_turrets_cost():
+    assert TURRET_MOUNTS["fixed"] == MountRow(tons=0, cost=0.1, weapon_slots=1)
+
+
 def test_turret_weapons_cover_the_four_priced_srd_weapons():
     assert set(TURRET_WEAPONS) == {"missile_rack", "pulse_laser", "sandcaster", "particle_beam"}
 

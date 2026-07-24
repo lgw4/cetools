@@ -5,7 +5,7 @@
 # Hand-worked SRD reference figures (SC-002, small-craft ruleset FR-019):
 #   jump_rating = 0, maneuver_rating = 1, power_rating = 3
 #   jump_fuel = 0.0 (no jump drive), power_fuel = 7.3 (1-week floor, rounded to 0.1t)
-#   tonnage_used = 34.8, cargo_tons = 5.2
+#   tonnage_used = 33.8 (fixed mounting is 0t), cargo_tons = 6.2
 #   hull_points = 0, structure_points = 1
 #   hardpoints = 1, hardpoints_used = 1
 #   crew: pilot=1 navigator=1 engineers=1 gunners=1 screen_operators=0
