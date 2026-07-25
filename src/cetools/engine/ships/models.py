@@ -428,7 +428,7 @@ def _validate_line_item(item: LineItem) -> None:
 
 @dataclass(frozen=True)
 class LineItem:
-    """One costed, tonnage-consuming component on the ship sheet.
+    """One costed, tonnage-consuming component of a built ship.
 
     `discountable` defaults to `True`; the builder sets it `False` on jump
     fuel, power-plant fuel, and ammunition, which the SRD never discounts
@@ -475,11 +475,12 @@ def _validate_ship(ship: Ship) -> None:
 
 @dataclass(frozen=True)
 class Ship:
-    """The computed sheet: produced by `build_ship(design)` and `generate_ship(...)`.
+    """The computed ship: produced by `build_ship(design)` and `generate_ship(...)`.
 
     Carries its originating `design` so a ship round-trips losslessly (SC-008).
-    Carries no rendering method: `ships/sheet.py`'s `render_sheet(ship)` is the
-    sole reader, so `models.py` never imports `sheet.py`.
+    Carries no rendering method: `ships/description.py`'s
+    `render_description(ship)` is the sole reader, so `models.py` never imports
+    `description.py`.
     """
 
     design: ShipDesign

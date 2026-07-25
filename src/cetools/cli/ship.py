@@ -5,7 +5,13 @@ from typing import Annotated
 import typer
 
 from cetools.engine.rolls import RandomRolls
-from cetools.engine.ships import build_ship, dump_design, generate_ship, load_design, render_sheet
+from cetools.engine.ships import (
+    build_ship,
+    dump_design,
+    generate_ship,
+    load_design,
+    render_description,
+)
 
 app = typer.Typer()
 
@@ -16,13 +22,13 @@ _SEED_UPPER_BOUND = 2**32
 def build(
     file: Annotated[Path, typer.Argument(help="Path to a TOML ship design file.")],
     toml: Annotated[
-        bool, typer.Option("--toml", help="Emit round-trippable TOML instead of a sheet.")
+        bool, typer.Option("--toml", help="Emit round-trippable TOML instead of a description.")
     ] = False,
     out: Annotated[
         Path | None, typer.Option("--out", help="Write output to a file instead of stdout.")
     ] = None,
 ) -> None:
-    """Build a ship from a TOML design file and print its sheet."""
+    """Build a ship from a TOML design file and print its description."""
     if out is not None and not toml:
         typer.echo("--out requires --toml", err=True)
         raise typer.Exit(1)
@@ -37,7 +43,7 @@ def build(
         typer.echo(str(exc), err=True)
         raise typer.Exit(1)
 
-    output = dump_design(ship.design) if toml else render_sheet(ship)
+    output = dump_design(ship.design) if toml else render_description(ship)
 
     if out is not None:
         out.write_text(output, encoding="utf-8")
@@ -54,7 +60,7 @@ def generate(
         bool, typer.Option("--small-craft", help="Generate a 10-95 ton small craft.")
     ] = False,
     toml: Annotated[
-        bool, typer.Option("--toml", help="Emit round-trippable TOML instead of a sheet.")
+        bool, typer.Option("--toml", help="Emit round-trippable TOML instead of a description.")
     ] = False,
     out: Annotated[
         Path | None, typer.Option("--out", help="Write output to a file instead of stdout.")
@@ -63,7 +69,7 @@ def generate(
         int | None, typer.Option("--seed", help="Seed for reproducible output.")
     ] = None,
 ) -> None:
-    """Randomly generate a rules-legal ship and print its sheet."""
+    """Randomly generate a rules-legal ship and print its description."""
     if out is not None and not toml:
         typer.echo("--out requires --toml", err=True)
         raise typer.Exit(1)
@@ -78,7 +84,7 @@ def generate(
         typer.echo(str(exc), err=True)
         raise typer.Exit(1)
 
-    output = dump_design(ship.design) if toml else render_sheet(ship)
+    output = dump_design(ship.design) if toml else render_description(ship)
 
     if out is not None:
         out.write_text(output, encoding="utf-8")

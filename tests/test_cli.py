@@ -811,7 +811,24 @@ def test_ship_build_rules_illegal_design_exits_1(tmp_path):
     assert "not a tabulated hull size" in result.stderr
 
 
-# --- `cetools ship generate` (T031) ---
+# --- `cetools ship generate` (T031, T022) ---
+
+
+def _description_lines(stdout: str) -> list[str]:
+    """The heading, blank line and paragraph of a USDF description, with the
+    trailing newline `typer.echo` adds stripped."""
+    return stdout.rstrip("\n").split("\n")
+
+
+def test_ship_generate_prints_a_heading_and_one_paragraph():
+    result = runner.invoke(app, ["ship", "generate", "--seed", "42"])
+    assert result.exit_code == 0
+
+    lines = _description_lines(result.stdout)
+    assert len(lines) == 3
+    assert lines[0].startswith("TL")
+    assert lines[1] == ""
+    assert lines[2].endswith(".")
 
 
 def test_ship_generate_seed_is_byte_identical():
@@ -823,10 +840,10 @@ def test_ship_generate_seed_is_byte_identical():
     assert first.stdout == second.stdout
 
 
-def test_ship_generate_hull_reflected_in_sheet():
+def test_ship_generate_hull_reflected_in_description():
     result = runner.invoke(app, ["ship", "generate", "--seed", "42", "--hull", "400"])
     assert result.exit_code == 0
-    assert "Hull: 400 tons" in result.stdout
+    assert "400-ton hull" in result.stdout
 
 
 def test_ship_generate_toml_emits_round_trippable_design():
@@ -852,10 +869,13 @@ def test_ship_generate_out_writes_a_file(tmp_path):
     build_ship(loads_design(out_path.read_text()))
 
 
-def test_ship_generate_reports_seed_on_stderr_when_omitted():
+def test_ship_generate_reports_seed_on_stderr_and_never_in_the_paragraph():
     result = runner.invoke(app, ["ship", "generate"])
     assert result.exit_code == 0
     assert "seed" in result.stderr.lower()
+
+    paragraph = _description_lines(result.stdout)[2]
+    assert "seed" not in paragraph.lower()
     assert "seed" not in result.stdout.lower()
 
 
@@ -884,7 +904,7 @@ def test_ship_generate_small_craft_with_hull():
         app, ["ship", "generate", "--small-craft", "--hull", "40", "--seed", "7"]
     )
     assert result.exit_code == 0
-    assert "Hull: 40 tons" in result.stdout
+    assert "40-ton hull" in result.stdout
 
 
 def test_ship_generate_small_craft_hull_95_accepted():
@@ -892,7 +912,7 @@ def test_ship_generate_small_craft_hull_95_accepted():
         app, ["ship", "generate", "--small-craft", "--hull", "95", "--seed", "7"]
     )
     assert result.exit_code == 0
-    assert "Hull: 95 tons" in result.stdout
+    assert "95-ton hull" in result.stdout
 
 
 def test_ship_generate_small_craft_hull_100_out_of_range_exits_1():
