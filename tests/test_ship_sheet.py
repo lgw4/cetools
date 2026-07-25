@@ -122,6 +122,7 @@ def test_render_sheet_shows_jump_lines_for_a_starship_carrying_a_cockpit_field()
     )
     ship = Ship(
         design=design,
+        tech_level=8,
         hull_tons=200,
         configuration=Configuration.STANDARD,
         jump_rating=2,
@@ -153,6 +154,7 @@ def test_render_sheet_omits_jump_lines_for_a_small_craft_carrying_a_bridge_field
     design = ShipDesign(hull_tons=95, bridge=True, power_code="sJ")
     ship = Ship(
         design=design,
+        tech_level=8,
         hull_tons=95,
         configuration=Configuration.STANDARD,
         jump_rating=0,

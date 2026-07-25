@@ -1,3 +1,5 @@
+import dataclasses
+
 import pytest
 
 from cetools.engine.ships import (
@@ -15,7 +17,22 @@ from cetools.engine.ships import (
     build_ship,
     load_design,
 )
-from cetools.engine.ships.tables import FITTINGS, FittingRow
+from cetools.engine.ships.tables import (
+    AMMO,
+    ARMOR,
+    ARMOR_OPTIONS,
+    BAYS,
+    COMPUTERS,
+    ELECTRONICS,
+    FITTINGS,
+    SCREENS,
+    TURRET_MOUNTS,
+    TURRET_WEAPONS,
+    AmmoRow,
+    FittingRow,
+    ScreenRow,
+    WeaponRow,
+)
 
 _EXAMPLES = "specs/010-starship-generator/examples"
 
@@ -456,7 +473,14 @@ def test_a_new_vehicle_sized_fitting_needs_no_builder_change(monkeypatch):
     monkeypatch.setitem(
         FITTINGS,
         "synthetic_bay_deck",
-        FittingRow(tons=None, cost=None, tons_per_vehicle_ton=2.0, cost_per_vehicle_ton=0.5),
+        FittingRow(
+            name="a synthetic bay",
+            plural="synthetic bays",
+            tons=None,
+            cost=None,
+            tons_per_vehicle_ton=2.0,
+            cost_per_vehicle_ton=0.5,
+        ),
     )
     design = ShipDesign(
         hull_tons=200,
@@ -475,7 +499,14 @@ def test_a_new_vehicle_sized_fitting_requires_vehicle_tons(monkeypatch):
     monkeypatch.setitem(
         FITTINGS,
         "synthetic_bay_deck",
-        FittingRow(tons=None, cost=None, tons_per_vehicle_ton=2.0, cost_per_vehicle_ton=0.5),
+        FittingRow(
+            name="a synthetic bay",
+            plural="synthetic bays",
+            tons=None,
+            cost=None,
+            tons_per_vehicle_ton=2.0,
+            cost_per_vehicle_ton=0.5,
+        ),
     )
     with pytest.raises(ValueError, match="synthetic_bay_deck requires a positive vehicle_tons"):
         FittingFit(kind="synthetic_bay_deck")
@@ -708,7 +739,11 @@ def test_a_fitting_whose_name_ends_in_fuel_is_still_discounted(monkeypatch):
     # T081: the discount exemption is `LineItem.discountable`, not a
     # `name.endswith("fuel"/"ammo")` check, so a fitting that happens to be
     # named like fuel is not silently exempted (SC-006).
-    monkeypatch.setitem(FITTINGS, "backup_fuel", FittingRow(tons=1, cost=1.0))
+    monkeypatch.setitem(
+        FITTINGS,
+        "backup_fuel",
+        FittingRow(name="a backup fuel tank", plural="backup fuel tanks", tons=1, cost=1.0),
+    )
 
     def make(standard_design):
         return ShipDesign(
@@ -894,3 +929,176 @@ def test_bay_on_a_small_craft_is_rejected():
     design = _small_craft(bays=(BayFit(kind="particle"),))
     with pytest.raises(ValueError, match="small craft cannot mount a weapon bay"):
         build_ship(design)
+
+
+# --- FR-028: the derived tech level (data-model.md section 3) ---
+
+
+def _tl(**overrides):
+    """Build a minimal starship with `overrides` and return its tech level."""
+    kwargs = dict(hull_tons=200, jump_code="A", power_code="A")
+    kwargs.update(overrides)
+    return build_ship(ShipDesign(**kwargs)).tech_level
+
+
+def test_a_design_with_no_purchased_electronics_still_derives_at_least_eight():
+    # FR-028c: every ship carries the Standard package included in its bridge
+    # or cockpit, so the derived value has a floor of ELECTRONICS["standard"].tl.
+    assert _tl() == ELECTRONICS["standard"].tl == 8
+
+
+def test_the_small_craft_floor_is_the_same_standard_package():
+    assert build_ship(_small_craft()).tech_level == ELECTRONICS["standard"].tl
+
+
+def test_derived_tech_level_is_the_max_over_fitted_rows():
+    # Crystaliron (10) beats the Model 1 computer (7) and Standard sensors (8).
+    assert (
+        _tl(
+            armor=(ArmorFit(type=ArmorType.CRYSTALIRON, percent=5),), computer=ComputerFit(model=1)
+        )
+        == ARMOR["crystaliron"].tl
+        == 10
+    )
+
+
+def test_a_purchased_electronics_package_raises_the_derived_tech_level():
+    assert _tl(electronics="very_advanced") == ELECTRONICS["very_advanced"].tl == 12
+
+
+def test_a_computer_raises_the_derived_tech_level():
+    assert _tl(computer=ComputerFit(model=7)) == COMPUTERS[7].tl == 15
+
+
+def test_an_armor_option_raises_the_derived_tech_level():
+    # Stealth is TL 11, above titanium steel's 7 and the Standard floor of 8.
+    assert (
+        _tl(armor=(ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5, options=("stealth",)),))
+        == ARMOR_OPTIONS["stealth"].tl
+        == 11
+    )
+
+
+def test_a_turret_mount_contributes_its_tech_level():
+    assert _tl(turrets=(TurretFit(mount="pop_up", weapons=("sandcaster",)),)) == 10
+    assert TURRET_MOUNTS["pop_up"].tl == 10
+
+
+def test_a_turret_weapon_contributes_its_tech_level(monkeypatch):
+    # Every tabulated turret weapon is TL 6-8, at or below the Standard-sensor
+    # floor, so a synthetic row is what makes the weapon's contribution visible.
+    assert max(row.tl for row in TURRET_WEAPONS.values()) <= ELECTRONICS["standard"].tl
+    monkeypatch.setitem(
+        TURRET_WEAPONS,
+        "synthetic_cannon",
+        WeaponRow(name="synthetic cannon", plural="synthetic cannons", cost=3.5, tl=16),
+    )
+    assert _tl(turrets=(TurretFit(mount="single", weapons=("synthetic_cannon",)),)) == 16
+
+
+def test_ammunition_contributes_its_own_tech_level(monkeypatch):
+    assert AMMO["missile_smart"].tl == 8
+    monkeypatch.setitem(
+        AMMO,
+        "missile_decoy",
+        AmmoRow(
+            name="decoy missile",
+            plural="decoy missiles",
+            kind="missile",
+            type="decoy",
+            rounds_per_ton=12,
+            cost_per_round=0.002,
+            tl=14,
+            weapon="missile_rack",
+        ),
+    )
+    assert (
+        _tl(
+            turrets=(
+                TurretFit(
+                    mount="single",
+                    weapons=("missile_rack",),
+                    ammo=(AmmoFit(kind="missile", type="decoy", count=12),),
+                ),
+            )
+        )
+        == 14
+    )
+
+
+def test_a_bay_and_a_screen_contribute_their_tech_levels():
+    assert (
+        build_ship(load_design(f"{_EXAMPLES}/heavy-cruiser.toml")).tech_level
+        >= SCREENS["meson_screen"].tl
+    )
+    design = ShipDesign(
+        hull_tons=1000, jump_code="E", maneuver_code="E", power_code="E", bays=(BayFit("fusion"),)
+    )
+    assert build_ship(design).tech_level == BAYS["fusion"].tl == 12
+
+
+def test_a_fixed_mount_contributes_no_tech_level():
+    # research.md Part D: the SRD prints "-" in the fixed mounting's TL cell.
+    assert TURRET_MOUNTS["fixed"].tl is None
+    assert _tl(turrets=(TurretFit(mount="fixed", weapons=("missile_rack",)),)) == 8
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"hull_tons": 800, "jump_code": "D", "maneuver_code": "D", "power_code": "D"},
+        {"configuration": Configuration.STREAMLINED},
+        {"fittings": (FittingFit(kind="vault"), FittingFit(kind="library"))},
+        {"staterooms": 4, "low_berths": 6, "emergency_low_berths": 2},
+        {"computer": ComputerFit(model=1, software=(SoftwareFit(name="jump_control", level=1),))},
+    ],
+    ids=["hull-and-drives", "configuration", "fittings", "quarters", "software"],
+)
+def test_untabulated_categories_contribute_nothing(overrides):
+    # research.md Part D: hulls, drives, configurations, cockpits, quarters,
+    # fittings and software carry no SRD tech level. This is a finding, not an
+    # omission -- inventing one would violate FR-028a.
+    assert _tl(**overrides) == ELECTRONICS["standard"].tl
+
+
+def test_an_explicit_tech_level_above_the_derived_value_is_used_as_given():
+    assert _tl(tech_level=15) == 15
+
+
+def test_an_explicit_tech_level_below_the_derived_value_is_used_as_given():
+    # FR-028b: never clamped, never warned about. A TL 3 hull yard building a
+    # TL 12 sensor suite is the designer's statement, not cetools' to correct.
+    assert _tl(electronics="very_advanced", tech_level=3) == 3
+
+
+def test_an_explicit_tech_level_of_zero_is_used_as_given():
+    assert _tl(tech_level=0) == 0
+
+
+def test_the_derived_tech_level_changes_no_other_computed_value():
+    # FR-032: supplying design.tech_level is presentation only.
+    plain = build_ship(ShipDesign(hull_tons=200, jump_code="A", power_code="A"))
+    overridden = build_ship(
+        ShipDesign(hull_tons=200, jump_code="A", power_code="A", tech_level=15)
+    )
+    assert overridden.tech_level == 15
+    assert plain.tech_level == 8
+    assert dataclasses.replace(plain, design=overridden.design, tech_level=15) == overridden
+
+
+def test_a_new_row_with_a_tech_level_widens_the_derivation_with_no_code_change(monkeypatch):
+    # SC-007: the walk is over the fitted components' rows, not over a
+    # per-category list of "things that have a TL".
+    monkeypatch.setitem(
+        SCREENS,
+        "synthetic_screen",
+        ScreenRow(name="synthetic screen", plural="synthetic screens", tons=50, cost=42.0, tl=17),
+    )
+    design = ShipDesign(
+        hull_tons=1000,
+        jump_code="E",
+        maneuver_code="E",
+        power_code="E",
+        screens=(ScreenFit(kind="synthetic_screen"),),
+    )
+    assert build_ship(design).tech_level == 17

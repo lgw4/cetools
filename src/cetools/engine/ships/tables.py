@@ -40,32 +40,38 @@ class DriveRow:
 class ArmorRow:
     """One row of the Ship Armor by Type table.
 
-    ``min_tl`` is retained for SRD-table fidelity (research.md Part F gives a
-    minimum TL for each armor type) but is deliberately unenforced: no
-    functional requirement or success criterion asks for a tech-level model in
-    v1, so no builder step reads it. Do not mistake it for a live constraint.
+    ``name`` is the SRD's prose spelling, printed by the description's
+    configuration sentence (FR-030); ``tl`` is the table's own TL column, read
+    by the tech-level derivation (FR-028a).
     """
 
+    name: str
     protection_per_5_percent: int
     cost_percent_per_5_percent: int
-    min_tl: int
+    tl: int
 
 
 @dataclass(frozen=True)
 class ArmorOptionRow:
-    """One row of the Ship Armor Options table: MCr surcharge per armored ton."""
+    """One row of the Ship Armor Options table: MCr surcharge per armored ton.
 
+    ``name`` is the SRD noun phrase the configuration sentence prints, article
+    included ("a stealth coating"); ``tl`` comes from the section's prose
+    (research.md Part D).
+    """
+
+    name: str
     cost_per_ton: float
+    tl: int
 
 
 @dataclass(frozen=True)
 class ComputerRow:
     """One row of the Ship Computer Models table.
 
-    ``tl`` is retained for SRD-table fidelity (research.md Part E gives a TL for
-    each computer model) but is deliberately unenforced: no functional
-    requirement or success criterion asks for a tech-level model in v1, so no
-    builder step reads it. Do not mistake it for a live constraint.
+    The description names a computer by its model *number* ("a computer Model
+    3/fib"), so this row needs no display name; ``tl`` feeds the ship's derived
+    tech level (FR-028a).
     """
 
     tl: int
@@ -89,10 +95,18 @@ class SoftwareRow:
 
 @dataclass(frozen=True)
 class ElectronicsRow:
-    """One row of the Ship Electronics table."""
+    """One row of the Ship Electronics table.
 
+    ``dm`` is the package's sensor dice modifier, printed with an explicit sign
+    by the sensors sentence -- including ``DM+0`` for Basic Military (FR-009,
+    FR-030a).
+    """
+
+    name: str
     tons: float
     cost: float
+    tl: int
+    dm: int
 
 
 @dataclass(frozen=True)
@@ -114,30 +128,60 @@ class FittingRow:
     what mark it vehicle-sized: `models.py` requires a ``vehicle_tons`` for any
     row that sets them, and the builder's fitting step multiplies through them,
     so a second SRD vehicle-sized fitting stays a data-only edit (SC-006).
+
+    ``name`` carries its indefinite article ("an armory", "fuel scoops") and
+    ``plural`` does not, because the special-features sentence mixes countable
+    and mass nouns (research.md Part E). ``counted_in_tons`` marks a fitting the
+    SRD measures rather than counts ("two tons of luxuries"), and
+    ``unrefined_fuel_per_ton`` its daily throughput, set only on the fuel
+    processor: two data columns driving two generic renderer branches rather
+    than a per-kind branch (FR-017, FR-031). The SRD tabulates no TL for any of
+    these components, so there is no ``tl`` column (research.md Part D).
     """
 
+    name: str
+    plural: str
     tons: float | None
     cost: float | None
     forbidden_on_distributed: bool = False
     hull_structure_bonus: int = 0
     tons_per_vehicle_ton: float | None = None
     cost_per_vehicle_ton: float | None = None
+    counted_in_tons: bool = False
+    unrefined_fuel_per_ton: float | None = None
 
 
 @dataclass(frozen=True)
 class MountRow:
-    """One row of the Turret Displacement and Cost table."""
+    """One row of the Turret Displacement and Cost table.
 
+    ``tl`` is ``None`` for the fixed mounting alone, whose TL cell the SRD
+    prints as "-": it contributes nothing to a ship's derived tech level, the
+    same treatment as an untabulated category, expressed per row (FR-028a).
+    """
+
+    name: str
+    plural: str
     tons: float
     cost: float
     weapon_slots: int
+    tl: int | None
 
 
 @dataclass(frozen=True)
 class WeaponRow:
-    """One row of the Turret Weapons table."""
+    """One row of the Turret Weapons table.
 
+    ``name``/``plural`` are the *armament clause's* spelling, not the catalog's:
+    the examples write "armed with missiles", never "armed with missile racks"
+    (research.md Part E). The same singular spells the ammunition sentence's
+    "the missile turrets".
+    """
+
+    name: str
+    plural: str
     cost: float
+    tl: int
     energy: bool = False
 
 
@@ -149,11 +193,19 @@ class AmmoRow:
     derives the legal ammo kinds—and the types legal for each kind—from this
     table rather than from a hardcoded duplicate of its keys (SC-006).
     ``type`` is ``None`` for a kind the SRD prices as a single item.
+
+    ``weapon`` is the ``TURRET_WEAPONS`` key this ammunition feeds, so the
+    ammunition sentence can name its weapon from data rather than from the
+    renderer knowing that missiles go in missile racks (FR-031).
     """
 
+    name: str
+    plural: str
     kind: str
     rounds_per_ton: int
     cost_per_round: float
+    tl: int
+    weapon: str
     type: str | None = None
 
 
@@ -166,16 +218,48 @@ class BayRow:
     hardpoint, same as a turret.
     """
 
+    name: str
+    plural: str
     tons: float
     cost: float
+    tl: int
 
 
 @dataclass(frozen=True)
 class ScreenRow:
     """One row of the Defensive Screens table: fixed 50 t plus SRD cost."""
 
+    name: str
+    plural: str
     tons: float
     cost: float
+    tl: int
+
+
+@dataclass(frozen=True)
+class ConfigurationRow:
+    """One row of the Ship Configuration table: display name and cost modifier.
+
+    ``name`` is lower case because the starship examples print "The hull is
+    standard"; only the small-craft examples capitalise (research.md Part E).
+    """
+
+    name: str
+    cost_modifier: float
+
+
+@dataclass(frozen=True)
+class CrewPositionRow:
+    """One position of the Ship Crew Requirements table.
+
+    ``field`` names the `models.Crew` count attribute this position reads, so
+    the crew sentence's breakdown is driven by the table rather than by a
+    hardcoded list in the renderer.
+    """
+
+    field: str
+    name: str
+    plural: str
 
 
 @dataclass(frozen=True)
@@ -218,12 +302,31 @@ HULLS: dict[int, HullRow] = {
 }
 """Standard-hull tons -> (code, cost MCr, build weeks). Sparse above 1,000 t."""
 
-CONFIG_MODIFIERS: dict[str, float] = {
-    "distributed": 0.9,
-    "standard": 1.0,
-    "streamlined": 1.1,
+CONFIGURATIONS: dict[str, ConfigurationRow] = {
+    "distributed": ConfigurationRow(name="distributed", cost_modifier=0.9),
+    "standard": ConfigurationRow(name="standard", cost_modifier=1.0),
+    "streamlined": ConfigurationRow(name="streamlined", cost_modifier=1.1),
 }
-"""Ship Configuration hull-cost modifier, keyed by ``Configuration.value``."""
+"""Ship Configuration display name and hull-cost modifier, keyed by
+``Configuration.value``. `Configuration.cost_modifier` reads
+``cost_modifier`` here, so the x0.9/x1.0/x1.1 arithmetic is unchanged."""
+
+CREW_POSITIONS: tuple[CrewPositionRow, ...] = (
+    CrewPositionRow(field="pilot", name="pilot", plural="pilots"),
+    CrewPositionRow(field="navigator", name="navigator", plural="navigators"),
+    CrewPositionRow(field="engineers", name="engineer", plural="engineers"),
+    CrewPositionRow(field="gunners", name="gunner", plural="gunners"),
+    CrewPositionRow(field="screen_operators", name="screen operator", plural="screen operators"),
+    CrewPositionRow(field="medic", name="medic", plural="medics"),
+    CrewPositionRow(field="stewards", name="steward", plural="stewards"),
+)
+"""The crew positions cetools derives, in the order FR-018's breakdown prints
+them. The single source of both the spelling and the order; a position whose
+count is zero is omitted from the sentence.
+
+The SRD's fuller list (commanding officer, marines, scientists, flight crew) is
+referee-discretion staffing that feature 010 left out of scope, and this feature
+invents none of it (research.md Part E)."""
 
 DRIVE_COSTS: dict[str, DriveRow] = {
     "A": DriveRow(
@@ -644,23 +747,29 @@ rating alike; a hull tons missing from a code's inner dict means that code canno
 be installed on that hull."""
 
 ARMOR: dict[str, ArmorRow] = {
-    "titanium_steel": ArmorRow(protection_per_5_percent=2, cost_percent_per_5_percent=5, min_tl=7),
-    "crystaliron": ArmorRow(protection_per_5_percent=4, cost_percent_per_5_percent=20, min_tl=10),
+    "titanium_steel": ArmorRow(
+        name="Titanium Steel", protection_per_5_percent=2, cost_percent_per_5_percent=5, tl=7
+    ),
+    "crystaliron": ArmorRow(
+        name="Crystaliron", protection_per_5_percent=4, cost_percent_per_5_percent=20, tl=10
+    ),
     "bonded_superdense": ArmorRow(
-        protection_per_5_percent=6, cost_percent_per_5_percent=50, min_tl=14
+        name="Bonded Superdense", protection_per_5_percent=6, cost_percent_per_5_percent=50, tl=14
     ),
 }
-"""Armor type -> protection and cost per 5% of hull tonnage, keyed by ``ArmorType.value``."""
+"""Armor type -> display name, protection, cost per 5% of hull tonnage and TL,
+keyed by ``ArmorType.value``."""
 
 ARMOR_OPTIONS: dict[str, ArmorOptionRow] = {
-    "reflec": ArmorOptionRow(cost_per_ton=0.1),
-    "self_sealing": ArmorOptionRow(cost_per_ton=0.01),
-    "stealth": ArmorOptionRow(cost_per_ton=0.1),
+    "reflec": ArmorOptionRow(name="a reflec coating", cost_per_ton=0.1, tl=10),
+    "self_sealing": ArmorOptionRow(name="a self-sealing hull", cost_per_ton=0.01, tl=9),
+    "stealth": ArmorOptionRow(name="a stealth coating", cost_per_ton=0.1, tl=11),
 }
-"""Armor option -> MCr surcharge per armored ton (research Part F). The single
-source for both which options exist (`ArmorFit` validates against these keys)
-and what they cost (the builder's armor step reads ``cost_per_ton``), so adding
-an SRD option stays a data-only edit (SC-006)."""
+"""Armor option -> SRD noun phrase, MCr surcharge per armored ton, and TL
+(research Parts D and F). The single source for which options exist (`ArmorFit`
+validates against these keys), what they cost (the builder's armor step reads
+``cost_per_ton``) and how they are spelled, so adding an SRD option stays a
+data-only edit (SC-006)."""
 
 BRIDGE_SIZES: tuple[tuple[int | None, int], ...] = (
     (200, 10),
@@ -691,13 +800,15 @@ SOFTWARE: dict[str, SoftwareRow] = {
 """Software name -> rating cost and MCr cost per level (weapon, Jn, DM-1 stack, …)."""
 
 ELECTRONICS: dict[str, ElectronicsRow] = {
-    "standard": ElectronicsRow(tons=0, cost=0),
-    "basic_civilian": ElectronicsRow(tons=1, cost=0.05),
-    "basic_military": ElectronicsRow(tons=2, cost=1),
-    "advanced": ElectronicsRow(tons=3, cost=2),
-    "very_advanced": ElectronicsRow(tons=5, cost=4),
+    "standard": ElectronicsRow(name="Standard", tons=0, cost=0, tl=8, dm=-4),
+    "basic_civilian": ElectronicsRow(name="Basic Civilian", tons=1, cost=0.05, tl=9, dm=-2),
+    "basic_military": ElectronicsRow(name="Basic Military", tons=2, cost=1, tl=10, dm=0),
+    "advanced": ElectronicsRow(name="Advanced", tons=3, cost=2, tl=11, dm=1),
+    "very_advanced": ElectronicsRow(name="Very Advanced", tons=5, cost=4, tl=12, dm=2),
 }
-"""Electronics package -> (tons, cost MCr). ``standard`` is included in the bridge."""
+"""Electronics package -> (display name, tons, cost MCr, TL, sensor DM).
+``standard`` is included in the bridge or cockpit, so every ship carries it and
+the derived tech level has a floor of 8 (research Part D)."""
 
 QUARTERS: dict[str, QuartersRow] = {
     "stateroom": QuartersRow(tons=4, cost=0.5),
@@ -707,16 +818,34 @@ QUARTERS: dict[str, QuartersRow] = {
 """Crew-accommodation kind -> (tons, cost MCr) per berth."""
 
 FITTINGS: dict[str, FittingRow] = {
-    "armory": FittingRow(tons=2, cost=0.5),
-    "detention_cell": FittingRow(tons=2, cost=0.25),
-    "fuel_scoops": FittingRow(tons=0, cost=1, forbidden_on_distributed=True),
-    "fuel_processor": FittingRow(tons=1, cost=0.05),
-    "laboratory": FittingRow(tons=4, cost=1),
-    "library": FittingRow(tons=4, cost=4),
-    "luxuries": FittingRow(tons=1, cost=0.1),
-    "vault": FittingRow(tons=12, cost=6, hull_structure_bonus=4),
+    "armory": FittingRow(name="an armory", plural="armories", tons=2, cost=0.5),
+    "detention_cell": FittingRow(
+        name="a detention cell", plural="detention cells", tons=2, cost=0.25
+    ),
+    "fuel_scoops": FittingRow(
+        name="fuel scoops", plural="fuel scoops", tons=0, cost=1, forbidden_on_distributed=True
+    ),
+    "fuel_processor": FittingRow(
+        name="a fuel processor",
+        plural="fuel processors",
+        tons=1,
+        cost=0.05,
+        counted_in_tons=True,
+        unrefined_fuel_per_ton=20.0,
+    ),
+    "laboratory": FittingRow(name="a laboratory", plural="laboratories", tons=4, cost=1),
+    "library": FittingRow(name="a library", plural="libraries", tons=4, cost=4),
+    "luxuries": FittingRow(
+        name="luxuries", plural="luxuries", tons=1, cost=0.1, counted_in_tons=True
+    ),
+    "vault": FittingRow(name="a vault", plural="vaults", tons=12, cost=6, hull_structure_bonus=4),
     "vehicle_hangar": FittingRow(
-        tons=None, cost=None, tons_per_vehicle_ton=1.3, cost_per_vehicle_ton=0.2
+        name="a small craft hangar",
+        plural="small craft hangars",
+        tons=None,
+        cost=None,
+        tons_per_vehicle_ton=1.3,
+        cost_per_vehicle_ton=0.2,
     ),
 }
 """Fitting name -> (tons, cost MCr) per unit of ``FittingFit.quantity``.
@@ -727,11 +856,21 @@ figures come from ``FittingFit.vehicle_tons`` scaled by the row's
 x1.3, cost = MCr0.2/ton, research Part G)."""
 
 TURRET_MOUNTS: dict[str, MountRow] = {
-    "single": MountRow(tons=1, cost=0.2, weapon_slots=1),
-    "double": MountRow(tons=1, cost=0.5, weapon_slots=2),
-    "triple": MountRow(tons=1, cost=1, weapon_slots=3),
-    "pop_up": MountRow(tons=2, cost=1, weapon_slots=1),
-    "fixed": MountRow(tons=0, cost=0.1, weapon_slots=1),
+    "single": MountRow(
+        name="single turret", plural="single turrets", tons=1, cost=0.2, weapon_slots=1, tl=7
+    ),
+    "double": MountRow(
+        name="double turret", plural="double turrets", tons=1, cost=0.5, weapon_slots=2, tl=8
+    ),
+    "triple": MountRow(
+        name="triple turret", plural="triple turrets", tons=1, cost=1, weapon_slots=3, tl=9
+    ),
+    "pop_up": MountRow(
+        name="pop-up turret", plural="pop-up turrets", tons=2, cost=1, weapon_slots=1, tl=10
+    ),
+    "fixed": MountRow(
+        name="fixed mounting", plural="fixed mountings", tons=0, cost=0.1, weapon_slots=1, tl=None
+    ),
 }
 """Mount type -> (tons, cost MCr, weapon slots).
 
@@ -743,48 +882,90 @@ SRD's fixed mounting occupies no separate tonnage) and half of a single turret's
 cost."""
 
 TURRET_WEAPONS: dict[str, WeaponRow] = {
-    "missile_rack": WeaponRow(cost=0.75),
-    "pulse_laser": WeaponRow(cost=0.5, energy=True),
-    "sandcaster": WeaponRow(cost=0.25),
-    "particle_beam": WeaponRow(cost=4, energy=True),
+    "missile_rack": WeaponRow(name="missile", plural="missiles", cost=0.75, tl=6),
+    "pulse_laser": WeaponRow(
+        name="pulse laser", plural="pulse lasers", cost=0.5, tl=7, energy=True
+    ),
+    "sandcaster": WeaponRow(name="sandcaster", plural="sandcasters", cost=0.25, tl=7),
+    "particle_beam": WeaponRow(
+        name="particle beam", plural="particle beams", cost=4, tl=8, energy=True
+    ),
 }
-"""Turret weapon -> (cost MCr, whether it counts against a small craft's energy-weapon
-cap). The SRD page's Turret Weapons table lists exactly these four; a "beam laser" is
-named in the surrounding prose but never priced, so it is omitted rather than guessed."""
+"""Turret weapon -> (armament-clause spelling, cost MCr, TL, whether it counts
+against a small craft's energy-weapon cap). The SRD page's Turret Weapons table
+lists exactly these four; a "beam laser" is named in the surrounding prose but
+never priced, so it is omitted rather than guessed."""
 
 AMMO: dict[str, AmmoRow] = {
     "sand_barrels": AmmoRow(
-        kind="sand_barrels", rounds_per_ton=20, cost_per_round=10_000 / 20 / 1_000_000
+        name="canister",
+        plural="canisters",
+        kind="sand_barrels",
+        rounds_per_ton=20,
+        cost_per_round=10_000 / 20 / 1_000_000,
+        tl=5,
+        weapon="sandcaster",
     ),
     "missile_standard": AmmoRow(
-        kind="missile", type="standard", rounds_per_ton=12, cost_per_round=1_250 / 1_000_000
+        name="standard missile",
+        plural="standard missiles",
+        kind="missile",
+        type="standard",
+        rounds_per_ton=12,
+        cost_per_round=1_250 / 1_000_000,
+        tl=6,
+        weapon="missile_rack",
     ),
     "missile_smart": AmmoRow(
-        kind="missile", type="smart", rounds_per_ton=12, cost_per_round=2_500 / 1_000_000
+        name="smart missile",
+        plural="smart missiles",
+        kind="missile",
+        type="smart",
+        rounds_per_ton=12,
+        cost_per_round=2_500 / 1_000_000,
+        tl=8,
+        weapon="missile_rack",
     ),
     "missile_nuclear": AmmoRow(
-        kind="missile", type="nuclear", rounds_per_ton=12, cost_per_round=3_750 / 1_000_000
+        name="nuclear missile",
+        plural="nuclear missiles",
+        kind="missile",
+        type="nuclear",
+        rounds_per_ton=12,
+        cost_per_round=3_750 / 1_000_000,
+        tl=6,
+        weapon="missile_rack",
     ),
 }
-"""Ammunition entry -> (kind, type, rounds per ton, MCr cost per round). Sand
-barrels: 20/ton, Cr10,000 per ton (Cr500/barrel). Missiles: 12/ton regardless of
-type, priced per missile (standard Cr1,250, smart Cr2,500, nuclear Cr3,750). The
-dict key is descriptive only—`models.py` and `builder.py` both match an
-`AmmoFit` on the row's ``kind``/``type`` columns, never on the key's spelling."""
+"""Ammunition entry -> (display name, kind, type, rounds per ton, MCr cost per
+round, TL, the turret weapon it feeds). Sand barrels: 20/ton, Cr10,000 per ton
+(Cr500/barrel), called "canisters" in Chapter 9 (research Part E). Missiles:
+12/ton regardless of type, priced per missile (standard Cr1,250, smart Cr2,500,
+nuclear Cr3,750). The dict key is descriptive only—`models.py` and `builder.py`
+both match an `AmmoFit` on the row's ``kind``/``type`` columns, never on the
+key's spelling."""
 
 BAYS: dict[str, BayRow] = {
-    "missile_bank": BayRow(tons=50, cost=12),
-    "particle": BayRow(tons=50, cost=20),
-    "meson": BayRow(tons=50, cost=50),
-    "fusion": BayRow(tons=50, cost=8),
+    "missile_bank": BayRow(name="missile bay", plural="missile bays", tons=50, cost=12, tl=6),
+    "particle": BayRow(
+        name="particle beam bay", plural="particle beam bays", tons=50, cost=20, tl=8
+    ),
+    "meson": BayRow(name="meson gun bay", plural="meson gun bays", tons=50, cost=50, tl=11),
+    "fusion": BayRow(name="fusion gun bay", plural="fusion gun bays", tons=50, cost=8, tl=12),
 }
-"""Weapon-bay kind -> (50 t, cost MCr), research Part H. Forbidden on small craft."""
+"""Weapon-bay kind -> (display name, 50 t, cost MCr, TL), research Parts D and
+H. Forbidden on small craft."""
 
 SCREENS: dict[str, ScreenRow] = {
-    "meson_screen": ScreenRow(tons=50, cost=60),
-    "nuclear_damper": ScreenRow(tons=50, cost=50),
+    "meson_screen": ScreenRow(
+        name="meson screen", plural="meson screens", tons=50, cost=60, tl=12
+    ),
+    "nuclear_damper": ScreenRow(
+        name="nuclear damper", plural="nuclear dampers", tons=50, cost=50, tl=12
+    ),
 }
-"""Defensive-screen kind -> (50 t, cost MCr), research Part H."""
+"""Defensive-screen kind -> (display name, 50 t, cost MCr, TL), research Parts D
+and H."""
 
 SMALL_CRAFT_HULLS: dict[int, HullRow] = {
     10: HullRow(code="s1", cost=1.1, build_weeks=28),

@@ -367,6 +367,7 @@ def test_ship_is_frozen():
     )
     ship = Ship(
         design=design,
+        tech_level=8,
         hull_tons=200,
         configuration=Configuration.STANDARD,
         jump_rating=1,
@@ -400,6 +401,7 @@ def test_ship_rejects_negative_cargo_tons():
     with pytest.raises(ValueError, match="cargo_tons"):
         Ship(
             design=design,
+            tech_level=8,
             hull_tons=200,
             configuration=Configuration.STANDARD,
             jump_rating=1,
@@ -420,3 +422,109 @@ def test_ship_rejects_negative_cargo_tons():
             build_weeks=44,
             line_items=(),
         )
+
+
+# --- USDF: ShipDesign.purpose / ShipDesign.tech_level / Ship.tech_level ---
+
+
+def _ship(**overrides):
+    """A minimal well-formed `Ship`, for validation tests only."""
+    design = ShipDesign(hull_tons=200, jump_code="A", power_code="A")
+    crew = Crew(
+        pilot=1, navigator=1, engineers=0, gunners=0, screen_operators=0, medic=0, stewards=0
+    )
+    kwargs = dict(
+        design=design,
+        tech_level=8,
+        hull_tons=200,
+        configuration=Configuration.STANDARD,
+        jump_rating=1,
+        maneuver_rating=1,
+        power_rating=1,
+        jump_fuel=20,
+        assumed_jump_distance=1,
+        power_fuel=2,
+        tonnage_used=100,
+        cargo_tons=100,
+        hull_points=4,
+        structure_points=4,
+        armor_protection=0,
+        hardpoints=2,
+        hardpoints_used=0,
+        crew=crew,
+        total_cost=8,
+        build_weeks=44,
+        line_items=(),
+    )
+    kwargs.update(overrides)
+    return Ship(**kwargs)
+
+
+def test_ship_design_purpose_and_tech_level_default_to_none():
+    # Every existing design file stays valid and every existing design stays
+    # buildable (spec Assumptions).
+    design = ShipDesign(hull_tons=200, jump_code="A", power_code="A")
+    assert design.purpose is None
+    assert design.tech_level is None
+
+
+def test_ship_design_accepts_an_authored_purpose_and_tech_level():
+    design = ShipDesign(
+        hull_tons=200,
+        jump_code="A",
+        power_code="A",
+        purpose="a subsidized merchant plying the backwaters",
+        tech_level=12,
+    )
+    assert design.purpose == "a subsidized merchant plying the backwaters"
+    assert design.tech_level == 12
+
+
+@pytest.mark.parametrize("bad", ["", "   ", "\t\n"])
+def test_ship_design_rejects_an_empty_or_whitespace_purpose(bad):
+    with pytest.raises(ValueError, match="purpose"):
+        ShipDesign(hull_tons=200, jump_code="A", power_code="A", purpose=bad)
+
+
+@pytest.mark.parametrize("bad", [1, 2.5, ["a starship"]])
+def test_ship_design_rejects_a_non_string_purpose(bad):
+    with pytest.raises(ValueError, match="purpose"):
+        ShipDesign(hull_tons=200, jump_code="A", power_code="A", purpose=bad)
+
+
+def test_ship_design_rejects_a_negative_tech_level():
+    with pytest.raises(ValueError, match="tech_level"):
+        ShipDesign(hull_tons=200, jump_code="A", power_code="A", tech_level=-1)
+
+
+def test_ship_design_accepts_a_tech_level_of_zero():
+    assert ShipDesign(hull_tons=200, jump_code="A", power_code="A", tech_level=0).tech_level == 0
+
+
+@pytest.mark.parametrize("bad", [8.0, "8", True, False])
+def test_ship_design_rejects_a_non_integer_tech_level(bad):
+    # A bool is an int subclass, so it is rejected explicitly: `tech_level =
+    # true` in a TOML file is an authoring error, not tech level 1.
+    with pytest.raises(ValueError, match="tech_level"):
+        ShipDesign(hull_tons=200, jump_code="A", power_code="A", tech_level=bad)
+
+
+def test_ship_design_does_not_check_tech_level_against_any_derived_value():
+    # FR-028b: an explicit tech level is a statement about the yard that built
+    # the ship, not a constraint. A TL far below any fitted component's is
+    # accepted as given.
+    design = ShipDesign(hull_tons=200, jump_code="A", power_code="A", tech_level=1)
+    assert design.tech_level == 1
+
+
+def test_ship_carries_a_tech_level():
+    assert _ship().tech_level == 8
+
+
+def test_ship_rejects_a_negative_tech_level():
+    with pytest.raises(ValueError, match="tech_level"):
+        _ship(tech_level=-1)
+
+
+def test_ship_accepts_a_tech_level_of_zero():
+    assert _ship(tech_level=0).tech_level == 0

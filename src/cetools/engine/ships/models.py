@@ -18,7 +18,7 @@ from cetools.engine.ships.tables import (
     BAYS,
     COCKPITS,
     COMPUTERS,
-    CONFIG_MODIFIERS,
+    CONFIGURATIONS,
     ELECTRONICS,
     FITTINGS,
     SCREENS,
@@ -61,7 +61,7 @@ class Configuration(Enum):
     @property
     def cost_modifier(self) -> float:
         """The hull-cost multiplier: x0.9 / x1.0 / x1.1."""
-        return CONFIG_MODIFIERS[self.value]
+        return CONFIGURATIONS[self.value].cost_modifier
 
 
 class ArmorType(Enum):
@@ -289,6 +289,23 @@ def _validate_ship_design(design: ShipDesign) -> None:
         if value < 0:
             raise ValueError(f"{name} must be >= 0, got {value}")
 
+    if design.purpose is not None:
+        if not isinstance(design.purpose, str):
+            raise ValueError(f"purpose must be a string, got {type(design.purpose).__name__}")
+        if not design.purpose.strip():
+            raise ValueError("purpose must not be empty")
+
+    # FR-028b: shape only. An explicit tech level is a statement about the yard
+    # that built the ship, never compared against the value `build_ship`
+    # derives from the fitted components, and never clamped to it.
+    if design.tech_level is not None:
+        if isinstance(design.tech_level, bool) or not isinstance(design.tech_level, int):
+            raise ValueError(
+                f"tech_level must be an integer, got {type(design.tech_level).__name__}"
+            )
+        if design.tech_level < 0:
+            raise ValueError(f"tech_level must be >= 0, got {design.tech_level}")
+
 
 _DRIVE_CODES = frozenset("ABCDEFGHJKLMNPQRSTUVWXYZ")
 
@@ -334,6 +351,14 @@ class ShipDesign:
     passengers_middle: int = 0
     standard_design: bool = False
     name: str | None = None
+    purpose: str | None = None
+    """The clause completing "the <name> is ..." in the description's first
+    sentence (FR-029). Author-supplied prose, rendered verbatim and carrying no
+    trailing period; cetools never generates one."""
+    tech_level: int | None = None
+    """The designer's override for the heading's tech level (FR-028, FR-028b).
+    `build_ship` uses it as given; when it is `None` the tech level is derived
+    from the fitted components."""
 
     def __post_init__(self) -> None:
         if self.hull_class is None:
@@ -427,6 +452,7 @@ def _validate_ship(ship: Ship) -> None:
     if ship.cargo_tons < 0:
         raise ValueError(f"cargo_tons must be >= 0, got {ship.cargo_tons}")
     for name in (
+        "tech_level",
         "jump_rating",
         "maneuver_rating",
         "power_rating",
@@ -457,6 +483,11 @@ class Ship:
     """
 
     design: ShipDesign
+    tech_level: int
+    """`design.tech_level` when the designer supplied one, otherwise the highest
+    tech level among the fitted components (FR-028). Always an `int`, never
+    `None`: every ship carries the Standard electronics package included in its
+    bridge or cockpit, so the derived value floors at `ELECTRONICS["standard"].tl`."""
     hull_tons: int
     configuration: Configuration
     jump_rating: int

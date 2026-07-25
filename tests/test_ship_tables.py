@@ -9,6 +9,7 @@ from cetools.engine.ships.models import (
     ArmorType,
     BayFit,
     Configuration,
+    Crew,
     FittingFit,
     ScreenFit,
     ShipDesign,
@@ -22,7 +23,8 @@ from cetools.engine.ships.tables import (
     BRIDGE_SIZES,
     COCKPITS,
     COMPUTERS,
-    CONFIG_MODIFIERS,
+    CONFIGURATIONS,
+    CREW_POSITIONS,
     DRIVE_COSTS,
     DRIVE_PERFORMANCE,
     ELECTRONICS,
@@ -42,6 +44,8 @@ from cetools.engine.ships.tables import (
     BayRow,
     CockpitRow,
     ComputerRow,
+    ConfigurationRow,
+    CrewPositionRow,
     DriveRow,
     ElectronicsRow,
     FittingRow,
@@ -162,19 +166,23 @@ def test_drive_performance_z_on_5000_tons_is_2():
 # --- Configuration / armor ---
 
 
-def test_config_modifiers_match_srd():
-    assert CONFIG_MODIFIERS == {"distributed": 0.9, "standard": 1.0, "streamlined": 1.1}
+def test_configuration_cost_modifiers_match_srd():
+    assert {key: row.cost_modifier for key, row in CONFIGURATIONS.items()} == {
+        "distributed": 0.9,
+        "standard": 1.0,
+        "streamlined": 1.1,
+    }
 
 
 def test_armor_rows_match_srd():
     assert ARMOR["titanium_steel"] == ArmorRow(
-        protection_per_5_percent=2, cost_percent_per_5_percent=5, min_tl=7
+        name="Titanium Steel", protection_per_5_percent=2, cost_percent_per_5_percent=5, tl=7
     )
     assert ARMOR["crystaliron"] == ArmorRow(
-        protection_per_5_percent=4, cost_percent_per_5_percent=20, min_tl=10
+        name="Crystaliron", protection_per_5_percent=4, cost_percent_per_5_percent=20, tl=10
     )
     assert ARMOR["bonded_superdense"] == ArmorRow(
-        protection_per_5_percent=6, cost_percent_per_5_percent=50, min_tl=14
+        name="Bonded Superdense", protection_per_5_percent=6, cost_percent_per_5_percent=50, tl=14
     )
 
 
@@ -217,11 +225,13 @@ def test_software_jump_control_matches_srd():
 
 
 def test_electronics_standard_is_included_in_bridge():
-    assert ELECTRONICS["standard"] == ElectronicsRow(tons=0, cost=0)
+    assert ELECTRONICS["standard"] == ElectronicsRow(name="Standard", tons=0, cost=0, tl=8, dm=-4)
 
 
 def test_electronics_very_advanced_matches_srd():
-    assert ELECTRONICS["very_advanced"] == ElectronicsRow(tons=5, cost=4)
+    assert ELECTRONICS["very_advanced"] == ElectronicsRow(
+        name="Very Advanced", tons=5, cost=4, tl=12, dm=2
+    )
 
 
 def test_quarters_stateroom_matches_srd():
@@ -264,13 +274,26 @@ def test_turret_mounts_cover_all_five_srd_mount_types():
 
 
 def test_single_double_triple_turret_costs_match_srd():
-    assert TURRET_MOUNTS["single"] == MountRow(tons=1, cost=0.2, weapon_slots=1)
-    assert TURRET_MOUNTS["double"] == MountRow(tons=1, cost=0.5, weapon_slots=2)
-    assert TURRET_MOUNTS["triple"] == MountRow(tons=1, cost=1, weapon_slots=3)
+    assert TURRET_MOUNTS["single"] == MountRow(
+        name="single turret", plural="single turrets", tons=1, cost=0.2, weapon_slots=1, tl=7
+    )
+    assert TURRET_MOUNTS["double"] == MountRow(
+        name="double turret", plural="double turrets", tons=1, cost=0.5, weapon_slots=2, tl=8
+    )
+    assert TURRET_MOUNTS["triple"] == MountRow(
+        name="triple turret", plural="triple turrets", tons=1, cost=1, weapon_slots=3, tl=9
+    )
 
 
 def test_fixed_mounting_occupies_no_tonnage_at_half_a_single_turrets_cost():
-    assert TURRET_MOUNTS["fixed"] == MountRow(tons=0, cost=0.1, weapon_slots=1)
+    assert TURRET_MOUNTS["fixed"] == MountRow(
+        name="fixed mounting",
+        plural="fixed mountings",
+        tons=0,
+        cost=0.1,
+        weapon_slots=1,
+        tl=None,
+    )
 
 
 def test_turret_weapons_cover_the_four_priced_srd_weapons():
@@ -294,10 +317,18 @@ def test_bays_cover_the_four_srd_kinds_at_50_tons_each():
 
 
 def test_bays_match_srd_costs():
-    assert BAYS["missile_bank"] == BayRow(tons=50, cost=12)
-    assert BAYS["particle"] == BayRow(tons=50, cost=20)
-    assert BAYS["meson"] == BayRow(tons=50, cost=50)
-    assert BAYS["fusion"] == BayRow(tons=50, cost=8)
+    assert BAYS["missile_bank"] == BayRow(
+        name="missile bay", plural="missile bays", tons=50, cost=12, tl=6
+    )
+    assert BAYS["particle"] == BayRow(
+        name="particle beam bay", plural="particle beam bays", tons=50, cost=20, tl=8
+    )
+    assert BAYS["meson"] == BayRow(
+        name="meson gun bay", plural="meson gun bays", tons=50, cost=50, tl=11
+    )
+    assert BAYS["fusion"] == BayRow(
+        name="fusion gun bay", plural="fusion gun bays", tons=50, cost=8, tl=12
+    )
 
 
 def test_screens_cover_the_two_srd_kinds_at_50_tons_each():
@@ -307,8 +338,12 @@ def test_screens_cover_the_two_srd_kinds_at_50_tons_each():
 
 
 def test_screens_match_srd_costs():
-    assert SCREENS["meson_screen"] == ScreenRow(tons=50, cost=60)
-    assert SCREENS["nuclear_damper"] == ScreenRow(tons=50, cost=50)
+    assert SCREENS["meson_screen"] == ScreenRow(
+        name="meson screen", plural="meson screens", tons=50, cost=60, tl=12
+    )
+    assert SCREENS["nuclear_damper"] == ScreenRow(
+        name="nuclear damper", plural="nuclear dampers", tons=50, cost=50, tl=12
+    )
 
 
 # --- Small craft (US3) ---
@@ -396,6 +431,8 @@ ROW_TYPES = (
     CockpitRow,
     BayRow,
     ScreenRow,
+    ConfigurationRow,
+    CrewPositionRow,
 )
 
 
@@ -410,7 +447,11 @@ def test_every_row_dataclass_field_is_typed(row_type):
 
 
 def test_a_new_fitting_row_costs_and_allocates_correctly_with_no_code_change(monkeypatch):
-    monkeypatch.setitem(FITTINGS, "synthetic_gadget", FittingRow(tons=3, cost=1.25))
+    monkeypatch.setitem(
+        FITTINGS,
+        "synthetic_gadget",
+        FittingRow(name="a synthetic gadget", plural="synthetic gadgets", tons=3, cost=1.25),
+    )
 
     design = load_design("specs/010-starship-generator/examples/free-trader.toml")
     design = dataclasses.replace(
@@ -435,7 +476,15 @@ def test_a_new_distributed_forbidden_fitting_rejects_on_a_distributed_hull_with_
     # hardcoded `fit.kind == "fuel_scoops"` comparison, so a second SRD fitting
     # forbidden on a distributed hull is a data-only edit (SC-006).
     monkeypatch.setitem(
-        FITTINGS, "synthetic_shield", FittingRow(tons=1, cost=0.1, forbidden_on_distributed=True)
+        FITTINGS,
+        "synthetic_shield",
+        FittingRow(
+            name="a synthetic shield",
+            plural="synthetic shields",
+            tons=1,
+            cost=0.1,
+            forbidden_on_distributed=True,
+        ),
     )
     design = ShipDesign(
         hull_tons=200,
@@ -451,7 +500,11 @@ def test_a_new_distributed_forbidden_fitting_rejects_on_a_distributed_hull_with_
 def test_a_new_bay_row_is_accepted_and_allocated_with_no_code_change(monkeypatch):
     # T087: BayFit validates against BAYS itself, not a hardcoded copy of its
     # keys, so a new SRD bay is a data-only edit (SC-006).
-    monkeypatch.setitem(BAYS, "synthetic_bay", BayRow(tons=50, cost=17.5))
+    monkeypatch.setitem(
+        BAYS,
+        "synthetic_bay",
+        BayRow(name="synthetic bay", plural="synthetic bays", tons=50, cost=17.5, tl=9),
+    )
 
     design = load_design("specs/010-starship-generator/examples/free-trader.toml")
     design = dataclasses.replace(design, bays=(BayFit(kind="synthetic_bay"),))
@@ -466,7 +519,11 @@ def test_a_new_bay_row_is_accepted_and_allocated_with_no_code_change(monkeypatch
 
 
 def test_a_new_screen_row_is_accepted_and_allocated_with_no_code_change(monkeypatch):
-    monkeypatch.setitem(SCREENS, "synthetic_screen", ScreenRow(tons=50, cost=42.0))
+    monkeypatch.setitem(
+        SCREENS,
+        "synthetic_screen",
+        ScreenRow(name="synthetic screen", plural="synthetic screens", tons=50, cost=42.0, tl=9),
+    )
 
     design = load_design("specs/010-starship-generator/examples/free-trader.toml")
     design = dataclasses.replace(design, screens=(ScreenFit(kind="synthetic_screen"),))
@@ -485,7 +542,16 @@ def test_a_new_ammo_row_is_accepted_and_costed_with_no_code_change(monkeypatch):
     monkeypatch.setitem(
         AMMO,
         "missile_decoy",
-        AmmoRow(kind="missile", type="decoy", rounds_per_ton=12, cost_per_round=0.002),
+        AmmoRow(
+            name="decoy missile",
+            plural="decoy missiles",
+            kind="missile",
+            type="decoy",
+            rounds_per_ton=12,
+            cost_per_round=0.002,
+            tl=8,
+            weapon="missile_rack",
+        ),
     )
 
     design = ShipDesign(
@@ -511,7 +577,11 @@ def test_a_new_ammo_row_is_accepted_and_costed_with_no_code_change(monkeypatch):
 def test_a_new_armor_option_row_is_accepted_and_costed_with_no_code_change(monkeypatch):
     # T087: the armor-option surcharge is table data read by builder.py, not a
     # dict living in the builder, so a new SRD option is a data-only edit.
-    monkeypatch.setitem(ARMOR_OPTIONS, "synthetic_coating", ArmorOptionRow(cost_per_ton=0.25))
+    monkeypatch.setitem(
+        ARMOR_OPTIONS,
+        "synthetic_coating",
+        ArmorOptionRow(name="a synthetic coating", cost_per_ton=0.25, tl=9),
+    )
 
     def armor_cost(options):
         design = ShipDesign(
@@ -548,8 +618,246 @@ def test_a_new_hull_row_costs_and_allocates_correctly_with_no_code_change(monkey
     assert ship.tonnage_used == pytest.approx(10 + 4 + 20 + 25 + 2)
 
 
+# --- USDF display names, plurals, tech levels and dice modifiers (data-model.md section 4) ---
+
+
+NAMEABLE_TABLES = {
+    "ARMOR": ARMOR,
+    "ARMOR_OPTIONS": ARMOR_OPTIONS,
+    "ELECTRONICS": ELECTRONICS,
+    "TURRET_MOUNTS": TURRET_MOUNTS,
+    "TURRET_WEAPONS": TURRET_WEAPONS,
+    "AMMO": AMMO,
+    "BAYS": BAYS,
+    "SCREENS": SCREENS,
+    "FITTINGS": FITTINGS,
+}
+
+COUNTABLE_TABLES = {
+    "TURRET_MOUNTS": TURRET_MOUNTS,
+    "TURRET_WEAPONS": TURRET_WEAPONS,
+    "AMMO": AMMO,
+    "BAYS": BAYS,
+    "SCREENS": SCREENS,
+    "FITTINGS": FITTINGS,
+}
+
+
+@pytest.mark.parametrize("table_name", sorted(NAMEABLE_TABLES))
+def test_every_nameable_row_carries_a_non_empty_srd_name(table_name):
+    # FR-030: the renderer never spells a component; every name it can print
+    # lives on the component's own data row.
+    for key, row in NAMEABLE_TABLES[table_name].items():
+        assert hasattr(row, "name"), f"{table_name}[{key!r}] has no name column"
+        assert isinstance(row.name, str)
+        assert row.name.strip(), f"{table_name}[{key!r}].name is empty"
+
+
+@pytest.mark.parametrize("table_name", sorted(COUNTABLE_TABLES))
+def test_every_countable_row_carries_a_non_empty_explicit_plural(table_name):
+    # research.md Part E: plurals are spelled, never derived by suffix, because
+    # the SRD's own are irregular ("armory" -> "armories").
+    for key, row in COUNTABLE_TABLES[table_name].items():
+        assert hasattr(row, "plural"), f"{table_name}[{key!r}] has no plural column"
+        assert isinstance(row.plural, str)
+        assert row.plural.strip(), f"{table_name}[{key!r}].plural is empty"
+
+
+def test_every_ammo_row_names_the_turret_weapon_it_feeds():
+    # FR-031: the ammunition sentence names its weapon through data, not
+    # through the renderer knowing that missiles go in missile racks.
+    for key, row in AMMO.items():
+        assert row.weapon in TURRET_WEAPONS, f"AMMO[{key!r}].weapon is not a TURRET_WEAPONS key"
+
+
+def test_every_electronics_row_carries_a_tech_level_and_a_dice_modifier():
+    for key, row in ELECTRONICS.items():
+        assert isinstance(row.tl, int), f"ELECTRONICS[{key!r}].tl is not an int"
+        assert isinstance(row.dm, int), f"ELECTRONICS[{key!r}].dm is not an int"
+
+
+def test_electronics_names_tech_levels_and_dms_match_srd():
+    assert ELECTRONICS["standard"] == ElectronicsRow(name="Standard", tons=0, cost=0, tl=8, dm=-4)
+    assert ELECTRONICS["basic_civilian"] == ElectronicsRow(
+        name="Basic Civilian", tons=1, cost=0.05, tl=9, dm=-2
+    )
+    assert ELECTRONICS["basic_military"] == ElectronicsRow(
+        name="Basic Military", tons=2, cost=1, tl=10, dm=0
+    )
+    assert ELECTRONICS["advanced"] == ElectronicsRow(name="Advanced", tons=3, cost=2, tl=11, dm=1)
+    assert ELECTRONICS["very_advanced"] == ElectronicsRow(
+        name="Very Advanced", tons=5, cost=4, tl=12, dm=2
+    )
+
+
+def test_only_the_fixed_mounting_has_no_tech_level():
+    # research.md Part D: the SRD prints "-" in the fixed mounting's TL cell,
+    # and only there.
+    for key, row in TURRET_MOUNTS.items():
+        if key == "fixed":
+            assert row.tl is None
+        else:
+            assert isinstance(row.tl, int), f"TURRET_MOUNTS[{key!r}].tl is not an int"
+
+
+def test_armor_rows_carry_tl_and_no_longer_carry_min_tl():
+    # ArmorRow.min_tl is renamed tl: it is the SRD's TL column and is now read
+    # by the tech-level derivation, no longer a deliberately unenforced column.
+    field_names = {f.name for f in dataclasses.fields(ArmorRow)}
+    assert "tl" in field_names
+    assert "min_tl" not in field_names
+    for key, row in ARMOR.items():
+        assert isinstance(row.tl, int), f"ARMOR[{key!r}].tl is not an int"
+
+
+def test_armor_option_names_and_tech_levels_match_srd():
+    assert ARMOR_OPTIONS["reflec"] == ArmorOptionRow(
+        name="a reflec coating", cost_per_ton=0.1, tl=10
+    )
+    assert ARMOR_OPTIONS["self_sealing"] == ArmorOptionRow(
+        name="a self-sealing hull", cost_per_ton=0.01, tl=9
+    )
+    assert ARMOR_OPTIONS["stealth"] == ArmorOptionRow(
+        name="a stealth coating", cost_per_ton=0.1, tl=11
+    )
+
+
+def test_turret_mount_and_weapon_tech_levels_match_srd():
+    assert [TURRET_MOUNTS[k].tl for k in ("single", "double", "triple", "pop_up")] == [7, 8, 9, 10]
+    assert TURRET_WEAPONS["missile_rack"].tl == 6
+    assert TURRET_WEAPONS["pulse_laser"].tl == 7
+    assert TURRET_WEAPONS["sandcaster"].tl == 7
+    assert TURRET_WEAPONS["particle_beam"].tl == 8
+
+
+def test_turret_weapons_are_named_for_the_armament_clause_not_the_catalog():
+    # research.md Part E: "armed with missiles", never "armed with missile racks".
+    assert (TURRET_WEAPONS["missile_rack"].name, TURRET_WEAPONS["missile_rack"].plural) == (
+        "missile",
+        "missiles",
+    )
+    assert (TURRET_WEAPONS["pulse_laser"].name, TURRET_WEAPONS["pulse_laser"].plural) == (
+        "pulse laser",
+        "pulse lasers",
+    )
+
+
+def test_ammo_names_and_tech_levels_match_srd():
+    assert AMMO["sand_barrels"].name == "canister"
+    assert AMMO["sand_barrels"].plural == "canisters"
+    assert AMMO["sand_barrels"].tl == 5
+    assert AMMO["missile_standard"].tl == 6
+    assert AMMO["missile_nuclear"].tl == 6
+    assert AMMO["missile_smart"].tl == 8
+    assert AMMO["missile_smart"].name == "smart missile"
+    assert AMMO["missile_smart"].plural == "smart missiles"
+
+
+def test_bay_and_screen_names_and_tech_levels_match_srd():
+    assert (BAYS["missile_bank"].name, BAYS["missile_bank"].tl) == ("missile bay", 6)
+    assert (BAYS["particle"].name, BAYS["particle"].tl) == ("particle beam bay", 8)
+    assert (BAYS["meson"].name, BAYS["meson"].tl) == ("meson gun bay", 11)
+    assert (BAYS["fusion"].name, BAYS["fusion"].tl) == ("fusion gun bay", 12)
+    assert (SCREENS["meson_screen"].name, SCREENS["meson_screen"].tl) == ("meson screen", 12)
+    assert (SCREENS["nuclear_damper"].name, SCREENS["nuclear_damper"].tl) == ("nuclear damper", 12)
+
+
+def test_fitting_names_carry_an_article_and_plurals_do_not():
+    # research.md Part E: "an armory" / "armories", "fuel scoops" / "fuel scoops".
+    assert FITTINGS["armory"].name == "an armory"
+    assert FITTINGS["armory"].plural == "armories"
+    assert FITTINGS["fuel_scoops"].name == "fuel scoops"
+    assert FITTINGS["fuel_scoops"].plural == "fuel scoops"
+    assert FITTINGS["vehicle_hangar"].name == "a small craft hangar"
+    assert FITTINGS["vehicle_hangar"].plural == "small craft hangars"
+    for key, row in FITTINGS.items():
+        assert not row.plural.startswith(("a ", "an ")), f"FITTINGS[{key!r}].plural has an article"
+
+
+def test_only_fuel_processors_and_luxuries_are_counted_in_tons():
+    counted = {key for key, row in FITTINGS.items() if row.counted_in_tons}
+    assert counted == {"fuel_processor", "luxuries"}
+
+
+def test_only_the_fuel_processor_states_an_unrefined_fuel_throughput():
+    rates = {key: row.unrefined_fuel_per_ton for key, row in FITTINGS.items()}
+    assert rates["fuel_processor"] == 20.0
+    assert all(rate is None for key, rate in rates.items() if key != "fuel_processor")
+
+
+def test_fittings_carry_no_tech_level_because_the_srd_tabulates_none():
+    # research.md Part D: a finding, not an omission. Adding a column the SRD
+    # does not fill would be inventing data.
+    field_names = {f.name for f in dataclasses.fields(FittingRow)}
+    assert "tl" not in field_names
+
+
+# --- CONFIGURATIONS and CREW_POSITIONS (data-model.md section 4) ---
+
+
+def test_configurations_is_keyed_by_every_configuration_value():
+    assert set(CONFIGURATIONS) == {member.value for member in Configuration}
+
+
+def test_configuration_rows_match_srd_with_lower_case_names():
+    assert CONFIGURATIONS["distributed"] == ConfigurationRow(name="distributed", cost_modifier=0.9)
+    assert CONFIGURATIONS["standard"] == ConfigurationRow(name="standard", cost_modifier=1.0)
+    assert CONFIGURATIONS["streamlined"] == ConfigurationRow(name="streamlined", cost_modifier=1.1)
+
+
+def test_configuration_names_are_lower_case():
+    # research.md Part E: the starship examples print "The hull is standard".
+    for row in CONFIGURATIONS.values():
+        assert row.name == row.name.lower()
+
+
+def test_config_modifiers_is_gone():
+    import cetools.engine.ships.tables as tables_module
+
+    assert not hasattr(tables_module, "CONFIG_MODIFIERS")
+
+
+def test_every_crew_position_field_names_a_crew_count_attribute():
+    crew_fields = {f.name for f in dataclasses.fields(Crew)}
+    for row in CREW_POSITIONS:
+        assert row.field in crew_fields, f"CREW_POSITIONS field {row.field!r} is not a Crew field"
+
+
+def test_every_crew_count_attribute_appears_exactly_once():
+    crew_fields = [f.name for f in dataclasses.fields(Crew)]
+    listed = [row.field for row in CREW_POSITIONS]
+    assert sorted(listed) == sorted(crew_fields)
+    assert len(listed) == len(set(listed))
+
+
+def test_crew_positions_are_in_the_fr_018_print_order():
+    assert [row.field for row in CREW_POSITIONS] == [
+        "pilot",
+        "navigator",
+        "engineers",
+        "gunners",
+        "screen_operators",
+        "medic",
+        "stewards",
+    ]
+
+
+def test_crew_position_names_and_plurals_match_srd():
+    assert CREW_POSITIONS[0] == CrewPositionRow(field="pilot", name="pilot", plural="pilots")
+    assert CREW_POSITIONS[4] == CrewPositionRow(
+        field="screen_operators", name="screen operator", plural="screen operators"
+    )
+    for row in CREW_POSITIONS:
+        assert row.name.strip()
+        assert row.plural.strip()
+
+
 def test_a_new_turret_weapon_row_costs_correctly_with_no_code_change(monkeypatch):
-    monkeypatch.setitem(TURRET_WEAPONS, "synthetic_cannon", WeaponRow(cost=3.5))
+    monkeypatch.setitem(
+        TURRET_WEAPONS,
+        "synthetic_cannon",
+        WeaponRow(name="synthetic cannon", plural="synthetic cannons", cost=3.5, tl=8),
+    )
 
     design = ShipDesign(
         hull_tons=200,

@@ -35,6 +35,30 @@ The only permitted edits to existing tests are the three named in T008, T009 and
 the `min_tl` → `tl` rename, the `CONFIG_MODIFIERS` → `CONFIGURATIONS` retarget, and the
 two `Ship(...)` construction sites gaining `tech_level`.
 
+## Addendum, recorded at the end of Phase 2
+
+T008–T011 required more existing-test edits than the task list enumerated, all of the
+same mechanical kind: a row dataclass that gains a required column breaks every
+construction of it, not only the ones the tasks named. No assertion was weakened,
+retargeted or removed — each site gained the new columns and kept its original
+`==`/`approx` comparison.
+
+| Site | Edit |
+|---|---|
+| `test_ship_tables.py` full-row equality assertions for `ElectronicsRow`, `MountRow`, `BayRow`, `ScreenRow` | gained `name`/`plural`/`tl`/`dm` |
+| `test_ship_tables.py` SC-006 monkeypatch rows (`FittingRow` ×2, `BayRow`, `ScreenRow`, `AmmoRow`, `ArmorOptionRow`, `WeaponRow`) | gained the same columns |
+| `test_ship_builder.py` SC-006 monkeypatch rows (`FittingRow` ×3) | gained `name`/`plural` |
+| `test_ship_sheet.py` two `Ship(...)` constructions | gained `tech_level` (the file is deleted at T031 regardless) |
+| `test_ship_tables.py::test_config_modifiers_match_srd` | renamed `test_configuration_cost_modifiers_match_srd`; same three modifier values asserted |
+
+Verified by diffing collected test node IDs against `HEAD`: no pre-existing test
+disappeared apart from that one rename.
+
+**Phase 2 end state: 1383 passed**, coverage 99.15%; black, flake8 and `check_docs.py`
+all green. `CONTEXT.md` line 128's `ArmorRow.min_tl` reference was corrected here rather
+than at T049, because `check_docs.py` fails on the dangling symbol the moment T008 lands;
+T049 still owns retiring the "ship sheet" vocabulary.
+
 ## Coverage detail for `src/cetools/engine/ships/`
 
 | Module | Stmts | Miss | Cover |

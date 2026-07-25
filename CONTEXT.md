@@ -123,10 +123,13 @@ Weapons prose (FR-010) alongside pulse laser, sandcaster, and particle beam, but
 lists no cost for it, so `TURRET_WEAPONS` omits it rather than guessing a figure. Small-craft drive
 codes sX–sY–sZ are the same case: they fall inside the energy-weapon cap bands but the source page
 tabulates no small-craft performance for them, so `SMALL_CRAFT_DRIVE_PERFORMANCE` carries no row and
-the builder rejects them. Two further rules are deliberately unenforced because the SRD states
-neither: a cockpit's "1-man"/"2-man" seating never constrains the derived minimum crew, and armor
-and computer tech levels (`ArmorRow.min_tl`, `ComputerRow.tl`) are stored for table fidelity but
-checked nowhere, since v1 has no tech-level model.
+the builder rejects them. One further rule is deliberately unenforced because the SRD states none:
+a cockpit's "1-man"/"2-man" seating never constrains the derived minimum crew. Component tech
+levels (`ArmorRow.tl`, `ComputerRow.tl`, and the `tl` column on every other row the SRD tabulates
+one for) *are* read: `build_ship` takes the highest among the fitted components as `Ship.tech_level`,
+which the ship description prints in its heading. They still constrain nothing—a design may fit a
+component above the tech level it claims, which FR-028b treats as a statement about the yard that
+built the ship rather than an error.
 
 **`ShipDesign`**—the input record: hull, configuration, drives, power plant, bridge or cockpit,
 computer, software, electronics, armor, quarters, fittings, turrets, bays, screens, and the
