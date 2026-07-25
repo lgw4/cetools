@@ -197,6 +197,19 @@ def test_plural_never_derives_a_spelling_by_suffix():
     assert plural(2, "fuel scoops", "fuel scoops") == "fuel scoops"
 
 
+# The description agrees a noun with a *tonnage* in three places -- fuel tankage,
+# cargo capacity and hangar capacity -- and `Ship.jump_fuel`, `Ship.power_fuel`
+# and `Ship.cargo_tons` are all floats, so `plural` is called with a float there
+# as often as with an int. Both domains are pinned here (FR-023, FR-022b).
+@pytest.mark.parametrize("value", [0.0, 0.5, 1.3, 2.0, 6.2, 22.0])
+def test_plural_uses_the_plural_form_for_a_tonnage_that_is_not_one(value):
+    assert plural(value, "ton", "tons") == "tons"
+
+
+def test_plural_uses_the_singular_form_for_a_tonnage_of_exactly_one():
+    assert plural(1.0, "ton", "tons") == "ton"
+
+
 # --- join: commas and a final "and", no serial comma (FR-024) ---
 
 JOIN_CASES = [

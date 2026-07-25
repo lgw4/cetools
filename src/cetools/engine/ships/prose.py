@@ -95,12 +95,17 @@ def signed(n: int) -> str:
     return f"{n:+d}"
 
 
-def plural(n: int, singular: str, plural: str) -> str:  # noqa: A002 - matches data-model.md
+def plural(n: float, singular: str, plural: str) -> str:  # noqa: A002 - matches data-model.md
     """`singular` at exactly one, `plural` otherwise (FR-023).
 
     Both spellings come from the caller -- in practice a data row's ``name`` and
     ``plural`` columns -- never from a suffix rule, because the SRD's own
     plurals are irregular ("armory" -> "armories", research.md Part E).
+
+    ``n`` is a `float` because the description agrees a noun with a tonnage as
+    well as with a count: fuel tankage, cargo capacity and hangar capacity all
+    read `float` fields off the `Ship`. A whole float takes the singular the way
+    the matching `int` does, since ``1.0 == 1``.
     """
     return singular if n == 1 else plural
 
