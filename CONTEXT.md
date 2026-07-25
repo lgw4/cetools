@@ -150,6 +150,15 @@ hull/structure points, fuel, cost, and build time. It carries its own `design`, 
 `build_ship(loads_design(dump_design(ship.design))) == ship`—a ship round-trips through TOML
 losslessly, including one produced by `generate_ship`.
 
+**Ship description**—the SRD's Universal Ship Description Format, and the only rendering cetools
+does for a ship: `render_description(ship)` returns a `TL<n> <name>` heading, a blank line, and one
+unwrapped paragraph whose sentences run in the order and wording the rules use. It is *presentation
+only*—it reads `Ship`, `ShipDesign` and the static tables, computes nothing, and reads no clock,
+seed or locale, so equal ships render byte-identically. A sentence for equipment the ship does not
+carry is dropped whole rather than emitted empty. Component wording lives in the tables' `name` and
+`plural` columns, never in the renderer, so an SRD row added to a table reaches the paragraph with
+no change to `description.py`.
+
 **Small craft**—a 10–95-ton hull built under a second, smaller ruleset in the same builder and
 generator: a cockpit instead of a bridge, no jump drive, a one-week power-plant fuel floor, exactly
 one hardpoint, and a power-plant energy-weapon cap. `HullClass` distinguishes it from a standard

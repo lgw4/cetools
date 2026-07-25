@@ -31,6 +31,7 @@ from cetools.engine.ships import (
 )
 from cetools.engine.ships.description import _SLOTS, render_description
 from cetools.engine.ships.prose import count, money, number, signed, tons
+from cetools.engine.ships.tables import FITTINGS, SCREENS, FittingRow, ScreenRow
 
 # --- Fixtures -------------------------------------------------------------
 
@@ -1057,3 +1058,74 @@ def test_no_jump_wording_reaches_a_small_craft_paragraph(label, paragraph):  # F
 def test_every_small_craft_states_its_acceleration_and_power_endurance(label, paragraph):
     assert "-G acceleration." in paragraph
     assert re.search(r"supports the power plant for \w+ weeks?\.", paragraph)
+
+
+# --- T051: a new table row needs no renderer change (SC-007) ---------------
+#
+# quickstart.md section 10 walks this property by hand once. These tests are
+# what keep it from regressing: each injects a row the SRD does not contain,
+# fits it, and asserts its own wording and tech level reach the paragraph with
+# no edit to `description.py` or `builder.py`.
+
+
+def test_a_new_screen_row_reaches_the_screens_sentence_and_the_heading():
+    graviton = ScreenRow(
+        name="graviton screen", plural="graviton screens", tons=50, cost=70, tl=17
+    )
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setitem(SCREENS, "graviton_screen", graviton)
+        ship = build_ship(_simple_design(screens=(ScreenFit(kind="graviton_screen"),)))
+        heading, paragraph = _split(render_description(ship))
+
+    assert heading == "TL17 Testbed"
+    assert "This ship has one screen: a graviton screen." in paragraph
+
+
+def test_two_new_screen_rows_group_and_pluralise_from_their_own_columns():
+    graviton = ScreenRow(
+        name="graviton screen", plural="graviton screens", tons=50, cost=70, tl=17
+    )
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setitem(SCREENS, "graviton_screen", graviton)
+        design = _simple_design(
+            screens=(ScreenFit(kind="graviton_screen"), ScreenFit(kind="graviton_screen")),
+        )
+        paragraph = _paragraph(build_ship(design))
+
+    assert "This ship has two screens: two graviton screens." in paragraph
+
+
+def test_a_new_vehicle_sized_fitting_row_reaches_the_hangar_sentence():
+    drone_bay = FittingRow(
+        name="a drone bay",
+        plural="drone bays",
+        tons=None,
+        cost=None,
+        tons_per_vehicle_ton=1.5,
+        cost_per_vehicle_ton=0.3,
+    )
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setitem(FITTINGS, "drone_bay", drone_bay)
+        design = _simple_design(fittings=(FittingFit(kind="drone_bay", vehicle_tons=20),))
+        paragraph = _paragraph(build_ship(design))
+
+    assert "There is one drone bay holding 20 tons of small craft." in paragraph
+    # A hangar is rendered by sentence 10 alone; it never doubles as a feature.
+    assert "drone bay" not in _clause(paragraph, "The ship requires")
+    assert "Special features" not in paragraph
+
+
+def test_a_new_counted_in_tons_fitting_row_reaches_the_special_features_sentence():
+    hydroponics = FittingRow(
+        name="hydroponics", plural="hydroponics", tons=1, cost=0.2, counted_in_tons=True
+    )
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setitem(FITTINGS, "hydroponics", hydroponics)
+        design = _simple_design(fittings=(FittingFit(kind="hydroponics", quantity=3),))
+        paragraph = _paragraph(build_ship(design))
+
+    assert "Special features include three tons of hydroponics." in paragraph

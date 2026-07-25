@@ -59,6 +59,29 @@ all green. `CONTEXT.md` line 128's `ArmorRow.min_tl` reference was corrected her
 than at T049, because `check_docs.py` fails on the dangling symbol the moment T008 lands;
 T049 still owns retiring the "ship sheet" vocabulary.
 
+## T053 end state (SC-005 verified)
+
+| Gate | Command | Result |
+|------|---------|--------|
+| Format | `uv run black .` | PASS — 123 files unchanged |
+| Lint | `uv run flake8 src tests` | PASS — no findings |
+| Tests | `uv run pytest` | PASS — **1586 passed**, coverage 99.15% (floor 85%) |
+| Docs | `uv run python scripts/check_docs.py` | PASS |
+
+Collected test node IDs were diffed against the baseline commit `2b29fd2`: **431 added, 21
+removed**, and every removal is accounted for as a replaced rendering test.
+
+| Removed | Count | Why |
+|---|---|---|
+| `tests/test_ship_sheet.py::*` | 17 | file deleted at T031 |
+| `test_ship_tables.py::test_config_modifiers_match_srd` | 1 | renamed `test_configuration_cost_modifiers_match_srd` (same three modifiers asserted) |
+| `test_cli.py::test_ship_build_prints_sheet_and_exits_0` | 1 | → `test_ship_build_prints_a_heading_and_one_paragraph_and_exits_0` |
+| `test_cli.py::test_ship_generate_hull_reflected_in_sheet` | 1 | → `test_ship_generate_hull_reflected_in_description` |
+| `test_cli.py::test_ship_generate_reports_seed_on_stderr_when_omitted` | 1 | → `test_ship_generate_reports_seed_on_stderr_and_never_in_the_paragraph` |
+
+No pre-existing assertion about a computed ship value was weakened, retargeted or removed
+(FR-032, SC-005).
+
 ## Coverage detail for `src/cetools/engine/ships/`
 
 | Module | Stmts | Miss | Cover |

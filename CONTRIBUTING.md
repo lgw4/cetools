@@ -43,7 +43,8 @@ src/cetools/
 │   │   ├── builder.py    # build_ship(design): the sole costing/validation authority
 │   │   ├── generator.py  # generate_ship(rolls, ...): rolls a legal ShipDesign, then builds it
 │   │   ├── design.py     # load_design/loads_design/dump_design: TOML round-trip
-│   │   └── sheet.py      # render_sheet(ship)
+│   │   ├── prose.py      # number, word and list formatting primitives for the description
+│   │   └── description.py # render_description(ship)
 │   ├── rolls.py        # Rolls seam: RollName, RandomRolls, ScriptedRolls
 │   ├── rules.py        # Rules policy: HOUSE (default) and SRD
 │   ├── generator.py    # generate(assignment, rolls, rules): the coordinator
