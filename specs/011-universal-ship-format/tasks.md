@@ -197,6 +197,12 @@ appears and the computer sentence refers to its cockpit.
 
 ---
 
+## Phase 8: Convergence
+
+- [ ] T054 Add a deterministic first-appearance-ordering regression test to `tests/test_ship_description.py` per FR-024a (partial): pin the order of every list the paragraph joins from a stable source — the distinct armour types and armour options in `_distinct`, and the bay, turret, weapon-slot, ammunition and screen groups in `_grouped` — with an assertion that fails on any hash seed rather than on some. Build a fixture whose armour layers, turret loadout and screens are fitted in an order that differs from every table's own order, and assert the rendered clauses follow the *design's* order. Verified necessary: replacing `_distinct`'s body with `list(set(names))` leaves the file's 204 tests fully green under `PYTHONHASHSEED` 0, 1 and 4 and fails only under 2, 3 and 5, so an unordered-collection regression — precisely what FR-024a forbids, and what FR-003 and SC-003 depend on — ships green about half the time. T021's in-process determinism test cannot detect it, because a `set` iterates identically for equal contents within one process. This is the same argument T051 made for SC-007: the property is correct today and proven once by [quickstart.md §2](./quickstart.md), but nothing keeps it from silently regressing.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
