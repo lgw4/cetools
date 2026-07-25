@@ -18,7 +18,7 @@ from cetools.engine.ships.tables import (
     BAYS,
     COCKPITS,
     COMPUTERS,
-    CONFIG_MODIFIERS,
+    CONFIGURATIONS,
     ELECTRONICS,
     FITTINGS,
     SCREENS,
@@ -61,7 +61,7 @@ class Configuration(Enum):
     @property
     def cost_modifier(self) -> float:
         """The hull-cost multiplier: x0.9 / x1.0 / x1.1."""
-        return CONFIG_MODIFIERS[self.value]
+        return CONFIGURATIONS[self.value].cost_modifier
 
 
 class ArmorType(Enum):
@@ -258,6 +258,28 @@ class ScreenFit:
 # --- Input record ---
 
 
+_TRAILING_PUNCTUATION = ".!?…,;:"
+"""Punctuation an authored `purpose` must not end with. The renderer closes the
+first sentence itself (FR-029), so an authored period orphans one ("... is a
+fast trader..") and an authored comma dangles one, which FR-021a forbids."""
+
+
+def _validate_author_prose(value: str, field: str) -> None:
+    """Reject a shape the description's one unwrapped paragraph cannot carry.
+
+    `name` and `purpose` are interpolated verbatim into the heading and the
+    first sentence, so a line break inside either would split the paragraph in
+    two (FR-001a), and stray or doubled whitespace would render as the space
+    before a period, or the doubled space, that FR-021a rules out. Validation
+    rather than normalisation: the value is author prose that appears in the
+    output as written, and every other check here reports rather than rewrites.
+    """
+    if value != value.strip():
+        raise ValueError(f"{field} must not have leading or trailing whitespace: {value!r}")
+    if "  " in value or any(char.isspace() and char != " " for char in value):
+        raise ValueError(f"{field} must be one line with single spaces between words: {value!r}")
+
+
 def _validate_ship_design(design: ShipDesign) -> None:
     if design.hull_tons <= 0:
         raise ValueError(f"hull_tons must be positive, got {design.hull_tons}")
@@ -288,6 +310,37 @@ def _validate_ship_design(design: ShipDesign) -> None:
         value = getattr(design, name)
         if value < 0:
             raise ValueError(f"{name} must be >= 0, got {value}")
+
+    if design.name is not None:
+        if not isinstance(design.name, str):
+            raise ValueError(f"name must be a string, got {type(design.name).__name__}")
+        # A blank name is *no* name: the description falls back to its
+        # placeholder rather than rendering a heading that trails off (FR-029b).
+        if design.name.strip():
+            _validate_author_prose(design.name, "name")
+
+    if design.purpose is not None:
+        if not isinstance(design.purpose, str):
+            raise ValueError(f"purpose must be a string, got {type(design.purpose).__name__}")
+        if not design.purpose.strip():
+            raise ValueError("purpose must not be empty")
+        _validate_author_prose(design.purpose, "purpose")
+        if design.purpose[-1] in _TRAILING_PUNCTUATION:
+            raise ValueError(
+                "purpose must not end with punctuation; the renderer supplies the "
+                f"sentence's own: {design.purpose!r}"
+            )
+
+    # FR-028b: shape only. An explicit tech level is a statement about the yard
+    # that built the ship, never compared against the value `build_ship`
+    # derives from the fitted components, and never clamped to it.
+    if design.tech_level is not None:
+        if isinstance(design.tech_level, bool) or not isinstance(design.tech_level, int):
+            raise ValueError(
+                f"tech_level must be an integer, got {type(design.tech_level).__name__}"
+            )
+        if design.tech_level < 0:
+            raise ValueError(f"tech_level must be >= 0, got {design.tech_level}")
 
 
 _DRIVE_CODES = frozenset("ABCDEFGHJKLMNPQRSTUVWXYZ")
@@ -334,6 +387,14 @@ class ShipDesign:
     passengers_middle: int = 0
     standard_design: bool = False
     name: str | None = None
+    purpose: str | None = None
+    """The clause completing "the <name> is ..." in the description's first
+    sentence (FR-029). Author-supplied prose, rendered verbatim and carrying no
+    trailing period; cetools never generates one."""
+    tech_level: int | None = None
+    """The designer's override for the heading's tech level (FR-028, FR-028b).
+    `build_ship` uses it as given; when it is `None` the tech level is derived
+    from the fitted components."""
 
     def __post_init__(self) -> None:
         if self.hull_class is None:
@@ -403,7 +464,7 @@ def _validate_line_item(item: LineItem) -> None:
 
 @dataclass(frozen=True)
 class LineItem:
-    """One costed, tonnage-consuming component on the ship sheet.
+    """One costed, tonnage-consuming component of a built ship.
 
     `discountable` defaults to `True`; the builder sets it `False` on jump
     fuel, power-plant fuel, and ammunition, which the SRD never discounts
@@ -427,6 +488,7 @@ def _validate_ship(ship: Ship) -> None:
     if ship.cargo_tons < 0:
         raise ValueError(f"cargo_tons must be >= 0, got {ship.cargo_tons}")
     for name in (
+        "tech_level",
         "jump_rating",
         "maneuver_rating",
         "power_rating",
@@ -449,14 +511,20 @@ def _validate_ship(ship: Ship) -> None:
 
 @dataclass(frozen=True)
 class Ship:
-    """The computed sheet: produced by `build_ship(design)` and `generate_ship(...)`.
+    """The computed ship: produced by `build_ship(design)` and `generate_ship(...)`.
 
     Carries its originating `design` so a ship round-trips losslessly (SC-008).
-    Carries no rendering method: `ships/sheet.py`'s `render_sheet(ship)` is the
-    sole reader, so `models.py` never imports `sheet.py`.
+    Carries no rendering method: `ships/description.py`'s
+    `render_description(ship)` is the sole reader, so `models.py` never imports
+    `description.py`.
     """
 
     design: ShipDesign
+    tech_level: int
+    """`design.tech_level` when the designer supplied one, otherwise the highest
+    tech level among the fitted components (FR-028). Always an `int`, never
+    `None`: every ship carries the Standard electronics package included in its
+    bridge or cockpit, so the derived value floors at `ELECTRONICS["standard"].tl`."""
     hull_tons: int
     configuration: Configuration
     jump_rating: int

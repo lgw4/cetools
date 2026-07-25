@@ -123,10 +123,13 @@ Weapons prose (FR-010) alongside pulse laser, sandcaster, and particle beam, but
 lists no cost for it, so `TURRET_WEAPONS` omits it rather than guessing a figure. Small-craft drive
 codes sX–sY–sZ are the same case: they fall inside the energy-weapon cap bands but the source page
 tabulates no small-craft performance for them, so `SMALL_CRAFT_DRIVE_PERFORMANCE` carries no row and
-the builder rejects them. Two further rules are deliberately unenforced because the SRD states
-neither: a cockpit's "1-man"/"2-man" seating never constrains the derived minimum crew, and armor
-and computer tech levels (`ArmorRow.min_tl`, `ComputerRow.tl`) are stored for table fidelity but
-checked nowhere, since v1 has no tech-level model.
+the builder rejects them. One further rule is deliberately unenforced because the SRD states none:
+a cockpit's "1-man"/"2-man" seating never constrains the derived minimum crew. Component tech
+levels (`ArmorRow.tl`, `ComputerRow.tl`, and the `tl` column on every other row the SRD tabulates
+one for) *are* read: `build_ship` takes the highest among the fitted components as `Ship.tech_level`,
+which the ship description prints in its heading. They still constrain nothing—a design may fit a
+component above the tech level it claims, which FR-028b treats as a statement about the yard that
+built the ship rather than an error.
 
 **`ShipDesign`**—the input record: hull, configuration, drives, power plant, bridge or cockpit,
 computer, software, electronics, armor, quarters, fittings, turrets, bays, screens, and the
@@ -146,6 +149,15 @@ never be rules-illegal.
 hull/structure points, fuel, cost, and build time. It carries its own `design`, so
 `build_ship(loads_design(dump_design(ship.design))) == ship`—a ship round-trips through TOML
 losslessly, including one produced by `generate_ship`.
+
+**Ship description**—the SRD's Universal Ship Description Format, and the only rendering cetools
+does for a ship: `render_description(ship)` returns a `TL<n> <name>` heading, a blank line, and one
+unwrapped paragraph whose sentences run in the order and wording the rules use. It is *presentation
+only*—it reads `Ship`, `ShipDesign` and the static tables, computes nothing, and reads no clock,
+seed or locale, so equal ships render byte-identically. A sentence for equipment the ship does not
+carry is dropped whole rather than emitted empty. Component wording lives in the tables' `name` and
+`plural` columns, never in the renderer, so an SRD row added to a table reaches the paragraph with
+no change to `description.py`.
 
 **Small craft**—a 10–95-ton hull built under a second, smaller ruleset in the same builder and
 generator: a cockpit instead of a bridge, no jump drive, a one-week power-plant fuel floor, exactly

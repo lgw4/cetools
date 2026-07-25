@@ -756,10 +756,48 @@ def test_character_seed_with_count_fixes_the_whole_sequence():
 _FREE_TRADER_TOML = "specs/010-starship-generator/examples/free-trader.toml"
 
 
-def test_ship_build_prints_sheet_and_exits_0():
+# The worked example at the end of
+# specs/011-universal-ship-format/contracts/description-format.md, verbatim.
+_BEOWULF_PARAGRAPH = (
+    "Using a 200-ton hull (4 Hull, 4 Structure), the Beowulf is a starship. It mounts jump "
+    "drive A, maneuver drive A and power plant A, giving a performance of Jump-1 and 1-G "
+    "acceleration. Fuel tankage of 22 tons supports the power plant for two weeks and one "
+    "Jump-1 jump. Adjacent to the bridge is a computer Model 1. The ship is equipped with "
+    "Standard sensors (DM-4). There are four staterooms. The ship has two hardpoints and two "
+    "tons allocated to fire control, but has no weapons installed. Cargo capacity is 135 tons. "
+    "The hull is standard, and no additional armor has been installed. Special features "
+    "include one ton of fuel processors (processes 20 tons of unrefined fuel into refined fuel "
+    "per day). The ship requires a crew of five: one pilot, one navigator, one engineer, one "
+    "medic and one steward. The ship cannot carry any additional passengers. The ship costs "
+    "MCr29.772 (including discounts and fees) and takes 44 weeks to build."
+)
+
+
+def test_ship_build_prints_a_heading_and_one_paragraph_and_exits_0():
     result = runner.invoke(app, ["ship", "build", _FREE_TRADER_TOML])
     assert result.exit_code == 0
-    assert "Beowulf" in result.stdout
+
+    lines = _description_lines(result.stdout)
+    assert len(lines) == 3
+    assert lines[0] == "TL8 Beowulf"
+    assert lines[1] == ""
+    assert lines[2].endswith(".")
+
+
+def test_ship_build_free_trader_matches_the_worked_example():
+    result = runner.invoke(app, ["ship", "build", _FREE_TRADER_TOML])
+    assert result.exit_code == 0
+    assert _description_lines(result.stdout) == ["TL8 Beowulf", "", _BEOWULF_PARAGRAPH]
+
+
+def test_ship_build_renders_an_authored_purpose_and_tech_level():
+    path = "specs/011-universal-ship-format/examples/subsidized-merchant.toml"
+    result = runner.invoke(app, ["ship", "build", path])
+    assert result.exit_code == 0
+
+    lines = _description_lines(result.stdout)
+    assert lines[0] == "TL11 Beowulf"
+    assert "the Beowulf is a subsidized merchant plying the routes" in lines[2]
 
 
 def test_ship_build_toml_emits_round_trippable_design():
@@ -811,7 +849,24 @@ def test_ship_build_rules_illegal_design_exits_1(tmp_path):
     assert "not a tabulated hull size" in result.stderr
 
 
-# --- `cetools ship generate` (T031) ---
+# --- `cetools ship generate` (T031, T022) ---
+
+
+def _description_lines(stdout: str) -> list[str]:
+    """The heading, blank line and paragraph of a USDF description, with the
+    trailing newline `typer.echo` adds stripped."""
+    return stdout.rstrip("\n").split("\n")
+
+
+def test_ship_generate_prints_a_heading_and_one_paragraph():
+    result = runner.invoke(app, ["ship", "generate", "--seed", "42"])
+    assert result.exit_code == 0
+
+    lines = _description_lines(result.stdout)
+    assert len(lines) == 3
+    assert lines[0].startswith("TL")
+    assert lines[1] == ""
+    assert lines[2].endswith(".")
 
 
 def test_ship_generate_seed_is_byte_identical():
@@ -823,10 +878,10 @@ def test_ship_generate_seed_is_byte_identical():
     assert first.stdout == second.stdout
 
 
-def test_ship_generate_hull_reflected_in_sheet():
+def test_ship_generate_hull_reflected_in_description():
     result = runner.invoke(app, ["ship", "generate", "--seed", "42", "--hull", "400"])
     assert result.exit_code == 0
-    assert "Hull: 400 tons" in result.stdout
+    assert "400-ton hull" in result.stdout
 
 
 def test_ship_generate_toml_emits_round_trippable_design():
@@ -852,10 +907,13 @@ def test_ship_generate_out_writes_a_file(tmp_path):
     build_ship(loads_design(out_path.read_text()))
 
 
-def test_ship_generate_reports_seed_on_stderr_when_omitted():
+def test_ship_generate_reports_seed_on_stderr_and_never_in_the_paragraph():
     result = runner.invoke(app, ["ship", "generate"])
     assert result.exit_code == 0
     assert "seed" in result.stderr.lower()
+
+    paragraph = _description_lines(result.stdout)[2]
+    assert "seed" not in paragraph.lower()
     assert "seed" not in result.stdout.lower()
 
 
@@ -884,7 +942,7 @@ def test_ship_generate_small_craft_with_hull():
         app, ["ship", "generate", "--small-craft", "--hull", "40", "--seed", "7"]
     )
     assert result.exit_code == 0
-    assert "Hull: 40 tons" in result.stdout
+    assert "40-ton hull" in result.stdout
 
 
 def test_ship_generate_small_craft_hull_95_accepted():
@@ -892,7 +950,7 @@ def test_ship_generate_small_craft_hull_95_accepted():
         app, ["ship", "generate", "--small-craft", "--hull", "95", "--seed", "7"]
     )
     assert result.exit_code == 0
-    assert "Hull: 95 tons" in result.stdout
+    assert "95-ton hull" in result.stdout
 
 
 def test_ship_generate_small_craft_hull_100_out_of_range_exits_1():
@@ -901,3 +959,43 @@ def test_ship_generate_small_craft_hull_100_out_of_range_exits_1():
     )
     assert result.exit_code == 1
     assert result.stderr.strip()
+
+
+# --- small craft descriptions (T045, FR-026, FR-027) ---
+
+_FIGHTER_TOML = "specs/010-starship-generator/examples/fighter.toml"
+
+
+def test_ship_generate_small_craft_prints_a_jump_free_description():
+    result = runner.invoke(
+        app, ["ship", "generate", "--small-craft", "--hull", "40", "--seed", "7"]
+    )
+    assert result.exit_code == 0
+
+    lines = _description_lines(result.stdout)
+    assert len(lines) == 3
+    assert lines[0].startswith("TL")
+    assert lines[1] == ""
+    assert "40-ton hull" in lines[2]
+    assert "is a small craft." in lines[2]
+    assert "cockpit" in lines[2]
+    assert "jump" not in lines[2].lower()
+
+
+def test_ship_build_fighter_prints_a_jump_free_description():
+    result = runner.invoke(app, ["ship", "build", _FIGHTER_TOML])
+    assert result.exit_code == 0
+
+    lines = _description_lines(result.stdout)
+    assert len(lines) == 3
+    assert lines[0] == "TL8 Wasp"
+    assert lines[1] == ""
+    assert "the Wasp is a small craft." in lines[2]
+    assert (
+        "It mounts maneuver drive sB and power plant sG, "
+        "giving a performance of 1-G acceleration."
+    ) in lines[2]
+    assert "Fuel tankage of 7.3 tons supports the power plant for one week." in lines[2]
+    assert "jump" not in lines[2].lower()
+    # A fractional capacity renders in digits, never as a word (FR-022b).
+    assert "Cargo capacity is 6.2 tons." in lines[2]

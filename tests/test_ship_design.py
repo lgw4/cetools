@@ -316,6 +316,90 @@ def test_a_single_quantity_fitting_omits_the_quantity_key():
     assert "quantity" not in dump_design(design)
 
 
+# --- T032: `purpose` and `tech_level` (011 contracts/design-schema.md) -----
+
+
+def _describable(**overrides) -> ShipDesign:
+    fields = dict(name="Beowulf", hull_tons=200, jump_code="A", power_code="A")
+    fields.update(overrides)
+    return ShipDesign(**fields)
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {},
+        {"purpose": "a fast courier"},
+        {"tech_level": 11},
+        {"purpose": "a fast courier", "tech_level": 11},
+    ],
+    ids=["neither", "purpose", "tech_level", "both"],
+)
+def test_the_new_design_keys_round_trip_losslessly(overrides):  # FR-033
+    design = _describable(**overrides)
+    assert loads_design(dump_design(design)) == design
+
+
+def test_dump_design_omits_an_unset_new_key():
+    text = dump_design(_describable())
+    assert "purpose" not in text
+    assert "tech_level" not in text
+
+
+def test_dump_design_emits_the_new_keys_in_canonical_order():
+    text = dump_design(_describable(purpose="a fast courier", tech_level=11))
+    keys = [line.split(" =")[0] for line in text.splitlines() if " = " in line]
+    assert keys[:4] == ["name", "purpose", "hull_tons", "tech_level"]
+
+
+def test_a_purpose_containing_a_quote_or_a_backslash_round_trips():
+    design = _describable(purpose='a "subsidized" merchant \\ hauling mail')
+    assert loads_design(dump_design(design)) == design
+
+
+def test_loads_design_rejects_a_non_string_purpose():
+    with pytest.raises(ValueError, match="purpose must be a string"):
+        loads_design("hull_tons = 200\npurpose = 7\n")
+
+
+def test_loads_design_rejects_a_non_integer_tech_level():
+    with pytest.raises(ValueError, match="tech_level must be an integer"):
+        loads_design('hull_tons = 200\ntech_level = "11"\n')
+
+
+def test_loads_design_rejects_a_boolean_tech_level():
+    with pytest.raises(ValueError, match="tech_level must be an integer"):
+        loads_design("hull_tons = 200\ntech_level = true\n")
+
+
+def test_a_misspelled_new_key_still_fails_as_an_unknown_key():  # FR-033
+    with pytest.raises(ValueError, match="unknown key\\(s\\) in design"):
+        loads_design('hull_tons = 200\npurspose = "a fast courier"\n')
+
+
+# --- T055: the same rejection reached through a hand-authored file ---------
+
+
+@pytest.mark.parametrize(
+    "purpose",
+    ['"a fast trader."', '"a trader "', '"""a trader\nof repute"""'],
+    ids=["trailing period", "trailing space", "line break"],
+)
+def test_loads_design_rejects_a_purpose_the_paragraph_cannot_carry(purpose):
+    with pytest.raises(ValueError, match="purpose"):
+        loads_design(f"hull_tons = 200\npurpose = {purpose}\n")
+
+
+def test_loads_design_rejects_a_name_the_heading_cannot_carry():
+    with pytest.raises(ValueError, match="name"):
+        loads_design('hull_tons = 200\nname = "Beowulf "\n')
+
+
+def test_a_blank_name_round_trips_and_still_means_no_name():  # FR-029b
+    design = _describable(name="")
+    assert loads_design(dump_design(design)) == design
+
+
 # --- T094: FR-021 schema-invalid load errors (design-schema.md "Rules enforced at load") ---
 
 

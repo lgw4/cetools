@@ -61,6 +61,9 @@ auto_commit:
   after_implement:
     enabled: true
     message: "[Spec Kit] Implementation progress"
+  after_converge:
+    enabled: true
+    message: "[Spec Kit] Append convergence tasks"
   after_checklist:
     enabled: true
     message: "[Spec Kit] Add checklist"

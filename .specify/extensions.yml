@@ -155,6 +155,15 @@ hooks:
     prompt: Commit implementation changes?
     description: Auto-commit after implementation
     condition: null
+  after_converge:
+  - extension: git
+    command: speckit.git.commit
+    enabled: true
+    optional: true
+    priority: 10
+    prompt: Commit convergence changes?
+    description: Auto-commit after convergence
+    condition: null
   after_checklist:
   - extension: git
     command: speckit.git.commit

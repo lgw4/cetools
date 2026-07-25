@@ -1,0 +1,35 @@
+# Beowulf -- the free trader of specs/010-starship-generator/examples/free-trader.toml,
+# carrying the two design fields this feature adds.
+#
+# Exercises (quickstart.md scenario 4):
+#   purpose     -> completes the description's first sentence (FR-029)
+#   tech_level  -> overrides the derived value in the heading (FR-028b). The derived
+#                  value is 8 (Model 1 computer TL7, Standard sensors TL8); 11 is
+#                  higher and is used as given, never re-checked.
+#
+# Every computed figure matches free-trader.toml exactly (FR-032):
+#   tonnage_used = 65.0, cargo_tons = 135.0, crew total = 5,
+#   total_cost = 29.772 MCr, build_weeks = 44
+
+name = "Beowulf"
+purpose = "a subsidized merchant plying the routes an interstellar polity's mail contracts do not reach"
+hull_tons = 200
+tech_level = 11
+standard_design = true
+
+[drives]
+jump = "A"
+maneuver = "A"
+power = "A"
+
+[computer]
+model = 1
+
+[quarters]
+staterooms = 4
+
+[[fittings]]
+kind = "fuel_processor"
+
+[passengers]
+middle = 2

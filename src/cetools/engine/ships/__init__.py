@@ -1,6 +1,7 @@
 """Public surface for the ship-design domain."""
 
 from cetools.engine.ships.builder import build_ship
+from cetools.engine.ships.description import render_description
 from cetools.engine.ships.design import dump_design, load_design, loads_design
 from cetools.engine.ships.generator import generate_ship
 from cetools.engine.ships.models import (
@@ -20,7 +21,6 @@ from cetools.engine.ships.models import (
     SoftwareFit,
     TurretFit,
 )
-from cetools.engine.ships.sheet import render_sheet
 
 __all__ = [
     "AmmoFit",
@@ -43,5 +43,5 @@ __all__ = [
     "generate_ship",
     "load_design",
     "loads_design",
-    "render_sheet",
+    "render_description",
 ]

@@ -27,6 +27,7 @@ from cetools.engine.ships.tables import (
     BRIDGE_SIZES,
     COCKPITS,
     COMPUTERS,
+    CONFIGURATIONS,
     DRIVE_COSTS,
     DRIVE_PERFORMANCE,
     ELECTRONICS,
@@ -315,6 +316,79 @@ def _build_crew(design: ShipDesign, drive_tons: float, hardpoints_used: int) -> 
     )
 
 
+def _fitted_rows(design: ShipDesign):
+    """Every table row the design actually fits, in build order.
+
+    Ship *software* is the one deliberate omission: the SRD's TL column for it
+    is a per-level floor ("9+", "10+"), not a value for the row, so FR-028a's
+    enumeration does not name it (research.md Part D).
+    """
+    # `_build_hull` has already rejected an untabulated hull size by the time
+    # this runs, so the lookup cannot miss.
+    hulls = HULLS if design.hull_class is HullClass.STARSHIP else SMALL_CRAFT_HULLS
+    yield hulls[design.hull_tons]
+    yield CONFIGURATIONS[design.configuration.value]
+
+    for fit in design.armor:
+        yield ARMOR[fit.type.value]
+        for option in fit.options:
+            yield ARMOR_OPTIONS[option]
+
+    for code in (design.maneuver_code, design.jump_code, design.power_code):
+        if code is not None:
+            yield DRIVE_COSTS[_drive_letter(code)]
+
+    if design.cockpit is not None:
+        yield COCKPITS[design.cockpit]
+
+    if design.computer is not None:
+        yield COMPUTERS[design.computer.model]
+
+    # A design that buys no package still carries the Standard suite included
+    # in its bridge or cockpit, which is why the derived value has a floor of 8
+    # and `Ship.tech_level` is never absent (FR-028c, research.md Part D).
+    yield ELECTRONICS[design.electronics or "standard"]
+
+    for field_name, kind in (
+        ("staterooms", "stateroom"),
+        ("low_berths", "low_berth"),
+        ("emergency_low_berths", "emergency_low_berth"),
+    ):
+        if getattr(design, field_name) > 0:
+            yield QUARTERS[kind]
+
+    for fitting in design.fittings:
+        yield FITTINGS[fitting.kind]
+
+    for turret in design.turrets:
+        yield TURRET_MOUNTS[turret.mount]
+        for weapon in turret.weapons:
+            yield TURRET_WEAPONS[weapon]
+        for ammo in turret.ammo:
+            yield _ammo_row(ammo)
+
+    for bay in design.bays:
+        yield BAYS[bay.kind]
+
+    for screen in design.screens:
+        yield SCREENS[screen.kind]
+
+
+def _derive_tech_level(design: ShipDesign) -> int:
+    """The highest tech level among the fitted components' rows (FR-028).
+
+    Reads ``tl`` off whatever row is fitted rather than consulting a list of
+    "categories that have a tech level", so adding a ``tl`` to an SRD row
+    widens the derivation with no change here (SC-007). A row carrying no
+    ``tl`` column contributes nothing—the SRD tabulates none for hulls,
+    configurations, drives, cockpits, quarters or fittings—and so does an
+    individual ``tl`` of ``None``, which is the fixed mounting's "-" cell
+    (research.md Part D).
+    """
+    levels = [row.tl for row in _fitted_rows(design) if getattr(row, "tl", None) is not None]
+    return max(levels, default=ELECTRONICS["standard"].tl)
+
+
 def _total_cost(items: list[LineItem], *, discount: bool) -> float:
     """Sum every `LineItem`'s cost, applying the 10% standard-design discount
     (research Part J) to every discountable item; fuel and ammunition are
@@ -409,6 +483,9 @@ def build_ship(design: ShipDesign) -> Ship:
 
     return Ship(
         design=design,
+        tech_level=(
+            design.tech_level if design.tech_level is not None else _derive_tech_level(design)
+        ),
         hull_tons=hull_tons,
         configuration=design.configuration,
         jump_rating=jump_rating,

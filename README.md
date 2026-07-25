@@ -297,19 +297,12 @@ uv run cetools ship build specs/010-starship-generator/examples/free-trader.toml
 
 ```console
 $ uv run cetools ship build specs/010-starship-generator/examples/free-trader.toml
-Ship: Beowulf (standard)
-Hull: 200 tons, standard (hull 2)
-Drives: Jump-1 (A)  Maneuver-1 (A)  Power-1 (A), 4t power plant
-Fuel: 20t jump (assumes range 1), 2t power plant (2 weeks)
-Bridge: 10t
-Computer: Model/1
-Crew: pilot 1, navigator 1, engineers 1, gunners 0, screen operators 0, medic 1, stewards 1 (total 5)
-Quarters: 4 staterooms, 0 low berths, 0 emergency low berths
-Fittings: fuel_processor x1
-Tonnage: 65 used, 135 cargo, hardpoints 0/2
-Hull points: 4, Structure points: 4
-Cost: MCr29.772, Build time: 44 weeks
+TL8 Beowulf
+
+Using a 200-ton hull (4 Hull, 4 Structure), the Beowulf is a starship. It mounts jump drive A, maneuver drive A and power plant A, giving a performance of Jump-1 and 1-G acceleration. Fuel tankage of 22 tons supports the power plant for two weeks and one Jump-1 jump. Adjacent to the bridge is a computer Model 1. The ship is equipped with Standard sensors (DM-4). There are four staterooms. The ship has two hardpoints and two tons allocated to fire control, but has no weapons installed. Cargo capacity is 135 tons. The hull is standard, and no additional armor has been installed. Special features include one ton of fuel processors (processes 20 tons of unrefined fuel into refined fuel per day). The ship requires a crew of five: one pilot, one navigator, one engineer, one medic and one steward. The ship cannot carry any additional passengers. The ship costs MCr29.772 (including discounts and fees) and takes 44 weeks to build.
 ```
+
+The output is the SRD's Universal Ship Description Format: a `TL<n> <name>` heading, a blank line, and one unwrapped paragraph whose sentences run in the order the rules use.
 
 Randomly generate a ship from a seed, or constrain it to a hull size or the small-craft ruleset:
 
@@ -318,7 +311,7 @@ uv run cetools ship generate --seed 42
 uv run cetools ship generate --hull 10 --small-craft --seed 7
 ```
 
-Add `--toml` to emit a round-trippable design file instead of the sheet, and `--out` to write it to a file. Omit `--seed` to have one chosen for you and reported on stderr, so the run can be reproduced.
+Add `--toml` to emit a round-trippable design file instead of the description, and `--out` to write it to a file. Omit `--seed` to have one chosen for you and reported on stderr, so the run can be reproduced.
 
 **Exit codes**: `0` on success; `1` on a missing or malformed design file, an unknown hull size, or a rules-illegal design (e.g. a power plant rated below its drives), with the violated rule on stderr.
 
