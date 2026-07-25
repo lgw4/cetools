@@ -517,6 +517,66 @@ def test_ship_design_does_not_check_tech_level_against_any_derived_value():
     assert design.tech_level == 1
 
 
+# --- T055/T056: author prose the paragraph cannot carry -------------------
+#
+# `name` and `purpose` are interpolated verbatim into the heading and the first
+# sentence, so a shape the one-paragraph output cannot hold is rejected at the
+# design rather than rendered: an authored period orphans the renderer's own
+# (FR-029), trailing whitespace puts a space before it, and a line break splits
+# the paragraph in two (FR-001a, FR-021a, SC-001). Each shape below is
+# reachable from a hand-authored TOML file.
+
+
+@pytest.mark.parametrize("bad", ["a fast trader.", "a fast trader!", "a fast trader?"])
+def test_ship_design_rejects_a_purpose_ending_in_sentence_punctuation(bad):  # FR-029
+    with pytest.raises(ValueError, match="purpose must not end with punctuation"):
+        ShipDesign(hull_tons=200, jump_code="A", power_code="A", purpose=bad)
+
+
+@pytest.mark.parametrize("bad", ["a fast trader,", "a fast trader;", "a fast trader:"])
+def test_ship_design_rejects_a_purpose_ending_in_a_dangling_mark(bad):  # FR-021a
+    with pytest.raises(ValueError, match="purpose must not end with punctuation"):
+        ShipDesign(hull_tons=200, jump_code="A", power_code="A", purpose=bad)
+
+
+@pytest.mark.parametrize("bad", ["a trader ", " a trader", "\ta trader"])
+def test_ship_design_rejects_a_purpose_with_surrounding_whitespace(bad):  # FR-021a
+    with pytest.raises(ValueError, match="purpose must not have leading or trailing whitespace"):
+        ShipDesign(hull_tons=200, jump_code="A", power_code="A", purpose=bad)
+
+
+@pytest.mark.parametrize("bad", ["a trader\nof repute", "a trader\tof repute", "a  trader"])
+def test_ship_design_rejects_a_multiline_or_doubly_spaced_purpose(bad):  # FR-001a
+    with pytest.raises(ValueError, match="purpose must be one line"):
+        ShipDesign(hull_tons=200, jump_code="A", power_code="A", purpose=bad)
+
+
+def test_ship_design_accepts_punctuation_inside_a_purpose():
+    # Only the *trailing* mark is an authoring error; prose is prose.
+    purpose = "a courier (fast, well-armed) hauling the Duke's mail"
+    design = ShipDesign(hull_tons=200, jump_code="A", power_code="A", purpose=purpose)
+
+    assert design.purpose == purpose
+
+
+@pytest.mark.parametrize("blank", ["", "   "])
+def test_ship_design_accepts_a_blank_name_as_no_name(blank):  # FR-029b
+    # The description renders `Unnamed Ship`; see test_ship_description.py.
+    assert ShipDesign(hull_tons=200, jump_code="A", power_code="A", name=blank).name == blank
+
+
+@pytest.mark.parametrize("bad", ["Beowulf ", " Beowulf", "Beo\nwulf", "Beo  wulf"])
+def test_ship_design_rejects_a_name_the_heading_cannot_carry(bad):  # FR-001, FR-001a
+    with pytest.raises(ValueError, match="name must"):
+        ShipDesign(hull_tons=200, jump_code="A", power_code="A", name=bad)
+
+
+@pytest.mark.parametrize("bad", [8, ["Beowulf"]])
+def test_ship_design_rejects_a_non_string_name(bad):
+    with pytest.raises(ValueError, match="name must be a string"):
+        ShipDesign(hull_tons=200, jump_code="A", power_code="A", name=bad)
+
+
 def test_ship_carries_a_tech_level():
     assert _ship().tech_level == 8
 

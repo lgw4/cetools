@@ -258,6 +258,28 @@ class ScreenFit:
 # --- Input record ---
 
 
+_TRAILING_PUNCTUATION = ".!?…,;:"
+"""Punctuation an authored `purpose` must not end with. The renderer closes the
+first sentence itself (FR-029), so an authored period orphans one ("... is a
+fast trader..") and an authored comma dangles one, which FR-021a forbids."""
+
+
+def _validate_author_prose(value: str, field: str) -> None:
+    """Reject a shape the description's one unwrapped paragraph cannot carry.
+
+    `name` and `purpose` are interpolated verbatim into the heading and the
+    first sentence, so a line break inside either would split the paragraph in
+    two (FR-001a), and stray or doubled whitespace would render as the space
+    before a period, or the doubled space, that FR-021a rules out. Validation
+    rather than normalisation: the value is author prose that appears in the
+    output as written, and every other check here reports rather than rewrites.
+    """
+    if value != value.strip():
+        raise ValueError(f"{field} must not have leading or trailing whitespace: {value!r}")
+    if "  " in value or any(char.isspace() and char != " " for char in value):
+        raise ValueError(f"{field} must be one line with single spaces between words: {value!r}")
+
+
 def _validate_ship_design(design: ShipDesign) -> None:
     if design.hull_tons <= 0:
         raise ValueError(f"hull_tons must be positive, got {design.hull_tons}")
@@ -289,11 +311,25 @@ def _validate_ship_design(design: ShipDesign) -> None:
         if value < 0:
             raise ValueError(f"{name} must be >= 0, got {value}")
 
+    if design.name is not None:
+        if not isinstance(design.name, str):
+            raise ValueError(f"name must be a string, got {type(design.name).__name__}")
+        # A blank name is *no* name: the description falls back to its
+        # placeholder rather than rendering a heading that trails off (FR-029b).
+        if design.name.strip():
+            _validate_author_prose(design.name, "name")
+
     if design.purpose is not None:
         if not isinstance(design.purpose, str):
             raise ValueError(f"purpose must be a string, got {type(design.purpose).__name__}")
         if not design.purpose.strip():
             raise ValueError("purpose must not be empty")
+        _validate_author_prose(design.purpose, "purpose")
+        if design.purpose[-1] in _TRAILING_PUNCTUATION:
+            raise ValueError(
+                "purpose must not end with punctuation; the renderer supplies the "
+                f"sentence's own: {design.purpose!r}"
+            )
 
     # FR-028b: shape only. An explicit tech level is a statement about the yard
     # that built the ship, never compared against the value `build_ship`

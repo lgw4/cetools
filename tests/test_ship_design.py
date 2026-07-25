@@ -377,6 +377,29 @@ def test_a_misspelled_new_key_still_fails_as_an_unknown_key():  # FR-033
         loads_design('hull_tons = 200\npurspose = "a fast courier"\n')
 
 
+# --- T055: the same rejection reached through a hand-authored file ---------
+
+
+@pytest.mark.parametrize(
+    "purpose",
+    ['"a fast trader."', '"a trader "', '"""a trader\nof repute"""'],
+    ids=["trailing period", "trailing space", "line break"],
+)
+def test_loads_design_rejects_a_purpose_the_paragraph_cannot_carry(purpose):
+    with pytest.raises(ValueError, match="purpose"):
+        loads_design(f"hull_tons = 200\npurpose = {purpose}\n")
+
+
+def test_loads_design_rejects_a_name_the_heading_cannot_carry():
+    with pytest.raises(ValueError, match="name"):
+        loads_design('hull_tons = 200\nname = "Beowulf "\n')
+
+
+def test_a_blank_name_round_trips_and_still_means_no_name():  # FR-029b
+    design = _describable(name="")
+    assert loads_design(dump_design(design)) == design
+
+
 # --- T094: FR-021 schema-invalid load errors (design-schema.md "Rules enforced at load") ---
 
 

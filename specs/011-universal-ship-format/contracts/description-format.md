@@ -204,6 +204,12 @@ Entry clause: `{count(quantity)} holding {tons(v)} {ton|tons} of small craft`. T
 from the fitting row's `name` / `plural` ("small craft hangar" / "small craft hangars"), not
 from the renderer.
 
+Both forms above describe one *kind* of hangar. Where a design fits two vehicle-sized rows —
+no SRD design does today, but SC-007 requires a new row to read correctly with no rendering
+change — each kind contributes its own phrase, named by its own row, and the phrases are
+joined: `There is one small craft hangar holding ten tons of small craft and two drone bays,
+each holding 20 tons of small craft.` The verb agrees with the first phrase's count.
+
 ## 11. Cargo (FR-015) — never omitted
 
 ```text

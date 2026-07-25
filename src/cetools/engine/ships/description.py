@@ -64,7 +64,10 @@ its noun ("one small craft hangar") and so needs the bare form."""
 
 
 def _ship_name(ship: Ship) -> str:
-    return ship.design.name if ship.design.name is not None else _UNNAMED
+    # A blank name is no name (FR-029b): `loads_design` accepts `name = ""`, and
+    # the heading's `TL<n> <name>` shape has no room for a name that is not there.
+    name = ship.design.name
+    return name if name is not None and name.strip() else _UNNAMED
 
 
 def _is_small_craft(ship: Ship) -> bool:
@@ -325,29 +328,40 @@ def _hangar_fittings(design) -> list:
     return [fit for fit in design.fittings if FITTINGS[fit.kind].tons_per_vehicle_ton is not None]
 
 
+def _capacity(vehicle_tons: float) -> str:
+    return f"{tons(vehicle_tons)} {plural(vehicle_tons, 'ton', 'tons')} of small craft"
+
+
+def _hangar_phrase(kind: str, fittings: Sequence) -> str:
+    """One kind of hangar: its count, its own row's noun, and its capacities.
+
+    The noun comes from this kind's row and never from another's, so a design
+    fitting two vehicle-sized rows names each of them correctly (SC-007).
+    """
+    row = FITTINGS[kind]
+    fitted = sum(fit.quantity for fit in fittings)
+    noun = f"{count(fitted)} {plural(fitted, _bare(row.name), row.plural)}"
+    if len(fittings) == 1:
+        each = "" if fitted == 1 else ", each"
+        return f"{noun}{each} holding {_capacity(fittings[0].vehicle_tons)}"
+    clauses = [f"{count(fit.quantity)} holding {_capacity(fit.vehicle_tons)}" for fit in fittings]
+    return f"{noun}, {join(clauses)}"
+
+
 def _hangars(ship: Ship) -> str | None:
     fittings = _hangar_fittings(ship.design)
     if not fittings:
         return None
-    total = sum(fit.quantity for fit in fittings)
 
-    if len(fittings) == 1:
-        fit = fittings[0]
-        row = FITTINGS[fit.kind]
-        capacity = fit.vehicle_tons
-        return (
-            f"There {plural(total, 'is', 'are')} {count(total)} "
-            f"{plural(total, _bare(row.name), row.plural)}"
-            f"{'' if total == 1 else ', each'} holding "
-            f"{tons(capacity)} {plural(capacity, 'ton', 'tons')} of small craft."
-        )
+    by_kind: dict[str, list] = {}
+    for fit in fittings:
+        by_kind.setdefault(fit.kind, []).append(fit)
+    phrases = [_hangar_phrase(kind, entries) for kind, entries in by_kind.items()]
 
-    clauses = [
-        f"{count(fit.quantity)} holding {tons(fit.vehicle_tons)} "
-        f"{plural(fit.vehicle_tons, 'ton', 'tons')} of small craft"
-        for fit in fittings
-    ]
-    return f"There are {count(total)} {FITTINGS[fittings[0].kind].plural}, {join(clauses)}."
+    # Proximity agreement: the verb follows the first phrase's count, which for
+    # a single kind -- every SRD design today -- is the ship's whole hangar count.
+    leading = sum(fit.quantity for fit in next(iter(by_kind.values())))
+    return f"There {plural(leading, 'is', 'are')} {join(phrases)}."
 
 
 # --- 11. Cargo (FR-015) ---------------------------------------------------

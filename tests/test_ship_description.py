@@ -1354,3 +1354,113 @@ def test_every_clause_of_the_out_of_order_fixture_follows_the_design():  # FR-02
         "The hull is standard, armored with Crystaliron and Titanium Steel (6 points), "
         "and possesses a stealth coating and a reflec coating."
     )
+
+
+# --- T055/T056: author prose reaches the paragraph intact ------------------
+#
+# `_hull` interpolates `design.purpose` and `_ship_name` the design's name, both
+# verbatim. The shapes that would break the paragraph are rejected at the design
+# (see test_ship_models.py); what is left must render, and a blank name must
+# read as no name at all.
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "a fast trader.",  # would render "... is a fast trader.." (SC-001)
+        "a trader ",  # would render "... is a trader ." (FR-021a)
+        "a trader\nof repute",  # would put a line break in the paragraph (FR-001a)
+    ],
+)
+def test_a_purpose_the_paragraph_cannot_carry_never_reaches_the_renderer(bad):
+    with pytest.raises(ValueError, match="purpose"):
+        _simple_design(purpose=bad)
+
+
+def test_an_authored_purpose_keeps_the_paragraph_grammatical():  # FR-021a, SC-001
+    purpose = "a courier (fast, well-armed) hauling the Duke's mail"
+    paragraph = _paragraph(build_ship(_simple_design(purpose=purpose)))
+
+    assert f"the Testbed is {purpose}." in paragraph
+    assert "  " not in paragraph
+    assert " ." not in paragraph
+    assert "\n" not in paragraph
+
+
+@pytest.mark.parametrize("blank", ["", "   "])
+def test_a_blank_name_reads_as_no_name_in_both_places(blank):  # FR-029b
+    heading, paragraph = _split(render_description(build_ship(_simple_design(name=blank))))
+
+    assert heading == f"TL{build_ship(_simple_design()).tech_level} Unnamed Ship"
+    assert not heading.endswith(" ")
+    assert "the Unnamed Ship is a starship." in paragraph
+    assert "  " not in paragraph
+
+
+# --- T057: every hangar entry is named by its own row (SC-007, FR-031) -----
+
+
+def _drone_bay() -> FittingRow:
+    return FittingRow(
+        name="a drone bay",
+        plural="drone bays",
+        tons=None,
+        cost=None,
+        tons_per_vehicle_ton=1.5,
+        cost_per_vehicle_ton=0.3,
+    )
+
+
+def test_two_vehicle_sized_rows_are_each_named_by_their_own_row():
+    # The aggregate noun must not come from the first entry's row: doing so
+    # calls a small craft hangar a drone bay, or the reverse.
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setitem(FITTINGS, "drone_bay", _drone_bay())
+        design = _simple_design(
+            fittings=(
+                FittingFit(kind="vehicle_hangar", vehicle_tons=10),
+                FittingFit(kind="drone_bay", quantity=2, vehicle_tons=20),
+            )
+        )
+        sentence = _slot(build_ship(design), "_hangars")
+
+    assert sentence == (
+        "There is one small craft hangar holding ten tons of small craft "
+        "and two drone bays, each holding 20 tons of small craft."
+    )
+
+
+def test_hangar_kinds_follow_the_design_order():  # FR-024a
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setitem(FITTINGS, "drone_bay", _drone_bay())
+        design = _simple_design(
+            fittings=(
+                FittingFit(kind="drone_bay", vehicle_tons=20),
+                FittingFit(kind="vehicle_hangar", vehicle_tons=10),
+            )
+        )
+        sentence = _slot(build_ship(design), "_hangars")
+
+    assert sentence == (
+        "There is one drone bay holding 20 tons of small craft "
+        "and one small craft hangar holding ten tons of small craft."
+    )
+
+
+def test_entries_of_one_kind_still_share_that_kind_s_noun():
+    # The multi-entry form of contract section 10 is unchanged for the single
+    # kind every SRD design fits today.
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setitem(FITTINGS, "drone_bay", _drone_bay())
+        design = _simple_design(
+            fittings=(
+                FittingFit(kind="drone_bay", vehicle_tons=20),
+                FittingFit(kind="drone_bay", quantity=2, vehicle_tons=10),
+            )
+        )
+        sentence = _slot(build_ship(design), "_hangars")
+
+    assert sentence == (
+        "There are three drone bays, one holding 20 tons of small craft "
+        "and two holding ten tons of small craft."
+    )
