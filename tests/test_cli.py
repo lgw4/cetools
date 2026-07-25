@@ -756,10 +756,48 @@ def test_character_seed_with_count_fixes_the_whole_sequence():
 _FREE_TRADER_TOML = "specs/010-starship-generator/examples/free-trader.toml"
 
 
-def test_ship_build_prints_sheet_and_exits_0():
+# The worked example at the end of
+# specs/011-universal-ship-format/contracts/description-format.md, verbatim.
+_BEOWULF_PARAGRAPH = (
+    "Using a 200-ton hull (4 Hull, 4 Structure), the Beowulf is a starship. It mounts jump "
+    "drive A, maneuver drive A and power plant A, giving a performance of Jump-1 and 1-G "
+    "acceleration. Fuel tankage of 22 tons supports the power plant for two weeks and one "
+    "Jump-1 jump. Adjacent to the bridge is a computer Model 1. The ship is equipped with "
+    "Standard sensors (DM-4). There are four staterooms. The ship has two hardpoints and two "
+    "tons allocated to fire control, but has no weapons installed. Cargo capacity is 135 tons. "
+    "The hull is standard, and no additional armor has been installed. Special features "
+    "include one ton of fuel processors (processes 20 tons of unrefined fuel into refined fuel "
+    "per day). The ship requires a crew of five: one pilot, one navigator, one engineer, one "
+    "medic and one steward. The ship cannot carry any additional passengers. The ship costs "
+    "MCr29.772 (including discounts and fees) and takes 44 weeks to build."
+)
+
+
+def test_ship_build_prints_a_heading_and_one_paragraph_and_exits_0():
     result = runner.invoke(app, ["ship", "build", _FREE_TRADER_TOML])
     assert result.exit_code == 0
-    assert "Beowulf" in result.stdout
+
+    lines = _description_lines(result.stdout)
+    assert len(lines) == 3
+    assert lines[0] == "TL8 Beowulf"
+    assert lines[1] == ""
+    assert lines[2].endswith(".")
+
+
+def test_ship_build_free_trader_matches_the_worked_example():
+    result = runner.invoke(app, ["ship", "build", _FREE_TRADER_TOML])
+    assert result.exit_code == 0
+    assert _description_lines(result.stdout) == ["TL8 Beowulf", "", _BEOWULF_PARAGRAPH]
+
+
+def test_ship_build_renders_an_authored_purpose_and_tech_level():
+    path = "specs/011-universal-ship-format/examples/subsidized-merchant.toml"
+    result = runner.invoke(app, ["ship", "build", path])
+    assert result.exit_code == 0
+
+    lines = _description_lines(result.stdout)
+    assert lines[0] == "TL11 Beowulf"
+    assert "the Beowulf is a subsidized merchant plying the routes" in lines[2]
 
 
 def test_ship_build_toml_emits_round_trippable_design():

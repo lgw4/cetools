@@ -20,6 +20,7 @@ from cetools.engine.ships import (
     ShipDesign,
     TurretFit,
     build_ship,
+    load_design,
 )
 from cetools.engine.ships.description import _SLOTS, render_description
 from cetools.engine.ships.prose import count, money, number, signed, tons
@@ -584,3 +585,101 @@ def test_equal_ships_render_byte_identically():
 
 def test_description_never_mentions_a_seed():
     assert "seed" not in render_description(_equipped_ship()).lower()
+
+
+# --- T033: purpose, name fallback and authored tech level ------------------
+
+
+def _small_craft_design(**overrides) -> ShipDesign:
+    """A minimal but legal 40-ton small craft."""
+    fields = dict(
+        name="Gig",
+        hull_tons=40,
+        maneuver_code="sB",
+        power_code="sG",
+        bridge=False,
+        cockpit="1_man",
+    )
+    fields.update(overrides)
+    return ShipDesign(**fields)
+
+
+def test_an_authored_purpose_completes_the_first_sentence():  # FR-029
+    purpose = "a subsidized merchant plying routes the mail contracts do not reach"
+    ship = build_ship(_simple_design(purpose=purpose))
+
+    assert f"the Testbed is {purpose}." in _paragraph(ship)
+
+
+def test_the_renderer_supplies_the_first_sentence_period():  # FR-029
+    ship = build_ship(_simple_design(purpose="a fast courier"))
+
+    assert "the Testbed is a fast courier." in _paragraph(ship)
+    assert "courier.." not in _paragraph(ship)
+
+
+def test_a_starship_without_a_purpose_falls_back_to_its_hull_class():  # FR-029a
+    ship = build_ship(_simple_design())
+
+    assert ship.design.purpose is None
+    assert "the Testbed is a starship." in _paragraph(ship)
+
+
+def test_a_small_craft_without_a_purpose_falls_back_to_its_hull_class():  # FR-029a
+    ship = build_ship(_small_craft_design())
+
+    assert "the Gig is a small craft." in _paragraph(ship)
+
+
+def test_a_small_craft_purpose_is_used_when_authored():  # FR-029
+    ship = build_ship(_small_craft_design(purpose="a ship's boat"))
+
+    assert "the Gig is a ship's boat." in _paragraph(ship)
+
+
+def test_a_nameless_design_is_unnamed_ship_in_both_places():  # FR-029b
+    heading, paragraph = _split(render_description(build_ship(_simple_design(name=None))))
+
+    assert heading.endswith(" Unnamed Ship")
+    assert "the Unnamed Ship is a starship." in paragraph
+
+
+def test_an_authored_tech_level_above_the_derived_one_appears_unchanged():  # FR-028b
+    derived = build_ship(_simple_design()).tech_level
+    ship = build_ship(_simple_design(tech_level=derived + 7))
+
+    assert ship.tech_level == derived + 7
+    assert _split(render_description(ship))[0] == f"TL{derived + 7} Testbed"
+
+
+def test_an_authored_tech_level_below_the_derived_one_appears_unchanged():  # FR-028b
+    ship = build_ship(_simple_design(tech_level=3))
+
+    assert _split(render_description(ship))[0] == "TL3 Testbed"
+
+
+# --- T037: the checked-in fixture carrying both new keys -------------------
+
+_SUBSIDIZED_MERCHANT = "specs/011-universal-ship-format/examples/subsidized-merchant.toml"
+
+
+def test_the_subsidized_merchant_renders_its_authored_purpose_and_tech_level():
+    ship = build_ship(load_design(_SUBSIDIZED_MERCHANT))
+    heading, paragraph = _split(render_description(ship))
+
+    assert heading == "TL11 Beowulf"
+    assert (
+        "the Beowulf is a subsidized merchant plying the routes an interstellar "
+        "polity's mail contracts do not reach."
+    ) in paragraph
+
+
+def test_the_subsidized_merchant_changes_no_computed_value():  # FR-032
+    merchant = build_ship(load_design(_SUBSIDIZED_MERCHANT))
+    free_trader = build_ship(load_design("specs/010-starship-generator/examples/free-trader.toml"))
+
+    assert merchant.tonnage_used == free_trader.tonnage_used
+    assert merchant.cargo_tons == free_trader.cargo_tons
+    assert merchant.crew.total == free_trader.crew.total
+    assert merchant.total_cost == free_trader.total_cost
+    assert merchant.build_weeks == free_trader.build_weeks

@@ -28,6 +28,8 @@ from cetools.engine.ships.models import (
 
 _TOP_LEVEL_KEYS = {
     "name",
+    "purpose",
+    "tech_level",
     "hull_tons",
     "configuration",
     "standard_design",
@@ -269,6 +271,13 @@ def loads_design(text: str) -> ShipDesign:
 
     if "name" in data:
         kwargs["name"] = _require_str(data["name"], "name")
+    # Shape only: neither key is checked against SRD rules. An explicit
+    # tech_level above the derived value is used as given (FR-028b); an empty
+    # or negative value is `models.py`'s to reject.
+    if "purpose" in data:
+        kwargs["purpose"] = _require_str(data["purpose"], "purpose")
+    if "tech_level" in data:
+        kwargs["tech_level"] = _require_int(data["tech_level"], "tech_level")
     if "standard_design" in data:
         kwargs["standard_design"] = _require_bool(data["standard_design"], "standard_design")
     if "configuration" in data:
@@ -339,7 +348,11 @@ def dump_design(design: ShipDesign) -> str:
 
     if design.name is not None:
         lines.append(f"name = {_toml_str(design.name)}")
+    if design.purpose is not None:
+        lines.append(f"purpose = {_toml_str(design.purpose)}")
     lines.append(f"hull_tons = {design.hull_tons}")
+    if design.tech_level is not None:
+        lines.append(f"tech_level = {design.tech_level}")
     if design.configuration is not Configuration.STANDARD:
         lines.append(f"configuration = {_toml_str(design.configuration.value)}")
     if design.standard_design:
