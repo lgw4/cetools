@@ -988,3 +988,72 @@ def test_no_clause_states_a_quantity_of_zero_unbidden(label, text):  # FR-021a
         if "zero" not in sentence:
             continue
         assert any(required in sentence for required in _ZERO_IS_REQUIRED), sentence
+
+
+# --- T044: small craft (FR-026, FR-027) ------------------------------------
+#
+# A small craft is a non-jump-capable vessel with a cockpit in place of a
+# bridge, so the drives and fuel sentences lose their jump clauses whole and the
+# computer sentence names the cockpit (contract sections 2, 3 and 4).
+
+_FIGHTER = "specs/010-starship-generator/examples/fighter.toml"
+
+
+def test_a_small_craft_drives_sentence_states_no_jump_rating():  # FR-026
+    ship = build_ship(_small_craft_design())
+
+    assert _slot(ship, "_drives") == (
+        "It mounts maneuver drive sB and power plant sG, "
+        "giving a performance of 1-G acceleration."
+    )
+
+
+def test_a_small_craft_fuel_sentence_makes_no_claim_about_jumps():  # FR-026
+    ship = build_ship(_small_craft_design())
+
+    assert _slot(ship, "_fuel") == (
+        "Fuel tankage of 7.3 tons supports the power plant for one week."
+    )
+
+
+def test_a_small_craft_computer_sentence_names_the_cockpit():  # FR-027
+    ship = build_ship(_small_craft_design(computer=ComputerFit(model=1)))
+
+    assert _slot(ship, "_computer") == "Adjacent to the cockpit is a computer Model 1."
+
+
+def test_a_starship_computer_sentence_still_names_the_bridge():  # FR-027
+    ship = build_ship(_simple_design(computer=ComputerFit(model=1)))
+
+    assert _slot(ship, "_computer") == "Adjacent to the bridge is a computer Model 1."
+
+
+def _small_craft_paragraphs() -> list[tuple[str, str]]:
+    """Every small craft the suite can reach, as `(label, paragraph)` pairs: the
+    fixture, the checked-in fighter, and a spread of generated craft."""
+    craft = [
+        ("fixture", build_ship(_small_craft_design(computer=ComputerFit(model=1)))),
+        ("fighter", build_ship(load_design(_FIGHTER))),
+    ]
+    craft += [
+        (f"seed {seed}", generate_ship(RandomRolls.seeded(seed), small_craft=True))
+        for seed in _SEEDS
+    ]
+    return [(label, _paragraph(ship)) for label, ship in craft]
+
+
+_SMALL_CRAFT = _small_craft_paragraphs()
+
+
+@pytest.mark.parametrize("label,paragraph", _SMALL_CRAFT, ids=[label for label, _ in _SMALL_CRAFT])
+def test_no_jump_wording_reaches_a_small_craft_paragraph(label, paragraph):  # FR-026
+    assert "jump" not in paragraph
+    assert "Jump" not in paragraph
+    assert "bridge" not in paragraph
+    assert "is a small craft." in paragraph
+
+
+@pytest.mark.parametrize("label,paragraph", _SMALL_CRAFT, ids=[label for label, _ in _SMALL_CRAFT])
+def test_every_small_craft_states_its_acceleration_and_power_endurance(label, paragraph):
+    assert "-G acceleration." in paragraph
+    assert re.search(r"supports the power plant for \w+ weeks?\.", paragraph)

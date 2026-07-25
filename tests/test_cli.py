@@ -959,3 +959,43 @@ def test_ship_generate_small_craft_hull_100_out_of_range_exits_1():
     )
     assert result.exit_code == 1
     assert result.stderr.strip()
+
+
+# --- small craft descriptions (T045, FR-026, FR-027) ---
+
+_FIGHTER_TOML = "specs/010-starship-generator/examples/fighter.toml"
+
+
+def test_ship_generate_small_craft_prints_a_jump_free_description():
+    result = runner.invoke(
+        app, ["ship", "generate", "--small-craft", "--hull", "40", "--seed", "7"]
+    )
+    assert result.exit_code == 0
+
+    lines = _description_lines(result.stdout)
+    assert len(lines) == 3
+    assert lines[0].startswith("TL")
+    assert lines[1] == ""
+    assert "40-ton hull" in lines[2]
+    assert "is a small craft." in lines[2]
+    assert "cockpit" in lines[2]
+    assert "jump" not in lines[2].lower()
+
+
+def test_ship_build_fighter_prints_a_jump_free_description():
+    result = runner.invoke(app, ["ship", "build", _FIGHTER_TOML])
+    assert result.exit_code == 0
+
+    lines = _description_lines(result.stdout)
+    assert len(lines) == 3
+    assert lines[0] == "TL8 Wasp"
+    assert lines[1] == ""
+    assert "the Wasp is a small craft." in lines[2]
+    assert (
+        "It mounts maneuver drive sB and power plant sG, "
+        "giving a performance of 1-G acceleration."
+    ) in lines[2]
+    assert "Fuel tankage of 7.3 tons supports the power plant for one week." in lines[2]
+    assert "jump" not in lines[2].lower()
+    # A fractional capacity renders in digits, never as a word (FR-022b).
+    assert "Cargo capacity is 6.2 tons." in lines[2]

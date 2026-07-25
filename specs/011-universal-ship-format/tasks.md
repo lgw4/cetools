@@ -174,12 +174,12 @@ appears and the computer sentence refers to its cockpit.
 
 ### Tests for User Story 4 (write first, confirm they fail)
 
-- [ ] T044 [US4] Add small-craft tests to `tests/test_ship_description.py`: the drives sentence names only maneuver drive and power plant and states G-acceleration with no Jump rating (FR-026); the fuel sentence states power-plant weeks only and makes no claim about jumps (FR-026); the computer sentence reads "Adjacent to the cockpit" (FR-027); the words "jump" and "Jump" appear nowhere in the paragraph.
-- [ ] T045 [US4] Update `tests/test_cli.py` to assert that `cetools ship generate --small-craft --hull 40 --seed 7` and `cetools ship build specs/010-starship-generator/examples/fighter.toml` each print a jump-free heading and paragraph, with the fighter's cargo rendering in digits.
+- [X] T044 [US4] Add small-craft tests to `tests/test_ship_description.py`: the drives sentence names only maneuver drive and power plant and states G-acceleration with no Jump rating (FR-026); the fuel sentence states power-plant weeks only and makes no claim about jumps (FR-026); the computer sentence reads "Adjacent to the cockpit" (FR-027); the words "jump" and "Jump" appear nowhere in the paragraph.
+- [X] T045 [US4] Update `tests/test_cli.py` to assert that `cetools ship generate --small-craft --hull 40 --seed 7` and `cetools ship build specs/010-starship-generator/examples/fighter.toml` each print a jump-free heading and paragraph, with the fighter's cargo rendering in digits.
 
 ### Implementation for User Story 4
 
-- [ ] T046 [US4] Add the small-craft forms to `_drives`, `_fuel` and `_computer` in `src/cetools/engine/ships/description.py`, branching on the ship's hull class per contract sections 2, 3 and 4.
+- [X] T046 [US4] Add the small-craft forms to `_drives`, `_fuel` and `_computer` in `src/cetools/engine/ships/description.py`, branching on the ship's hull class per contract sections 2, 3 and 4. **No code change was needed**: T024 and T025 wrote all three builders with their `_is_small_craft` branches already in place. Confirmed load-bearing by removing the three branches and watching T044 and T045 fail red (19 failures), then restoring them.
 
 **Checkpoint**: All four user stories are independently functional.
 
