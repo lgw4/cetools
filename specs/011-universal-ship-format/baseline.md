@@ -82,6 +82,32 @@ removed**, and every removal is accounted for as a replaced rendering test.
 No pre-existing assertion about a computed ship value was weakened, retargeted or removed
 (FR-032, SC-005).
 
+## T054 end state (Phase 8 convergence)
+
+Nine ordering tests added to `tests/test_ship_description.py`; **no source file changed**,
+which is the point — the property already held, and nothing kept it from regressing.
+
+| Gate | Command | Result |
+|------|---------|--------|
+| Format | `uv run isort . && uv run black .` | PASS |
+| Lint | `uv run flake8 src tests` | PASS — no findings |
+| Tests | `uv run pytest` | PASS — **1595 passed**, coverage 99.15% (floor 85%) |
+| Docs | `uv run python scripts/check_docs.py` | PASS |
+
+Verified the tests bite, by mutating `description.py` and running the suite under
+`PYTHONHASHSEED` 0–7:
+
+| Mutation | Result |
+|---|---|
+| `_distinct` → `list(set(names))`, `_grouped` group order → `set(counts)`, `_ammunition` order → `set(rounds)` | all seven pair tests plus the out-of-order fixture test fail at **every** seed 0–5 (8–9 failures per seed) |
+| `_distinct` → `sorted(set(names))`, `_grouped` → `sorted(order, key=repr)` | 9 failures, deterministic — a stable-but-wrong order is caught too |
+
+The pair method is what buys seed-independence: each test renders the same components
+twice in opposite orders and pins both results, so an implementation ordering by content
+rather than by insertion collapses the two into one string and fails at least one
+assertion whatever the hash seed. `description.py` was restored byte-for-byte after each
+mutation (`git diff` clean).
+
 ## Coverage detail for `src/cetools/engine/ships/`
 
 | Module | Stmts | Miss | Cover |

@@ -31,7 +31,18 @@ from cetools.engine.ships import (
 )
 from cetools.engine.ships.description import _SLOTS, render_description
 from cetools.engine.ships.prose import count, money, number, signed, tons
-from cetools.engine.ships.tables import FITTINGS, SCREENS, FittingRow, ScreenRow
+from cetools.engine.ships.tables import (
+    AMMO,
+    ARMOR,
+    ARMOR_OPTIONS,
+    BAYS,
+    FITTINGS,
+    SCREENS,
+    TURRET_MOUNTS,
+    TURRET_WEAPONS,
+    FittingRow,
+    ScreenRow,
+)
 
 # --- Fixtures -------------------------------------------------------------
 
@@ -1129,3 +1140,217 @@ def test_a_new_counted_in_tons_fitting_row_reaches_the_special_features_sentence
         paragraph = _paragraph(build_ship(design))
 
     assert "Special features include three tons of hydroponics." in paragraph
+
+
+# --- T054: every joined list follows the design's order (FR-024a) -----------
+#
+# `_distinct` and `_grouped` walk the design's own tuples, so each list renders
+# in the order its components were fitted. A `set`, a `sorted()` or a walk over
+# the table would each impose some other order, and T021's determinism test
+# cannot tell the difference: a `set` iterates identically for equal contents
+# within one process, so an unordered implementation renders byte-identically
+# twice over and still ships the wrong order under the next interpreter
+# (FR-003, SC-003).
+#
+# Each test below therefore renders the same components twice, fitted in
+# opposite orders, and pins both results. The two expectations differ, so an
+# implementation whose order is decided by content rather than by insertion
+# collapses them into one string and fails at least one assertion -- under every
+# PYTHONHASHSEED, not merely the unlucky half.
+
+
+def _ordering_design(**overrides) -> ShipDesign:
+    """A 2,000-ton starship roomy enough for two of everything the paragraph
+    groups, so an ordering case can vary one tuple and nothing else."""
+    fields = dict(
+        name="Concordance",
+        hull_tons=2000,
+        jump_code="L",
+        maneuver_code="L",
+        power_code="L",
+        staterooms=10,
+    )
+    fields.update(overrides)
+    return ShipDesign(**fields)
+
+
+def _ordered_slot(name: str, **overrides) -> str | None:
+    """One named slot, rendered for a design differing only in fitting order."""
+    return _slot(build_ship(_ordering_design(**overrides)), name)
+
+
+_CRYSTALIRON = ArmorFit(type=ArmorType.CRYSTALIRON, percent=5)
+_TITANIUM_STEEL = ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5)
+
+
+def test_the_armor_clause_names_the_layers_in_the_designs_order():  # FR-024a
+    assert _ordered_slot("_configuration", armor=(_CRYSTALIRON, _TITANIUM_STEEL)) == (
+        "The hull is standard, and is armored with Crystaliron and Titanium Steel (6 points)."
+    )
+    assert _ordered_slot("_configuration", armor=(_TITANIUM_STEEL, _CRYSTALIRON)) == (
+        "The hull is standard, and is armored with Titanium Steel and Crystaliron (6 points)."
+    )
+
+
+def test_the_armor_options_clause_follows_the_designs_option_order():  # FR-024a
+    stealth_first = replace(_CRYSTALIRON, options=("stealth", "reflec"))
+    reflec_first = replace(_CRYSTALIRON, options=("reflec", "stealth"))
+
+    assert _ordered_slot("_configuration", armor=(stealth_first,)) == (
+        "The hull is standard, armored with Crystaliron (4 points), "
+        "and possesses a stealth coating and a reflec coating."
+    )
+    assert _ordered_slot("_configuration", armor=(reflec_first,)) == (
+        "The hull is standard, armored with Crystaliron (4 points), "
+        "and possesses a reflec coating and a stealth coating."
+    )
+
+
+def test_the_bay_groups_follow_the_designs_bay_order():  # FR-024a
+    meson = BayFit(kind="meson")
+    missile = BayFit(kind="missile_bank")
+
+    assert _ordered_slot("_weapons", bays=(meson, missile)) == (
+        "Installed on the hardpoints are one meson gun bay and one missile bay."
+    )
+    assert _ordered_slot("_weapons", bays=(missile, meson)) == (
+        "Installed on the hardpoints are one missile bay and one meson gun bay."
+    )
+
+
+def test_the_turret_groups_follow_the_designs_turret_order():  # FR-024a
+    particle = TurretFit(mount="double", weapons=("particle_beam", "particle_beam"))
+    laser = TurretFit(mount="single", weapons=("pulse_laser",))
+
+    assert _ordered_slot("_weapons", turrets=(particle, laser)) == (
+        "Installed on the hardpoints are one double turret armed with particle beams "
+        "and one single turret armed with a pulse laser."
+    )
+    assert _ordered_slot("_weapons", turrets=(laser, particle)) == (
+        "Installed on the hardpoints are one single turret armed with a pulse laser "
+        "and one double turret armed with particle beams."
+    )
+
+
+def test_the_weapon_slots_follow_the_turrets_own_slot_order():  # FR-024a
+    sand_first = TurretFit(mount="double", weapons=("sandcaster", "pulse_laser"))
+    laser_first = TurretFit(mount="double", weapons=("pulse_laser", "sandcaster"))
+
+    assert _ordered_slot("_weapons", turrets=(sand_first,)) == (
+        "Installed on the hardpoint is one double turret armed with a sandcaster "
+        "and a pulse laser."
+    )
+    assert _ordered_slot("_weapons", turrets=(laser_first,)) == (
+        "Installed on the hardpoint is one double turret armed with a pulse laser "
+        "and a sandcaster."
+    )
+
+
+def test_the_ammunition_sentences_follow_the_designs_ammunition_order():  # FR-024a
+    missiles = AmmoFit(kind="missile", count=12, type="smart")
+    canisters = AmmoFit(kind="sand_barrels", count=20)
+    armament = "Installed on the hardpoint is one triple turret armed with a missile and a "
+    missile_sentence = "12 smart missiles are carried as ammunition for the missile turret."
+    canister_sentence = "20 canisters are carried as ammunition for the sandcaster turret."
+
+    def loaded(*ammo):
+        turret = TurretFit(mount="triple", weapons=("missile_rack", "sandcaster"), ammo=ammo)
+        return _ordered_slot("_weapons", turrets=(turret,))
+
+    assert loaded(missiles, canisters) == (
+        f"{armament}sandcaster. {missile_sentence} {canister_sentence}"
+    )
+    assert loaded(canisters, missiles) == (
+        f"{armament}sandcaster. {canister_sentence} {missile_sentence}"
+    )
+
+
+def test_the_screen_groups_follow_the_designs_screen_order():  # FR-024a
+    damper = ScreenFit(kind="nuclear_damper")
+    meson = ScreenFit(kind="meson_screen")
+
+    assert _ordered_slot("_screens", screens=(damper, meson)) == (
+        "This ship has two screens: a nuclear damper and a meson screen."
+    )
+    assert _ordered_slot("_screens", screens=(meson, damper)) == (
+        "This ship has two screens: a meson screen and a nuclear damper."
+    )
+
+
+# One ship fitted out of every table's order, so a renderer that walked its
+# tables instead of the design would render every clause backwards at once.
+
+_OUT_OF_ORDER_TURRET = TurretFit(
+    mount="triple",
+    weapons=("sandcaster", "pulse_laser", "missile_rack"),
+    ammo=(
+        AmmoFit(kind="missile", count=12, type="smart"),
+        AmmoFit(kind="sand_barrels", count=20),
+    ),
+)
+
+_OUT_OF_ORDER = _ordering_design(
+    armor=(
+        replace(_CRYSTALIRON, options=("stealth", "reflec")),
+        _TITANIUM_STEEL,
+    ),
+    bays=(BayFit(kind="meson"), BayFit(kind="missile_bank")),
+    turrets=(
+        _OUT_OF_ORDER_TURRET,
+        TurretFit(mount="double", weapons=("particle_beam", "particle_beam")),
+    ),
+    screens=(ScreenFit(kind="nuclear_damper"), ScreenFit(kind="meson_screen")),
+)
+
+
+def _table_order(keys, table) -> list[str]:
+    """`keys` re-sorted into the order the rules data tabulates them."""
+    return sorted(keys, key=list(table).index)
+
+
+def _ammo_keys(turret) -> list[str]:
+    """The `AMMO` keys a turret's ammunition matches, in the turret's own order."""
+    return [
+        key
+        for ammo in turret.ammo
+        for key, row in AMMO.items()
+        if row.kind == ammo.kind and row.type == ammo.type
+    ]
+
+
+def test_the_out_of_order_fixture_is_fitted_against_every_table_order():
+    """The fixture only has teeth while it disagrees with the tables; if a table
+    is ever reordered to match it, this fails and says so."""
+    armor = [fit.type.value for fit in _OUT_OF_ORDER.armor]
+    options = list(_OUT_OF_ORDER.armor[0].options)
+    bays = [fit.kind for fit in _OUT_OF_ORDER.bays]
+    mounts = [fit.mount for fit in _OUT_OF_ORDER.turrets]
+    weapons = list(_OUT_OF_ORDER_TURRET.weapons)
+    screens = [fit.kind for fit in _OUT_OF_ORDER.screens]
+
+    assert armor != _table_order(armor, ARMOR)
+    assert options != _table_order(options, ARMOR_OPTIONS)
+    assert bays != _table_order(bays, BAYS)
+    assert mounts != _table_order(mounts, TURRET_MOUNTS)
+    assert weapons != _table_order(weapons, TURRET_WEAPONS)
+    assert _ammo_keys(_OUT_OF_ORDER_TURRET) != _table_order(_ammo_keys(_OUT_OF_ORDER_TURRET), AMMO)
+    assert screens != _table_order(screens, SCREENS)
+
+
+def test_every_clause_of_the_out_of_order_fixture_follows_the_design():  # FR-024a
+    ship = build_ship(_OUT_OF_ORDER)
+
+    assert _slot(ship, "_weapons") == (
+        "Installed on the hardpoints are one meson gun bay, one missile bay, "
+        "one triple turret armed with a sandcaster, a pulse laser and a missile "
+        "and one double turret armed with particle beams. "
+        "12 smart missiles are carried as ammunition for the missile turret. "
+        "20 canisters are carried as ammunition for the sandcaster turret."
+    )
+    assert _slot(ship, "_screens") == (
+        "This ship has two screens: a nuclear damper and a meson screen."
+    )
+    assert _slot(ship, "_configuration") == (
+        "The hull is standard, armored with Crystaliron and Titanium Steel (6 points), "
+        "and possesses a stealth coating and a reflec coating."
+    )
