@@ -6,8 +6,13 @@ authority on the exact text. The fixture below is deliberately over-equipped so
 that all sixteen sentence slots are exercised by one ship.
 """
 
+import re
+from dataclasses import replace
+from pathlib import Path
+
 import pytest
 
+from cetools.engine.rolls import RandomRolls
 from cetools.engine.ships import (
     AmmoFit,
     ArmorFit,
@@ -15,11 +20,13 @@ from cetools.engine.ships import (
     BayFit,
     ComputerFit,
     Configuration,
+    Crew,
     FittingFit,
     ScreenFit,
     ShipDesign,
     TurretFit,
     build_ship,
+    generate_ship,
     load_design,
 )
 from cetools.engine.ships.description import _SLOTS, render_description
@@ -109,6 +116,11 @@ def _clause(paragraph: str, opening: str) -> str:
     start = paragraph.index(opening)
     rest = paragraph[start:]
     return rest[: rest.index(".") + 1]
+
+
+def _slot(ship, name: str) -> str | None:
+    """One named sentence slot's own return value, `None` when it is omitted."""
+    return {builder.__name__: builder for builder in _SLOTS}[name](ship)
 
 
 # --- T014: overall shape (FR-001, FR-001a) --------------------------------
@@ -683,3 +695,296 @@ def test_the_subsidized_merchant_changes_no_computed_value():  # FR-032
     assert merchant.crew.total == free_trader.crew.total
     assert merchant.total_cost == free_trader.total_cost
     assert merchant.build_weeks == free_trader.build_weeks
+
+
+# --- T038: whole-sentence omission (FR-021, data-model.md section 6) -------
+#
+# `_simple_design()` carries no computer, no quarters, no weapon system, no
+# screen and no fitting, so it exercises every omittable slot at once.
+
+
+def test_no_computer_fitted_drops_the_computer_sentence():
+    ship = build_ship(_simple_design())
+
+    assert ship.design.computer is None
+    assert _slot(ship, "_computer") is None
+    assert "computer" not in _paragraph(ship)
+
+
+def test_a_fitted_computer_restores_the_sentence():
+    ship = build_ship(_simple_design(computer=ComputerFit(model=1)))
+
+    assert _slot(ship, "_computer") is not None
+
+
+def test_no_berths_of_any_kind_drops_the_quarters_sentence():  # FR-010a
+    ship = build_ship(_simple_design())
+
+    assert ship.design.staterooms == 0
+    assert ship.design.low_berths == 0
+    assert ship.design.emergency_low_berths == 0
+    assert _slot(ship, "_quarters") is None
+    assert "There is" not in _paragraph(ship)
+    assert "stateroom" not in _paragraph(ship)
+
+
+@pytest.mark.parametrize("field_name", ["staterooms", "low_berths", "emergency_low_berths"])
+def test_any_one_kind_of_berth_restores_the_quarters_sentence(field_name):  # FR-010a
+    ship = build_ship(_simple_design(**{field_name: 1}))
+
+    assert _slot(ship, "_quarters") is not None
+
+
+def test_no_turrets_and_no_bays_drops_the_weapons_sentence():  # FR-011a
+    ship = build_ship(_simple_design())
+    paragraph = _paragraph(ship)
+
+    assert _slot(ship, "_weapons") is None
+    assert "Installed on the" not in paragraph
+    assert (
+        "The ship has two hardpoints and two tons allocated to fire control, "
+        "but has no weapons installed."
+    ) in paragraph
+
+
+def test_the_hardpoint_sentence_drops_its_no_weapons_clause_once_armed():  # FR-011a
+    design = _simple_design(turrets=(TurretFit(mount="single", weapons=("sandcaster",)),))
+    paragraph = _paragraph(build_ship(design))
+
+    assert "but has no weapons installed" not in paragraph
+    assert "The ship has two hardpoints and two tons allocated to fire control." in paragraph
+
+
+def test_no_screens_drops_the_screens_sentence():
+    ship = build_ship(_simple_design())
+
+    assert _slot(ship, "_screens") is None
+    assert "screen" not in _paragraph(ship)
+
+
+def test_no_vehicle_sized_fitting_drops_the_hangar_sentence():
+    ship = build_ship(_simple_design(fittings=(FittingFit(kind="armory"),)))
+
+    assert _slot(ship, "_hangars") is None
+    assert "hangar" not in _paragraph(ship)
+
+
+def test_no_non_hangar_fitting_drops_the_special_features_sentence():  # FR-021
+    design = _simple_design(fittings=(FittingFit(kind="vehicle_hangar", vehicle_tons=20),))
+    paragraph = _paragraph(build_ship(design))
+
+    assert _slot(build_ship(design), "_special_features") is None
+    assert "Special features" not in paragraph
+    assert "There is one small craft hangar holding 20 tons of small craft." in paragraph
+
+
+def test_a_stripped_ship_omits_exactly_the_six_omittable_slots():  # FR-021
+    ship = build_ship(_simple_design())
+
+    omitted = [slot.__name__ for slot in _SLOTS if slot(ship) is None]
+
+    assert omitted == [
+        "_computer",
+        "_quarters",
+        "_weapons",
+        "_screens",
+        "_hangars",
+        "_special_features",
+    ]
+
+
+# --- T039: clause-level omission (FR-006a, FR-007a, FR-016, FR-019b) ------
+
+
+def test_no_maneuver_drive_drops_both_the_drive_and_performance_clauses():  # FR-006a
+    ship = build_ship(_simple_design(maneuver_code=None))
+    paragraph = _paragraph(ship)
+
+    assert ship.design.maneuver_code is None
+    assert "It mounts jump drive A and power plant A, giving a performance of Jump-1." in paragraph
+    assert "maneuver" not in paragraph
+    assert "acceleration" not in paragraph
+    assert " and ." not in paragraph
+
+
+def test_no_jump_fuel_keeps_the_jump_clause_at_zero():  # FR-007a
+    ship = build_ship(_simple_design(jump_distance=0))
+
+    assert ship.jump_fuel == 0
+    assert (
+        "Fuel tankage of two tons supports the power plant for two weeks " "and zero Jump-1 jumps."
+    ) in _paragraph(ship)
+
+
+def test_no_armor_states_so_rather_than_rendering_a_zero_rating():  # FR-016
+    ship = build_ship(_simple_design())
+    paragraph = _paragraph(ship)
+
+    assert ship.armor_protection == 0
+    assert "The hull is standard, and no additional armor has been installed." in paragraph
+    assert "armored with" not in paragraph
+    assert "0 points" not in paragraph
+
+
+def test_neither_spare_staterooms_nor_low_berths_states_no_capacity():  # FR-019b
+    ship = build_ship(_simple_design())
+
+    assert _slot(ship, "_passengers") == "The ship cannot carry any additional passengers."
+
+
+def test_staterooms_the_crew_fills_offer_no_passenger_capacity():  # FR-019, FR-019b
+    ship = build_ship(_simple_design(staterooms=3))
+
+    assert ship.crew.total == 3
+    assert "The ship cannot carry any additional passengers." in _paragraph(ship)
+
+
+def test_low_berths_alone_still_offer_passenger_capacity():  # FR-019
+    ship = build_ship(_simple_design(low_berths=2))
+
+    assert "The ship can carry up to two low passengers." in _paragraph(ship)
+
+
+# --- T040: the remaining spec edge cases ----------------------------------
+
+
+def test_zero_cargo_renders_as_a_word():  # SC-001, FR-021a
+    ship = build_ship(_simple_design(staterooms=38))
+
+    assert ship.cargo_tons == 0
+    assert "Cargo capacity is zero tons." in _paragraph(ship)
+
+
+def test_fractional_cargo_renders_in_digits():  # FR-022b
+    ship = build_ship(load_design("specs/010-starship-generator/examples/fighter.toml"))
+
+    # The accumulated float is 6.200000000000003; the sentence states 6.2.
+    assert ship.cargo_tons != 6.2
+    assert "Cargo capacity is 6.2 tons." in _paragraph(ship)
+
+
+def test_a_crew_of_one_agrees_in_number():  # FR-022, FR-023
+    # `build_ship` never derives a crew this small -- every powered hull needs
+    # an engineer -- so the agreement is asserted against the renderer directly.
+    lone = Crew(
+        pilot=1, navigator=0, engineers=0, gunners=0, screen_operators=0, medic=0, stewards=0
+    )
+    ship = replace(build_ship(_simple_design()), crew=lone)
+
+    assert _slot(ship, "_crew") == "The ship requires a crew of one: one pilot."
+
+
+def test_a_fractional_cost_renders_at_full_precision():  # FR-025, FR-025a
+    design = _simple_design(
+        standard_design=True, staterooms=4, fittings=(FittingFit(kind="fuel_processor"),)
+    )
+    ship = build_ship(design)
+
+    # The accumulated float is 29.744999999999997; the sentence states MCr29.745.
+    assert ship.total_cost != 29.745
+    assert "The ship costs MCr29.745 (including discounts and fees)" in _paragraph(ship)
+
+
+def test_a_cost_carrying_a_float_artefact_is_not_rendered_verbatim():  # FR-025a
+    ship = build_ship(_simple_design(standard_design=True))
+
+    assert repr(ship.total_cost) == "27.900000000000002"
+    assert "The ship costs MCr27.9 (including discounts and fees)" in _paragraph(ship)
+
+
+def test_no_cost_is_rendered_in_scientific_notation_or_left_dangling():  # FR-025
+    for design in (_equipped_design(), _simple_design(standard_design=True)):
+        # `_clause` cuts at the first period, which a fractional cost carries,
+        # so the closing sentence is matched whole instead.
+        cost = re.search(r"The ship costs .*? to build\.", _paragraph(build_ship(design)))
+
+        assert cost is not None
+        assert re.match(r"The ship costs MCr\d{1,3}(,\d{3})*(\.\d+)? \(", cost.group())
+        assert "e+" not in cost.group()
+        assert "e-" not in cost.group()
+        assert ". " not in cost.group()
+
+
+# --- T041: the grammar sweep (FR-021a, SC-001) -----------------------------
+
+_EXAMPLES = sorted(Path("specs/010-starship-generator/examples").glob("*.toml")) + sorted(
+    Path("specs/011-universal-ship-format/examples").glob("*.toml")
+)
+
+_SEEDS = (1, 7, 42, 99, 12345)
+
+
+def _swept_descriptions() -> list[tuple[str, str]]:
+    """Every checked-in example plus a spread of generated ships, as
+    `(label, rendered text)` pairs."""
+    swept = [
+        (str(path), render_description(build_ship(load_design(str(path))))) for path in _EXAMPLES
+    ]
+    for seed in _SEEDS:
+        for small_craft in (False, True):
+            ship = generate_ship(RandomRolls.seeded(seed), small_craft=small_craft)
+            label = f"seed {seed}{' small craft' if small_craft else ''}"
+            swept.append((label, render_description(ship)))
+    return swept
+
+
+_SWEPT = _swept_descriptions()
+
+# `count(0)` and `tons(0)` render "zero", so scanning for the word finds every
+# clause stating a quantity of zero -- and only those, since measured values
+# render in digits (FR-022a) and a "0 Hull" rating is not a quantity.
+_ZERO_IS_REQUIRED = ("Jump-", "Cargo capacity is zero tons.")
+
+
+def _sentences(paragraph: str) -> list[str]:
+    """The paragraph's sentences. A boundary is a period followed by a space,
+    which no decimal, MCr figure or Model number can produce."""
+    return re.split(r"(?<=\.) ", paragraph)
+
+
+def test_the_sweep_covers_every_example_and_seed():
+    assert len(_SWEPT) == len(_EXAMPLES) + 2 * len(_SEEDS)
+    assert len(_EXAMPLES) >= 6
+
+
+@pytest.mark.parametrize("label,text", _SWEPT, ids=[label for label, _ in _SWEPT])
+def test_every_rendered_ship_is_one_heading_and_one_paragraph(label, text):
+    lines = text.split("\n")
+
+    assert len(lines) == 3
+    assert re.fullmatch(r"TL\d+ .+", lines[0])
+    assert lines[1] == ""
+    assert "\n" not in lines[2]
+
+
+@pytest.mark.parametrize("label,text", _SWEPT, ids=[label for label, _ in _SWEPT])
+def test_every_paragraph_survives_its_omissions_grammatically(label, text):  # FR-021a
+    paragraph = text.split("\n", 2)[2]
+
+    assert "  " not in paragraph
+    assert " ." not in paragraph
+    assert " ," not in paragraph
+    assert " and." not in paragraph
+    assert ", ." not in paragraph
+    assert "()" not in paragraph
+    assert "None" not in paragraph
+    assert ".." not in paragraph
+    assert paragraph.endswith(".")
+
+
+@pytest.mark.parametrize("label,text", _SWEPT, ids=[label for label, _ in _SWEPT])
+def test_every_sentence_opens_and_closes_like_a_sentence(label, text):  # FR-021a
+    for sentence in _sentences(text.split("\n", 2)[2]):
+        assert sentence.endswith(".")
+        # An ammunition sentence opens with its count, which is digits above ten
+        # ("120 smart missiles are carried ..."), so a leading digit is as much a
+        # sentence opening as a capital.
+        assert sentence[0].isupper() or sentence[0].isdigit()
+
+
+@pytest.mark.parametrize("label,text", _SWEPT, ids=[label for label, _ in _SWEPT])
+def test_no_clause_states_a_quantity_of_zero_unbidden(label, text):  # FR-021a
+    for sentence in _sentences(text.split("\n", 2)[2]):
+        if "zero" not in sentence:
+            continue
+        assert any(required in sentence for required in _ZERO_IS_REQUIRED), sentence
