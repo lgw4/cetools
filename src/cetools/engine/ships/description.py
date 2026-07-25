@@ -247,6 +247,18 @@ def _turret_armament(weapons: Sequence[str]) -> str:
     return join(phrases)
 
 
+def _opens_a_sentence(text: str) -> str:
+    """`text` with its first character capitalised.
+
+    The ammunition sentence is the one slot whose first word is a count, and
+    FR-022 spells a count of ten or fewer as a word -- so "three smart missiles
+    ..." needs the capital every other sentence gets from a fixed opening word.
+    `str.capitalize` is wrong here: it lower-cases the rest, which would ruin a
+    display name (FR-030).
+    """
+    return text[:1].upper() + text[1:]
+
+
 def _ammunition(design) -> list[str]:
     """One sentence per `(kind, type)` group, aggregated across every turret in
     first-appearance order and naming its weapon through `AmmoRow.weapon`."""
@@ -267,9 +279,11 @@ def _ammunition(design) -> list[str]:
         loaded = rounds[group]
         turrets = sum(1 for turret in design.turrets if row.weapon in turret.weapons)
         sentences.append(
-            f"{count(loaded)} {plural(loaded, row.name, row.plural)} "
-            f"{plural(loaded, 'is', 'are')} carried as ammunition for the {weapon.name} "
-            f"{plural(turrets, 'turret', 'turrets')}."
+            _opens_a_sentence(
+                f"{count(loaded)} {plural(loaded, row.name, row.plural)} "
+                f"{plural(loaded, 'is', 'are')} carried as ammunition for the {weapon.name} "
+                f"{plural(turrets, 'turret', 'turrets')}."
+            )
         )
     return sentences
 

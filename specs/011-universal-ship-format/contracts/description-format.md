@@ -165,11 +165,18 @@ installed-weapons sentence, so this slot can yield more than one sentence and a 
 carrying ammunition runs past sixteen sentences (data-model.md §6):
 
 ```text
-{count(n)} {AmmoRow.name|plural} {is|are} carried as ammunition for the {WeaponRow.name} {turret|turrets}.
+{Count(n)} {AmmoRow.name|plural} {is|are} carried as ammunition for the {WeaponRow.name} {turret|turrets}.
 ```
 
 The weapon is `TURRET_WEAPONS[AmmoRow.weapon]`; the turret plural agrees with how many turrets
 carry that weapon. "120 smart missiles are carried as ammunition for the missile turrets."
+
+`{Count(n)}` is `count(n)` with its first character capitalised. This is the only sentence in
+the paragraph whose opening word is a value rather than a fixed word, and FR-022 spells a count
+of ten or fewer as a word — so a magazine of three renders "Three smart missiles are carried
+…", not "three smart missiles …", which would leave a sentence with no capital. Above ten the
+count is already a numeral and the capitalisation is a no-op, which is why every SRD example
+("120 smart missiles …") shows the numeral form.
 
 ## 9. Screens (FR-013) — omitted when no screens are fitted
 

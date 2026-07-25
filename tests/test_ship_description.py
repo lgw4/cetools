@@ -355,6 +355,62 @@ def test_ammunition_sentences_aggregate_by_kind_and_type_and_name_the_weapon(): 
     assert "20 canisters are carried as ammunition for the sandcaster turret." in paragraph
 
 
+def test_ammunition_sentence_capitalises_a_spelled_count():  # FR-021a, FR-022, SC-001
+    # FR-022 spells a count of ten or fewer as a word, and this is the one slot
+    # that puts a count sentence-initially, so the word carries the capital the
+    # sentence needs -- "three ...", never "three ..." mid-paragraph.
+    design = _simple_design(
+        turrets=(
+            TurretFit(
+                mount="single",
+                weapons=("missile_rack",),
+                ammo=(AmmoFit(kind="missile", count=3, type="smart"),),
+            ),
+        )
+    )
+    paragraph = _paragraph(build_ship(design))
+
+    assert "Three smart missiles are carried as ammunition for the missile turret." in paragraph
+    assert "three smart missiles" not in paragraph
+
+
+def test_ammunition_sentence_capitalises_a_single_round():  # FR-021a, FR-022, FR-023
+    design = _simple_design(
+        turrets=(
+            TurretFit(
+                mount="single",
+                weapons=("sandcaster",),
+                ammo=(AmmoFit(kind="sand_barrels", count=1),),
+            ),
+        )
+    )
+
+    assert ("One canister is carried as ammunition for the sandcaster turret.") in _paragraph(
+        build_ship(design)
+    )
+
+
+def test_every_ammunition_sentence_opens_with_a_capital_or_a_digit():  # FR-021a, SC-001
+    # The count is the only data-dependent first character in the paragraph, so
+    # sweep the whole zero-to-eleven boundary rather than one side of it.
+    for loaded in range(1, 12):
+        design = _simple_design(
+            turrets=(
+                TurretFit(
+                    mount="single",
+                    weapons=("missile_rack",),
+                    ammo=(AmmoFit(kind="missile", count=loaded, type="standard"),),
+                ),
+            )
+        )
+        # The slot's own text, so the ammunition sentence is reachable by
+        # position rather than by a substring that starts mid-sentence.
+        installed, ammunition = _slot(build_ship(design), "_weapons").split(". ")
+
+        assert installed.startswith("Installed on the hardpoint")
+        assert ammunition[0].isupper() or ammunition[0].isdigit(), (loaded, ammunition)
+
+
 def test_weapons_sentence_agrees_in_number_for_a_lone_system():
     design = _simple_design(turrets=(TurretFit(mount="single", weapons=("sandcaster",)),))
 
