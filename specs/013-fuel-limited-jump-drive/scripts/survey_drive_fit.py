@@ -13,8 +13,11 @@ the capture in `baseline/pre_change_sweep.json`. What this script reports instea
 FR-004/G4 population -- ships whose drive is not the lightest at its rating.
 
 Exit status is 0 when every success criterion holds, 1 otherwise, so the script doubles as a
-manual gate. It is a survey tool, not part of the test suite; the pytest suite covers the same
-ground at a smaller sweep size.
+manual gate. It is a survey tool, not part of the test suite; every criterion it reports is also
+asserted by pytest at a smaller sweep size. That was not true of the FR-004/G4 line until
+convergence added `test_g4_every_generated_starship_mounts_the_lightest_drive_at_its_rating` to
+`tests/test_ship_generator.py` — this script was for a time its only guard, and a survey tool run
+by hand is not a gate.
 """
 
 from __future__ import annotations

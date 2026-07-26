@@ -1,4 +1,5 @@
 import json
+import math
 import time
 
 import pytest
@@ -297,6 +298,57 @@ def test_fit_jump_drive_legality_and_ceiling_hold_over_every_hull_and_legal_draw
             assert DRIVE_PERFORMANCE[result][hull_tons] <= ratings[hull_tons]
 
 
+# T038: C3 and C4 swept over every hull, every legal drawn code and a spread of
+# budgets, matching the coverage C1/C2 (above) and C5/C6 (below) already have.
+# plan.md makes contract postconditions C1-C8 the acceptance criteria for this
+# function's tests; C3 and C4 alone were still example-driven.
+
+_FIT_SWEEP_BUDGETS = (0.0, 1.0, 5.0, 20.0, 55.0, 72.0, 100.0, 200.0, 400.0, 600.0, 10_000.0)
+
+
+def test_fit_jump_drive_c3_is_the_lightest_at_its_rating_over_every_hull_and_budget():
+    from cetools.engine.ships.generator import _fit_jump_drive
+
+    for hull_tons in HULLS:
+        legal = [code for code, ratings in DRIVE_PERFORMANCE.items() if hull_tons in ratings]
+        for drawn_code in legal:
+            for budget in _FIT_SWEEP_BUDGETS:
+                result = _fit_jump_drive(hull_tons, drawn_code, budget)
+                result_rating = DRIVE_PERFORMANCE[result][hull_tons]
+                result_tons = DRIVE_COSTS[result].jump_tons
+                for code in legal:
+                    if DRIVE_PERFORMANCE[code][hull_tons] == result_rating:
+                        assert DRIVE_COSTS[code].jump_tons >= result_tons
+
+
+def test_fit_jump_drive_c4_highest_affordable_rating_wins_over_every_hull_and_budget():
+    from cetools.engine.ships.generator import _fit_jump_drive
+
+    for hull_tons in HULLS:
+        legal = [code for code, ratings in DRIVE_PERFORMANCE.items() if hull_tons in ratings]
+        lowest_rating = min(DRIVE_PERFORMANCE[code][hull_tons] for code in legal)
+        for drawn_code in legal:
+            ceiling = DRIVE_PERFORMANCE[drawn_code][hull_tons]
+            for budget in _FIT_SWEEP_BUDGETS:
+                result = _fit_jump_drive(hull_tons, drawn_code, budget)
+                result_rating = DRIVE_PERFORMANCE[result][hull_tons]
+                affordable = [
+                    DRIVE_PERFORMANCE[code][hull_tons]
+                    for code in legal
+                    if DRIVE_PERFORMANCE[code][hull_tons] <= ceiling
+                    and DRIVE_COSTS[code].jump_tons
+                    + 0.1 * hull_tons * DRIVE_PERFORMANCE[code][hull_tons]
+                    <= budget
+                ]
+                if affordable:
+                    assert result_rating == max(affordable)
+                    assert (
+                        DRIVE_COSTS[result].jump_tons + 0.1 * hull_tons * result_rating <= budget
+                    )
+                else:
+                    assert result_rating == lowest_rating
+
+
 # T007: the FR-014 starved-hull fallback (contract C5, C6), tested against the
 # helper directly since no seed can reach it through `generate_ship`
 # (research.md Part E, quickstart.md Scenario 5).
@@ -544,6 +596,62 @@ def test_sc008_re_pinned_baseline_pins_seeded_designs_for_future_features():
         seed = int(seed_text)
         ship = generate_ship(RandomRolls.seeded(seed), small_craft=path == "small_craft")
         assert dump_design(ship.design) == expected_toml, f"{key}: moved off the pinned baseline"
+
+
+# --- Phase 7 Convergence: pins for properties that already held but were
+# asserted nowhere in the suite. Neither test drove a source change.
+
+
+def _lightest_code_at(hull_tons: int, rating: int) -> str:
+    return min(
+        (code for code, ratings in DRIVE_PERFORMANCE.items() if ratings.get(hull_tons) == rating),
+        key=lambda code: DRIVE_COSTS[code].jump_tons,
+    )
+
+
+def test_g4_every_generated_starship_mounts_the_lightest_drive_at_its_rating():
+    """T036, FR-004 and contract G4.
+
+    FR-004 is a standing rule applied to every generated starship, but nothing
+    asserted it at the `generate_ship` level:
+    `test_sc007_ships_already_fully_fuelled_before_the_change_keep_their_rating`
+    checks only that a *changed* letter is strictly lighter, and the C3 tests
+    cover `_fit_jump_drive` rather than the wiring. Before this test, a
+    regression reinstating a heavier same-rating drive passed `uv run pytest`
+    and the pre-push gate, caught only by the manual survey script.
+    """
+    starved = 0
+    for seed in range(2000):
+        ship = generate_ship(RandomRolls.seeded(seed))
+        # G4 binds even on an FR-014 ship: the fallback defers to FR-004 for
+        # the choice among drives sharing the lowest rating, so this is
+        # asserted before the starved-hull classification, not after it.
+        assert ship.design.jump_code == _lightest_code_at(ship.hull_tons, ship.jump_rating)
+        if _is_fr014_starved_hull_ship(ship):
+            starved += 1
+    assert starved == 0
+
+
+def test_fr003_affordability_and_the_generators_fuel_arithmetic_agree_at_the_boundary():
+    """T037, the property spec.md's Assumptions call "a property to pin, not one to assume".
+
+    `_fit_jump_drive` admits a rating when `jump_tons + 0.1 * hull * rating`
+    fits the budget; `generate_ship` then decides how many jumps the leftover
+    tonnage actually buys with `math.floor(remaining / (0.1 * hull))`. The two
+    must agree at the tightest budget the first accepts, or the search could
+    select a rating the allocation then refuses to fund. They do for every hull
+    and rating in the current tables, but the agreement rests on floating-point
+    behaviour rather than on anything the SRD guarantees.
+    """
+    for hull_tons in HULLS:
+        for code, ratings in DRIVE_PERFORMANCE.items():
+            if hull_tons not in ratings:
+                continue
+            rating = ratings[hull_tons]
+            jump_tons = DRIVE_COSTS[code].jump_tons
+            budget = jump_tons + 0.1 * hull_tons * rating  # exactly affordable
+            remaining = max(0.0, budget - jump_tons)
+            assert math.floor(remaining / (0.1 * hull_tons)) >= rating
 
 
 # --- SC-007: a single build or generation is effectively instant ---
