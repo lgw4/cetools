@@ -5,7 +5,14 @@ import time
 import pytest
 
 from cetools.engine.rolls import RandomRolls, RollName, Rolls, ScriptedRolls
-from cetools.engine.ships import SHIP_NAMES, build_ship, dump_design, load_design, loads_design
+from cetools.engine.ships import (
+    SHIP_NAMES,
+    ShipDesign,
+    build_ship,
+    dump_design,
+    load_design,
+    loads_design,
+)
 from cetools.engine.ships.generator import generate_ship
 from cetools.engine.ships.tables import DRIVE_COSTS, DRIVE_PERFORMANCE, HULLS
 
@@ -652,6 +659,65 @@ def test_fr003_affordability_and_the_generators_fuel_arithmetic_agree_at_the_bou
             budget = jump_tons + 0.1 * hull_tons * rating  # exactly affordable
             remaining = max(0.0, budget - jump_tons)
             assert math.floor(remaining / (0.1 * hull_tons)) >= rating
+
+
+# --- Phase 8 Convergence: FR-014's FR-013 clause ---
+
+
+def test_fr014_a_starved_hull_design_still_builds_within_its_hull():
+    """T040, FR-014's "MUST still satisfy FR-013" clause and contract G5.
+
+    For a starved hull the contract drops every guarantee but G4 and G5, and
+    G5 — the design still fits — was asserted nowhere: the C5 and C6 tests
+    check only which *letter* `_fit_jump_drive` returns, never that a design
+    built around that letter fits its hull.
+
+    A *genuinely* starved hull cannot be reached, and not merely through
+    `generate_ship`: the fallback drive is the lowest-rated legal one, and on
+    every tabulated hull the mandatory systems leave room to fuel it for a full
+    jump (research.md Part E, reconfirmed here — 0 of 18 hulls fall short). So
+    there is no configuration of real tables under which FR-014's fuel shortfall
+    occurs, and a test that merely rebuilt the fallback allocation would quietly
+    assert an ordinary fully-fuelled ship.
+
+    What is pinned instead is the *shape* FR-014 permits: the fallback drive
+    carrying "whatever fuel fits", swept across every jump distance from 0 (the
+    degenerate zero-jump ship FR-014 explicitly allows) up to its full rating.
+    Every one of those designs must build and fit inside its hull.
+    """
+    from cetools.engine.ships.generator import _fit_jump_drive
+
+    for hull_tons in HULLS:
+        legal = [code for code, ratings in DRIVE_PERFORMANCE.items() if hull_tons in ratings]
+        top = max(legal, key=lambda code: DRIVE_PERFORMANCE[code][hull_tons])
+        fallback = _fit_jump_drive(hull_tons, top, 0.0)
+        rating = DRIVE_PERFORMANCE[fallback][hull_tons]
+
+        # The heaviest power plant the drive's rating floor admits, so the
+        # mandatory systems take as much of the hull as the rules allow.
+        maneuver = min(legal, key=lambda code: DRIVE_COSTS[code].maneuver_tons)
+        required = max(rating, DRIVE_PERFORMANCE[maneuver][hull_tons])
+        power = max(
+            (code for code in legal if DRIVE_PERFORMANCE[code][hull_tons] >= required),
+            key=lambda code: DRIVE_COSTS[code].power_tons,
+        )
+
+        for distance in range(0, rating + 1):
+            ship = build_ship(
+                ShipDesign(
+                    hull_tons=hull_tons,
+                    jump_code=fallback,
+                    maneuver_code=maneuver,
+                    power_code=power,
+                    jump_distance=distance,
+                    power_weeks=2,
+                )
+            )
+
+            assert ship.tonnage_used <= ship.hull_tons  # FR-013 / G5
+            assert ship.cargo_tons >= 0
+            assert ship.assumed_jump_distance == distance  # never silently corrected
+            assert ship.jump_fuel == pytest.approx(0.1 * hull_tons * distance)
 
 
 # --- SC-007: a single build or generation is effectively instant ---

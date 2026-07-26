@@ -9,14 +9,32 @@ quickstart.md
 states "Every task in the Phase 2 breakdown is written test-first".
 
 Every test of *new behaviour* is written before its implementation task and MUST be confirmed red
-first: T006, T007, T010–T013, T017, T018, T020–T023 and T025. Three tests are deliberately **not**
-red-first, because they pin properties that already hold rather than behaviour being added:
+first: T006, T007, T010–T013, T017, T018, T020–T023 and T025. Eight tests, across seven tasks, are
+deliberately **not** red-first, because they pin properties that already hold rather than behaviour
+being added. Three were planned as such from the start:
 
 - **T004, T005** — table-ordering invariants. They pass on the current tables by design; their job
   is to fail loudly on a *future* SRD row that breaks the ordering the search documents.
 - **T027** — the re-pinned stability baseline. Its data is generated from the post-change generator
   in the same task, so it can never be red here. It is a regression net for the next feature, not a
   gate on this one.
+
+The other five were added by the Phase 7 and Phase 8 convergence passes, which found properties the
+feature depends on that were asserted nowhere. Being pins of existing behaviour, none could be red;
+each was instead **mutation-checked** — deliberately breaking the source and confirming the test
+fails — wherever a meaningful mutation existed, which is the substitute for red-green that
+Constitution IV's intent allows here:
+
+- **T036** — FR-004/G4 asserted over generated ships. Mutation: lightest-drive `min` → `max`.
+- **T037** — the FR-003 affordability / fuel-arithmetic boundary. No mutation needed: all 248
+  hull x drive cases sit exactly at the boundary, with zero slack to absorb a regression.
+- **T038** — the C3 and C4 sweeps (two tests). Mutation: dropping `reverse=True` from the rating loop.
+- **T040** — FR-014's within-hull clause. Its first draft passed under mutation and was rewritten;
+  see the task's notes. Mutation: doubling `jump_fuel` in `builder.py`.
+
+Mutation checks in this repo MUST clear `src/**/__pycache__` after restoring the source — a
+same-length edit such as `min` → `max` can leave stale bytecode that silently keeps running the
+mutation (recorded under T040).
 
 **Organization**: Tasks are grouped by user story so each story can be implemented, tested and
 checkpointed independently.
@@ -300,3 +318,32 @@ none of them is a defect to fix. No source change to `src/cetools` is expected.
   - Added `test_fit_jump_drive_c3_is_the_lightest_at_its_rating_over_every_hull_and_budget` and `test_fit_jump_drive_c4_highest_affordable_rating_wins_over_every_hull_and_budget`, sweeping every hull x legal drawn code x 11 budgets (`_FIT_SWEEP_BUDGETS`). The four example-parametrized C3/C4 tests are **kept**, mirroring how C1/C2 already have both an example form and a sweep. Mutation-checked: dropping `reverse=True` from the rating loop (lowest affordable rating wins instead of highest) fails the C4 sweep.
 - [X] T039 Run the full quality gate from AGENTS.md after T036-T038: `uv run black . && uv run flake8 src tests && uv run pytest && uv run python scripts/check_docs.py`, confirming the suite stays green with `src/cetools` coverage at or above 85% and that the T036 docstring edit leaves `check_docs.py` clean
   - Black reformatted one line in `tests/test_ship_generator.py`, flake8 silent, isort clean, **2866 passed** (2862 + the 4 new tests), `src/cetools` coverage 99.17%, `check_docs.py` clean. `survey_drive_fit.py` still exits 0 with `PASS` and every counted line reading 0.
+
+---
+
+## Phase 8: Convergence
+
+**Purpose**: Close two gaps around the FR-014 starved-hull fallback, both surfaced by reading
+quickstart.md Scenario 5 against the tests it actually selects. As in Phase 7, both properties
+**hold today** — the within-hull build was prototyped over all 18 tabulated hulls during
+convergence and passed on every one — so these are pins, not fixes. No `src/cetools` change is
+expected.
+
+- [X] T040 Add an FR-014 within-hull build test to `tests/test_ship_generator.py`: for every hull in `HULLS`, take the fallback drive `_fit_jump_drive(hull_tons, <highest-rated legal code>, 0.0)` returns, pair it with a maneuver and power code that squeeze the tonnage budget hardest, set `jump_distance` to the most the leftover tonnage funds (`max(0, min(rating, math.floor(remaining / (0.1 * hull_tons))))` — "whatever fuel fits", per FR-014), and assert `build_ship` returns a ship with `tonnage_used <= hull_tons` and `cargo_tons >= 0`. FR-014 states that a starved-hull ship "MUST still satisfy FR-013", and contracts/jump-drive-fit.md says that for such a ship "only G4 and G5 hold" — G5 being the within-hull property — but nothing asserts it: the existing C5 and C6 tests check only which *letter* `_fit_jump_drive` returns, never that a design built around that letter fits its hull. quickstart.md Scenario 5 (line 162) already claims its command asserts "the resulting design still builds within its hull (FR-013)", so this closes the gap between that claim and the suite. Prototyped during convergence: 18 hulls, 18 built within hull, 0 failures per FR-014 (missing)
+  - Added `test_fr014_a_starved_hull_design_still_builds_within_its_hull`. **The task's own prescription turned out to be wrong and was not followed as written.** Reconstructing the fallback allocation, as the task described, produces an ordinary *fully-fuelled* ship: a genuinely starved hull is unreachable not merely through `generate_ship` but at all, because the fallback is the lowest-rated legal drive and all 18 hulls leave room to fuel it for a full jump (measured: 0 of 18 short). That test passed under a mutation flipping FR-014's fallback from lowest-rated to highest-rated, which is what exposed it as weak. Rewritten to sweep `jump_distance` from 0 (the degenerate zero-jump ship FR-014 permits) to the drive's full rating on every hull, asserting `tonnage_used <= hull_tons`, `cargo_tons >= 0`, and that the distance is never silently corrected. Mutation-checked: doubling `jump_fuel` in `builder.py` fails it.
+  - **Process note:** the first mutation check produced a false result from a stale `__pycache__` — `min` and `max` are the same byte length, so the restored source and the mutated `.pyc` did not disagree in a way that triggered recompilation. Any mutation check in this repo must clear `src/**/__pycache__` after restoring. A *failure* under mutation is still trustworthy (stale-clean bytecode would have passed); only a *pass* is suspect.
+- [X] T041 Fix quickstart.md Scenario 5's test filter and its expected-output text: `-k "starved or fallback"` selects only 1 of the 3 tests the scenario describes. `test_fit_jump_drive_c5_zero_budget_falls_back_to_the_lightest_lowest_rated_drive` is missed because the filter's `fallback` does not match the name's `falls_back`, and `test_fit_jump_drive_c6_never_raises_for_any_input_satisfying_the_preconditions` matches neither word — yet the scenario claims the command asserts "no exception is raised". Widen the filter (for example `-k "starved or falls_back or c6_never_raises"`, or the T040 test name added to it) so every property the scenario claims is actually selected, and confirm the count it reports matches. This is the same defect T035 fixed in Scenario 4, where a stale `-k` selected zero tests per plan: quickstart.md Scenario 5 (partial)
+  - Filter widened to `-k "starved or falls_back or c6_never_raises"`, which selects 4 tests (was 1). The expected-output paragraph now describes all four accurately, records both corrections, and adds a note that a genuinely starved hull is unreachable — so T040 pins the *shape* FR-014 permits rather than a state the tables can reach. Verified end to end: 4 passed, 63 deselected.
+- [X] T042 Re-run the full quality gate after T040-T041: `uv run black . && uv run flake8 src tests && uv run pytest && uv run python scripts/check_docs.py`, plus `uv run python specs/013-fuel-limited-jump-drive/scripts/survey_drive_fit.py`, and walk quickstart.md Scenario 5 end to end confirming it now produces its documented expected output
+
+---
+
+## Phase 9: Convergence
+
+**Purpose**: One documentation-accuracy fix. The implementation itself is converged — every FR, SC,
+acceptance scenario, edge case, contract postcondition and constitution principle was re-checked
+this round against green output (2867 passed, 99.17% coverage, survey script `PASS`) and nothing
+else remains.
+
+- [X] T043 Update the **Tests** preamble at the top of this file (the sentence beginning "Three tests are deliberately **not** red-first") so it accounts for the pins added by the Phase 7 and Phase 8 convergence passes. It currently names three — T004, T005 and T027 — but there are now **eight** non-red-first tests across seven tasks: T004 and T005 (table-ordering invariants), T027 (the re-pinned baseline), T036 (FR-004/G4 over generated ships), T037 (the FR-003 fuel-arithmetic boundary), T038 (the C3 and C4 sweeps, two tests) and T040 (FR-014's within-hull clause). Each is already justified in its own phase notes; what is stale is the summary count and list, which is where Constitution IV's Test-First exceptions are recorded for the feature as a whole. Keep the existing red-first list (T006, T007, T010-T013, T017, T018, T020-T023, T025) unchanged — it is still accurate — and add the Phase 7-8 entries with their one-line rationale: they pin properties that already held, so they could not be red, and were mutation-checked instead of red-green where a mutation was meaningful per Constitution IV (partial)
+  - Preamble rewritten: the count is now "Eight tests, across seven tasks", split into the three planned from the start (T004, T005, T027) and the five added by convergence (T036, T037, T038 x2, T040). Each convergence entry names the mutation that verifies it bites, or — for T037 — records why no mutation is needed, since all 248 boundary cases sit exactly at `floor == rating` with zero slack. The red-first list is unchanged, as the task required. Also carried the stale-`__pycache__` warning up from T040's notes into the preamble, since it applies to any future mutation check in this repo, not just that one.

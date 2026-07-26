@@ -157,12 +157,29 @@ and power code in the current tables starves a hull (research.md Part E, and the
 `starved ... : 0` line). It is therefore exercised against the fit helper directly:
 
 ```bash
-uv run pytest tests/test_ship_generator.py -k "starved or fallback" -v --no-cov
+uv run pytest tests/test_ship_generator.py -k "starved or falls_back or c6_never_raises" -v --no-cov
 ```
 
-**Expected**: passes. The test calls `_fit_jump_drive` with a budget too small for any legal drive
-and asserts the lowest-rated legal drive comes back, no exception is raised, and the resulting
-design still builds within its hull (FR-013).
+**Expected**: 4 tests, all passing. Between them they call `_fit_jump_drive` with a budget too
+small for any legal drive and assert that the lowest-rated legal drive comes back, that the
+lightest is chosen where several share that lowest rating (FR-004 still governs), and that no input
+satisfying the preconditions raises. The fourth pins FR-014's "MUST still satisfy FR-013" clause
+(contract G5): on every tabulated hull, a design carrying the fallback drive builds and fits inside
+its hull at *every* jump distance from 0 — the degenerate zero-jump ship FR-014 explicitly permits —
+up to the drive's full rating.
+
+Two corrections were made here during convergence. The filter read `-k "starved or fallback"`, which
+selected **one** of these: `fallback` does not match the `falls_back` in a test name, and the
+never-raises test contains neither word. And the within-hull assertion this paragraph claimed was
+not written at all until T040 added it.
+
+Note what that fourth test can and cannot do. A genuinely starved hull is unreachable — not merely
+through `generate_ship`, but at all: the fallback is the lowest-rated legal drive, and on all 18
+tabulated hulls the mandatory systems leave room to fuel it for a full jump (research.md Part E,
+reconfirmed during convergence at 0 of 18 short). A test that simply rebuilt the fallback allocation
+would therefore assert an ordinary fully-fuelled ship while appearing to cover FR-014. T040 sweeps
+the jump distance instead, pinning the *shape* FR-014 permits rather than a state the tables can
+reach.
 
 ---
 
