@@ -1453,6 +1453,38 @@ def test_a_blank_name_reads_as_no_name_in_both_places(blank):  # FR-029b
     assert "  " not in paragraph
 
 
+# --- T021 (US2): an author-supplied name is never overwritten (ship-names FR-014, SC-006) ---
+
+
+def test_an_author_supplied_name_always_wins():
+    ship = build_ship(_simple_design(name="Star of India"))
+    heading, paragraph = _split(render_description(ship))
+
+    assert heading.endswith(" Star of India")
+    assert "the Star of India is a starship." in paragraph
+
+
+# --- T010 (US1): a generated ship's description is always named (FR-012, SC-001) --
+
+
+def test_a_generated_starship_description_carries_its_name_never_unnamed():
+    ship = generate_ship(RandomRolls.seeded(42))
+    text = render_description(ship)
+
+    assert ship.design.name is not None
+    assert ship.design.name in text
+    assert "Unnamed Ship" not in text
+
+
+def test_a_generated_small_craft_description_carries_its_name_never_unnamed():
+    ship = generate_ship(RandomRolls.seeded(7), small_craft=True)
+    text = render_description(ship)
+
+    assert ship.design.name is not None
+    assert ship.design.name in text
+    assert "Unnamed Ship" not in text
+
+
 # --- T057: every hangar entry is named by its own row (SC-007, FR-031) -----
 
 

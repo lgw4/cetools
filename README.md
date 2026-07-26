@@ -311,6 +311,8 @@ uv run cetools ship generate --seed 42
 uv run cetools ship generate --hull 10 --small-craft --seed 7
 ```
 
+A randomly generated ship arrives already named, drawn from `generate_ship_name`'s curated catalogue of mythology and folklore, written science fiction, and screen science fiction sources; a hand-authored design's own `name` is never overwritten.
+
 Add `--toml` to emit a round-trippable design file instead of the description, and `--out` to write it to a file. Omit `--seed` to have one chosen for you and reported on stderr, so the run can be reproduced.
 
 **Exit codes**: `0` on success; `1` on a missing or malformed design file, an unknown hull size, or a rules-illegal design (e.g. a power plant rated below its drives), with the violated rule on stderr.

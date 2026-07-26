@@ -1,4 +1,5 @@
 import dataclasses
+import random
 
 import pytest
 
@@ -16,6 +17,7 @@ from cetools.engine.ships import (
     TurretFit,
     build_ship,
     load_design,
+    render_description,
 )
 from cetools.engine.ships.tables import (
     AMMO,
@@ -1084,6 +1086,27 @@ def test_the_derived_tech_level_changes_no_other_computed_value():
     assert overridden.tech_level == 15
     assert plain.tech_level == 8
     assert dataclasses.replace(plain, design=overridden.design, tech_level=15) == overridden
+
+
+# --- T020 (US2): build_ship never assigns a name (ship-names FR-015) --------
+
+
+def test_build_ship_assigns_no_name():
+    design = ShipDesign(hull_tons=100, jump_code="A", power_code="A", name=None)
+    ship = build_ship(design)
+
+    assert ship.design.name is None
+    assert "Unnamed Ship" in render_description(ship)
+
+
+def test_build_ship_consumes_no_randomness(monkeypatch):
+    def _boom(*args, **kwargs):
+        raise AssertionError("build_ship must not consume randomness")
+
+    monkeypatch.setattr(random.Random, "random", _boom)
+    design = ShipDesign(hull_tons=100, jump_code="A", power_code="A")
+
+    build_ship(design)  # does not raise
 
 
 def test_a_new_row_with_a_tech_level_widens_the_derivation_with_no_code_change(monkeypatch):
