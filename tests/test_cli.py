@@ -784,6 +784,9 @@ def test_ship_build_prints_a_heading_and_one_paragraph_and_exits_0():
     assert lines[2].endswith(".")
 
 
+# This doubles as T022 (US2): `ship build` on a hand-authored design is
+# unchanged by ship naming. It asserts the whole rendering, heading included,
+# so a separate "still renders TL8 Beowulf" case would add no coverage.
 def test_ship_build_free_trader_matches_the_worked_example():
     result = runner.invoke(app, ["ship", "build", _FREE_TRADER_TOML])
     assert result.exit_code == 0
@@ -980,6 +983,33 @@ def test_ship_generate_small_craft_prints_a_jump_free_description():
     assert "is a small craft." in lines[2]
     assert "cockpit" in lines[2]
     assert "jump" not in lines[2].lower()
+
+
+# --- T012 (US1): `cetools ship generate` names the ship (FR-012, SC-004) ---
+
+
+def test_ship_generate_names_the_ship_no_unnamed_ship():
+    result = runner.invoke(app, ["ship", "generate", "--seed", "42"])
+    assert result.exit_code == 0
+
+    lines = _description_lines(result.stdout)
+    assert "Unnamed Ship" not in lines[0]
+    assert lines[0].split(" ", 1)[1]
+
+
+def test_ship_generate_small_craft_names_the_ship_no_unnamed_ship():
+    result = runner.invoke(app, ["ship", "generate", "--small-craft", "--seed", "7"])
+    assert result.exit_code == 0
+
+    lines = _description_lines(result.stdout)
+    assert "Unnamed Ship" not in lines[0]
+    assert lines[0].split(" ", 1)[1]
+
+
+def test_ship_generate_toml_carries_a_name_key():
+    result = runner.invoke(app, ["ship", "generate", "--seed", "42", "--toml"])
+    assert result.exit_code == 0
+    assert 'name = "' in result.stdout
 
 
 def test_ship_build_fighter_prints_a_jump_free_description():

@@ -1,11 +1,16 @@
+import dataclasses
+import json
 import time
 
 import pytest
 
 from cetools.engine.rolls import RandomRolls, ScriptedRolls
-from cetools.engine.ships import build_ship, dump_design, load_design, loads_design
+from cetools.engine.ships import SHIP_NAMES, build_ship, dump_design, load_design, loads_design
 from cetools.engine.ships.generator import generate_ship
 from cetools.engine.ships.tables import HULLS
+
+_CATALOGUE_NAMES = {entry.name for entry in SHIP_NAMES}
+_BASELINE_PATH = "specs/012-ship-names/baseline/designs.json"
 
 # --- ScriptedRolls pins a known component selection to an exact Ship ---
 
@@ -89,6 +94,67 @@ def test_default_rolls_is_random_rolls():
     # No explicit `rolls` argument still produces a valid ship (defaults to RandomRolls()).
     ship = generate_ship()
     assert ship.cargo_tons >= 0
+
+
+# --- US1: every generated ship is named (FR-001, FR-002) ---
+
+
+def test_generated_starship_carries_a_catalogue_name():
+    ship = generate_ship(RandomRolls.seeded(42))
+    assert ship.design.name in _CATALOGUE_NAMES
+
+
+def test_generated_small_craft_carries_a_catalogue_name():
+    ship = generate_ship(RandomRolls.seeded(7), small_craft=True)
+    assert ship.design.name in _CATALOGUE_NAMES
+
+
+# --- T018 (US2): naming is reproducible by seed, not forced across seeds (FR-010, SC-002) ---
+
+
+def test_generated_ship_name_is_reproducible_from_a_seed():
+    a = generate_ship(RandomRolls.seeded(42))
+    b = generate_ship(RandomRolls.seeded(42))
+    assert a == b
+    assert a.design.name == b.design.name
+
+
+def test_generated_ship_names_across_seeds_are_not_forced_to_match():
+    names = {generate_ship(RandomRolls.seeded(seed)).design.name for seed in range(20)}
+    assert len(names) > 1
+
+
+# --- T025 (US3): generated batches read as varied (SC-003) ---
+# Pinned seed set 0-19 so this check cannot flake.
+
+
+def test_generated_ships_over_a_pinned_seed_set_are_mostly_distinct():
+    names = [generate_ship(RandomRolls.seeded(seed)).design.name for seed in range(20)]
+    assert len(set(names)) >= 17
+
+
+# --- T019 (US2, gates T015/T016): naming is purely additive (FR-010a, SC-008) ---
+
+
+def test_naming_is_purely_additive_against_the_pre_feature_baseline():
+    # T019: gates T015/T016. `baseline/designs.json` was captured at commit
+    # d387b70, before this feature existed, and MUST NOT be regenerated
+    # (research.md Part A). This proves the name draw lands strictly after
+    # every other draw on both paths: clearing the name from a freshly
+    # generated design must reproduce the pre-feature dump byte for byte.
+    with open(_BASELINE_PATH, encoding="utf-8") as handle:
+        baseline = json.load(handle)
+
+    for key, recorded_toml in baseline.items():
+        path, seed_text = key.split(":")
+        seed = int(seed_text)
+        small_craft = path == "small_craft"
+
+        ship = generate_ship(RandomRolls.seeded(seed), small_craft=small_craft)
+        assert ship.design.name is not None, f"{key}: expected a catalogue name"
+
+        unnamed = dump_design(dataclasses.replace(ship.design, name=None))
+        assert unnamed == recorded_toml, f"{key}: ship moved off its pre-feature baseline"
 
 
 # --- US3: small craft (research.md Part K) ---

@@ -38,6 +38,7 @@ from cetools.engine.ships.models import (
     SoftwareFit,
     TurretFit,
 )
+from cetools.engine.ships.names import generate_ship_name
 from cetools.engine.ships.tables import (
     BAYS,
     BRIDGE_SIZES,
@@ -313,6 +314,8 @@ def _generate_small_craft(rolls: Rolls, hull_size: int | None) -> Ship:
     energy_cap = SMALL_CRAFT_ENERGY_CAPS[power_letter]
     turrets, remaining = _select_small_craft_turret(rolls, remaining, energy_cap)
 
+    name = generate_ship_name(rolls)
+
     design = ShipDesign(
         hull_tons=hull_tons,
         configuration=configuration,
@@ -327,6 +330,7 @@ def _generate_small_craft(rolls: Rolls, hull_size: int | None) -> Ship:
         staterooms=staterooms,
         fittings=(fitting,) if fitting is not None else (),
         turrets=turrets,
+        name=name,
     )
     return build_ship(design)
 
@@ -343,6 +347,14 @@ def generate_ship(
     reproducibility (FR-017). `hull_size` constrains generation to a tabulated
     hull size while staying legal (FR-018); when `None`, one is chosen.
     `small_craft` generates under the 10-95 ton small-craft ruleset (FR-019).
+
+    `generate_ship_name` is drawn last on both paths, after every component
+    decision (FR-010a). `RandomRolls` wraps one `random.Random` stream, so a
+    draw inserted anywhere else would shift every later draw and change the
+    hull, drives and armament a seed produces—naming would stop being purely
+    additive. `specs/012-ship-names/baseline/designs.json` pins 100 pre-feature
+    designs and fails loudly, naming the seed, if a future edit ever moves the
+    name draw off the end of a path (see `engine/ships/names.py`'s docstring).
     """
     rolls = rolls or RandomRolls()
 
@@ -380,6 +392,8 @@ def generate_ship(
     bay, hardpoints_remaining, remaining = _select_bay(rolls, hardpoints_remaining, remaining)
     screen, remaining = _select_screen(rolls, remaining)
 
+    name = generate_ship_name(rolls)
+
     design = ShipDesign(
         hull_tons=hull_tons,
         configuration=configuration,
@@ -395,5 +409,6 @@ def generate_ship(
         turrets=turrets,
         bays=(bay,) if bay is not None else (),
         screens=(screen,) if screen is not None else (),
+        name=name,
     )
     return build_ship(design)

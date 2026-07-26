@@ -1,5 +1,6 @@
 import pytest
 
+from cetools.engine.rolls import RandomRolls
 from cetools.engine.ships import (
     AmmoFit,
     ArmorFit,
@@ -17,6 +18,8 @@ from cetools.engine.ships import (
     load_design,
     loads_design,
 )
+from cetools.engine.ships.description import render_description
+from cetools.engine.ships.generator import generate_ship
 
 _EXAMPLES = "specs/010-starship-generator/examples"
 _GOLDEN_FILES = (
@@ -398,6 +401,22 @@ def test_loads_design_rejects_a_name_the_heading_cannot_carry():
 def test_a_blank_name_round_trips_and_still_means_no_name():  # FR-029b
     design = _describable(name="")
     assert loads_design(dump_design(design)) == design
+
+
+# --- T011 (US1): a generated ship's name survives a dump/load round trip -----
+
+
+def test_a_generated_ships_name_survives_dump_load_and_build():
+    # Asserted through `loads_design`, not against the emitted TOML text: the
+    # guarantee FR-013 makes is that the name round trips, and matching a
+    # `name = "..."` substring would additionally pin dump_design's quoting and
+    # break on the first catalogue name needing an escape. That the key reaches
+    # the file at all is the CLI contract's concern, pinned in test_cli.py.
+    ship = generate_ship(RandomRolls.seeded(42))
+    reloaded = loads_design(dump_design(ship.design))
+
+    assert reloaded.name == ship.design.name
+    assert ship.design.name in render_description(build_ship(reloaded))
 
 
 # --- T094: FR-021 schema-invalid load errors (design-schema.md "Rules enforced at load") ---

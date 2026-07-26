@@ -82,6 +82,7 @@ class RollName(StrEnum):
     SHIP_COCKPIT = "ship_cockpit"
     SHIP_BAY = "ship_bay"
     SHIP_SCREEN = "ship_screen"
+    SHIP_NAME = "ship_name"
 
 
 class Rolls(Protocol):
