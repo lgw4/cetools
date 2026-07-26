@@ -46,7 +46,8 @@ unchanged in role and format.
 
 **Testing**: pytest with coverage (suite fails below 85% on `src/cetools`). `names.py` is tested
 directly through `ScriptedRolls` for selection and through catalogue-wide property assertions for
-the FR-008/FR-009/FR-016b invariants; `generate_ship` naming is tested on both paths;
+the FR-008/FR-009/FR-016b/FR-018a invariants; the SC-003 variety check runs over a fixed seed
+range so it cannot flake; `generate_ship` naming is tested on both paths;
 `CliRunner` covers `ship generate` output and the generate → export → build round trip; SC-008 is
 tested against the pre-captured `baseline/designs.json`.
 
@@ -70,7 +71,9 @@ the 0.1 s per-ship budget feature 010 set.
 - `build_ship` MUST remain free of naming (FR-015); no computed ship value may change.
 
 **Scale/Scope**: One new engine module (~200 lines, mostly data), one new `RollName` member, two
-changed lines in `generator.py`, three new exports, one new test file. ~160 catalogue entries.
+changed lines in `generator.py`, five new exports (`BasisKind`, `SHIP_NAMES`, `ShipName`,
+`Tradition`, `generate_ship_name`), one new test file and five modified ones. ~160 catalogue
+entries.
 
 ## Constitution Check
 
@@ -124,7 +127,7 @@ src/cetools/
 ├── engine/
 │   ├── rolls.py                  # MODIFIED: + RollName.SHIP_NAME
 │   └── ships/
-│       ├── __init__.py           # MODIFIED: + 4 exports
+│       ├── __init__.py           # MODIFIED: + 5 exports
 │       ├── names.py              # NEW: Tradition, BasisKind, ShipName,
 │       │                         #      SHIP_NAMES, generate_ship_name
 │       ├── generator.py          # MODIFIED: name drawn last on both paths
@@ -138,8 +141,10 @@ src/cetools/
 
 tests/
 ├── test_ship_names.py            # NEW: catalogue invariants + selection
-├── test_ship_generator.py        # MODIFIED: naming on both paths, SC-008 baseline
+├── test_ship_generator.py        # MODIFIED: naming on both paths, SC-008 baseline, variety
 ├── test_ship_description.py      # MODIFIED: generated ships never render "Unnamed Ship"
+├── test_ship_design.py           # MODIFIED: the name survives dump/load round trip
+├── test_ship_builder.py          # MODIFIED: build_ship still assigns no name
 └── test_cli.py                   # MODIFIED: generate names it, build still does not
 
 CONTRIBUTING.md                   # MODIFIED: module map gains ships/names.py
@@ -162,7 +167,8 @@ break it is written.
    invariant tests, which fail on size and per-tradition floors.
 4. **`generate_ship_name`** — one `rolls.choose`, tested through `ScriptedRolls`.
 5. **Catalogue content** — three passes, one per tradition, each entry's basis recorded as it is
-   added. This is the bulk of the work and the only part that is research rather than code.
+   added and reviewed against that basis before the entry is kept (FR-016c). This is the bulk of
+   the work and the only part that is research rather than code.
 6. **`generate_ship` naming** — the two-line change, gated by the SC-008 baseline test.
 7. **Description, CLI and round-trip tests** — confirming FR-012 through FR-015 hold with no
    further code.
@@ -173,7 +179,7 @@ break it is written.
 | Risk | Mitigation |
 |------|------------|
 | A future contributor inserts a new draw mid-path, silently changing every seed's ship | The `baseline/designs.json` regression test fails loudly and names the seed. Documented in `names.py` and `generator.py` docstrings. |
-| The 42-entry floor for written SF proves hard under FR-016 | Sampled during Phase 0 across nine authors and found comfortably sufficient ([research.md C3](./research.md#c3--feasibility-check)). If a tradition falls short, the floor that must hold is FR-008's 20, not the 42 target. |
+| The 42-entry target for written SF proves hard under FR-016 | Sampled during Phase 0 across nine authors and found comfortably sufficient ([research.md C3](./research.md#c3--feasibility-check)). If a tradition falls short, the floor that must hold is FR-008's 20, not the 42 target. |
 | A catalogue entry is mis-sourced | Every fiction entry records its basis kind and reference; the test proves the fields are *present and well-formed*, and the reference makes the claim reviewable by a human in one line rather than by re-research. |
 | Catalogue growth breaks tests | Tests assert floors and caps, never exact counts. |
 

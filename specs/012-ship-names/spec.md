@@ -112,15 +112,21 @@ from every named source tradition; generate a batch of ships and measure how oft
   not impossible.
 - **Names with non-English origins.** Catalogue entries use plain unaccented spellings so a name
   renders identically in a description, in an exported design file, and on any terminal.
+- **The catalogue changes.** Adding, removing or reordering entries may change which name a given
+  seed yields; the ship that seed produces is unchanged in every other respect (FR-010b). A name is
+  therefore reproducible by seed within a given catalogue, not across catalogue edits—which is what
+  lets a mis-sourced entry be withdrawn.
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST supply a name for every randomly generated ship when the requester has
-  not specified one.
+- **FR-001**: The system MUST supply a name from the catalogue for every randomly generated ship.
+  Random generation offers no way to request a particular name (see Assumptions); a referee who
+  wants one supplies it through a design instead, which FR-014 governs.
 - **FR-002**: The system MUST name randomly generated small craft on the same terms as randomly
-  generated starships.
+  generated starships. Starships and small craft are the only kinds of ship random generation
+  produces, so these two together account for every randomly generated ship.
 - **FR-003**: The system MUST draw names from a catalogue of curated ship names, and MUST NOT
   assemble names from syllables or other generated fragments.
 - **FR-004**: The name catalogue MUST include names drawn from mythology and folklore.
@@ -128,19 +134,32 @@ from every named source tradition; generate a batch of ships and measure how oft
   subject to the sourcing constraint in FR-016.
 - **FR-006**: The name catalogue MUST include vessel names drawn from science fiction film and
   television, subject to the sourcing constraint in FR-016.
-- **FR-007**: Each catalogue entry MUST record which source tradition it came from, so the balance
-  of the catalogue can be verified and future entries can be added in proportion.
+- **FR-007**: Each catalogue entry MUST record which source tradition it came from, drawn from the
+  fixed set of three named in Key Entities, so the balance of the catalogue can be verified and
+  future entries can be added in proportion.
+- **FR-007a**: A name belonging to more than one source tradition MUST be catalogued exactly once,
+  under the earliest tradition it belongs to. A mythological name that a later work flew a ship
+  under therefore stays under mythology and folklore, and carries no basis (FR-016a).
 - **FR-008**: The catalogue MUST contain at least 150 names, with every source tradition in scope
-  contributing at least 20.
-- **FR-009**: The catalogue MUST contain no duplicate names.
-- **FR-010**: Name selection MUST be reproducible: generating with the same seed MUST produce the
-  same name.
+  contributing at least 20 and no single tradition contributing more than half the catalogue.
+- **FR-009**: The catalogue MUST contain no duplicate names. Two entries duplicate each other when
+  their names match after surrounding whitespace is stripped and case is disregarded, so that two
+  spellings differing only in case cannot both be catalogued.
+- **FR-010**: Name selection MUST be reproducible: for a given catalogue, generating with the same
+  seed MUST produce the same name.
 - **FR-010a**: Naming MUST be purely additive to seeded generation: a seed that produced a
-  particular ship before this feature MUST still produce that same ship, now carrying a name. No
-  other generation outcome—hull, drives, fittings, armament—may shift for any seed.
-- **FR-011**: Name selection MUST be made through the same randomness mechanism as every other
-  generation choice, so a name can be recorded, replayed, and audited alongside the rest of the
-  ship's rolls.
+  particular ship before this feature MUST still produce that same ship, now carrying a name. Every
+  field of the resulting design other than the name—hull, drives, fittings and armament among
+  them—MUST be unchanged, for every seed.
+- **FR-010b**: The mapping from seed to *name* is NOT a compatibility surface: adding, removing or
+  reordering catalogue entries MAY change which name a given seed yields, and doing so is not a
+  breaking change. The mapping from seed to *ship* (FR-010a) is a compatibility surface and MUST
+  hold across catalogue edits. This is what allows a mis-sourced entry to be withdrawn without
+  breaking any promise the system makes.
+- **FR-011**: Name selection MUST draw on the same randomness mechanism as every other generation
+  choice, and MUST NOT introduce a separate source of randomness or derive the name from the seed
+  by any other route. A scripted sequence of generation choices MUST therefore be able to pin the
+  name exactly as it pins any other generation outcome.
 - **FR-012**: A generated name MUST appear in the ship's rendered description wherever the
   description already refers to the ship by name.
 - **FR-013**: A generated name MUST be carried into the round-trippable exported design, and
@@ -149,24 +168,41 @@ from every named source tradition; generate a batch of ships and measure how oft
   wins.
 - **FR-015**: The system MUST NOT assign names when building a ship from a design file. Building
   stays deterministic and file-driven.
+- **FR-015a**: A name that is empty or consists only of whitespace MUST be treated as no name at
+  all, and the ship MUST render as "Unnamed Ship". This holds wherever a name is read from a
+  design.
 - **FR-016**: Catalogue names drawn from a fiction tradition—written science fiction as well as
   film and television—MUST be limited to vessel names that stand on their own outside their source
   work: ordinary English words, names of real historical naval vessels, or names the source work
   itself borrowed from public-domain literature. Distinctive coined names identified with a
-  particular work or franchise MUST NOT be catalogued.
+  particular work or franchise MUST NOT be catalogued. Qualifying under one of the three bases is
+  decisive: a name with an independent basis was not coined by the work that used it, however
+  strongly that work is associated with it today.
 - **FR-016a**: Every written science fiction entry and every film and television entry MUST record
   the independent basis that qualifies it under FR-016 in two parts: a basis kind drawn from a
   fixed set—ordinary word, real vessel, or public-domain work—and a short reference naming the
-  specific word, vessel, or work. Mythology and folklore entries do not carry a basis; the
-  tradition is its own warrant.
+  specific word, vessel, or work. Exactly one basis kind is recorded; where a name qualifies under
+  more than one, the most direct MUST be chosen, since the field is evidence that the constraint
+  holds rather than an exhaustive provenance record. Public-domain status is judged under United
+  States copyright law. Mythology and folklore entries do not carry a basis; the tradition is its
+  own warrant.
 - **FR-016b**: The basis record MUST be machine-checkable: it MUST be possible to verify
   automatically that every entry from a fiction tradition carries a basis kind from the fixed set
   and a non-empty reference, so the FR-016 constraint is audited by test rather than by inspection.
+- **FR-016c**: The recorded reference MUST identify its word, vessel, or work specifically enough
+  that a reviewer can confirm the basis without repeating the research, and every fiction-tradition
+  entry MUST be reviewed against its recorded basis when it is added. FR-016b's automatic check
+  establishes only that a basis is *present and well-formed*; this review is what establishes that
+  it is *true*.
 - **FR-017**: Catalogue names MUST be recorded as bare proper names, without a ship-type
   designation attached, since the ship's type and role are already described elsewhere in its
   description.
 - **FR-018**: Catalogue names MUST use plain unaccented spellings so they render identically across
-  descriptions, exported design files, and terminals.
+  descriptions, exported design files, and terminals. Names originating in other scripts MUST be
+  romanised, and every entry MUST consist solely of ASCII characters.
+- **FR-018a**: A catalogue name MAY consist of several words, which MUST be separated by single
+  spaces, with no leading or trailing whitespace and no other whitespace characters. Names are
+  interpolated verbatim into the description's running prose, which admits no other spacing.
 
 ### Key Entities
 
@@ -178,12 +214,12 @@ from every named source tradition; generate a batch of ships and measure how oft
   or science fiction film and television. Used to keep the catalogue balanced and to make its
   composition auditable.
 - **Sourcing basis**: The evidence that a fiction-tradition name stands on its own outside its
-  source work. A basis kind from a fixed set—ordinary word, real vessel, or public-domain
+  source work. Exactly one basis kind from a fixed set—ordinary word, real vessel, or public-domain
   work—paired with a short reference naming the specific word, vessel, or work. Present on every
   written science fiction and film and television entry; absent on mythology and folklore entries.
 - **Ship design**: The existing declarative description of a ship, which already carries an optional
-  name. Naming populates that name when the generator produces the design and the requester left it
-  unset.
+  name. Naming populates that name whenever the generator produces the design; a design an author
+  wrote carries whatever name the author gave it, and the generator never sees it.
 
 ## Success Criteria *(mandatory)*
 
@@ -193,7 +229,9 @@ from every named source tradition; generate a batch of ships and measure how oft
   in the output of random generation.
 - **SC-002**: Generating from the same seed twice yields the identical name 100% of the time, and a
   generated ship exported and rebuilt renders under the same name 100% of the time.
-- **SC-003**: Across 20 ships generated from distinct seeds, at least 17 carry distinct names.
+- **SC-003**: Across the 20 ships generated from a fixed, documented set of 20 distinct seeds, at
+  least 17 carry distinct names. Pinning the seeds keeps this a reproducible measurement rather
+  than a statistical one that could pass or fail from run to run.
 - **SC-004**: A referee can produce a named, table-ready ship in a single command, with no manual
   naming step and no editing of files.
 - **SC-005**: Every source tradition named in the scope contributes at least 20 catalogue entries,
@@ -202,8 +240,9 @@ from every named source tradition; generate a batch of ships and measure how oft
   from today's behaviour.
 - **SC-007**: 100% of catalogue entries from a fiction tradition carry a basis kind from the fixed
   set and a non-empty reference, verified automatically rather than by inspection.
-- **SC-008**: For every seed whose output was pinned before this feature, the ship generated after
-  it is identical in 100% of respects except that it now carries a name.
+- **SC-008**: For every seed in a corpus of at least 50 seeds per generation path, whose output was
+  pinned before this feature was implemented, the ship generated after it is identical in 100% of
+  respects except that it now carries a name.
 
 ## Assumptions
 
@@ -218,11 +257,21 @@ from every named source tradition; generate a batch of ships and measure how oft
 - **No name-override option on the generator.** A referee who wants a specific name can export the
   design and set the name there, which already works. Adding a naming option to the generate command
   is out of scope.
-- **Uniqueness is not enforced across ships.** Each ship draws independently. The catalogue is sized
-  so repeats within a normal batch are uncommon, but two ships in one session may share a name.
+- **Uniqueness is not enforced across ships.** Each ship draws independently, so two ships in one
+  session may share a name. The catalogue is sized so repeats are rare enough to meet SC-003's
+  threshold, which is the operative measure of "uncommon".
 - **Existing "Unnamed Ship" fallback is retained.** It remains the rendering for designs that carry
   no name, which is still reachable through hand-authored design files.
-- **Naming reaches every path that produces a random ship**, including the small-craft path.
+- **Naming reaches every path that produces a random ship.** Random generation produces starships
+  and small craft and nothing else, so FR-001 and FR-002 between them cover every such path.
+- **Mythology and folklore names are unowned.** The exemption from FR-016a rests on these names
+  being ancient and in common cultural use, so no single work has a claim on them. A modern
+  trademark that merely coincides with a mythological name does not create one either, since the
+  name's use here predates and is independent of it.
+- **Names must satisfy the description's existing prose rules.** A catalogue entry is interpolated
+  verbatim into the rendered description, which is a single unwrapped paragraph and already rejects
+  irregular whitespace. FR-018a restates that constraint so the catalogue cannot introduce a name
+  the renderer would refuse.
 
 ## Out of Scope
 

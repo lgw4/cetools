@@ -49,8 +49,8 @@ from a claim into a regression test that fails loudly if a future draw is ever i
 tuple. Adding or reordering catalogue entries later changes which name a given seed yields. That
 is acceptable and expected — FR-010a constrains seeds pinned *before this feature*, and no seed
 had a name before it — but it means the catalogue must be an ordered `tuple`, and it means
-existing seeds' names are not a compatibility surface. This is stated in
-[contracts/name-catalogue.md](./contracts/name-catalogue.md).
+existing seeds' names are not a compatibility surface. The spec now says so directly in FR-010b,
+and the consequence is restated in [contracts/name-catalogue.md](./contracts/name-catalogue.md).
 
 ## Part B — Where the catalogue lives
 
@@ -94,7 +94,10 @@ qualifies it. Research here settles how that policy is *operated*.
 
 A name may satisfy more than one test (*Nautilus* is both a Verne borrowing and a real US Navy
 submarine). One basis is recorded — whichever is most direct — because the field is evidence that
-the constraint holds, not an exhaustive provenance record. One is enough to clear FR-016.
+the constraint holds, not an exhaustive provenance record. One is enough to clear FR-016. FR-016a
+now states this rule, so a cataloguer does not have to infer it. Public-domain status is judged
+under United States copyright law (FR-016a); every candidate sampled below clears it by well over
+a century.
 
 ### C2 — Tradition is assigned once, by earliest origin
 
@@ -188,8 +191,9 @@ test rather than by review.
   with leading, trailing, doubled or non-space whitespace, because the description is one
   unwrapped paragraph. Catalogue entries must pass it; a test runs every entry through
   `ShipDesign` construction to prove they all do.
-- **No duplicates (FR-009)**: compared case-sensitively on the exact spelling, since that is what
-  renders. A test asserts `len({e.name for e in SHIP_NAMES}) == len(SHIP_NAMES)`.
+- **No duplicates (FR-009)**: compared after stripping and case-folding, so that two spellings
+  differing only in case cannot both be catalogued. A test asserts
+  `len({e.name.strip().casefold() for e in SHIP_NAMES}) == len(SHIP_NAMES)`.
 
 ## Part F — SRD fidelity
 

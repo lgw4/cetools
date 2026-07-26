@@ -124,7 +124,7 @@ from cetools.engine.ships import SHIP_NAMES, BasisKind, Tradition
 counts = Counter(e.tradition for e in SHIP_NAMES)
 total = len(SHIP_NAMES)
 assert total >= 150, total
-assert len({e.name for e in SHIP_NAMES}) == total, 'duplicate names'
+assert len({e.name.strip().casefold() for e in SHIP_NAMES}) == total, 'duplicate names'
 assert all(counts[t] >= 20 for t in Tradition), counts
 assert max(counts.values()) <= total // 2, counts
 fiction = [e for e in SHIP_NAMES if e.tradition is not Tradition.MYTHOLOGY_FOLKLORE]

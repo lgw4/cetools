@@ -76,16 +76,17 @@ V1  tradition in {WRITTEN_SF, SCREEN_SF}  =>  isinstance(basis_kind, BasisKind)
 V2  tradition in {WRITTEN_SF, SCREEN_SF}  =>  basis_reference.strip() != ""
 V3  tradition is MYTHOLOGY_FOLKLORE       =>  basis_kind is None and basis_reference == ""
 V4  name.isascii() and name.strip() == name != ""
+V4a name contains no doubled or non-space whitespace (multi-word names use single spaces)
 V5  name does not begin with a ship-type designation
 V6  ShipDesign(hull_tons=100, name=name) constructs without raising
-V7  names are unique, exact and case-sensitive
+V7  names are unique after stripping and case-folding
 ```
 
 ### Stability
 
 `SHIP_NAMES` is an **ordered** tuple and selection is an index into it. Adding, removing or
 reordering entries changes which name a given seed yields. **The seed-to-name mapping is not a
-compatibility surface**; the seed-to-*ship* mapping is (FR-010a), and it is protected by the
+compatibility surface** (FR-010b); the seed-to-*ship* mapping is (FR-010a), and it is protected by the
 `specs/012-ship-names/baseline/designs.json` regression test. Catalogue growth is a data-only
 edit that requires no test edit, because the tests assert the floors in C1–C3, not exact counts.
 

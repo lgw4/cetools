@@ -21,8 +21,8 @@ FR-004, FR-005 and FR-006.
 A `StrEnum`, following `Configuration` and `ArmorType` in `models.py`, so a tradition is
 self-describing in a test failure message and stable as a dict key.
 
-**Assignment rule (research.md C2)**: a name belongs to the *earliest* tradition it belongs to,
-and is catalogued exactly once. Mythological names claimed by later fiction stay under
+**Assignment rule (FR-007a; research.md C2)**: a name belongs to the *earliest* tradition it
+belongs to, and is catalogued exactly once. Mythological names claimed by later fiction stay under
 `MYTHOLOGY_FOLKLORE`.
 
 ## New: `BasisKind` (StrEnum)
@@ -30,7 +30,8 @@ and is catalogued exactly once. Mythological names claimed by later fiction stay
 `src/cetools/engine/ships/names.py`
 
 The fixed set FR-016a requires. A closed enum rather than free text, so FR-016b's machine check
-is a membership test.
+is a membership test. Exactly one kind is recorded per entry; where a name qualifies under more
+than one, the most direct is chosen (FR-016a).
 
 | Member | Value | What it asserts |
 |--------|-------|-----------------|
@@ -66,9 +67,10 @@ failure names the offending entry more usefully than an import-time exception.
 | V2 | Every such entry has a `basis_reference` that is non-empty after stripping | FR-016a, FR-016b, SC-007 |
 | V3 | Every `MYTHOLOGY_FOLKLORE` entry has `basis_kind is None` and `basis_reference == ""` | FR-016a |
 | V4 | `name` is non-empty and ASCII (`str.isascii()`) | FR-018 |
+| V4a | `name` has no leading, trailing, doubled or non-space whitespace; multi-word names use single spaces | FR-018a |
 | V5 | `name` does not begin with a ship-type designation from the deny-list | FR-017 |
 | V6 | `name` survives `ShipDesign(hull_tons=…, name=entry.name)` construction unchanged | existing `_validate_author_prose` |
-| V7 | No two entries share a `name` (exact, case-sensitive) | FR-009 |
+| V7 | No two entries share a `name` after stripping and case-folding | FR-009 |
 
 ## New: `SHIP_NAMES` (module constant)
 
