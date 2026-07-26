@@ -254,3 +254,21 @@ table value.
 - `specs/012-ship-names/baseline/designs.json` is a pre-feature artifact — never regenerate it
 - Tests assert floors and caps, never exact catalogue counts, so future name additions need no test edit
 - Commit after each task or logical group, using Conventional Commits
+
+---
+
+## Phase 7: Convergence
+
+**Purpose**: Close the remaining gaps found by assessing the implementation against spec.md,
+plan.md and tasks.md. All three are catalogue *content* gaps in the part FR-016c and T028 place
+under human review rather than under test — the mechanism, its determinism and every machine-checkable
+invariant are already green.
+
+- [X] T035 Correct the `White Star` entry in `src/cetools/engine/ships/names.py`: its `basis_kind=REAL_VESSEL` is paired with the reference `"White Star Line, British shipping company, 1868"`, and a shipping company is none of the three bases FR-016a admits. Either name a real vessel that actually bore the name, switch to the basis that is true, or withdraw the entry and replace it to hold `SCREEN_SF` at its count. FR-016b's test passes here only because the fields are well-formed, which is precisely the shape-vs-truth gap this review closes per FR-016a, FR-016c (partial)
+- [X] T036 Complete the tradition-attribution review of `src/cetools/engine/ships/names.py` that T028 records as a review obligation no test can catch: confirm each `WRITTEN_SF` and `SCREEN_SF` entry names a vessel actually drawn from that tradition, and reassign or replace those that cannot be. Entries reading as generic evocative words with no identifiable source vessel include `Apex`, `Zenith`, `Wayfarer`, `Paladin`, `Guardian` and `Explorer` under `SCREEN_SF`, and `Sable`, `Concord`, `Meridian`, `Mistral`, `Halcyon` and `Vagabond` under `WRITTEN_SF`. FR-016c's pass audits the *basis*, not the tradition, so this is the uncovered half per FR-005, FR-006, FR-007 (partial)
+- [X] T037 Change `Perseverance` and `Pathfinder` in `src/cetools/engine/ships/names.py` from `BasisKind.REAL_VESSEL` to `BasisKind.ORDINARY_WORD` with a dictionary-sense reference. Both currently cite a Mars rover and a Mars lander, neither of which is a vessel, and both names are ordinary English words — which FR-016a requires be chosen as the more direct basis per FR-016a (partial)
+
+**Checkpoint**: Every fiction entry's recorded basis is both well-formed and true, and every
+fiction entry's tradition names a vessel actually drawn from it. Re-run the four-command quality
+gate; the catalogue floors are asserted as floors, so per-tradition counts held at target need no
+test edit.

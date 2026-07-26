@@ -292,10 +292,10 @@ SHIP_NAMES: tuple[ShipName, ...] = (
         basis_reference="pilgrim: one who journeys to a sacred place",
     ),
     ShipName(
-        name="Vagabond",
+        name="Envoy",
         tradition=Tradition.WRITTEN_SF,
         basis_kind=BasisKind.ORDINARY_WORD,
-        basis_reference="vagabond: a person who wanders from place to place",
+        basis_reference="envoy: a messenger or representative sent on a mission",
     ),
     ShipName(
         name="Nomad",
@@ -304,10 +304,10 @@ SHIP_NAMES: tuple[ShipName, ...] = (
         basis_reference="nomad: a member of a people with no fixed residence",
     ),
     ShipName(
-        name="Meridian",
+        name="Pequod",
         tradition=Tradition.WRITTEN_SF,
-        basis_kind=BasisKind.ORDINARY_WORD,
-        basis_reference="meridian: a great circle of longitude",
+        basis_kind=BasisKind.PUBLIC_DOMAIN_WORK,
+        basis_reference="Pequod, Melville, Moby-Dick (1851)",
     ),
     ShipName(
         name="Zephyr",
@@ -334,10 +334,10 @@ SHIP_NAMES: tuple[ShipName, ...] = (
         basis_reference="halcyon: calm and peaceful",
     ),
     ShipName(
-        name="Sable",
+        name="Leviathan",
         tradition=Tradition.WRITTEN_SF,
         basis_kind=BasisKind.ORDINARY_WORD,
-        basis_reference="sable: black in color",
+        basis_reference="leviathan: something of immense size and power",
     ),
     ShipName(
         name="Victory",
@@ -390,8 +390,8 @@ SHIP_NAMES: tuple[ShipName, ...] = (
     ShipName(
         name="Perseverance",
         tradition=Tradition.WRITTEN_SF,
-        basis_kind=BasisKind.REAL_VESSEL,
-        basis_reference="Perseverance, NASA Mars rover, 2020",
+        basis_kind=BasisKind.ORDINARY_WORD,
+        basis_reference="perseverance: continued effort despite difficulty",
     ),
     ShipName(
         name="Nimrod",
@@ -580,10 +580,10 @@ SHIP_NAMES: tuple[ShipName, ...] = (
         basis_reference="sentinel: a soldier or guard who keeps watch",
     ),
     ShipName(
-        name="Guardian",
+        name="Covenant",
         tradition=Tradition.SCREEN_SF,
         basis_kind=BasisKind.ORDINARY_WORD,
-        basis_reference="guardian: a defender or protector",
+        basis_reference="covenant: a formal, binding agreement",
     ),
     ShipName(
         name="Horizon",
@@ -598,10 +598,10 @@ SHIP_NAMES: tuple[ShipName, ...] = (
         basis_reference="zenith: the highest point reached",
     ),
     ShipName(
-        name="Apex",
+        name="Event Horizon",
         tradition=Tradition.SCREEN_SF,
         basis_kind=BasisKind.ORDINARY_WORD,
-        basis_reference="apex: the highest point of something",
+        basis_reference="event horizon: the boundary beyond which nothing escapes a black hole",
     ),
     ShipName(
         name="Explorer",
@@ -622,22 +622,22 @@ SHIP_NAMES: tuple[ShipName, ...] = (
         basis_reference="vanguard: the foremost part of an advancing group",
     ),
     ShipName(
-        name="Paladin",
+        name="Defiant",
         tradition=Tradition.SCREEN_SF,
         basis_kind=BasisKind.ORDINARY_WORD,
-        basis_reference="paladin: a knight renowned for heroism and chivalry",
+        basis_reference="defiant: boldly resistant or challenging",
     ),
     ShipName(
-        name="Wayfarer",
+        name="Sulaco",
         tradition=Tradition.SCREEN_SF,
-        basis_kind=BasisKind.ORDINARY_WORD,
-        basis_reference="wayfarer: a traveler, especially on foot",
+        basis_kind=BasisKind.PUBLIC_DOMAIN_WORK,
+        basis_reference="Sulaco, Conrad, Nostromo (1904)",
     ),
     ShipName(
         name="Pathfinder",
         tradition=Tradition.SCREEN_SF,
-        basis_kind=BasisKind.REAL_VESSEL,
-        basis_reference="Mars Pathfinder, NASA lander, 1996",
+        basis_kind=BasisKind.ORDINARY_WORD,
+        basis_reference="pathfinder: one who discovers a new route through unknown territory",
     ),
     ShipName(
         name="Columbia",
@@ -649,7 +649,7 @@ SHIP_NAMES: tuple[ShipName, ...] = (
         name="White Star",
         tradition=Tradition.SCREEN_SF,
         basis_kind=BasisKind.REAL_VESSEL,
-        basis_reference="White Star Line, British shipping company, 1868",
+        basis_reference="White Star, Pilkington & Wilson clipper ship, 1854",
     ),
     ShipName(
         name="Reliant",
