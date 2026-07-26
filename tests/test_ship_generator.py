@@ -210,8 +210,9 @@ def test_a_screen_is_reachable_for_a_large_enough_hull():
 
 # --- Phase 2 Foundational: `_fit_jump_drive` (contracts/jump-drive-fit.md) ---
 # T006: contract tests C1-C4/C8, driven by the contract's four worked examples.
-# `_fit_jump_drive` does not exist yet, so every test here is expected to fail
-# with an AttributeError/ImportError until T008 implements it.
+# These were written before `_fit_jump_drive` existed and confirmed red against
+# the AttributeError it raised then, per Constitution IV; T008 implemented it,
+# and they have passed since.
 
 _FIT_WORKED_EXAMPLES = (
     (400, "C", 200, "B"),
@@ -396,8 +397,8 @@ def test_fit_jump_drive_c6_never_raises_for_any_input_satisfying_the_preconditio
 
 
 # --- Phase 3, User Story 1: every generated starship can make at least one
-# jump (FR-001..FR-006, SC-001, SC-002, SC-003, SC-007). T010-T013 are written
-# and confirmed red before T014 reorders `generate_ship`'s allocation.
+# jump (FR-001..FR-006, SC-001, SC-002, SC-003, SC-007). T010-T013 were written
+# and confirmed red before T014 reordered `generate_ship`'s allocation.
 
 
 def _fr014_budget_tons(ship) -> float:
