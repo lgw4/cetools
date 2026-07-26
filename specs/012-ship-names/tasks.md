@@ -272,3 +272,37 @@ invariant are already green.
 fiction entry's tradition names a vessel actually drawn from it. Re-run the four-command quality
 gate; the catalogue floors are asserted as floors, so per-tradition counts held at target need no
 test edit.
+
+---
+
+## Phase 8: Convergence
+
+**Purpose**: Close the one gap remaining after Phase 7. Every machine-checkable invariant is green
+— 2815 tests at 99.17% coverage, Black, flake8 and `check_docs.py` clean, SC-001 over 200 ships,
+SC-008 over all 100 pinned baseline seeds, `cli/ship.py` untouched. What is left is the half of
+the catalogue review that no test reaches, and that Phase 7 left half-done.
+
+- [X] T038 Finish the tradition-attribution review of `src/cetools/engine/ships/names.py` that T036 began: T036 named twelve entries as generic evocative words with no identifiable source vessel, and commit `1b4bbab` replaced only seven of them (`Apex`, `Wayfarer`, `Paladin`, `Guardian`, `Sable`, `Meridian`, `Vagabond`). Five survive unchanged with no record of what confirmed them — `Zenith` and `Explorer` under `SCREEN_SF`, and `Concord`, `Mistral` and `Halcyon` under `WRITTEN_SF`. For each, either name in the entry's own review the specific vessel and work it is drawn from, or reassign it to the tradition it truly belongs to, or withdraw and replace it, holding `SCREEN_SF` and `WRITTEN_SF` at 42 each. FR-016c's pass audits the *basis*, and V1–V7 audit the *shape*; neither can catch a tradition an entry never came from, which is why this is a review obligation per FR-005, FR-006, FR-007 (partial)
+
+**Checkpoint**: Every `WRITTEN_SF` and `SCREEN_SF` entry names a vessel actually drawn from that
+tradition. Re-run the four-command quality gate; the tests assert floors, so a like-for-like
+replacement needs no test edit, and `specs/012-ship-names/baseline/designs.json` is a pre-feature
+artifact that MUST NOT be regenerated even though catalogue edits change which name a seed draws
+(FR-010b).
+
+---
+
+## Phase 9: Convergence
+
+**Purpose**: Close two tradition misassignments that no prior task queried. T036 and T038 audited
+the entries that *read* as generic evocative words; these two read as well-sourced and are wrong
+for the opposite reason — each names a real SF vessel, but from the other tradition. The two are
+complementary, so applying both restores the per-tradition counts to exactly 42/42; each is also
+independently safe, because the tests assert floors and a cap, never exact counts.
+
+- [X] T039 Move `Vanguard` in `src/cetools/engine/ships/names.py` from `SCREEN_SF` to `WRITTEN_SF`, relocating the entry into the written-SF block and recording its source vessel in a comment above it: the generation ship *Vanguard* of Robert A. Heinlein's "Universe" (*Astounding Science Fiction*, May 1941; collected as *Orphans of the Sky*, 1963), one of the earliest generation-ship depictions in written SF. FR-007a catalogues a name under the **earliest** tradition it belongs to, and written science fiction precedes film and television in the ordering Key Entities gives; the 1941 date predates any screen use, so both readings of "earliest" agree. Keep `basis_kind=ORDINARY_WORD` and its reference, which are unaffected per FR-007a (contradicts)
+- [X] T040 Resolve the tradition of `Endurance` in `src/cetools/engine/ships/names.py`, currently `WRITTEN_SF`: the only prominent SF vessel of that name is the ship in *Interstellar* (2014), a film, and the sole written instance found is a non-canon Star Trek tie-in. Either name a written-SF source vessel in a comment above the entry as T038 did for `Halcyon`, or move it to `SCREEN_SF` and relocate it into the screen block with *Interstellar* recorded as its source. The `basis_kind=REAL_VESSEL` reference to Shackleton's 1912 ship is true either way and MUST NOT change — FR-016a's basis records why the name is safe to catalogue, not which tradition it came from per FR-005, FR-007 (partial)
+
+**Checkpoint**: No catalogue entry claims a tradition its source vessel does not belong to. Re-run
+the four-command quality gate and confirm the per-tradition counts, which return to 42/42 once
+both tasks land. `specs/012-ship-names/baseline/designs.json` MUST NOT be regenerated.

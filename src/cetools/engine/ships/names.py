@@ -171,6 +171,11 @@ SHIP_NAMES: tuple[ShipName, ...] = (
     # -- borrowing (FR-016a), reviewed for truth in T029. A name mythology
     # -- already claims (Pegasus, Prometheus, Erebus, ...) stays there
     # -- (FR-007a) even where a written-SF vessel later bore it.
+    # --
+    # -- `basis_*` records why a name is safe to catalogue (FR-016a), not
+    # -- where it comes from. Where an entry's *tradition* was queried and
+    # -- confirmed (tasks.md T038), a comment above it names the source
+    # -- vessel, since no field carries that and no test can check it.
     ShipName(
         name="Endeavour",
         tradition=Tradition.WRITTEN_SF,
@@ -315,11 +320,12 @@ SHIP_NAMES: tuple[ShipName, ...] = (
         basis_kind=BasisKind.ORDINARY_WORD,
         basis_reference="zephyr: a gentle breeze",
     ),
+    # Lady Macbeth, Peter F. Hamilton, The Reality Dysfunction (1996)
     ShipName(
-        name="Mistral",
+        name="Lady Macbeth",
         tradition=Tradition.WRITTEN_SF,
-        basis_kind=BasisKind.ORDINARY_WORD,
-        basis_reference="mistral: a strong cold wind of southern France",
+        basis_kind=BasisKind.PUBLIC_DOMAIN_WORK,
+        basis_reference="Lady Macbeth, Shakespeare, Macbeth (1606)",
     ),
     ShipName(
         name="Trident",
@@ -327,6 +333,7 @@ SHIP_NAMES: tuple[ShipName, ...] = (
         basis_kind=BasisKind.ORDINARY_WORD,
         basis_reference="trident: a three-pronged spear",
     ),
+    # Halcyon, Alastair Reynolds, Halcyon Years (2026)
     ShipName(
         name="Halcyon",
         tradition=Tradition.WRITTEN_SF,
@@ -350,12 +357,6 @@ SHIP_NAMES: tuple[ShipName, ...] = (
         tradition=Tradition.WRITTEN_SF,
         basis_kind=BasisKind.REAL_VESSEL,
         basis_reference="HMS Dreadnought, 1906",
-    ),
-    ShipName(
-        name="Endurance",
-        tradition=Tradition.WRITTEN_SF,
-        basis_kind=BasisKind.REAL_VESSEL,
-        basis_reference="Endurance, Shackleton's Antarctic expedition ship, 1912",
     ),
     ShipName(
         name="Intrepid",
@@ -417,11 +418,22 @@ SHIP_NAMES: tuple[ShipName, ...] = (
         basis_kind=BasisKind.ORDINARY_WORD,
         basis_reference="sirocco: a hot Mediterranean wind",
     ),
+    # Rockhopper, Alastair Reynolds, Pushing Ice (2005)
     ShipName(
-        name="Concord",
+        name="Rockhopper",
         tradition=Tradition.WRITTEN_SF,
         basis_kind=BasisKind.ORDINARY_WORD,
-        basis_reference="concord: a state of peaceful agreement",
+        basis_reference="rockhopper: a crested penguin",
+    ),
+    # Vanguard, Robert A. Heinlein, "Universe" (1941), collected as Orphans of
+    # the Sky (1963) -- one of the earliest generation ships in written SF, and
+    # so the earliest tradition the name belongs to (FR-007a), screen use of it
+    # notwithstanding.
+    ShipName(
+        name="Vanguard",
+        tradition=Tradition.WRITTEN_SF,
+        basis_kind=BasisKind.ORDINARY_WORD,
+        basis_reference="vanguard: the foremost part of an advancing group",
     ),
     # -- Science fiction film and television (research.md C3, FR-016): the
     # -- pool leans on real-vessel and ordinary-word names for the same
@@ -591,11 +603,13 @@ SHIP_NAMES: tuple[ShipName, ...] = (
         basis_kind=BasisKind.ORDINARY_WORD,
         basis_reference="horizon: the line at which the earth and sky appear to meet",
     ),
+    # USS Exeter, Star Trek, "The Omega Glory" (1968) -- named on screen for
+    # the Royal Navy cruiser by D. C. Fontana and Robert Justman's own memos
     ShipName(
-        name="Zenith",
+        name="Exeter",
         tradition=Tradition.SCREEN_SF,
-        basis_kind=BasisKind.ORDINARY_WORD,
-        basis_reference="zenith: the highest point reached",
+        basis_kind=BasisKind.REAL_VESSEL,
+        basis_reference="HMS Exeter, 1929",
     ),
     ShipName(
         name="Event Horizon",
@@ -603,23 +617,18 @@ SHIP_NAMES: tuple[ShipName, ...] = (
         basis_kind=BasisKind.ORDINARY_WORD,
         basis_reference="event horizon: the boundary beyond which nothing escapes a black hole",
     ),
+    # USS Essex, Star Trek: The Next Generation, "Power Play" (1992)
     ShipName(
-        name="Explorer",
+        name="Essex",
         tradition=Tradition.SCREEN_SF,
-        basis_kind=BasisKind.ORDINARY_WORD,
-        basis_reference="explorer: one who explores unknown regions",
+        basis_kind=BasisKind.REAL_VESSEL,
+        basis_reference="USS Essex, 1799",
     ),
     ShipName(
         name="Destiny",
         tradition=Tradition.SCREEN_SF,
         basis_kind=BasisKind.ORDINARY_WORD,
         basis_reference="destiny: the events that will necessarily happen to a person or thing",
-    ),
-    ShipName(
-        name="Vanguard",
-        tradition=Tradition.SCREEN_SF,
-        basis_kind=BasisKind.ORDINARY_WORD,
-        basis_reference="vanguard: the foremost part of an advancing group",
     ),
     ShipName(
         name="Defiant",
@@ -680,6 +689,15 @@ SHIP_NAMES: tuple[ShipName, ...] = (
         tradition=Tradition.SCREEN_SF,
         basis_kind=BasisKind.REAL_VESSEL,
         basis_reference="USS Arizona, 1915",
+    ),
+    # Endurance, Interstellar (2014) -- the ranger's mothership. The basis below
+    # is Shackleton's ship, which the film's name honours; the tradition is the
+    # film, no written-SF vessel of the name having been found.
+    ShipName(
+        name="Endurance",
+        tradition=Tradition.SCREEN_SF,
+        basis_kind=BasisKind.REAL_VESSEL,
+        basis_reference="Endurance, Shackleton's Antarctic expedition ship, 1912",
     ),
 )
 
