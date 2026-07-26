@@ -76,10 +76,6 @@ Within the engine, `careers`, `worlds` and `ships` are imported as packages: eac
 `build_ship` or `generate_ship` from `cetools.engine.ships`, not from
 `builder.py` or `generator.py`.
 
-`CONTEXT.md` is the domain vocabulary: what a career, a term, a check, a mishap
-and the `Rolls` seam mean here. Read it before naming anything new, and add an
-entry when a new concept earns a name.
-
 ## Quality gate
 
 Run this before every commit:

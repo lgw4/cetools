@@ -32,7 +32,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # The docs we maintain.
-DOCS = ("README.md", "CONTEXT.md", "CONTRIBUTING.md", "AGENTS.md")
+DOCS = ("README.md", "CONTRIBUTING.md", "AGENTS.md")
 PROSE = [ROOT / doc for doc in DOCS]
 SOURCES = sorted((ROOT / "src").rglob("*.py"))
 ENGINE = ROOT / "src" / "cetools" / "engine"
