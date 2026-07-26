@@ -784,19 +784,13 @@ def test_ship_build_prints_a_heading_and_one_paragraph_and_exits_0():
     assert lines[2].endswith(".")
 
 
+# This doubles as T022 (US2): `ship build` on a hand-authored design is
+# unchanged by ship naming. It asserts the whole rendering, heading included,
+# so a separate "still renders TL8 Beowulf" case would add no coverage.
 def test_ship_build_free_trader_matches_the_worked_example():
     result = runner.invoke(app, ["ship", "build", _FREE_TRADER_TOML])
     assert result.exit_code == 0
     assert _description_lines(result.stdout) == ["TL8 Beowulf", "", _BEOWULF_PARAGRAPH]
-
-
-# --- T022 (US2): `ship build` on a hand-authored design is unchanged by this feature ---
-
-
-def test_ship_build_free_trader_still_renders_tl8_beowulf_unchanged():
-    result = runner.invoke(app, ["ship", "build", _FREE_TRADER_TOML])
-    assert result.exit_code == 0
-    assert _description_lines(result.stdout)[0] == "TL8 Beowulf"
 
 
 def test_ship_build_renders_an_authored_purpose_and_tech_level():

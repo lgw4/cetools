@@ -407,13 +407,16 @@ def test_a_blank_name_round_trips_and_still_means_no_name():  # FR-029b
 
 
 def test_a_generated_ships_name_survives_dump_load_and_build():
+    # Asserted through `loads_design`, not against the emitted TOML text: the
+    # guarantee FR-013 makes is that the name round trips, and matching a
+    # `name = "..."` substring would additionally pin dump_design's quoting and
+    # break on the first catalogue name needing an escape. That the key reaches
+    # the file at all is the CLI contract's concern, pinned in test_cli.py.
     ship = generate_ship(RandomRolls.seeded(42))
-    text = dump_design(ship.design)
+    reloaded = loads_design(dump_design(ship.design))
 
-    assert f'name = "{ship.design.name}"' in text
-
-    rebuilt = build_ship(loads_design(text))
-    assert ship.design.name in render_description(rebuilt)
+    assert reloaded.name == ship.design.name
+    assert ship.design.name in render_description(build_ship(reloaded))
 
 
 # --- T094: FR-021 schema-invalid load errors (design-schema.md "Rules enforced at load") ---
