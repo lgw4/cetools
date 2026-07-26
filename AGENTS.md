@@ -61,7 +61,7 @@ All new code should have corresponding tests in `tests/`. Run the full suite bef
 - All three should be run (and pass) before finishing a change.
 
 The docs check fails if a backticked symbol in `README.md`, `CONTEXT.md`,
-`CONTRIBUTING.md`, `AGENTS.md` or an ADR no longer exists, if a README Python
+`CONTRIBUTING.md` or `AGENTS.md` no longer exists, if a README Python
 example stops running, if the module map misses an engine module, or if a dash is
 spaced. Rename a symbol and the docs that name it must move with it.
 

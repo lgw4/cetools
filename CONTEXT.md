@@ -206,9 +206,9 @@ one of the six characteristics. Those two call the seam directly.
 re-enlistment, and the **term** loop, and calls the steps above. It holds no rules
 content that belongs to a named step.
 
-**There is no Term module, deliberately.** See `docs/adr/0001-no-term-module.md`:
-it would have exactly one caller, so it would relocate the loop rather than deepen
-anything. Reopen only if a second caller appears.
+**There is no Term module, deliberately.** It would have exactly one caller, so it
+would relocate the loop rather than deepen anything. Reopen only if a second caller
+appears.
 
 **Rolls**—the engine's single seam for chance. Everything the rules leave to
 chance passes through it, and nothing else in the engine touches `random`.
