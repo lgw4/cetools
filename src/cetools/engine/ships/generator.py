@@ -378,9 +378,13 @@ def generate_ship(
     decision (FR-010a). `RandomRolls` wraps one `random.Random` stream, so a
     draw inserted anywhere else would shift every later draw and change the
     hull, drives and armament a seed produces—naming would stop being purely
-    additive. `specs/012-ship-names/baseline/designs.json` pins 100 pre-feature
-    designs and fails loudly, naming the seed, if a future edit ever moves the
-    name draw off the end of a path (see `engine/ships/names.py`'s docstring).
+    additive.
+    `test_sc008_ship_name_is_the_final_draw_and_is_drawn_exactly_once_on_both_paths`
+    in `tests/test_ship_generator.py` asserts this directly, and
+    `specs/013-fuel-limited-jump-drive/baseline/designs.json` re-pins a
+    seed-to-ship anchor for future features, failing loudly, naming the seed,
+    if a future edit ever moves the name draw off the end of a path (see
+    `engine/ships/names.py`'s docstring).
     """
     rolls = rolls or RandomRolls()
 

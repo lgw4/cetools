@@ -131,6 +131,15 @@ which the ship description prints in its heading. They still constrain nothing�
 component above the tech level it claims, which FR-028b treats as a statement about the yard that
 built the ship rather than an error.
 
+**Fuel-limited drive selection**—`generate_ship`'s rule for picking a jump drive: the drawn letter is
+a ceiling, not a guarantee. The generator downgrades it to the highest rating the hull's tonnage,
+after every mandatory system, can fuel for one complete jump—falling back to the lowest legal rating
+on a hull too small to fuel even that—and among drives of the chosen rating always installs the
+lightest one, so a downgrade's freed tonnage flows on to fuel and fittings rather than sitting
+unused. This is generation *policy*, not an SRD rule (the SRD does not say how a referee picks a
+drive for a random ship), so `build_ship` deliberately does not apply it: a hand-authored short-legged
+design—one whose `jump_distance` is below its drive's rating—builds exactly as written.
+
 **`ShipDesign`**—the input record: hull, configuration, drives, power plant, bridge or cockpit,
 computer, software, electronics, armor, quarters, fittings, turrets, bays, screens, and the
 standard-design discount flag. Its own validation is **shape only**—types, ranges, enum

@@ -122,12 +122,15 @@ A); this story asserts the behaviour US1 delivers.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T017 [P] [US2] Add the SC-004 prose sweep test to `tests/test_ship_description.py`: render `render_description(generate_ship(RandomRolls.seeded(n)))` over the 2000-seed sweep and assert no description reports a zero jump count, classifying any FR-014 ship separately and asserting that count is zero
-- [ ] T018 [P] [US2] Add the US2 Acceptance Scenario 2 consistency test to `tests/test_ship_description.py`: for a sample of seeds including at least one whose drive was downgraded, assert the drive letter in the drives sentence, the `Jump-N` in the performance clause and the jump count in the fuel sentence are mutually consistent and agree with `ship.design.jump_code`
+- [X] T017 [P] [US2] Add the SC-004 prose sweep test to `tests/test_ship_description.py`: render `render_description(generate_ship(RandomRolls.seeded(n)))` over the 2000-seed sweep and assert no description reports a zero jump count, classifying any FR-014 ship separately and asserting that count is zero
+  - Added `test_sc004_no_generated_starship_description_reports_a_zero_jump_count`, reusing the same FR-014 recomputation as T010 (duplicated locally since this file does not import from `test_ship_generator.py`). Passed immediately: US1 (T014) already landed, so this asserts its consequence rather than driving new behaviour. `starved == 0` over the full 2000-seed sweep, matching research.md Part E.
+- [X] T018 [P] [US2] Add the US2 Acceptance Scenario 2 consistency test to `tests/test_ship_description.py`: for a sample of seeds including at least one whose drive was downgraded, assert the drive letter in the drives sentence, the `Jump-N` in the performance clause and the jump count in the fuel sentence are mutually consistent and agree with `ship.design.jump_code`
+  - Added `test_the_drive_letter_jump_rating_and_jump_count_agree` over seeds `(0, 1, 7, 42, 99, 12345)`. Seed 0 downgrades `J -> H` (confirmed by comparing against `baseline/pre_change_sweep.json`), covering the downgraded case the task requires; the rest are the existing `_SEEDS` spread. Passed immediately, same reason as T017.
 
 ### Implementation for User Story 2
 
-- [ ] T019 [US2] Confirm `src/cetools/engine/ships/description.py` needs no change by running `uv run pytest tests/test_ship_description.py -v --no-cov` and `uv run cetools ship generate --seed 42`, checking the fuel sentence reads "one Jump-N jump" and never "zero" (quickstart.md Scenario 2)
+- [X] T019 [US2] Confirm `src/cetools/engine/ships/description.py` needs no change by running `uv run pytest tests/test_ship_description.py -v --no-cov` and `uv run cetools ship generate --seed 42`, checking the fuel sentence reads "one Jump-N jump" and never "zero" (quickstart.md Scenario 2)
+  - 230 passed. `--seed 42` (Swordfish, 400-ton hull) reads "... supports the power plant for two weeks and one Jump-6 jump." No source change to `description.py`.
 
 **Checkpoint**: The prose is honest. US1 and US2 both hold independently.
 
@@ -145,18 +148,27 @@ confirm it builds unaltered.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T020 [P] [US3] Add the SC-006 determinism test to `tests/test_ship_generator.py`: over the sweep, assert `generate_ship(RandomRolls.seeded(n)) == generate_ship(RandomRolls.seeded(n))` on the standard-hull path, the small-craft path and the hull-constrained path alike
-- [ ] T021 [P] [US3] Add the SC-005 small-craft test to `tests/test_ship_generator.py`: for every seed in the sweep, assert `dump_design(generate_ship(RandomRolls.seeded(n), small_craft=True).design)` equals that seed's entry under the `"small_craft"` key of `specs/013-fuel-limited-jump-drive/baseline/pre_change_sweep.json` (T002), proving FR-010
-- [ ] T022 [P] [US3] Add the SC-009 hull-size test to `tests/test_ship_generator.py`: over the sweep, assert every ship generated with `hull_size=n` has `ship.hull_tons == n` (FR-011)
-- [ ] T023 [P] [US3] Add the FR-012 / SC-010 authored-design test to `tests/test_ship_builder.py`: build a `ShipDesign` whose `jump_distance` is explicitly below one full jump at its drive's rating and assert `build_ship` produces exactly that ship, never a silently corrected one; then assert that all six authored example TOMLs build to `Ship` values field-equal to the ones recorded in `specs/013-fuel-limited-jump-drive/baseline/authored_designs.json` (T003), covering SC-010's "every design in the repository's authored example designs" rather than the free-trader alone
-- [ ] T024 [US3] Add a `RecordingRolls` wrapper to `tests/test_ship_generator.py` — a `Rolls` decorator that records each `RollName` drawn, defined in `tests/` and **not** in `src/cetools/engine/rolls.py` (research.md Part G, Constitution's no-abstraction-until-a-second-caller posture)
-- [ ] T025 [US3] Add the SC-008 draw-order test to `tests/test_ship_generator.py` using `RecordingRolls`: over a seed sweep on both the standard-hull and small-craft paths, assert `RollName.SHIP_NAME` is the final recorded draw and is drawn exactly once, and that `SHIP_JUMP_CODE`, `SHIP_MANEUVER_CODE` and `SHIP_POWER_CODE` appear in that order; do **not** assert a stable total draw count, which FR-008 explicitly does not promise
+- [X] T020 [P] [US3] Add the SC-006 determinism test to `tests/test_ship_generator.py`: over the sweep, assert `generate_ship(RandomRolls.seeded(n)) == generate_ship(RandomRolls.seeded(n))` on the standard-hull path, the small-craft path and the hull-constrained path alike
+  - Added `test_sc006_generation_is_deterministic_on_every_path` over 2000 seeds, comparing two independently seeded generations on all three paths (standard, `small_craft=True`, `hull_size=400`).
+- [X] T021 [P] [US3] Add the SC-005 small-craft test to `tests/test_ship_generator.py`: for every seed in the sweep, assert `dump_design(generate_ship(RandomRolls.seeded(n), small_craft=True).design)` equals that seed's entry under the `"small_craft"` key of `specs/013-fuel-limited-jump-drive/baseline/pre_change_sweep.json` (T002), proving FR-010
+  - Added `test_sc005_small_craft_output_is_unchanged_from_before_the_change`, comparing all 2000 pre-change small-craft dumps byte for byte. Passed immediately: the small-craft path is untouched by this feature.
+- [X] T022 [P] [US3] Add the SC-009 hull-size test to `tests/test_ship_generator.py`: over the sweep, assert every ship generated with `hull_size=n` has `ship.hull_tons == n` (FR-011)
+  - Added `test_sc009_hull_size_is_always_honoured`, sweeping every tabulated hull size (all 18) over 10 seeds each.
+- [X] T023 [P] [US3] Add the FR-012 / SC-010 authored-design test to `tests/test_ship_builder.py`: build a `ShipDesign` whose `jump_distance` is explicitly below one full jump at its drive's rating and assert `build_ship` produces exactly that ship, never a silently corrected one; then assert that all six authored example TOMLs build to `Ship` values field-equal to the ones recorded in `specs/013-fuel-limited-jump-drive/baseline/authored_designs.json` (T003), covering SC-010's "every design in the repository's authored example designs" rather than the free-trader alone
+  - Added `test_fr012_an_authored_short_legged_design_builds_exactly_as_written` (hull 200, drive `C` at Jump-3, `jump_distance=1`, asserting the ship keeps distance 1 and 20 tons of fuel) and a parametrized `test_sc010_authored_example_designs_build_unchanged_from_before_the_change` over all six authored TOMLs, using a local recursive dataclass/Enum/tuple-to-JSON `_to_jsonable` helper to compare against `baseline/authored_designs.json`.
+- [X] T024 [US3] Add a `RecordingRolls` wrapper to `tests/test_ship_generator.py` — a `Rolls` decorator that records each `RollName` drawn, defined in `tests/` and **not** in `src/cetools/engine/rolls.py` (research.md Part G, Constitution's no-abstraction-until-a-second-caller posture)
+  - Added `RecordingRolls`, wrapping any `Rolls` and appending the drawn `RollName` to `.drawn` on every one of the four `Rolls` verbs.
+- [X] T025 [US3] Add the SC-008 draw-order test to `tests/test_ship_generator.py` using `RecordingRolls`: over a seed sweep on both the standard-hull and small-craft paths, assert `RollName.SHIP_NAME` is the final recorded draw and is drawn exactly once, and that `SHIP_JUMP_CODE`, `SHIP_MANEUVER_CODE` and `SHIP_POWER_CODE` appear in that order; do **not** assert a stable total draw count, which FR-008 explicitly does not promise
+  - Added `test_sc008_ship_name_is_the_final_draw_and_is_drawn_exactly_once_on_both_paths` (50 seeds x both paths) and `test_sc008_drive_codes_are_drawn_jump_then_maneuver_then_power` (standard path asserts jump < maneuver < power; small-craft path asserts maneuver < power and that `SHIP_JUMP_CODE` never appears, since small craft draws no jump drive).
 
 ### Implementation for User Story 3
 
-- [ ] T026 [US3] Delete `test_naming_is_purely_additive_against_the_pre_feature_baseline` and the `_BASELINE_PATH` constant from `tests/test_ship_generator.py` (lines 13 and 139–157), which this feature legitimately invalidates for 54% of seeds; leave `specs/012-ship-names/baseline/designs.json` in the repository as history
-- [ ] T027 [US3] Generate the re-pinned stability anchor `specs/013-fuel-limited-jump-drive/baseline/designs.json` from the post-change generator over the same seed set the 012 baseline used, and add a test to `tests/test_ship_generator.py` comparing seeded designs against it — a blunt regression net for *future* features, not for this one
-- [ ] T028 [US3] Run `uv run pytest tests/test_ship_generator.py tests/test_ship_builder.py tests/test_ship_design.py -v --no-cov` and the quickstart.md Scenario 3 free-trader one-liner, confirming all pass and the Beowulf's figures have not moved
+- [X] T026 [US3] Delete `test_naming_is_purely_additive_against_the_pre_feature_baseline` and the `_BASELINE_PATH` constant from `tests/test_ship_generator.py` (lines 13 and 139–157), which this feature legitimately invalidates for 54% of seeds; leave `specs/012-ship-names/baseline/designs.json` in the repository as history
+  - Deleted both; the now-unused `dataclasses` import was removed with it. `specs/012-ship-names/baseline/designs.json` untouched.
+- [X] T027 [US3] Generate the re-pinned stability anchor `specs/013-fuel-limited-jump-drive/baseline/designs.json` from the post-change generator over the same seed set the 012 baseline used, and add a test to `tests/test_ship_generator.py` comparing seeded designs against it — a blunt regression net for *future* features, not for this one
+  - Generated via a throwaway script (not committed) over seeds 0-49 on both paths (100 entries, keyed `standard:<seed>` / `small_craft:<seed>`, same scheme as the 012 baseline), written to `specs/013-fuel-limited-jump-drive/baseline/designs.json`. Added `test_sc008_re_pinned_baseline_pins_seeded_designs_for_future_features` comparing against it.
+- [X] T028 [US3] Run `uv run pytest tests/test_ship_generator.py tests/test_ship_builder.py tests/test_ship_design.py -v --no-cov` and the quickstart.md Scenario 3 free-trader one-liner, confirming all pass and the Beowulf's figures have not moved
+  - 234 passed. Free-trader one-liner: `total_cost=29.772 cargo_tons=135.0 crew.total=5` — unmoved.
 
 **Checkpoint**: All three user stories hold independently. Determinism, small craft and authored
 designs are provably undisturbed.
@@ -167,13 +179,20 @@ designs are provably undisturbed.
 
 **Purpose**: Documentation, docstrings and the full quality gate.
 
-- [ ] T029 [P] Update the generator section of `README.md` to state the one-jump guarantee: a randomly generated starship always carries fuel for at least one complete jump at its installed rating, and the lightest drive at a rating is always the one installed
-- [ ] T030 [P] Update the ship-generator vocabulary in `CONTEXT.md` to name fuel-limited drive selection, and record that the correction is generation policy which `builder.py` deliberately does not apply to authored designs
-- [ ] T031 [P] Update the baseline-guard docstring references in `src/cetools/engine/ships/names.py` (lines 11 and 18) and `src/cetools/engine/ships/generator.py` (line 355) to point at the SC-008 draw-order test and `specs/013-fuel-limited-jump-drive/baseline/designs.json` instead of the retired 012 pinned-design test
-- [ ] T032 Run `uv run python specs/013-fuel-limited-jump-drive/scripts/survey_drive_fit.py` and confirm it exits 0 with `PASS` and every counted line reading 0 (quickstart.md Scenario 0, green)
-- [ ] T033 Confirm the performance budget still holds by running `uv run pytest tests/test_ship_generator.py -k "tenth_of_a_second" -v --no-cov`; the fit search scans at most 24 letters and must remain immeasurable against the existing cost
-- [ ] T034 Run the full quality gate from AGENTS.md: `uv run black . && uv run flake8 src tests && uv run pytest && uv run python scripts/check_docs.py`, confirming pytest is green with `src/cetools` coverage at or above 85% and `check_docs.py` clean across the T029–T031 edits
-- [ ] T035 Walk quickstart.md Scenarios 0 through 5 end to end and confirm each produces its documented expected output
+- [X] T029 [P] Update the generator section of `README.md` to state the one-jump guarantee: a randomly generated starship always carries fuel for at least one complete jump at its installed rating, and the lightest drive at a rating is always the one installed
+  - Added a paragraph after the `generate_ship` determinism example stating the one-jump guarantee and the lightest-drive rule, and that `build_ship` deliberately does not second-guess an authored design this way.
+- [X] T030 [P] Update the ship-generator vocabulary in `CONTEXT.md` to name fuel-limited drive selection, and record that the correction is generation policy which `builder.py` deliberately does not apply to authored designs
+  - Added a **Fuel-limited drive selection** term ahead of `ShipDesign` in the Domain section.
+- [X] T031 [P] Update the baseline-guard docstring references in `src/cetools/engine/ships/names.py` (lines 11 and 18) and `src/cetools/engine/ships/generator.py` (line 355) to point at the SC-008 draw-order test and `specs/013-fuel-limited-jump-drive/baseline/designs.json` instead of the retired 012 pinned-design test
+  - Both docstrings now name `test_sc008_ship_name_is_the_final_draw_and_is_drawn_exactly_once_on_both_paths` and the re-pinned `specs/013-fuel-limited-jump-drive/baseline/designs.json` in place of the retired `specs/012-ship-names/baseline/designs.json` test.
+- [X] T032 Run `uv run python specs/013-fuel-limited-jump-drive/scripts/survey_drive_fit.py` and confirm it exits 0 with `PASS` and every counted line reading 0 (quickstart.md Scenario 0, green)
+  - Exit 0, `PASS`, every counted line reads 0.
+- [X] T033 Confirm the performance budget still holds by running `uv run pytest tests/test_ship_generator.py -k "tenth_of_a_second" -v --no-cov`; the fit search scans at most 24 letters and must remain immeasurable against the existing cost
+  - Both timing tests pass.
+- [X] T034 Run the full quality gate from AGENTS.md: `uv run black . && uv run flake8 src tests && uv run pytest && uv run python scripts/check_docs.py`, confirming pytest is green with `src/cetools` coverage at or above 85% and `check_docs.py` clean across the T029–T031 edits
+  - Black clean, flake8 silent, 2862 passed, `src/cetools` coverage 99.17%, `check_docs.py` clean.
+- [X] T035 Walk quickstart.md Scenarios 0 through 5 end to end and confirm each produces its documented expected output
+  - All six scenarios (0–5) matched their documented expected output. Fixed a stale `-k` filter in quickstart.md Scenario 4 (`"draw_order or name_draw"` → `"sc008"`), which selected zero tests against the tests actually written in Phase 5.
 
 ---
 

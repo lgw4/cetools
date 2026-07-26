@@ -1,17 +1,16 @@
-import dataclasses
 import json
 import time
 
 import pytest
 
-from cetools.engine.rolls import RandomRolls, RollName, ScriptedRolls
+from cetools.engine.rolls import RandomRolls, RollName, Rolls, ScriptedRolls
 from cetools.engine.ships import SHIP_NAMES, build_ship, dump_design, load_design, loads_design
 from cetools.engine.ships.generator import generate_ship
 from cetools.engine.ships.tables import DRIVE_COSTS, DRIVE_PERFORMANCE, HULLS
 
 _CATALOGUE_NAMES = {entry.name for entry in SHIP_NAMES}
-_BASELINE_PATH = "specs/012-ship-names/baseline/designs.json"
 _PRE_CHANGE_SWEEP_PATH = "specs/013-fuel-limited-jump-drive/baseline/pre_change_sweep.json"
+_POST_CHANGE_BASELINE_PATH = "specs/013-fuel-limited-jump-drive/baseline/designs.json"
 
 # --- ScriptedRolls pins a known component selection to an exact Ship ---
 
@@ -132,30 +131,6 @@ def test_generated_ship_names_across_seeds_are_not_forced_to_match():
 def test_generated_ships_over_a_pinned_seed_set_are_mostly_distinct():
     names = [generate_ship(RandomRolls.seeded(seed)).design.name for seed in range(20)]
     assert len(set(names)) >= 17
-
-
-# --- T019 (US2, gates T015/T016): naming is purely additive (FR-010a, SC-008) ---
-
-
-def test_naming_is_purely_additive_against_the_pre_feature_baseline():
-    # T019: gates T015/T016. `baseline/designs.json` was captured at commit
-    # d387b70, before this feature existed, and MUST NOT be regenerated
-    # (research.md Part A). This proves the name draw lands strictly after
-    # every other draw on both paths: clearing the name from a freshly
-    # generated design must reproduce the pre-feature dump byte for byte.
-    with open(_BASELINE_PATH, encoding="utf-8") as handle:
-        baseline = json.load(handle)
-
-    for key, recorded_toml in baseline.items():
-        path, seed_text = key.split(":")
-        seed = int(seed_text)
-        small_craft = path == "small_craft"
-
-        ship = generate_ship(RandomRolls.seeded(seed), small_craft=small_craft)
-        assert ship.design.name is not None, f"{key}: expected a catalogue name"
-
-        unnamed = dump_design(dataclasses.replace(ship.design, name=None))
-        assert unnamed == recorded_toml, f"{key}: ship moved off its pre-feature baseline"
 
 
 # --- US3: small craft (research.md Part K) ---
@@ -470,6 +445,105 @@ def test_sc003_allocated_tonnage_never_overruns_the_hull():
         ship = generate_ship(RandomRolls.seeded(seed))
         assert ship.cargo_tons >= 0
         assert ship.tonnage_used <= ship.hull_tons
+
+
+# --- Phase 5, User Story 3: determinism, small craft and authored designs
+# stay predictable (FR-009..FR-012, SC-005, SC-006, SC-008, SC-009).
+
+
+def test_sc006_generation_is_deterministic_on_every_path():
+    for seed in range(2000):
+        assert generate_ship(RandomRolls.seeded(seed)) == generate_ship(RandomRolls.seeded(seed))
+        assert generate_ship(RandomRolls.seeded(seed), small_craft=True) == generate_ship(
+            RandomRolls.seeded(seed), small_craft=True
+        )
+        assert generate_ship(RandomRolls.seeded(seed), hull_size=400) == generate_ship(
+            RandomRolls.seeded(seed), hull_size=400
+        )
+
+
+def test_sc005_small_craft_output_is_unchanged_from_before_the_change():
+    with open(_PRE_CHANGE_SWEEP_PATH, encoding="utf-8") as handle:
+        baseline = json.load(handle)["small_craft"]
+
+    for seed_text, expected_toml in baseline.items():
+        seed = int(seed_text)
+        ship = generate_ship(RandomRolls.seeded(seed), small_craft=True)
+        assert dump_design(ship.design) == expected_toml
+
+
+def test_sc009_hull_size_is_always_honoured():
+    for hull_tons in sorted(HULLS):
+        for seed in range(10):
+            ship = generate_ship(RandomRolls.seeded(seed), hull_size=hull_tons)
+            assert ship.hull_tons == hull_tons
+
+
+class RecordingRolls:
+    """Wraps another `Rolls` and records every `RollName` drawn, in order.
+
+    Serves one test (SC-008's draw-order guard) and no production caller, so
+    it lives here rather than in `engine/rolls.py` (research.md Part G)."""
+
+    def __init__(self, wrapped: Rolls) -> None:
+        self._wrapped = wrapped
+        self.drawn: list[RollName] = []
+
+    def check(self, dm: int, target: int, name: RollName) -> bool:
+        self.drawn.append(name)
+        return self._wrapped.check(dm, target, name)
+
+    def two_d6(self, name: RollName) -> int:
+        self.drawn.append(name)
+        return self._wrapped.two_d6(name)
+
+    def d6(self, name: RollName) -> int:
+        self.drawn.append(name)
+        return self._wrapped.d6(name)
+
+    def choose(self, items, name: RollName):
+        self.drawn.append(name)
+        return self._wrapped.choose(items, name)
+
+
+def test_sc008_ship_name_is_the_final_draw_and_is_drawn_exactly_once_on_both_paths():
+    for seed in range(50):
+        for small_craft in (False, True):
+            recorder = RecordingRolls(RandomRolls.seeded(seed))
+            generate_ship(recorder, small_craft=small_craft)
+            assert recorder.drawn[-1] == RollName.SHIP_NAME
+            assert recorder.drawn.count(RollName.SHIP_NAME) == 1
+
+
+def test_sc008_drive_codes_are_drawn_jump_then_maneuver_then_power():
+    for seed in range(50):
+        recorder = RecordingRolls(RandomRolls.seeded(seed))
+        generate_ship(recorder)
+        jump_at = recorder.drawn.index(RollName.SHIP_JUMP_CODE)
+        maneuver_at = recorder.drawn.index(RollName.SHIP_MANEUVER_CODE)
+        power_at = recorder.drawn.index(RollName.SHIP_POWER_CODE)
+        assert jump_at < maneuver_at < power_at
+
+    for seed in range(50):
+        recorder = RecordingRolls(RandomRolls.seeded(seed))
+        generate_ship(recorder, small_craft=True)
+        assert RollName.SHIP_JUMP_CODE not in recorder.drawn
+        maneuver_at = recorder.drawn.index(RollName.SHIP_MANEUVER_CODE)
+        power_at = recorder.drawn.index(RollName.SHIP_POWER_CODE)
+        assert maneuver_at < power_at
+
+
+def test_sc008_re_pinned_baseline_pins_seeded_designs_for_future_features():
+    # A blunt regression net for *future* features, not this one — the data
+    # was generated from this feature's own post-change generator (T027).
+    with open(_POST_CHANGE_BASELINE_PATH, encoding="utf-8") as handle:
+        baseline = json.load(handle)
+
+    for key, expected_toml in baseline.items():
+        path, seed_text = key.split(":")
+        seed = int(seed_text)
+        ship = generate_ship(RandomRolls.seeded(seed), small_craft=path == "small_craft")
+        assert dump_design(ship.design) == expected_toml, f"{key}: moved off the pinned baseline"
 
 
 # --- SC-007: a single build or generation is effectively instant ---
