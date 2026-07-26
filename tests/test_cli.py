@@ -753,11 +753,10 @@ def test_character_seed_with_count_fixes_the_whole_sequence():
 
 # --- `cetools ship build` (T018) ---
 
-_FREE_TRADER_TOML = "specs/010-starship-generator/examples/free-trader.toml"
+_FREE_TRADER_TOML = "tests/data/ships/free-trader.toml"
 
 
-# The worked example at the end of
-# specs/011-universal-ship-format/contracts/description-format.md, verbatim.
+# The SRD's worked free-trader example, verbatim.
 _BEOWULF_PARAGRAPH = (
     "Using a 200-ton hull (4 Hull, 4 Structure), the Beowulf is a starship. It mounts jump "
     "drive A, maneuver drive A and power plant A, giving a performance of Jump-1 and 1-G "
@@ -794,7 +793,7 @@ def test_ship_build_free_trader_matches_the_worked_example():
 
 
 def test_ship_build_renders_an_authored_purpose_and_tech_level():
-    path = "specs/011-universal-ship-format/examples/subsidized-merchant.toml"
+    path = "tests/data/ships/subsidized-merchant.toml"
     result = runner.invoke(app, ["ship", "build", path])
     assert result.exit_code == 0
 
@@ -966,7 +965,7 @@ def test_ship_generate_small_craft_hull_100_out_of_range_exits_1():
 
 # --- small craft descriptions (T045, FR-026, FR-027) ---
 
-_FIGHTER_TOML = "specs/010-starship-generator/examples/fighter.toml"
+_FIGHTER_TOML = "tests/data/ships/fighter.toml"
 
 
 def test_ship_generate_small_craft_prints_a_jump_free_description():

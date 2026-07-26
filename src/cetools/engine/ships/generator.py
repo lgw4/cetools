@@ -6,14 +6,14 @@ that is legal by construction: tonnage is tracked against a running budget so
 no candidate is ever chosen that would over-allocate the hull. Ends by calling
 `build_ship`, so a generated ship can never be rules-illegal (FR-016, SC-003).
 
-`small_craft=True` selects under the small-craft ruleset (research.md Part K):
-a 10-95 ton hull, a cockpit instead of a bridge, no jump drive, and turret
-weapons constrained to the power plant's energy-weapon cap. Maneuver and power
-drive codes are chosen together, since a small hull's tight tonnage budget
+`small_craft=True` selects under the small-craft ruleset (SRD "Small Craft
+Design"): a 10-95 ton hull, a cockpit instead of a bridge, no jump drive, and
+turret weapons constrained to the power plant's energy-weapon cap. Maneuver and
+power drive codes are chosen together, since a small hull's tight tonnage budget
 means the choice must be filtered for affordability up front rather than
 corrected after the fact (unlike the starship path's looser margins).
 
-Bays and screens (research.md Part H, FR-020) are only ever offered on the
+Bays and screens (SRD "Bays" and "Screens", FR-020) are only ever offered on the
 standard-hull path, and only among kinds that fit the hardpoints and tonnage
 still free after turrets are chosen—never on small craft, which forbid bays
 outright.
@@ -121,7 +121,7 @@ def _codes_valid_for_hull(hull_tons: int) -> list[str]:
 
 def _fit_jump_drive(hull_tons: int, drawn_code: str, budget: float) -> str:
     """The lightest jump drive affording the highest rating `budget` buys,
-    never rated above `drawn_code`, per contracts/jump-drive-fit.md.
+    never rated above `drawn_code`.
 
     Total: `drawn_code` is itself legal for `hull_tons`, so a candidate always
     exists at every rating up to its own—step 4 never has to look further.
@@ -381,7 +381,7 @@ def generate_ship(
     additive.
     `test_sc008_ship_name_is_the_final_draw_and_is_drawn_exactly_once_on_both_paths`
     in `tests/test_ship_generator.py` asserts this directly, and
-    `specs/013-fuel-limited-jump-drive/baseline/designs.json` re-pins a
+    `tests/data/baseline/designs.json` re-pins a
     seed-to-ship anchor for future features, failing loudly, naming the seed,
     if a future edit ever moves the name draw off the end of a path (see
     `engine/ships/names.py`'s docstring).

@@ -5,14 +5,14 @@ docstring first.
 
 First, **the draw stays last.** `generate_ship_name` is called as the final
 `Rolls` draw on every `generate_ship` path, after every other decision a seed
-makes (research.md Part A). `RandomRolls` wraps a single `random.Random`
-stream, so a draw inserted anywhere but the end shifts every later draw and
-changes the hull, drives and armament a seed produces.
+makes. `RandomRolls` wraps a single `random.Random` stream, so a draw inserted
+anywhere but the end shifts every later draw and changes the hull, drives and
+armament a seed produces.
 `test_sc008_ship_name_is_the_final_draw_and_is_drawn_exactly_once_on_both_paths`
 in `tests/test_ship_generator.py` pins this directly, and
-`specs/013-fuel-limited-jump-drive/baseline/designs.json` is a re-pinned
-seed-to-ship anchor for future features, failing loudly, naming the seed, if a
-future change ever moves the name draw off the end of a path.
+`tests/data/baseline/designs.json` is a re-pinned seed-to-ship anchor for future
+features, failing loudly, naming the seed, if a future change ever moves the
+name draw off the end of a path.
 
 Second, **two different mappings, two different stability guarantees**
 (FR-010b). The seed-to-*ship* mapping, every field but `name`, is a
@@ -74,9 +74,9 @@ class ShipName:
 
 
 SHIP_NAMES: tuple[ShipName, ...] = (
-    # -- Mythology and folklore (research.md C3): no basis, the tradition is
-    # -- its own warrant. Grouped loosely by source culture for readability;
-    # -- the grouping carries no meaning (data-model.md SHIP_NAMES).
+    # -- Mythology and folklore: no basis, the tradition is its own warrant.
+    # -- Grouped loosely by source culture for readability; the grouping
+    # -- carries no meaning.
     ShipName(name="Beowulf", tradition=Tradition.MYTHOLOGY_FOLKLORE),
     # Greek and Roman
     ShipName(name="Achilles", tradition=Tradition.MYTHOLOGY_FOLKLORE),
@@ -167,7 +167,7 @@ SHIP_NAMES: tuple[ShipName, ...] = (
     ShipName(name="Xolotl", tradition=Tradition.MYTHOLOGY_FOLKLORE),
     ShipName(name="Itzamna", tradition=Tradition.MYTHOLOGY_FOLKLORE),
     ShipName(name="Ixchel", tradition=Tradition.MYTHOLOGY_FOLKLORE),
-    # -- Written science fiction (research.md C3, FR-016): every entry earns
+    # -- Written science fiction (FR-016): every entry earns
     # -- its place on a real vessel, an ordinary word or a public-domain
     # -- borrowing (FR-016a), reviewed for truth in T029. A name mythology
     # -- already claims (Pegasus, Prometheus, Erebus, ...) stays there
@@ -175,7 +175,7 @@ SHIP_NAMES: tuple[ShipName, ...] = (
     # --
     # -- `basis_*` records why a name is safe to catalogue (FR-016a), not
     # -- where it comes from. Where an entry's *tradition* was queried and
-    # -- confirmed (tasks.md T038), a comment above it names the source
+    # -- confirmed, a comment above it names the source
     # -- vessel, since no field carries that and no test can check it.
     ShipName(
         name="Endeavour",
@@ -436,7 +436,7 @@ SHIP_NAMES: tuple[ShipName, ...] = (
         basis_kind=BasisKind.ORDINARY_WORD,
         basis_reference="vanguard: the foremost part of an advancing group",
     ),
-    # -- Science fiction film and television (research.md C3, FR-016): the
+    # -- Science fiction film and television (FR-016): the
     # -- pool leans on real-vessel and ordinary-word names for the same
     # -- reason as written SF; coined franchise names (Millennium Falcon,
     # -- Tantive IV, Executor) are excluded (FR-016). Mythological names stay

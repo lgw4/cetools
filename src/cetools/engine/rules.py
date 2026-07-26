@@ -7,8 +7,7 @@ from dataclasses import dataclass
 class Rules:
     """Which rules a character is generated under.
 
-    cetools departs from the SRD in two places, both settled in
-    `specs/002-scout-career-character/spec.md`. They travel together as a policy
+    cetools departs from the SRD in two places. They travel together as a policy
     rather than as loose flags, so the two nonsense combinations cannot be asked
     for.
     """

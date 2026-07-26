@@ -62,7 +62,7 @@ def test_render_profile_round_trips_via_pseudohex():
     assert from_pseudohex(tech_level_char) == world.tech_level
 
 
-# --- Full world-data line (Phase 4 / US2, research.md D5) ---
+# --- Full world-data line (Phase 4 / US2) ---
 
 
 def _line_world(**overrides):

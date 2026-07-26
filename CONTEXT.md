@@ -27,8 +27,7 @@ the only thing that decides whether a character is `drafted`—so a "drafted
 random" character cannot be asked for.
 
 **Rules**—which rules a character is generated under. cetools departs from the
-SRD in exactly two places, both settled in
-`specs/002-scout-career-character/spec.md`, and they travel together as a policy
+SRD in exactly two places, and they travel together as a policy
 rather than as loose flags:
 
 | | `HOUSE` (the default) | `SRD` |
@@ -114,8 +113,8 @@ arrive already knowing what they are.
 **UPP**—the six characteristics encoded in pseudo-hex. A psionic character's
 Psi strength is appended after a hyphen.
 
-**Ship design**—the Cepheus Engine SRD "Ship Design and Construction" rules, digested in
-`specs/010-starship-generator/research.md`. Where the SRD defers a step to referee discretion—crew
+**Ship design**—the Cepheus Engine SRD "Ship Design and Construction" rules.
+Where the SRD defers a step to referee discretion—crew
 role assignment beyond the stated minimums, mission-specific fittings—cetools invents nothing: those
 steps are out of automated scope and documented here as omitted (FR-002). The same discipline
 applies to catalog entries the SRD names but never prices: a beam laser is named in the Turret

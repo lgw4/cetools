@@ -31,11 +31,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# The docs we maintain. docs/superpowers/ holds the historical plans and specs of
-# past features: they are a record of what was decided at the time, not a
-# description of the code as it stands, so they are deliberately not checked.
+# The docs we maintain.
 DOCS = ("README.md", "CONTEXT.md", "CONTRIBUTING.md", "AGENTS.md")
-PROSE = [ROOT / doc for doc in DOCS] + sorted(ROOT.glob("docs/adr/*.md"))
+PROSE = [ROOT / doc for doc in DOCS]
 SOURCES = sorted((ROOT / "src").rglob("*.py"))
 ENGINE = ROOT / "src" / "cetools" / "engine"
 

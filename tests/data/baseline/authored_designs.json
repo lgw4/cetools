@@ -1,0 +1,911 @@
+{
+  "tests/data/ships/fighter.toml": {
+    "armor_protection": 0,
+    "assumed_jump_distance": 0,
+    "build_weeks": 31,
+    "cargo_tons": 6.200000000000003,
+    "configuration": "standard",
+    "crew": {
+      "engineers": 1,
+      "gunners": 1,
+      "medic": 0,
+      "navigator": 1,
+      "pilot": 1,
+      "screen_operators": 0,
+      "stewards": 0
+    },
+    "design": {
+      "armor": [],
+      "bays": [],
+      "bridge": false,
+      "cockpit": "1_man",
+      "computer": null,
+      "configuration": "standard",
+      "electronics": null,
+      "emergency_low_berths": 0,
+      "fittings": [],
+      "hull_class": "small_craft",
+      "hull_tons": 40,
+      "jump_code": null,
+      "jump_distance": null,
+      "low_berths": 0,
+      "maneuver_code": "sB",
+      "name": "Wasp",
+      "passengers_high": 0,
+      "passengers_middle": 0,
+      "power_code": "sG",
+      "power_weeks": 1,
+      "purpose": null,
+      "screens": [],
+      "standard_design": false,
+      "staterooms": 0,
+      "tech_level": null,
+      "turrets": [
+        {
+          "ammo": [],
+          "mount": "fixed",
+          "weapons": [
+            "pulse_laser"
+          ]
+        }
+      ]
+    },
+    "hardpoints": 1,
+    "hardpoints_used": 1,
+    "hull_points": 0,
+    "hull_tons": 40,
+    "jump_fuel": 0.0,
+    "jump_rating": 0,
+    "line_items": [
+      {
+        "cost": 1.4,
+        "discountable": true,
+        "name": "hull",
+        "tons": 0.0
+      },
+      {
+        "cost": 8,
+        "discountable": true,
+        "name": "maneuver drive sB",
+        "tons": 3
+      },
+      {
+        "cost": 56,
+        "discountable": true,
+        "name": "power plant sG",
+        "tons": 22
+      },
+      {
+        "cost": 0.0,
+        "discountable": false,
+        "name": "jump fuel",
+        "tons": 0.0
+      },
+      {
+        "cost": 0.0,
+        "discountable": false,
+        "name": "power plant fuel",
+        "tons": 7.3
+      },
+      {
+        "cost": 0.2,
+        "discountable": true,
+        "name": "1_man cockpit",
+        "tons": 1.5
+      },
+      {
+        "cost": 0.6,
+        "discountable": true,
+        "name": "fixed turret",
+        "tons": 0
+      }
+    ],
+    "maneuver_rating": 1,
+    "power_fuel": 7.3,
+    "power_rating": 3,
+    "structure_points": 1,
+    "tech_level": 8,
+    "tonnage_used": 33.8,
+    "total_cost": 66.2
+  },
+  "tests/data/ships/free-trader.toml": {
+    "armor_protection": 0,
+    "assumed_jump_distance": 1,
+    "build_weeks": 44,
+    "cargo_tons": 135.0,
+    "configuration": "standard",
+    "crew": {
+      "engineers": 1,
+      "gunners": 0,
+      "medic": 1,
+      "navigator": 1,
+      "pilot": 1,
+      "screen_operators": 0,
+      "stewards": 1
+    },
+    "design": {
+      "armor": [],
+      "bays": [],
+      "bridge": true,
+      "cockpit": null,
+      "computer": {
+        "hardened": false,
+        "jump_control": false,
+        "model": 1,
+        "software": []
+      },
+      "configuration": "standard",
+      "electronics": null,
+      "emergency_low_berths": 0,
+      "fittings": [
+        {
+          "kind": "fuel_processor",
+          "quantity": 1,
+          "vehicle_tons": null
+        }
+      ],
+      "hull_class": "starship",
+      "hull_tons": 200,
+      "jump_code": "A",
+      "jump_distance": null,
+      "low_berths": 0,
+      "maneuver_code": "A",
+      "name": "Beowulf",
+      "passengers_high": 0,
+      "passengers_middle": 2,
+      "power_code": "A",
+      "power_weeks": 2,
+      "purpose": null,
+      "screens": [],
+      "standard_design": true,
+      "staterooms": 4,
+      "tech_level": null,
+      "turrets": []
+    },
+    "hardpoints": 2,
+    "hardpoints_used": 0,
+    "hull_points": 4,
+    "hull_tons": 200,
+    "jump_fuel": 20.0,
+    "jump_rating": 1,
+    "line_items": [
+      {
+        "cost": 8.0,
+        "discountable": true,
+        "name": "hull",
+        "tons": 0.0
+      },
+      {
+        "cost": 4,
+        "discountable": true,
+        "name": "maneuver drive A",
+        "tons": 2
+      },
+      {
+        "cost": 10,
+        "discountable": true,
+        "name": "jump drive A",
+        "tons": 10
+      },
+      {
+        "cost": 8,
+        "discountable": true,
+        "name": "power plant A",
+        "tons": 4
+      },
+      {
+        "cost": 0.0,
+        "discountable": false,
+        "name": "jump fuel",
+        "tons": 20.0
+      },
+      {
+        "cost": 0.0,
+        "discountable": false,
+        "name": "power plant fuel",
+        "tons": 2
+      },
+      {
+        "cost": 1.0,
+        "discountable": true,
+        "name": "bridge",
+        "tons": 10
+      },
+      {
+        "cost": 0.03,
+        "discountable": true,
+        "name": "computer model/1",
+        "tons": 0.0
+      },
+      {
+        "cost": 2.0,
+        "discountable": true,
+        "name": "stateroom",
+        "tons": 16
+      },
+      {
+        "cost": 0.05,
+        "discountable": true,
+        "name": "fuel_processor",
+        "tons": 1
+      }
+    ],
+    "maneuver_rating": 1,
+    "power_fuel": 2,
+    "power_rating": 1,
+    "structure_points": 4,
+    "tech_level": 8,
+    "tonnage_used": 65.0,
+    "total_cost": 29.772
+  },
+  "tests/data/ships/heavy-cruiser.toml": {
+    "armor_protection": 0,
+    "assumed_jump_distance": 1,
+    "build_weeks": 108,
+    "cargo_tons": 698.0,
+    "configuration": "standard",
+    "crew": {
+      "engineers": 2,
+      "gunners": 1,
+      "medic": 0,
+      "navigator": 1,
+      "pilot": 1,
+      "screen_operators": 1,
+      "stewards": 0
+    },
+    "design": {
+      "armor": [],
+      "bays": [
+        {
+          "kind": "particle"
+        }
+      ],
+      "bridge": true,
+      "cockpit": null,
+      "computer": {
+        "hardened": false,
+        "jump_control": false,
+        "model": 2,
+        "software": []
+      },
+      "configuration": "standard",
+      "electronics": null,
+      "emergency_low_berths": 0,
+      "fittings": [],
+      "hull_class": "starship",
+      "hull_tons": 1000,
+      "jump_code": "E",
+      "jump_distance": null,
+      "low_berths": 0,
+      "maneuver_code": "E",
+      "name": "Dreadnought",
+      "passengers_high": 0,
+      "passengers_middle": 0,
+      "power_code": "E",
+      "power_weeks": 2,
+      "purpose": null,
+      "screens": [
+        {
+          "kind": "meson_screen"
+        }
+      ],
+      "standard_design": false,
+      "staterooms": 4,
+      "tech_level": null,
+      "turrets": []
+    },
+    "hardpoints": 10,
+    "hardpoints_used": 1,
+    "hull_points": 20,
+    "hull_tons": 1000,
+    "jump_fuel": 100.0,
+    "jump_rating": 1,
+    "line_items": [
+      {
+        "cost": 100.0,
+        "discountable": true,
+        "name": "hull",
+        "tons": 0.0
+      },
+      {
+        "cost": 20,
+        "discountable": true,
+        "name": "maneuver drive E",
+        "tons": 9
+      },
+      {
+        "cost": 50,
+        "discountable": true,
+        "name": "jump drive E",
+        "tons": 30
+      },
+      {
+        "cost": 40,
+        "discountable": true,
+        "name": "power plant E",
+        "tons": 16
+      },
+      {
+        "cost": 0.0,
+        "discountable": false,
+        "name": "jump fuel",
+        "tons": 100.0
+      },
+      {
+        "cost": 0.0,
+        "discountable": false,
+        "name": "power plant fuel",
+        "tons": 10
+      },
+      {
+        "cost": 5.0,
+        "discountable": true,
+        "name": "bridge",
+        "tons": 20
+      },
+      {
+        "cost": 0.16,
+        "discountable": true,
+        "name": "computer model/2",
+        "tons": 0.0
+      },
+      {
+        "cost": 2.0,
+        "discountable": true,
+        "name": "stateroom",
+        "tons": 16
+      },
+      {
+        "cost": 20,
+        "discountable": true,
+        "name": "particle bay",
+        "tons": 50
+      },
+      {
+        "cost": 0.0,
+        "discountable": true,
+        "name": "particle bay fire control",
+        "tons": 1.0
+      },
+      {
+        "cost": 60,
+        "discountable": true,
+        "name": "meson_screen screen",
+        "tons": 50
+      }
+    ],
+    "maneuver_rating": 1,
+    "power_fuel": 10,
+    "power_rating": 1,
+    "structure_points": 20,
+    "tech_level": 12,
+    "tonnage_used": 302.0,
+    "total_cost": 297.16
+  },
+  "tests/data/ships/scout-courier.toml": {
+    "armor_protection": 0,
+    "assumed_jump_distance": 2,
+    "build_weeks": 36,
+    "cargo_tons": 38.0,
+    "configuration": "streamlined",
+    "crew": {
+      "engineers": 1,
+      "gunners": 1,
+      "medic": 0,
+      "navigator": 0,
+      "pilot": 1,
+      "screen_operators": 0,
+      "stewards": 0
+    },
+    "design": {
+      "armor": [],
+      "bays": [],
+      "bridge": true,
+      "cockpit": null,
+      "computer": {
+        "hardened": false,
+        "jump_control": false,
+        "model": 2,
+        "software": [
+          {
+            "level": 2,
+            "name": "jump_control"
+          }
+        ]
+      },
+      "configuration": "streamlined",
+      "electronics": "basic_civilian",
+      "emergency_low_berths": 0,
+      "fittings": [
+        {
+          "kind": "fuel_scoops",
+          "quantity": 1,
+          "vehicle_tons": null
+        }
+      ],
+      "hull_class": "starship",
+      "hull_tons": 100,
+      "jump_code": "A",
+      "jump_distance": null,
+      "low_berths": 0,
+      "maneuver_code": "A",
+      "name": "Swift Wind",
+      "passengers_high": 0,
+      "passengers_middle": 0,
+      "power_code": "A",
+      "power_weeks": 2,
+      "purpose": null,
+      "screens": [],
+      "standard_design": false,
+      "staterooms": 3,
+      "tech_level": null,
+      "turrets": [
+        {
+          "ammo": [],
+          "mount": "single",
+          "weapons": [
+            "sandcaster"
+          ]
+        }
+      ]
+    },
+    "hardpoints": 1,
+    "hardpoints_used": 1,
+    "hull_points": 2,
+    "hull_tons": 100,
+    "jump_fuel": 20.0,
+    "jump_rating": 2,
+    "line_items": [
+      {
+        "cost": 2.2,
+        "discountable": true,
+        "name": "hull",
+        "tons": 0.0
+      },
+      {
+        "cost": 4,
+        "discountable": true,
+        "name": "maneuver drive A",
+        "tons": 2
+      },
+      {
+        "cost": 10,
+        "discountable": true,
+        "name": "jump drive A",
+        "tons": 10
+      },
+      {
+        "cost": 8,
+        "discountable": true,
+        "name": "power plant A",
+        "tons": 4
+      },
+      {
+        "cost": 0.0,
+        "discountable": false,
+        "name": "jump fuel",
+        "tons": 20.0
+      },
+      {
+        "cost": 0.0,
+        "discountable": false,
+        "name": "power plant fuel",
+        "tons": 2
+      },
+      {
+        "cost": 0.5,
+        "discountable": true,
+        "name": "bridge",
+        "tons": 10
+      },
+      {
+        "cost": 0.16,
+        "discountable": true,
+        "name": "computer model/2",
+        "tons": 0.0
+      },
+      {
+        "cost": 0.2,
+        "discountable": true,
+        "name": "jump_control software",
+        "tons": 0.0
+      },
+      {
+        "cost": 0.05,
+        "discountable": true,
+        "name": "electronics: basic_civilian",
+        "tons": 1
+      },
+      {
+        "cost": 1.5,
+        "discountable": true,
+        "name": "stateroom",
+        "tons": 12
+      },
+      {
+        "cost": 1,
+        "discountable": true,
+        "name": "fuel_scoops",
+        "tons": 0
+      },
+      {
+        "cost": 0.45,
+        "discountable": true,
+        "name": "single turret",
+        "tons": 1
+      }
+    ],
+    "maneuver_rating": 2,
+    "power_fuel": 2,
+    "power_rating": 2,
+    "structure_points": 2,
+    "tech_level": 9,
+    "tonnage_used": 62.0,
+    "total_cost": 28.06
+  },
+  "tests/data/ships/warship.toml": {
+    "armor_protection": 4,
+    "assumed_jump_distance": 1,
+    "build_weeks": 92,
+    "cargo_tons": 532.0,
+    "configuration": "standard",
+    "crew": {
+      "engineers": 2,
+      "gunners": 3,
+      "medic": 0,
+      "navigator": 1,
+      "pilot": 1,
+      "screen_operators": 0,
+      "stewards": 0
+    },
+    "design": {
+      "armor": [
+        {
+          "options": [],
+          "percent": 10,
+          "type": "titanium_steel"
+        }
+      ],
+      "bays": [],
+      "bridge": true,
+      "cockpit": null,
+      "computer": {
+        "hardened": true,
+        "jump_control": false,
+        "model": 4,
+        "software": [
+          {
+            "level": 2,
+            "name": "fire_control"
+          },
+          {
+            "level": 1,
+            "name": "evade"
+          }
+        ]
+      },
+      "configuration": "standard",
+      "electronics": "advanced",
+      "emergency_low_berths": 0,
+      "fittings": [
+        {
+          "kind": "armory",
+          "quantity": 1,
+          "vehicle_tons": null
+        }
+      ],
+      "hull_class": "starship",
+      "hull_tons": 800,
+      "jump_code": "D",
+      "jump_distance": null,
+      "low_berths": 0,
+      "maneuver_code": "D",
+      "name": "Ironclad",
+      "passengers_high": 0,
+      "passengers_middle": 0,
+      "power_code": "D",
+      "power_weeks": 2,
+      "purpose": null,
+      "screens": [],
+      "standard_design": true,
+      "staterooms": 6,
+      "tech_level": null,
+      "turrets": [
+        {
+          "ammo": [],
+          "mount": "double",
+          "weapons": [
+            "pulse_laser",
+            "pulse_laser"
+          ]
+        },
+        {
+          "ammo": [
+            {
+              "count": 20,
+              "kind": "sand_barrels",
+              "type": null
+            }
+          ],
+          "mount": "double",
+          "weapons": [
+            "particle_beam",
+            "sandcaster"
+          ]
+        },
+        {
+          "ammo": [
+            {
+              "count": 24,
+              "kind": "missile",
+              "type": "standard"
+            }
+          ],
+          "mount": "single",
+          "weapons": [
+            "missile_rack"
+          ]
+        }
+      ]
+    },
+    "hardpoints": 8,
+    "hardpoints_used": 3,
+    "hull_points": 16,
+    "hull_tons": 800,
+    "jump_fuel": 80.0,
+    "jump_rating": 1,
+    "line_items": [
+      {
+        "cost": 80.0,
+        "discountable": true,
+        "name": "hull",
+        "tons": 0.0
+      },
+      {
+        "cost": 8.0,
+        "discountable": true,
+        "name": "titanium_steel armor",
+        "tons": 80.0
+      },
+      {
+        "cost": 16,
+        "discountable": true,
+        "name": "maneuver drive D",
+        "tons": 7
+      },
+      {
+        "cost": 40,
+        "discountable": true,
+        "name": "jump drive D",
+        "tons": 25
+      },
+      {
+        "cost": 32,
+        "discountable": true,
+        "name": "power plant D",
+        "tons": 13
+      },
+      {
+        "cost": 0.0,
+        "discountable": false,
+        "name": "jump fuel",
+        "tons": 80.0
+      },
+      {
+        "cost": 0.0,
+        "discountable": false,
+        "name": "power plant fuel",
+        "tons": 8
+      },
+      {
+        "cost": 4.0,
+        "discountable": true,
+        "name": "bridge",
+        "tons": 20
+      },
+      {
+        "cost": 7.5,
+        "discountable": true,
+        "name": "computer model/4",
+        "tons": 0.0
+      },
+      {
+        "cost": 4,
+        "discountable": true,
+        "name": "fire_control software",
+        "tons": 0.0
+      },
+      {
+        "cost": 1,
+        "discountable": true,
+        "name": "evade software",
+        "tons": 0.0
+      },
+      {
+        "cost": 2,
+        "discountable": true,
+        "name": "electronics: advanced",
+        "tons": 3
+      },
+      {
+        "cost": 3.0,
+        "discountable": true,
+        "name": "stateroom",
+        "tons": 24
+      },
+      {
+        "cost": 0.5,
+        "discountable": true,
+        "name": "armory",
+        "tons": 2
+      },
+      {
+        "cost": 1.5,
+        "discountable": true,
+        "name": "double turret",
+        "tons": 1
+      },
+      {
+        "cost": 4.75,
+        "discountable": true,
+        "name": "double turret",
+        "tons": 1
+      },
+      {
+        "cost": 0.01,
+        "discountable": false,
+        "name": "sand_barrels ammo",
+        "tons": 1.0
+      },
+      {
+        "cost": 0.95,
+        "discountable": true,
+        "name": "single turret",
+        "tons": 1
+      },
+      {
+        "cost": 0.03,
+        "discountable": false,
+        "name": "standard missile ammo",
+        "tons": 2.0
+      }
+    ],
+    "maneuver_rating": 1,
+    "power_fuel": 8,
+    "power_rating": 1,
+    "structure_points": 16,
+    "tech_level": 12,
+    "tonnage_used": 268.0,
+    "total_cost": 184.72
+  },
+  "tests/data/ships/subsidized-merchant.toml": {
+    "armor_protection": 0,
+    "assumed_jump_distance": 1,
+    "build_weeks": 44,
+    "cargo_tons": 135.0,
+    "configuration": "standard",
+    "crew": {
+      "engineers": 1,
+      "gunners": 0,
+      "medic": 1,
+      "navigator": 1,
+      "pilot": 1,
+      "screen_operators": 0,
+      "stewards": 1
+    },
+    "design": {
+      "armor": [],
+      "bays": [],
+      "bridge": true,
+      "cockpit": null,
+      "computer": {
+        "hardened": false,
+        "jump_control": false,
+        "model": 1,
+        "software": []
+      },
+      "configuration": "standard",
+      "electronics": null,
+      "emergency_low_berths": 0,
+      "fittings": [
+        {
+          "kind": "fuel_processor",
+          "quantity": 1,
+          "vehicle_tons": null
+        }
+      ],
+      "hull_class": "starship",
+      "hull_tons": 200,
+      "jump_code": "A",
+      "jump_distance": null,
+      "low_berths": 0,
+      "maneuver_code": "A",
+      "name": "Beowulf",
+      "passengers_high": 0,
+      "passengers_middle": 2,
+      "power_code": "A",
+      "power_weeks": 2,
+      "purpose": "a subsidized merchant plying the routes an interstellar polity's mail contracts do not reach",
+      "screens": [],
+      "standard_design": true,
+      "staterooms": 4,
+      "tech_level": 11,
+      "turrets": []
+    },
+    "hardpoints": 2,
+    "hardpoints_used": 0,
+    "hull_points": 4,
+    "hull_tons": 200,
+    "jump_fuel": 20.0,
+    "jump_rating": 1,
+    "line_items": [
+      {
+        "cost": 8.0,
+        "discountable": true,
+        "name": "hull",
+        "tons": 0.0
+      },
+      {
+        "cost": 4,
+        "discountable": true,
+        "name": "maneuver drive A",
+        "tons": 2
+      },
+      {
+        "cost": 10,
+        "discountable": true,
+        "name": "jump drive A",
+        "tons": 10
+      },
+      {
+        "cost": 8,
+        "discountable": true,
+        "name": "power plant A",
+        "tons": 4
+      },
+      {
+        "cost": 0.0,
+        "discountable": false,
+        "name": "jump fuel",
+        "tons": 20.0
+      },
+      {
+        "cost": 0.0,
+        "discountable": false,
+        "name": "power plant fuel",
+        "tons": 2
+      },
+      {
+        "cost": 1.0,
+        "discountable": true,
+        "name": "bridge",
+        "tons": 10
+      },
+      {
+        "cost": 0.03,
+        "discountable": true,
+        "name": "computer model/1",
+        "tons": 0.0
+      },
+      {
+        "cost": 2.0,
+        "discountable": true,
+        "name": "stateroom",
+        "tons": 16
+      },
+      {
+        "cost": 0.05,
+        "discountable": true,
+        "name": "fuel_processor",
+        "tons": 1
+      }
+    ],
+    "maneuver_rating": 1,
+    "power_fuel": 2,
+    "power_rating": 1,
+    "structure_points": 4,
+    "tech_level": 11,
+    "tonnage_used": 65.0,
+    "total_cost": 29.772
+  }
+}

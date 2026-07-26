@@ -1,6 +1,6 @@
 """build_ship(design) -> Ship: deterministic allocation, costing, validation.
 
-Follows the SRD build order (research.md Part A) exactly: hull, armor, maneuver
+Follows the SRD build order ("Ship Design Checklist") exactly: hull, armor, maneuver
 drive, jump drive, power plant, fuel, bridge, computer/software, electronics,
 quarters, fittings, turrets, bays, screens, cargo, crew, cost, build time.
 Every SRD rule check lives here, in that order, so a design that violates
@@ -9,7 +9,7 @@ several reports the first violation in build order (FR-015, SC-005).
 module only ever rejects *rules* violations.
 
 `HullClass.SMALL_CRAFT` designs (10-95 tons) follow the same build order under
-a distinct ruleset (research.md Part K): a cockpit instead of a bridge, no
+a distinct ruleset (SRD "Small Craft Design"): a cockpit instead of a bridge, no
 jump drive, power-plant fuel rounded to 0.1 ton with a one-week floor, exactly
 one hardpoint, and an energy-weapon cap keyed by the power plant's code.
 """
@@ -50,7 +50,7 @@ tabulated data—applied uniformly to every bay kind—so it lives here rather
 than in `tables.BAYS`, and `generator.py` imports it for the same allocation."""
 
 JUMP_CONTROL_RATING_BONUS = 5
-"""The jump-control computer option's "+5 jump rating" (research.md Part E):
+"""The jump-control computer option's "+5 jump rating" (SRD "Ship Computer Options"):
 raises the effective computer rating available for installed software by 5,
 letting a jump-control computer run 5 more points of software than its bare
 model rating allows. Not tabulated data (it modifies a `COMPUTERS` row rather
@@ -94,7 +94,7 @@ def _build_armor(
             raise ValueError("armor must be added in 5% increments (min 1 ton)")
         row = ARMOR[fit.type.value]
         increments = fit.percent // 5
-        # research.md Part F: the SRD's own armor-by-type table states "minimum
+        # The SRD's own armor-by-type table states "minimum
         # 1 ton" per 5% increment, so a hull whose 5% is under 1 ton still costs
         # a full ton per increment rather than being rejected.
         tons_per_increment = max(1.0, hull_tons * 0.05)
@@ -321,7 +321,7 @@ def _fitted_rows(design: ShipDesign):
 
     Ship *software* is the one deliberate omission: the SRD's TL column for it
     is a per-level floor ("9+", "10+"), not a value for the row, so FR-028a's
-    enumeration does not name it (research.md Part D).
+    enumeration does not name it.
     """
     # `_build_hull` has already rejected an untabulated hull size by the time
     # this runs, so the lookup cannot miss.
@@ -346,7 +346,7 @@ def _fitted_rows(design: ShipDesign):
 
     # A design that buys no package still carries the Standard suite included
     # in its bridge or cockpit, which is why the derived value has a floor of 8
-    # and `Ship.tech_level` is never absent (FR-028c, research.md Part D).
+    # and `Ship.tech_level` is never absent (FR-028c).
     yield ELECTRONICS[design.electronics or "standard"]
 
     for field_name, kind in (
@@ -382,8 +382,7 @@ def _derive_tech_level(design: ShipDesign) -> int:
     widens the derivation with no change here (SC-007). A row carrying no
     ``tl`` column contributes nothing—the SRD tabulates none for hulls,
     configurations, drives, cockpits, quarters or fittings—and so does an
-    individual ``tl`` of ``None``, which is the fixed mounting's "-" cell
-    (research.md Part D).
+    individual ``tl`` of ``None``, which is the fixed mounting's "-" cell.
     """
     levels = [row.tl for row in _fitted_rows(design) if getattr(row, "tl", None) is not None]
     return max(levels, default=ELECTRONICS["standard"].tl)

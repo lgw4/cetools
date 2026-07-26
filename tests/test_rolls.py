@@ -149,7 +149,7 @@ def test_roll_names_are_unique() -> None:
 
 def test_ship_roll_names_exist() -> None:
     # Every selection the ship builder/generator makes across all four ship
-    # user stories gets its own named roll (research.md Part L).
+    # user stories gets its own named roll.
     expected = {
         "SHIP_HULL_SIZE",
         "SHIP_CONFIGURATION",

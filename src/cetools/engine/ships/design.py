@@ -1,4 +1,4 @@
-"""TOML design-file I/O (contracts/design-schema.md).
+"""TOML design-file I/O.
 
 `loads_design`/`load_design` parse *shape* only: malformed TOML, unknown keys,
 wrong types, and unknown enum strings raise `ValueError`. They never check SRD

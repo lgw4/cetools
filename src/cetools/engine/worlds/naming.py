@@ -7,7 +7,7 @@ from cetools.engine.rolls import RandomRolls, RollName, Rolls
 _STEMS: tuple[str, ...] = tuple(
     f"{consonant}{vowel}" for consonant in "bcdfghjklmnprstvz" for vowel in "aeiou"
 )
-"""A curated pool of consonant-vowel syllable fragments (research.md D4)."""
+"""A curated pool of consonant-vowel syllable fragments."""
 
 _STEM_COUNTS: tuple[int, ...] = (2, 3)
 

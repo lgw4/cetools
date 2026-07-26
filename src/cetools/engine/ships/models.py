@@ -4,7 +4,7 @@ Two record families: `ShipDesign` (declarative input, mirrors the TOML schema) a
 `Ship` (computed output, carries its originating `ShipDesign`). Every validator
 below checks *shape*, never SRD *rules*: a design that is well-formed but
 rules-illegal (e.g. a small craft with a jump drive) constructs cleanly here and is
-rejected only by `build_ship` (FR-015; see data-model.md "Validation—shape only").
+rejected only by `build_ship` (FR-015).
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ def _vehicle_sized_fittings() -> set[str]:
 
 
 class Configuration(Enum):
-    """A ship's hull shape (research.md Part B)."""
+    """A ship's hull shape (SRD "Ship Configuration")."""
 
     DISTRIBUTED = "distributed"
     STANDARD = "standard"
@@ -65,7 +65,7 @@ class Configuration(Enum):
 
 
 class ArmorType(Enum):
-    """A ship-armor material (research.md Part F)."""
+    """A ship-armor material (SRD "Ship Armor")."""
 
     TITANIUM_STEEL = "titanium_steel"
     CRYSTALIRON = "crystaliron"
@@ -85,7 +85,7 @@ class HullClass(Enum):
 def _validate_armor_fit(fit: ArmorFit) -> None:
     """Shape only: `percent` must be a positive integer. Whether it is a multiple
     of 5 is an SRD *rule*, checked by `build_ship`'s armor step, not here
-    (FR-015; data-model.md "Builder-enforced constraints" #2)."""
+    (FR-015)."""
     if fit.percent <= 0:
         raise ValueError(f"armor percent must be positive, got {fit.percent}")
     unknown = set(fit.options) - set(ARMOR_OPTIONS)
@@ -349,7 +349,7 @@ _DRIVE_CODES = frozenset("ABCDEFGHJKLMNPQRSTUVWXYZ")
 def _is_drive_code(code: str) -> bool:
     """Whether `code` is a letter in the SRD drive-code sequence.
 
-    Small-craft codes carry an `s` prefix (`sA`-`sZ`, research.md Part K) over the
+    Small-craft codes carry an `s` prefix (`sA`-`sZ`, SRD "Small Craft Drives") over the
     same A-Z-skip-I/O sequence as starship codes; both are accepted here since
     `ShipDesign` is shared between the two rulesets and this check is shape-only —
     whether a code is *tabulated for this hull* is the builder's job.
@@ -429,7 +429,7 @@ def _validate_crew(crew: Crew) -> None:
 
 @dataclass(frozen=True)
 class Crew:
-    """The SRD minimum crew breakdown (research.md Part I)."""
+    """The SRD minimum crew breakdown (SRD "Ship Crew")."""
 
     pilot: int
     navigator: int

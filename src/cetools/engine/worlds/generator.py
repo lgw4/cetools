@@ -242,10 +242,10 @@ def generate_subsector(
 ) -> Subsector:
     """An 8x10 subsector: every hex independently checked for world presence.
 
-    Presence is `1D6 + density.dm >= 4` (research.md D2: a 1D6 check, not the
-    2D6 `check()` verb). Each occupied hex gets a full `generate_system`, with
+    Presence is `1D6 + density.dm >= 4` (a 1D6 check, not the 2D6 `check()`
+    verb). Each occupied hex gets a full `generate_system`, with
     auto-generated names kept unique within the subsector by regenerating on
-    collision (research.md D4), bounded by `bounded_retry`.
+    collision, bounded by `bounded_retry`.
     """
     rolls = rolls or RandomRolls()
 

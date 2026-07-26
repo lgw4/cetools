@@ -38,7 +38,7 @@ from cetools.engine.ships.tables import (
     WeaponRow,
 )
 
-_EXAMPLES = "specs/010-starship-generator/examples"
+_EXAMPLES = "tests/data/ships"
 
 
 def _small_craft(**overrides):
@@ -320,7 +320,7 @@ def test_fuel_scoops_are_allowed_on_a_non_distributed_hull():
     build_ship(design)  # does not raise
 
 
-# --- spec.md Edge Cases: "Zero remaining tonnage ... is valid" ---
+# --- Edge case: "Zero remaining tonnage ... is valid" ---
 
 
 def test_a_design_that_exactly_fills_the_hull_yields_zero_cargo():
@@ -421,7 +421,7 @@ def test_a_fitting_without_a_bonus_leaves_hull_and_structure_points_alone():
 
 
 def test_a_small_craft_still_carries_a_navigator():
-    # research.md Part I: the SRD's navigator minimum has exactly one exception
+    # The SRD's navigator minimum has exactly one exception
     # (Jump-Control software) and the small-craft section never touches crew, so
     # a jump-incapable small craft still shows a navigator. Inventing a
     # small-craft carve-out the source page does not state would violate FR-002.
@@ -555,7 +555,7 @@ def test_hull_size_violation_precedes_an_armor_increment_violation():
         build_ship(design)
 
 
-# --- FR-007: jump-control's "+5 jump rating" (research.md Part E) ---
+# --- FR-007: jump-control's "+5 jump rating" (SRD "Ship Computer Options") ---
 
 
 def test_jump_control_option_raises_the_effective_software_rating_by_5():
@@ -764,7 +764,7 @@ def test_a_fitting_whose_name_ends_in_fuel_is_still_discounted(monkeypatch):
 
 
 def test_small_craft_armor_floors_at_1_ton_per_5_percent_rather_than_rejecting():
-    # research.md Part F: the SRD armor-by-type table's "minimum 1 ton" applies
+    # The SRD armor-by-type table's "minimum 1 ton" applies
     # even when 5% of a small hull is under 1 ton (10 t x 5% = 0.5 t); the SRD
     # text makes this a floor, not a rejection.
     design = ShipDesign(
@@ -800,7 +800,7 @@ def test_rejects_a_starship_built_with_a_cockpit():
         build_ship(design)
 
 
-# --- US3: small craft (research.md Part K) ---
+# --- US3: small craft (SRD "Small Craft Design") ---
 
 
 def test_small_craft_has_a_cockpit_line_not_a_bridge():
@@ -860,7 +860,7 @@ def test_non_energy_weapons_are_never_capped_on_small_craft():
     build_ship(design)  # does not raise: sandcaster is not an energy weapon
 
 
-# --- US4: bays and screens (research.md Part H) ---
+# --- US4: bays and screens (SRD "Bays", "Screens") ---
 
 
 def test_bay_consumes_50_tons_plus_1_ton_fire_control_and_one_hardpoint():
@@ -935,7 +935,7 @@ def test_bay_on_a_small_craft_is_rejected():
         build_ship(design)
 
 
-# --- FR-028: the derived tech level (data-model.md section 3) ---
+# --- FR-028: the derived tech level ---
 
 
 def _tl(**overrides):
@@ -1042,7 +1042,7 @@ def test_a_bay_and_a_screen_contribute_their_tech_levels():
 
 
 def test_a_fixed_mount_contributes_no_tech_level():
-    # research.md Part D: the SRD prints "-" in the fixed mounting's TL cell.
+    # The SRD prints "-" in the fixed mounting's TL cell.
     assert TURRET_MOUNTS["fixed"].tl is None
     assert _tl(turrets=(TurretFit(mount="fixed", weapons=("missile_rack",)),)) == 8
 
@@ -1059,7 +1059,7 @@ def test_a_fixed_mount_contributes_no_tech_level():
     ids=["hull-and-drives", "configuration", "fittings", "quarters", "software"],
 )
 def test_untabulated_categories_contribute_nothing(overrides):
-    # research.md Part D: hulls, drives, configurations, cockpits, quarters,
+    # Hulls, drives, configurations, cockpits, quarters,
     # fittings and software carry no SRD tech level. This is a finding, not an
     # omission -- inventing one would violate FR-028a.
     assert _tl(**overrides) == ELECTRONICS["standard"].tl
@@ -1113,14 +1113,14 @@ def test_build_ship_consumes_no_randomness(monkeypatch):
 
 # --- FR-012 / SC-010: authored designs are unaffected by fuel-limited fitting ---
 
-_AUTHORED_DESIGNS_PATH = "specs/013-fuel-limited-jump-drive/baseline/authored_designs.json"
+_AUTHORED_DESIGNS_PATH = "tests/data/baseline/authored_designs.json"
 _AUTHORED_EXAMPLES = (
-    "specs/010-starship-generator/examples/fighter.toml",
-    "specs/010-starship-generator/examples/free-trader.toml",
-    "specs/010-starship-generator/examples/heavy-cruiser.toml",
-    "specs/010-starship-generator/examples/scout-courier.toml",
-    "specs/010-starship-generator/examples/warship.toml",
-    "specs/011-universal-ship-format/examples/subsidized-merchant.toml",
+    "tests/data/ships/fighter.toml",
+    "tests/data/ships/free-trader.toml",
+    "tests/data/ships/heavy-cruiser.toml",
+    "tests/data/ships/scout-courier.toml",
+    "tests/data/ships/warship.toml",
+    "tests/data/ships/subsidized-merchant.toml",
 )
 
 

@@ -2,8 +2,9 @@
 
 Small-craft tables (``SMALL_CRAFT_HULLS``, ``COCKPITS``, ``SMALL_CRAFT_ENERGY_CAPS``,
 ``SMALL_CRAFT_DRIVE_PERFORMANCE``) mirror the starship tables under their own
-ruleset (research.md Part K). Bay/screen tables (``BAYS``, ``SCREENS``) hold the
-50-ton weapon bays and defensive screens from research.md Part H.
+ruleset (SRD "Small Craft Design"). Bay/screen tables (``BAYS``, ``SCREENS``)
+hold the 50-ton weapon bays and defensive screens from the SRD's "Bays" and
+"Screens" sections.
 
 Tables keyed by an enum's *value* (a lowercase string, e.g. ``"standard"`` for
 ``Configuration.STANDARD``) rather than by the enum itself, so this module has no
@@ -56,8 +57,8 @@ class ArmorOptionRow:
     """One row of the Ship Armor Options table: MCr surcharge per armored ton.
 
     ``name`` is the SRD noun phrase the configuration sentence prints, article
-    included ("a stealth coating"); ``tl`` comes from the section's prose
-    (research.md Part D).
+    included ("a stealth coating"); ``tl`` comes from the SRD section's prose,
+    which is the only place it appears.
     """
 
     name: str
@@ -131,12 +132,12 @@ class FittingRow:
 
     ``name`` carries its indefinite article ("an armory", "fuel scoops") and
     ``plural`` does not, because the special-features sentence mixes countable
-    and mass nouns (research.md Part E). ``counted_in_tons`` marks a fitting the
+    and mass nouns. ``counted_in_tons`` marks a fitting the
     SRD measures rather than counts ("two tons of luxuries"), and
     ``unrefined_fuel_per_ton`` its daily throughput, set only on the fuel
     processor: two data columns driving two generic renderer branches rather
     than a per-kind branch (FR-017, FR-031). The SRD tabulates no TL for any of
-    these components, so there is no ``tl`` column (research.md Part D).
+    these components, so there is no ``tl`` column.
     """
 
     name: str
@@ -173,8 +174,8 @@ class WeaponRow:
     """One row of the Turret Weapons table.
 
     ``name``/``plural`` are the *armament clause's* spelling, not the catalog's:
-    the examples write "armed with missiles", never "armed with missile racks"
-    (research.md Part E). The same singular spells the ammunition sentence's
+    the SRD examples write "armed with missiles", never "armed with missile
+    racks". The same singular spells the ammunition sentence's
     "the missile turrets".
     """
 
@@ -241,7 +242,7 @@ class ConfigurationRow:
     """One row of the Ship Configuration table: display name and cost modifier.
 
     ``name`` is lower case because the starship examples print "The hull is
-    standard"; only the small-craft examples capitalise (research.md Part E).
+    standard"; only the small-craft examples capitalise.
     """
 
     name: str
@@ -325,8 +326,8 @@ them. The single source of both the spelling and the order; a position whose
 count is zero is omitted from the sentence.
 
 The SRD's fuller list (commanding officer, marines, scientists, flight crew) is
-referee-discretion staffing that feature 010 left out of scope, and this feature
-invents none of it (research.md Part E)."""
+referee-discretion staffing that cetools leaves out of scope, and this module
+invents none of it."""
 
 DRIVE_COSTS: dict[str, DriveRow] = {
     "A": DriveRow(

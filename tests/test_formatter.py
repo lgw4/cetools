@@ -19,7 +19,7 @@ def _base_characteristics() -> dict[str, int]:
 
 
 def _make_full_character(mishap: MishapOutcome | None = None, debt: int = 0) -> Character:
-    """Matches contracts/ucf-output.md's "fully-populated character" example."""
+    """The "fully-populated character" example of the character output format."""
     return Character(
         characteristics=_base_characteristics(),
         upp="7A6B85",
@@ -47,7 +47,7 @@ def _make_full_character(mishap: MishapOutcome | None = None, debt: int = 0) -> 
 def _make_empty_character(
     mishap: MishapOutcome | None = None, debt: int = 0, career: Career = NAVY_CAREER
 ) -> Character:
-    """Matches contracts/ucf-output.md's zero-cash/zero-material/zero-skills example."""
+    """The zero-cash/zero-material/zero-skills example of that same format."""
     return Character(
         characteristics=_base_characteristics(),
         upp="5A5555",

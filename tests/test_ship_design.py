@@ -21,7 +21,7 @@ from cetools.engine.ships import (
 from cetools.engine.ships.description import render_description
 from cetools.engine.ships.generator import generate_ship
 
-_EXAMPLES = "specs/010-starship-generator/examples"
+_EXAMPLES = "tests/data/ships"
 _GOLDEN_FILES = (
     f"{_EXAMPLES}/free-trader.toml",
     f"{_EXAMPLES}/scout-courier.toml",
@@ -125,8 +125,8 @@ def test_a_well_formed_but_rules_illegal_design_loads_cleanly():
 
 
 def test_loads_design_accepts_a_7_percent_armor_layer():
-    # The 5%-increment rule is build_ship's job, not loads_design's (FR-015;
-    # contracts/design-schema.md "Rules enforced at load").
+    # The 5%-increment rule is build_ship's job, not loads_design's (FR-015):
+    # the loader checks shape, never SRD rules.
     design = loads_design('hull_tons = 200\n\n[[armor]]\ntype = "titanium_steel"\npercent = 7')
     assert design.armor[0].percent == 7
     with pytest.raises(ValueError, match="armor must be added in 5% increments"):
@@ -135,14 +135,14 @@ def test_loads_design_accepts_a_7_percent_armor_layer():
 
 def test_loads_design_accepts_power_weeks_1_on_a_starship():
     # The >= 2 (starship) / >= 1 (small craft) floor is build_ship's job, not
-    # loads_design's (FR-015; contracts/design-schema.md "Rules enforced at load").
+    # loads_design's (FR-015): the loader checks shape, never SRD rules.
     design = loads_design('hull_tons = 200\n\n[drives]\njump = "A"\npower = "A"\npower_weeks = 1')
     assert design.power_weeks == 1
     with pytest.raises(ValueError, match="power_weeks must be >= 2 for a starship"):
         build_ship(design)
 
 
-# --- US3: small craft cockpit I/O (research.md Part K) ---
+# --- US3: small craft cockpit I/O (SRD "Small Craft Design") ---
 
 
 @pytest.mark.parametrize("cockpit", ["1_man", "2_man"])
@@ -181,7 +181,7 @@ def test_a_small_craft_carrying_a_jump_drive_loads_cleanly():
         build_ship(design)
 
 
-# --- US4: bays and screens I/O (research.md Part H) ---
+# --- US4: bays and screens I/O (SRD "Bays", "Screens") ---
 
 
 def test_bays_and_screens_round_trip():
@@ -319,7 +319,7 @@ def test_a_single_quantity_fitting_omits_the_quantity_key():
     assert "quantity" not in dump_design(design)
 
 
-# --- T032: `purpose` and `tech_level` (011 contracts/design-schema.md) -----
+# --- T032: `purpose` and `tech_level` -------------------------------------
 
 
 def _describable(**overrides) -> ShipDesign:

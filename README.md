@@ -292,11 +292,11 @@ Designs and generates starships following the Cepheus Engine SRD [Ship Design an
 Build a ship from a TOML design file:
 
 ```bash
-uv run cetools ship build specs/010-starship-generator/examples/free-trader.toml
+uv run cetools ship build tests/data/ships/free-trader.toml
 ```
 
 ```console
-$ uv run cetools ship build specs/010-starship-generator/examples/free-trader.toml
+$ uv run cetools ship build tests/data/ships/free-trader.toml
 TL8 Beowulf
 
 Using a 200-ton hull (4 Hull, 4 Structure), the Beowulf is a starship. It mounts jump drive A, maneuver drive A and power plant A, giving a performance of Jump-1 and 1-G acceleration. Fuel tankage of 22 tons supports the power plant for two weeks and one Jump-1 jump. Adjacent to the bridge is a computer Model 1. The ship is equipped with Standard sensors (DM-4). There are four staterooms. The ship has two hardpoints and two tons allocated to fire control, but has no weapons installed. Cargo capacity is 135 tons. The hull is standard, and no additional armor has been installed. Special features include one ton of fuel processors (processes 20 tons of unrefined fuel into refined fuel per day). The ship requires a crew of five: one pilot, one navigator, one engineer, one medic and one steward. The ship cannot carry any additional passengers. The ship costs MCr29.772 (including discounts and fees) and takes 44 weeks to build.
@@ -324,7 +324,7 @@ Output above is illustrative; generation is random unless `--seed` is given, so 
 ```python
 from cetools.engine.ships import build_ship, load_design
 
-ship = build_ship(load_design("specs/010-starship-generator/examples/free-trader.toml"))
+ship = build_ship(load_design("tests/data/ships/free-trader.toml"))
 print(ship.total_cost, ship.cargo_tons, ship.crew.total)   # 29.772 135 5
 ```
 

@@ -63,11 +63,9 @@ src/cetools/
 └── formatter.py    # Plain-text character formatter
 
 tests/              # Mirrors src/cetools/ structure
+└── data/           # Test fixtures: ships/ design files, baseline/ regression captures
 scripts/
 └── check_docs.py   # The docs check; part of the quality gate below
-docs/adr/           # Architecture decision records
-docs/superpowers/   # Historical plans and specs; a record, not documentation
-specs/              # Spec Kit feature directories, one per feature, numbered
 ```
 
 The engine (`src/cetools/engine/`) must never import from `src/cetools/cli/`. The CLI is the only code allowed to depend on the engine.
@@ -93,7 +91,7 @@ uv run isort . && uv run black . && uv run flake8 src tests && uv run pytest && 
 All five must pass, and the pre-push hooks run all five. `pytest` includes
 coverage measurement; the suite fails if `src/cetools` coverage drops below 85%.
 
-`scripts/check_docs.py` is the only thing that tests the docs, which is why it exists: docs drift faster than code and nothing else notices. It checks that every backticked symbol in the maintained prose resolves in the package, that the README's Python examples still run, that the module map above names every engine module, and that dashes are tight. The historical plans and specs under `docs/superpowers/` are records of past decisions, not descriptions of the code, so they are not checked.
+`scripts/check_docs.py` is the only thing that tests the docs, which is why it exists: docs drift faster than code and nothing else notices. It checks that every backticked symbol in the maintained prose resolves in the package, that the README's Python examples still run, that the module map above names every engine module, and that dashes are tight.
 
 To run a single test file without coverage enforcement:
 

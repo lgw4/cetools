@@ -13,7 +13,7 @@ _VALID_STARPORTS = frozenset("ABCDEX")
 
 
 class TravelZone(Enum):
-    """A system's safety classification (research.md Part A step 14)."""
+    """A system's safety classification (SRD "Travel Zones")."""
 
     GREEN = " "
     AMBER = "A"
@@ -154,12 +154,12 @@ class System:
 
     @property
     def data_line(self) -> str:
-        """The full world-data line (research.md D5)."""
+        """The full world-data line."""
         return render_data_line(self)
 
 
 class Density(Enum):
-    """Subsector world-presence modifier (research.md Part A step 15)."""
+    """Subsector world-presence modifier (SRD "Star Mapping")."""
 
     RIFT = -2
     SPARSE = -1

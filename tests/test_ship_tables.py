@@ -164,7 +164,7 @@ def test_drive_performance_z_on_5000_tons_is_2():
 
 
 def test_drive_costs_jump_tons_strictly_increasing_in_table_order():
-    # research.md Part C, invariant 1: the fit search relies on this being
+    # Table invariant 1: the fit search relies on this being
     # true rather than assuming it, but a future SRD row that breaks it
     # should fail loudly here rather than silently mis-selecting a drive.
     jump_tons = [row.jump_tons for row in DRIVE_COSTS.values()]
@@ -172,7 +172,7 @@ def test_drive_costs_jump_tons_strictly_increasing_in_table_order():
 
 
 def test_drive_performance_rating_non_decreasing_per_hull_in_table_order():
-    # research.md Part C, invariant 2.
+    # Table invariant 2.
     letters = list(DRIVE_COSTS)
     for hull_tons in HULLS:
         ratings = [
@@ -327,7 +327,7 @@ def test_energy_weapons_are_flagged_for_the_small_craft_cap():
     assert TURRET_WEAPONS["sandcaster"].energy is False
 
 
-# --- Bays / screens (US4, research.md Part H) ---
+# --- Bays / screens (US4, SRD "Bays", "Screens") ---
 
 
 def test_bays_cover_the_four_srd_kinds_at_50_tons_each():
@@ -473,7 +473,7 @@ def test_a_new_fitting_row_costs_and_allocates_correctly_with_no_code_change(mon
         FittingRow(name="a synthetic gadget", plural="synthetic gadgets", tons=3, cost=1.25),
     )
 
-    design = load_design("specs/010-starship-generator/examples/free-trader.toml")
+    design = load_design("tests/data/ships/free-trader.toml")
     design = dataclasses.replace(
         design,
         fittings=design.fittings + (FittingFit(kind="synthetic_gadget", quantity=2),),
@@ -526,7 +526,7 @@ def test_a_new_bay_row_is_accepted_and_allocated_with_no_code_change(monkeypatch
         BayRow(name="synthetic bay", plural="synthetic bays", tons=50, cost=17.5, tl=9),
     )
 
-    design = load_design("specs/010-starship-generator/examples/free-trader.toml")
+    design = load_design("tests/data/ships/free-trader.toml")
     design = dataclasses.replace(design, bays=(BayFit(kind="synthetic_bay"),))
 
     ship = build_ship(design)
@@ -545,7 +545,7 @@ def test_a_new_screen_row_is_accepted_and_allocated_with_no_code_change(monkeypa
         ScreenRow(name="synthetic screen", plural="synthetic screens", tons=50, cost=42.0, tl=9),
     )
 
-    design = load_design("specs/010-starship-generator/examples/free-trader.toml")
+    design = load_design("tests/data/ships/free-trader.toml")
     design = dataclasses.replace(design, screens=(ScreenFit(kind="synthetic_screen"),))
 
     ship = build_ship(design)
@@ -638,7 +638,7 @@ def test_a_new_hull_row_costs_and_allocates_correctly_with_no_code_change(monkey
     assert ship.tonnage_used == pytest.approx(10 + 4 + 20 + 25 + 2)
 
 
-# --- USDF display names, plurals, tech levels and dice modifiers (data-model.md section 4) ---
+# --- USDF display names, plurals, tech levels and dice modifiers ---
 
 
 NAMEABLE_TABLES = {
@@ -675,7 +675,7 @@ def test_every_nameable_row_carries_a_non_empty_srd_name(table_name):
 
 @pytest.mark.parametrize("table_name", sorted(COUNTABLE_TABLES))
 def test_every_countable_row_carries_a_non_empty_explicit_plural(table_name):
-    # research.md Part E: plurals are spelled, never derived by suffix, because
+    # Plurals are spelled, never derived by suffix, because
     # the SRD's own are irregular ("armory" -> "armories").
     for key, row in COUNTABLE_TABLES[table_name].items():
         assert hasattr(row, "plural"), f"{table_name}[{key!r}] has no plural column"
@@ -711,7 +711,7 @@ def test_electronics_names_tech_levels_and_dms_match_srd():
 
 
 def test_only_the_fixed_mounting_has_no_tech_level():
-    # research.md Part D: the SRD prints "-" in the fixed mounting's TL cell,
+    # The SRD prints "-" in the fixed mounting's TL cell,
     # and only there.
     for key, row in TURRET_MOUNTS.items():
         if key == "fixed":
@@ -751,7 +751,7 @@ def test_turret_mount_and_weapon_tech_levels_match_srd():
 
 
 def test_turret_weapons_are_named_for_the_armament_clause_not_the_catalog():
-    # research.md Part E: "armed with missiles", never "armed with missile racks".
+    # The SRD writes "armed with missiles", never "armed with missile racks".
     assert (TURRET_WEAPONS["missile_rack"].name, TURRET_WEAPONS["missile_rack"].plural) == (
         "missile",
         "missiles",
@@ -783,7 +783,7 @@ def test_bay_and_screen_names_and_tech_levels_match_srd():
 
 
 def test_fitting_names_carry_an_article_and_plurals_do_not():
-    # research.md Part E: "an armory" / "armories", "fuel scoops" / "fuel scoops".
+    # "an armory" / "armories", "fuel scoops" / "fuel scoops".
     assert FITTINGS["armory"].name == "an armory"
     assert FITTINGS["armory"].plural == "armories"
     assert FITTINGS["fuel_scoops"].name == "fuel scoops"
@@ -806,13 +806,13 @@ def test_only_the_fuel_processor_states_an_unrefined_fuel_throughput():
 
 
 def test_fittings_carry_no_tech_level_because_the_srd_tabulates_none():
-    # research.md Part D: a finding, not an omission. Adding a column the SRD
+    # A finding, not an omission. Adding a column the SRD
     # does not fill would be inventing data.
     field_names = {f.name for f in dataclasses.fields(FittingRow)}
     assert "tl" not in field_names
 
 
-# --- CONFIGURATIONS and CREW_POSITIONS (data-model.md section 4) ---
+# --- CONFIGURATIONS and CREW_POSITIONS ---
 
 
 def test_configurations_is_keyed_by_every_configuration_value():
@@ -826,7 +826,7 @@ def test_configuration_rows_match_srd_with_lower_case_names():
 
 
 def test_configuration_names_are_lower_case():
-    # research.md Part E: the starship examples print "The hull is standard".
+    # The SRD starship examples print "The hull is standard".
     for row in CONFIGURATIONS.values():
         assert row.name == row.name.lower()
 

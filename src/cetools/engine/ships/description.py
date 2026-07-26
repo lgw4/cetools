@@ -1,11 +1,10 @@
 """render_description(ship) -> the ship's Universal Ship Description Format text.
 
-A heading line, a blank line, and one unwrapped paragraph, exactly as
-`specs/011-universal-ship-format/contracts/description-format.md` specifies
-(FR-001). A pure function of the `Ship` alone: it reads no clock, no seed, no
-environment and no locale, and every grouping walks an ordered tuple in
-first-appearance order, so two equal ships render byte-identically (FR-003,
-SC-003).
+A heading line, a blank line, and one unwrapped paragraph, exactly as the SRD's
+worked ship examples set it out (FR-001). A pure function of the `Ship` alone:
+it reads no clock, no seed, no environment and no locale, and every grouping
+walks an ordered tuple in first-appearance order, so two equal ships render
+byte-identically (FR-003, SC-003).
 
 The paragraph is assembled from `_SLOTS`, a fixed sixteen-entry tuple of
 sentence builders in the FR-004 order. Each returns `str | None`, and `None`
@@ -14,7 +13,7 @@ control flow between slots -- no builder reads another's output -- so the
 paragraph stays grammatical however many drop out. `_weapons` is the sole
 builder whose return value carries more than one sentence: its ammunition
 sentences ride along with the installed-weapons sentence, so a paragraph has
-sixteen *slots* but can run past sixteen sentences (data-model.md section 6).
+sixteen *slots* but can run past sixteen sentences.
 
 Imports only `models`, `tables` and `prose`: every SRD spelling, plural and
 tech level comes from a table column rather than from a branch keyed on a
@@ -222,7 +221,7 @@ def _quarters(ship: Ship) -> str | None:
 
 def _hardpoints(ship: Ship) -> str:
     # The SRD's Chapter 9 examples all report fire-control tonnage as the
-    # hardpoint count (research.md Part F); no computed value changes.
+    # hardpoint count; no computed value changes.
     points = ship.hardpoints
     text = (
         f"The ship has {count(points)} {plural(points, 'hardpoint', 'hardpoints')} and "
@@ -466,8 +465,7 @@ def _crew(ship: Ship) -> str:
 
 def _passengers(ship: Ship) -> str:
     design = ship.design
-    # Emergency low berths are survival equipment, not passenger capacity
-    # (research.md Part F).
+    # Emergency low berths are survival equipment, not passenger capacity.
     spare = max(0, design.staterooms - ship.crew.total) * 2
     clauses = []
     if spare:

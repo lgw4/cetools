@@ -5,8 +5,7 @@ from cetools.engine.rolls import RollName
 from cetools.engine.rules import HOUSE, SRD, Rules
 from conftest import scripted
 
-# The two departures from the SRD, both settled in
-# specs/002-scout-character-career/spec.md, travel together as a policy.
+# The two departures from the SRD travel together as a policy.
 
 
 def test_house_is_the_default() -> None:

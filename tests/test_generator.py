@@ -164,7 +164,7 @@ def test_mishap_roll_4_dishonorable_discharge_not_imprisoned() -> None:
 
 def test_mishap_roll_5_dishonorable_discharge_imprisoned() -> None:
     # Outcome 5 adds an extra 4 years for imprisonment on top of the mishap
-    # term's usual +2 (research.md D9): age == 18 + 2 + 4 == 24.
+    # term's usual +2: age == 18 + 2 + 4 == 24.
     result = _mishap_character(mishap=5)
     assert result.mishap.roll == 5
     assert result.mishap.discharge_type == "dishonorable"

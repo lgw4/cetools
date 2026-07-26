@@ -11,7 +11,8 @@ if TYPE_CHECKING:  # models.py imports this module, so only import it for types
 
 
 def render_profile(world: World) -> str:
-    """The classic UWP string, e.g. `A867A9C-F` (research.md D5)."""
+    """The classic UWP string, e.g. `A867A9C-F` (SRD "The Universal World
+    Profile (UWP)")."""
     digits = "".join(
         to_pseudohex(value)
         for value in (
@@ -27,7 +28,8 @@ def render_profile(world: World) -> str:
 
 
 def render_data_line(system: System) -> str:
-    """The full, double-space-separated world-data line (research.md D5)."""
+    """The full, double-space-separated world-data line (SRD "The Universal
+    World Profile (UWP)")."""
     fields = (
         system.world.name,
         system.hex if system.hex is not None else "",

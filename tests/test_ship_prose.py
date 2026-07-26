@@ -1,8 +1,7 @@
 """Table-driven tests for the text primitives in `engine/ships/prose.py`.
 
-Every case here is a rule from data-model.md section 5, testable without
-building a `Ship`: that is the point of the module boundary (research.md
-Part G).
+Every case here is a text rule testable without building a `Ship`: that is the
+point of the module boundary.
 """
 
 import pytest
@@ -260,7 +259,7 @@ def test_article_picks_an_before_a_leading_vowel_letter(word, expected):
     assert article(word) == expected
 
 
-# --- tonnage_article: "an" for a leading 8 (research.md Part C) ---
+# --- tonnage_article: "an" for a leading 8 ---
 
 TONNAGE_ARTICLE_CASES = [
     (10, "a"),

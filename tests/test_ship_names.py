@@ -1,9 +1,8 @@
 """Catalogue-invariant tests for `engine/ships/names.py`.
 
-V1-V6 pin the per-entry shape every `SHIP_NAMES` row must have (data-model.md
-"Validation rules"). V7 and the composition floors C1-C3 arrive with the
-catalogue itself (tasks.md T024); selection is tested separately through
-`ScriptedRolls` (tasks.md T008).
+V1-V6 pin the per-entry shape every `SHIP_NAMES` row must have. V7 and the
+composition floors C1-C3 arrive with the catalogue itself; selection is tested
+separately through `ScriptedRolls`.
 """
 
 import pytest
@@ -14,7 +13,7 @@ from cetools.engine.ships.names import SHIP_NAMES, BasisKind, Tradition, generat
 
 FICTION_TRADITIONS = (Tradition.WRITTEN_SF, Tradition.SCREEN_SF)
 
-# research.md Part E: a ship-type designation would duplicate what the
+# A ship-type designation would duplicate what the
 # description's own sentences already state, and would be wrong whenever the
 # generated hull is not that type.
 DESIGNATION_DENYLIST = (

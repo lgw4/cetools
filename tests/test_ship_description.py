@@ -1,9 +1,8 @@
 """Tests for `engine/ships/description.py` -- the Universal Ship Description Format.
 
-Every assertion here traces to a section of
-`specs/011-universal-ship-format/contracts/description-format.md`, which is the
-authority on the exact text. The fixture below is deliberately over-equipped so
-that all sixteen sentence slots are exercised by one ship.
+Every assertion here traces to the SRD's Universal Ship Description Format,
+which is the authority on the exact text. The fixture below is deliberately
+over-equipped so that all sixteen sentence slots are exercised by one ship.
 """
 
 import re
@@ -742,7 +741,7 @@ def test_an_authored_tech_level_below_the_derived_one_appears_unchanged():  # FR
 
 # --- T037: the checked-in fixture carrying both new keys -------------------
 
-_SUBSIDIZED_MERCHANT = "specs/011-universal-ship-format/examples/subsidized-merchant.toml"
+_SUBSIDIZED_MERCHANT = "tests/data/ships/subsidized-merchant.toml"
 
 
 def test_the_subsidized_merchant_renders_its_authored_purpose_and_tech_level():
@@ -758,7 +757,7 @@ def test_the_subsidized_merchant_renders_its_authored_purpose_and_tech_level():
 
 def test_the_subsidized_merchant_changes_no_computed_value():  # FR-032
     merchant = build_ship(load_design(_SUBSIDIZED_MERCHANT))
-    free_trader = build_ship(load_design("specs/010-starship-generator/examples/free-trader.toml"))
+    free_trader = build_ship(load_design("tests/data/ships/free-trader.toml"))
 
     assert merchant.tonnage_used == free_trader.tonnage_used
     assert merchant.cargo_tons == free_trader.cargo_tons
@@ -767,7 +766,7 @@ def test_the_subsidized_merchant_changes_no_computed_value():  # FR-032
     assert merchant.build_weeks == free_trader.build_weeks
 
 
-# --- T038: whole-sentence omission (FR-021, data-model.md section 6) -------
+# --- T038: whole-sentence omission (FR-021) -------------------------------
 #
 # `_simple_design()` carries no computer, no quarters, no weapon system, no
 # screen and no fitting, so it exercises every omittable slot at once.
@@ -926,7 +925,7 @@ def test_zero_cargo_renders_as_a_word():  # SC-001, FR-021a
 
 
 def test_fractional_cargo_renders_in_digits():  # FR-022b
-    ship = build_ship(load_design("specs/010-starship-generator/examples/fighter.toml"))
+    ship = build_ship(load_design("tests/data/ships/fighter.toml"))
 
     # The accumulated float is 6.200000000000003; the sentence states 6.2.
     assert ship.cargo_tons != 6.2
@@ -977,9 +976,7 @@ def test_no_cost_is_rendered_in_scientific_notation_or_left_dangling():  # FR-02
 
 # --- T041: the grammar sweep (FR-021a, SC-001) -----------------------------
 
-_EXAMPLES = sorted(Path("specs/010-starship-generator/examples").glob("*.toml")) + sorted(
-    Path("specs/011-universal-ship-format/examples").glob("*.toml")
-)
+_EXAMPLES = sorted(Path("tests/data/ships").glob("*.toml"))
 
 _SEEDS = (1, 7, 42, 99, 12345)
 
@@ -1066,7 +1063,7 @@ def test_no_clause_states_a_quantity_of_zero_unbidden(label, text):  # FR-021a
 # bridge, so the drives and fuel sentences lose their jump clauses whole and the
 # computer sentence names the cockpit (contract sections 2, 3 and 4).
 
-_FIGHTER = "specs/010-starship-generator/examples/fighter.toml"
+_FIGHTER = "tests/data/ships/fighter.toml"
 
 
 def test_a_small_craft_drives_sentence_states_no_jump_rating():  # FR-026
@@ -1131,8 +1128,8 @@ def test_every_small_craft_states_its_acceleration_and_power_endurance(label, pa
 
 # --- T051: a new table row needs no renderer change (SC-007) ---------------
 #
-# quickstart.md section 10 walks this property by hand once. These tests are
-# what keep it from regressing: each injects a row the SRD does not contain,
+# These tests keep this property from regressing: each injects a row the SRD
+# does not contain,
 # fits it, and asserts its own wording and tech level reach the paragraph with
 # no edit to `description.py` or `builder.py`.
 
@@ -1538,14 +1535,14 @@ def test_hangar_kinds_follow_the_design_order():  # FR-024a
 
 
 # --- T017/T018 (US2): the prose reports an honest, non-zero jump range -----
-# (spec.md FR-007, SC-004). `description.py` itself is untouched by this
-# feature (research.md Part A); these tests assert the behaviour US1's fix
-# delivers, not a code change here.
+# (FR-007, SC-004). `description.py` itself is untouched by the fuel-limited
+# jump-drive fix; these tests assert the behaviour that fix delivers, not a
+# code change here.
 
 
 def _fr014_budget_tons(ship) -> float:
     """Recompute the mandatory-systems tonnage budget from a *finished* ship's
-    own hull, maneuver drive and power plant (spec.md FR-014), so the FR-014
+    own hull, maneuver drive and power plant (FR-014), so the FR-014
     classification below depends on nothing internal to the generator."""
     from cetools.engine.ships.generator import _bridge_tons
 
@@ -1560,7 +1557,7 @@ def _is_fr014_starved_hull_ship(ship) -> bool:
     """A ship is an FR-014 ship exactly when its jump fuel falls short of one
     complete jump at its installed rating *and* no drive legal for its hull
     could have been fuelled for one complete jump within its own tonnage
-    budget (spec.md FR-014) — both halves recomputable from the finished
+    budget (FR-014) — both halves recomputable from the finished
     ship rather than from generator internals."""
     if ship.jump_fuel >= 0.1 * ship.hull_tons * ship.jump_rating:
         return False
@@ -1585,7 +1582,7 @@ def test_sc004_no_generated_starship_description_reports_a_zero_jump_count():
 
 
 def test_the_drive_letter_jump_rating_and_jump_count_agree():
-    # Seed 0 downgrades its drive letter (research.md Part D); the others are
+    # Seed 0 downgrades its drive letter; the others are
     # a spread that mostly keeps the drawn letter, so the sweep covers both.
     for seed in (0, 1, 7, 42, 99, 12345):
         ship = generate_ship(RandomRolls.seeded(seed))

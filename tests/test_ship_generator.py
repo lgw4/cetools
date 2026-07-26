@@ -17,8 +17,8 @@ from cetools.engine.ships.generator import generate_ship
 from cetools.engine.ships.tables import DRIVE_COSTS, DRIVE_PERFORMANCE, HULLS
 
 _CATALOGUE_NAMES = {entry.name for entry in SHIP_NAMES}
-_PRE_CHANGE_SWEEP_PATH = "specs/013-fuel-limited-jump-drive/baseline/pre_change_sweep.json"
-_POST_CHANGE_BASELINE_PATH = "specs/013-fuel-limited-jump-drive/baseline/designs.json"
+_PRE_CHANGE_SWEEP_PATH = "tests/data/baseline/pre_change_sweep.json"
+_POST_CHANGE_BASELINE_PATH = "tests/data/baseline/designs.json"
 
 # --- ScriptedRolls pins a known component selection to an exact Ship ---
 
@@ -141,7 +141,7 @@ def test_generated_ships_over_a_pinned_seed_set_are_mostly_distinct():
     assert len(set(names)) >= 17
 
 
-# --- US3: small craft (research.md Part K) ---
+# --- US3: small craft (SRD "Small Craft Design") ---
 
 
 def test_small_craft_yields_a_10_to_95_ton_ship_with_no_jump_drive():
@@ -177,7 +177,7 @@ def test_small_craft_round_trips_losslessly():
         assert build_ship(loads_design(dump_design(ship.design))) == ship
 
 
-# --- US4: bays and screens (research.md Part H) ---
+# --- US4: bays and screens (SRD "Bays", "Screens") ---
 
 
 def test_generated_bays_never_exceed_hardpoints_or_free_tonnage():
@@ -208,11 +208,11 @@ def test_a_screen_is_reachable_for_a_large_enough_hull():
     )
 
 
-# --- Phase 2 Foundational: `_fit_jump_drive` (contracts/jump-drive-fit.md) ---
-# T006: contract tests C1-C4/C8, driven by the contract's four worked examples.
+# --- Phase 2 Foundational: `_fit_jump_drive` ---
+# T006: contract tests C1-C4/C8, driven by four worked examples.
 # These were written before `_fit_jump_drive` existed and confirmed red against
-# the AttributeError it raised then, per Constitution IV; T008 implemented it,
-# and they have passed since.
+# the AttributeError it raised then; the implementation followed, and they have
+# passed since.
 
 _FIT_WORKED_EXAMPLES = (
     (400, "C", 200, "B"),
@@ -308,8 +308,8 @@ def test_fit_jump_drive_legality_and_ceiling_hold_over_every_hull_and_legal_draw
 
 # T038: C3 and C4 swept over every hull, every legal drawn code and a spread of
 # budgets, matching the coverage C1/C2 (above) and C5/C6 (below) already have.
-# plan.md makes contract postconditions C1-C8 the acceptance criteria for this
-# function's tests; C3 and C4 alone were still example-driven.
+# Postconditions C1-C8 are the acceptance criteria for this function's tests;
+# C3 and C4 alone were still example-driven.
 
 _FIT_SWEEP_BUDGETS = (0.0, 1.0, 5.0, 20.0, 55.0, 72.0, 100.0, 200.0, 400.0, 600.0, 10_000.0)
 
@@ -358,8 +358,7 @@ def test_fit_jump_drive_c4_highest_affordable_rating_wins_over_every_hull_and_bu
 
 
 # T007: the FR-014 starved-hull fallback (contract C5, C6), tested against the
-# helper directly since no seed can reach it through `generate_ship`
-# (research.md Part E, quickstart.md Scenario 5).
+# helper directly since no seed can reach it through `generate_ship`.
 
 
 def test_fit_jump_drive_c5_starved_hull_falls_back_to_the_lowest_rated_legal_drive():
@@ -403,7 +402,7 @@ def test_fit_jump_drive_c6_never_raises_for_any_input_satisfying_the_preconditio
 
 def _fr014_budget_tons(ship) -> float:
     """Recompute the mandatory-systems tonnage budget from a *finished* ship's
-    own hull, maneuver drive and power plant (spec.md FR-014), so the FR-014
+    own hull, maneuver drive and power plant (FR-014), so the FR-014
     classification below depends on nothing internal to the generator."""
     from cetools.engine.ships.generator import _bridge_tons
 
@@ -418,7 +417,7 @@ def _is_fr014_starved_hull_ship(ship) -> bool:
     """A ship is an FR-014 ship exactly when its jump fuel falls short of one
     complete jump at its installed rating *and* no drive legal for its hull
     could have been fuelled for one complete jump within its own tonnage
-    budget (spec.md FR-014) — both halves recomputable from the finished
+    budget (FR-014) — both halves recomputable from the finished
     ship rather than from generator internals."""
     if ship.jump_fuel >= 0.1 * ship.hull_tons * ship.jump_rating:
         return False
@@ -543,7 +542,7 @@ class RecordingRolls:
     """Wraps another `Rolls` and records every `RollName` drawn, in order.
 
     Serves one test (SC-008's draw-order guard) and no production caller, so
-    it lives here rather than in `engine/rolls.py` (research.md Part G)."""
+    it lives here rather than in `engine/rolls.py`."""
 
     def __init__(self, wrapped: Rolls) -> None:
         self._wrapped = wrapped
@@ -641,7 +640,7 @@ def test_g4_every_generated_starship_mounts_the_lightest_drive_at_its_rating():
 
 
 def test_fr003_affordability_and_the_generators_fuel_arithmetic_agree_at_the_boundary():
-    """T037, the property spec.md's Assumptions call "a property to pin, not one to assume".
+    """T037, "a property to pin, not one to assume".
 
     `_fit_jump_drive` admits a rating when `jump_tons + 0.1 * hull * rating`
     fits the budget; `generate_ship` then decides how many jumps the leftover
@@ -676,7 +675,7 @@ def test_fr014_a_starved_hull_design_still_builds_within_its_hull():
     A *genuinely* starved hull cannot be reached, and not merely through
     `generate_ship`: the fallback drive is the lowest-rated legal one, and on
     every tabulated hull the mandatory systems leave room to fuel it for a full
-    jump (research.md Part E, reconfirmed here — 0 of 18 hulls fall short). So
+    jump (reconfirmed here — 0 of 18 hulls fall short). So
     there is no configuration of real tables under which FR-014's fuel shortfall
     occurs, and a test that merely rebuilt the fallback allocation would quietly
     assert an ordinary fully-fuelled ship.
@@ -725,7 +724,7 @@ def test_fr014_a_starved_hull_design_still_builds_within_its_hull():
 
 
 def test_a_single_build_completes_in_under_a_tenth_of_a_second():
-    design = load_design("specs/010-starship-generator/examples/free-trader.toml")
+    design = load_design("tests/data/ships/free-trader.toml")
     build_ship(design)  # warm up imports before timing
 
     start = time.perf_counter()

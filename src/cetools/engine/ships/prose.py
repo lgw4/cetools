@@ -3,7 +3,7 @@
 Pure functions over numbers and strings. This module imports nothing from
 ``models.py``, ``tables.py`` or any other ships module, and knows nothing about
 ships: that is the seam that makes the SRD's number and grammar rules testable
-without building one (research.md Part G).
+without building one.
 
 Three numeric helpers occupy deliberately disjoint domains (FR-022c):
 
@@ -61,7 +61,7 @@ def count(n: int) -> str:
 
 def tons(value: float) -> str:
     """Tonnage in running prose: the `count` rule when whole, digits when
-    fractional (FR-022b, research.md Part C)."""
+    fractional (FR-022b)."""
     if float(value).is_integer():
         return count(int(value))
     return number(value)
@@ -95,12 +95,12 @@ def signed(n: int) -> str:
     return f"{n:+d}"
 
 
-def plural(n: float, singular: str, plural: str) -> str:  # noqa: A002 - matches data-model.md
+def plural(n: float, singular: str, plural: str) -> str:  # noqa: A002 - matches the data column
     """`singular` at exactly one, `plural` otherwise (FR-023).
 
     Both spellings come from the caller -- in practice a data row's ``name`` and
     ``plural`` columns -- never from a suffix rule, because the SRD's own
-    plurals are irregular ("armory" -> "armories", research.md Part E).
+    plurals are irregular ("armory" -> "armories").
 
     ``n`` is a `float` because the description agrees a noun with a tonnage as
     well as with a count: fuel tankage, cargo capacity and hangar capacity all
@@ -131,6 +131,6 @@ def tonnage_article(value: int) -> str:
     else "a" -- "Using an 800-ton hull", "Using a 200-ton hull".
 
     Eight is the only leading digit whose spoken form begins with a vowel among
-    the SRD's 18 starship and 18 small-craft hull sizes (research.md Part C).
+    the SRD's 18 starship and 18 small-craft hull sizes.
     """
     return "an" if str(value).lstrip("-")[:1] == "8" else "a"
