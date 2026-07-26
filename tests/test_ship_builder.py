@@ -1,5 +1,7 @@
 import dataclasses
+import json
 import random
+from enum import Enum
 
 import pytest
 
@@ -1107,6 +1109,49 @@ def test_build_ship_consumes_no_randomness(monkeypatch):
     design = ShipDesign(hull_tons=100, jump_code="A", power_code="A")
 
     build_ship(design)  # does not raise
+
+
+# --- FR-012 / SC-010: authored designs are unaffected by fuel-limited fitting ---
+
+_AUTHORED_DESIGNS_PATH = "specs/013-fuel-limited-jump-drive/baseline/authored_designs.json"
+_AUTHORED_EXAMPLES = (
+    "specs/010-starship-generator/examples/fighter.toml",
+    "specs/010-starship-generator/examples/free-trader.toml",
+    "specs/010-starship-generator/examples/heavy-cruiser.toml",
+    "specs/010-starship-generator/examples/scout-courier.toml",
+    "specs/010-starship-generator/examples/warship.toml",
+    "specs/011-universal-ship-format/examples/subsidized-merchant.toml",
+)
+
+
+def test_fr012_an_authored_short_legged_design_builds_exactly_as_written():
+    # A design specifying a jump_distance below one full jump at its drive's
+    # rating must build unaltered, never silently corrected up to the rating.
+    design = ShipDesign(hull_tons=200, jump_code="C", power_code="C", jump_distance=1)
+    ship = build_ship(design)
+
+    assert ship.jump_rating == 3
+    assert ship.assumed_jump_distance == 1
+    assert ship.jump_fuel == pytest.approx(20.0)
+
+
+def _to_jsonable(value):
+    if dataclasses.is_dataclass(value):
+        return {f.name: _to_jsonable(getattr(value, f.name)) for f in dataclasses.fields(value)}
+    if isinstance(value, Enum):
+        return value.value
+    if isinstance(value, (list, tuple)):
+        return [_to_jsonable(item) for item in value]
+    return value
+
+
+@pytest.mark.parametrize("path", _AUTHORED_EXAMPLES)
+def test_sc010_authored_example_designs_build_unchanged_from_before_the_change(path):
+    with open(_AUTHORED_DESIGNS_PATH, encoding="utf-8") as handle:
+        baseline = json.load(handle)
+
+    ship = build_ship(load_design(path))
+    assert _to_jsonable(ship) == baseline[path]
 
 
 def test_a_new_row_with_a_tech_level_widens_the_derivation_with_no_code_change(monkeypatch):

@@ -163,6 +163,26 @@ def test_drive_performance_z_on_5000_tons_is_2():
     assert DRIVE_PERFORMANCE["Z"][5000] == 2
 
 
+def test_drive_costs_jump_tons_strictly_increasing_in_table_order():
+    # research.md Part C, invariant 1: the fit search relies on this being
+    # true rather than assuming it, but a future SRD row that breaks it
+    # should fail loudly here rather than silently mis-selecting a drive.
+    jump_tons = [row.jump_tons for row in DRIVE_COSTS.values()]
+    assert all(a < b for a, b in zip(jump_tons, jump_tons[1:]))
+
+
+def test_drive_performance_rating_non_decreasing_per_hull_in_table_order():
+    # research.md Part C, invariant 2.
+    letters = list(DRIVE_COSTS)
+    for hull_tons in HULLS:
+        ratings = [
+            DRIVE_PERFORMANCE[letter][hull_tons]
+            for letter in letters
+            if hull_tons in DRIVE_PERFORMANCE[letter]
+        ]
+        assert all(a <= b for a, b in zip(ratings, ratings[1:]))
+
+
 # --- Configuration / armor ---
 
 

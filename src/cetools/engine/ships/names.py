@@ -7,11 +7,12 @@ First, **the draw stays last.** `generate_ship_name` is called as the final
 `Rolls` draw on every `generate_ship` path, after every other decision a seed
 makes (research.md Part A). `RandomRolls` wraps a single `random.Random`
 stream, so a draw inserted anywhere but the end shifts every later draw and
-changes the hull, drives and armament a seed produces. The
-`specs/012-ship-names/baseline/designs.json` regression test pins this: it
-holds 100 designs generated before this feature existed, and fails loudly,
-naming the seed, if a future change ever moves the name draw off the end of a
-path.
+changes the hull, drives and armament a seed produces.
+`test_sc008_ship_name_is_the_final_draw_and_is_drawn_exactly_once_on_both_paths`
+in `tests/test_ship_generator.py` pins this directly, and
+`specs/013-fuel-limited-jump-drive/baseline/designs.json` is a re-pinned
+seed-to-ship anchor for future features, failing loudly, naming the seed, if a
+future change ever moves the name draw off the end of a path.
 
 Second, **two different mappings, two different stability guarantees**
 (FR-010b). The seed-to-*ship* mapping, every field but `name`, is a

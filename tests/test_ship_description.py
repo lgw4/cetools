@@ -36,6 +36,8 @@ from cetools.engine.ships.tables import (
     ARMOR,
     ARMOR_OPTIONS,
     BAYS,
+    DRIVE_COSTS,
+    DRIVE_PERFORMANCE,
     FITTINGS,
     SCREENS,
     TURRET_MOUNTS,
@@ -1533,6 +1535,68 @@ def test_hangar_kinds_follow_the_design_order():  # FR-024a
         "There is one drone bay holding 20 tons of small craft "
         "and one small craft hangar holding ten tons of small craft."
     )
+
+
+# --- T017/T018 (US2): the prose reports an honest, non-zero jump range -----
+# (spec.md FR-007, SC-004). `description.py` itself is untouched by this
+# feature (research.md Part A); these tests assert the behaviour US1's fix
+# delivers, not a code change here.
+
+
+def _fr014_budget_tons(ship) -> float:
+    """Recompute the mandatory-systems tonnage budget from a *finished* ship's
+    own hull, maneuver drive and power plant (spec.md FR-014), so the FR-014
+    classification below depends on nothing internal to the generator."""
+    from cetools.engine.ships.generator import _bridge_tons
+
+    maneuver_tons = DRIVE_COSTS[ship.design.maneuver_code].maneuver_tons
+    power_tons = DRIVE_COSTS[ship.design.power_code].power_tons
+    power_fuel_tons = (power_tons // 3) * 2
+    bridge_tons = _bridge_tons(ship.hull_tons)
+    return ship.hull_tons - (maneuver_tons + power_tons + bridge_tons + power_fuel_tons)
+
+
+def _is_fr014_starved_hull_ship(ship) -> bool:
+    """A ship is an FR-014 ship exactly when its jump fuel falls short of one
+    complete jump at its installed rating *and* no drive legal for its hull
+    could have been fuelled for one complete jump within its own tonnage
+    budget (spec.md FR-014) — both halves recomputable from the finished
+    ship rather than from generator internals."""
+    if ship.jump_fuel >= 0.1 * ship.hull_tons * ship.jump_rating:
+        return False
+    budget = _fr014_budget_tons(ship)
+    legal = [c for c, ratings in DRIVE_PERFORMANCE.items() if ship.hull_tons in ratings]
+    return not any(
+        DRIVE_COSTS[c].jump_tons + 0.1 * ship.hull_tons * DRIVE_PERFORMANCE[c][ship.hull_tons]
+        <= budget
+        for c in legal
+    )
+
+
+def test_sc004_no_generated_starship_description_reports_a_zero_jump_count():
+    starved = 0
+    for seed in range(2000):
+        ship = generate_ship(RandomRolls.seeded(seed))
+        if _is_fr014_starved_hull_ship(ship):
+            starved += 1
+            continue
+        assert "zero Jump-" not in _paragraph(ship)
+    assert starved == 0
+
+
+def test_the_drive_letter_jump_rating_and_jump_count_agree():
+    # Seed 0 downgrades its drive letter (research.md Part D); the others are
+    # a spread that mostly keeps the drawn letter, so the sweep covers both.
+    for seed in (0, 1, 7, 42, 99, 12345):
+        ship = generate_ship(RandomRolls.seeded(seed))
+        paragraph = _paragraph(ship)
+        drives = _clause(paragraph, "It mounts")
+        fuel = _clause(paragraph, "Fuel tankage")
+
+        assert f"jump drive {ship.design.jump_code}" in drives
+        assert f"Jump-{ship.jump_rating}" in drives
+        assert f"Jump-{ship.jump_rating}" in fuel
+        assert "one Jump-" in fuel
 
 
 def test_entries_of_one_kind_still_share_that_kind_s_noun():
