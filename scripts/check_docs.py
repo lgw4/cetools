@@ -172,7 +172,7 @@ def check_readme_ship_console_examples() -> None:
                     f"block must invoke it as `{SHIP_CONSOLE_PREFIX} ...`"
                 )
             continue
-        command = SHIP_CONSOLE_PREFIX.split() + shlex.split(lines[0][len(prefix) :])
+        command = SHIP_CONSOLE_PREFIX.split() + shlex.split(lines[0][len(prefix):])
         expected = "\n".join(lines[1:]).rstrip("\n")
         result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)
         actual = result.stdout.rstrip("\n")
