@@ -119,6 +119,32 @@ def _codes_valid_for_hull(hull_tons: int) -> list[str]:
     return sorted(code for code, ratings in DRIVE_PERFORMANCE.items() if hull_tons in ratings)
 
 
+def _fit_jump_drive(hull_tons: int, drawn_code: str, budget: float) -> str:
+    """The lightest jump drive affording the highest rating `budget` buys,
+    never rated above `drawn_code`, per contracts/jump-drive-fit.md.
+
+    Total: `drawn_code` is itself legal for `hull_tons`, so a candidate always
+    exists at every rating up to its own—step 4 never has to look further.
+    """
+    ceiling = DRIVE_PERFORMANCE[drawn_code][hull_tons]
+    legal = [
+        c for c in _codes_valid_for_hull(hull_tons) if DRIVE_PERFORMANCE[c][hull_tons] <= ceiling
+    ]
+
+    lightest_by_rating: dict[int, str] = {}
+    for rating in sorted({DRIVE_PERFORMANCE[c][hull_tons] for c in legal}):
+        lightest_by_rating[rating] = min(
+            (c for c in legal if DRIVE_PERFORMANCE[c][hull_tons] == rating),
+            key=lambda c: DRIVE_COSTS[c].jump_tons,
+        )
+
+    for rating in sorted(lightest_by_rating, reverse=True):
+        code = lightest_by_rating[rating]
+        if DRIVE_COSTS[code].jump_tons + 0.1 * hull_tons * rating <= budget:
+            return code
+    return lightest_by_rating[min(lightest_by_rating)]
+
+
 def _select_drive_codes(rolls: Rolls, hull_tons: int) -> tuple[str, str, str]:
     valid = _codes_valid_for_hull(hull_tons)
     jump_code = rolls.choose(valid, RollName.SHIP_JUMP_CODE)
@@ -365,17 +391,16 @@ def generate_ship(
     configuration = _select_configuration(rolls)
     jump_code, maneuver_code, power_code = _select_drive_codes(rolls, hull_tons)
 
-    jump_rating = DRIVE_PERFORMANCE[jump_code][hull_tons]
-    jump_tons = DRIVE_COSTS[jump_code].jump_tons
     maneuver_tons = DRIVE_COSTS[maneuver_code].maneuver_tons
     power_tons = DRIVE_COSTS[power_code].power_tons
     power_fuel_tons = (power_tons // 3) * _STANDARD_POWER_WEEKS
     bridge_tons = _bridge_tons(hull_tons)
 
-    remaining = max(
-        0.0,
-        hull_tons - (jump_tons + maneuver_tons + power_tons + bridge_tons + power_fuel_tons),
-    )
+    budget = hull_tons - (maneuver_tons + power_tons + bridge_tons + power_fuel_tons)
+    jump_code = _fit_jump_drive(hull_tons, jump_code, budget)
+    jump_rating = DRIVE_PERFORMANCE[jump_code][hull_tons]
+
+    remaining = max(0.0, budget - DRIVE_COSTS[jump_code].jump_tons)
 
     max_jump_distance = math.floor(remaining / (0.1 * hull_tons))
     jump_distance = max(0, min(jump_rating, max_jump_distance))

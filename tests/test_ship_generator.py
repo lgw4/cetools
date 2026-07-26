@@ -4,13 +4,14 @@ import time
 
 import pytest
 
-from cetools.engine.rolls import RandomRolls, ScriptedRolls
+from cetools.engine.rolls import RandomRolls, RollName, ScriptedRolls
 from cetools.engine.ships import SHIP_NAMES, build_ship, dump_design, load_design, loads_design
 from cetools.engine.ships.generator import generate_ship
-from cetools.engine.ships.tables import HULLS
+from cetools.engine.ships.tables import DRIVE_COSTS, DRIVE_PERFORMANCE, HULLS
 
 _CATALOGUE_NAMES = {entry.name for entry in SHIP_NAMES}
 _BASELINE_PATH = "specs/012-ship-names/baseline/designs.json"
+_PRE_CHANGE_SWEEP_PATH = "specs/013-fuel-limited-jump-drive/baseline/pre_change_sweep.json"
 
 # --- ScriptedRolls pins a known component selection to an exact Ship ---
 
@@ -222,6 +223,253 @@ def test_a_screen_is_reachable_for_a_large_enough_hull():
         generate_ship(RandomRolls.seeded(seed), hull_size=2000).design.screens
         for seed in range(300)
     )
+
+
+# --- Phase 2 Foundational: `_fit_jump_drive` (contracts/jump-drive-fit.md) ---
+# T006: contract tests C1-C4/C8, driven by the contract's four worked examples.
+# `_fit_jump_drive` does not exist yet, so every test here is expected to fail
+# with an AttributeError/ImportError until T008 implements it.
+
+_FIT_WORKED_EXAMPLES = (
+    (400, "C", 200, "B"),
+    (700, "Z", 600, "U"),
+    (700, "Z", 400, "N"),
+    (100, "C", 72, "B"),
+)
+
+
+@pytest.mark.parametrize("hull_tons,drawn_code,budget,expected", _FIT_WORKED_EXAMPLES)
+def test_fit_jump_drive_matches_the_contracts_worked_examples(
+    hull_tons, drawn_code, budget, expected
+):
+    from cetools.engine.ships.generator import _fit_jump_drive
+
+    assert _fit_jump_drive(hull_tons, drawn_code, budget) == expected
+
+
+@pytest.mark.parametrize("hull_tons,drawn_code,budget,expected", _FIT_WORKED_EXAMPLES)
+def test_fit_jump_drive_c1_result_is_legal_for_the_hull(hull_tons, drawn_code, budget, expected):
+    from cetools.engine.ships.generator import _fit_jump_drive
+
+    result = _fit_jump_drive(hull_tons, drawn_code, budget)
+    assert hull_tons in DRIVE_PERFORMANCE[result]
+
+
+@pytest.mark.parametrize("hull_tons,drawn_code,budget,expected", _FIT_WORKED_EXAMPLES)
+def test_fit_jump_drive_c2_rating_is_never_raised(hull_tons, drawn_code, budget, expected):
+    from cetools.engine.ships.generator import _fit_jump_drive
+
+    result = _fit_jump_drive(hull_tons, drawn_code, budget)
+    assert DRIVE_PERFORMANCE[result][hull_tons] <= DRIVE_PERFORMANCE[drawn_code][hull_tons]
+
+
+@pytest.mark.parametrize("hull_tons,drawn_code,budget,expected", _FIT_WORKED_EXAMPLES)
+def test_fit_jump_drive_c3_result_is_the_unique_lightest_at_its_rating(
+    hull_tons, drawn_code, budget, expected
+):
+    from cetools.engine.ships.generator import _fit_jump_drive
+
+    result = _fit_jump_drive(hull_tons, drawn_code, budget)
+    result_rating = DRIVE_PERFORMANCE[result][hull_tons]
+    result_tons = DRIVE_COSTS[result].jump_tons
+    for code, ratings in DRIVE_PERFORMANCE.items():
+        if hull_tons in ratings and ratings[hull_tons] == result_rating:
+            assert DRIVE_COSTS[code].jump_tons >= result_tons
+
+
+@pytest.mark.parametrize("hull_tons,drawn_code,budget,expected", _FIT_WORKED_EXAMPLES)
+def test_fit_jump_drive_c4_highest_affordable_rating_wins(hull_tons, drawn_code, budget, expected):
+    from cetools.engine.ships.generator import _fit_jump_drive
+
+    result = _fit_jump_drive(hull_tons, drawn_code, budget)
+    ceiling = DRIVE_PERFORMANCE[drawn_code][hull_tons]
+    affordable_ratings = [
+        ratings[hull_tons]
+        for code, ratings in DRIVE_PERFORMANCE.items()
+        if hull_tons in ratings
+        and ratings[hull_tons] <= ceiling
+        and DRIVE_COSTS[code].jump_tons + 0.1 * hull_tons * ratings[hull_tons] <= budget
+    ]
+    result_rating = DRIVE_PERFORMANCE[result][hull_tons]
+    if affordable_ratings:
+        assert result_rating == max(affordable_ratings)
+        assert DRIVE_COSTS[result].jump_tons + 0.1 * hull_tons * result_rating <= budget
+    else:
+        assert result_rating == min(
+            ratings[hull_tons]
+            for code, ratings in DRIVE_PERFORMANCE.items()
+            if hull_tons in ratings
+        )
+
+
+@pytest.mark.parametrize("hull_tons,drawn_code,budget,expected", _FIT_WORKED_EXAMPLES)
+def test_fit_jump_drive_c8_is_idempotent(hull_tons, drawn_code, budget, expected):
+    from cetools.engine.ships.generator import _fit_jump_drive
+
+    result = _fit_jump_drive(hull_tons, drawn_code, budget)
+    assert _fit_jump_drive(hull_tons, result, budget) == result
+
+
+def test_fit_jump_drive_legality_and_ceiling_hold_over_every_hull_and_legal_drawn_code():
+    from cetools.engine.ships.generator import _fit_jump_drive
+
+    for hull_tons in HULLS:
+        for drawn_code, ratings in DRIVE_PERFORMANCE.items():
+            if hull_tons not in ratings:
+                continue
+            result = _fit_jump_drive(hull_tons, drawn_code, 10_000.0)
+            assert hull_tons in DRIVE_PERFORMANCE[result]
+            assert DRIVE_PERFORMANCE[result][hull_tons] <= ratings[hull_tons]
+
+
+# T007: the FR-014 starved-hull fallback (contract C5, C6), tested against the
+# helper directly since no seed can reach it through `generate_ship`
+# (research.md Part E, quickstart.md Scenario 5).
+
+
+def test_fit_jump_drive_c5_starved_hull_falls_back_to_the_lowest_rated_legal_drive():
+    from cetools.engine.ships.generator import _fit_jump_drive
+
+    assert _fit_jump_drive(100, "A", 5.0) == "A"
+
+
+def test_fit_jump_drive_c5_zero_budget_falls_back_to_the_lightest_lowest_rated_drive():
+    from cetools.engine.ships.generator import _fit_jump_drive
+
+    for hull_tons in HULLS:
+        legal = [code for code, ratings in DRIVE_PERFORMANCE.items() if hull_tons in ratings]
+        drawn_code = max(legal, key=lambda code: DRIVE_PERFORMANCE[code][hull_tons])
+
+        result = _fit_jump_drive(hull_tons, drawn_code, 0.0)
+
+        lowest_rating = min(DRIVE_PERFORMANCE[code][hull_tons] for code in legal)
+        lightest_at_lowest = min(
+            (code for code in legal if DRIVE_PERFORMANCE[code][hull_tons] == lowest_rating),
+            key=lambda code: DRIVE_COSTS[code].jump_tons,
+        )
+        assert result == lightest_at_lowest
+
+
+def test_fit_jump_drive_c6_never_raises_for_any_input_satisfying_the_preconditions():
+    from cetools.engine.ships.generator import _fit_jump_drive
+
+    for hull_tons in HULLS:
+        for drawn_code, ratings in DRIVE_PERFORMANCE.items():
+            if hull_tons not in ratings:
+                continue
+            for budget in (0.0, 1.0, 50.0, 10_000.0):
+                _fit_jump_drive(hull_tons, drawn_code, budget)
+
+
+# --- Phase 3, User Story 1: every generated starship can make at least one
+# jump (FR-001..FR-006, SC-001, SC-002, SC-003, SC-007). T010-T013 are written
+# and confirmed red before T014 reorders `generate_ship`'s allocation.
+
+
+def _fr014_budget_tons(ship) -> float:
+    """Recompute the mandatory-systems tonnage budget from a *finished* ship's
+    own hull, maneuver drive and power plant (spec.md FR-014), so the FR-014
+    classification below depends on nothing internal to the generator."""
+    from cetools.engine.ships.generator import _bridge_tons
+
+    maneuver_tons = DRIVE_COSTS[ship.design.maneuver_code].maneuver_tons
+    power_tons = DRIVE_COSTS[ship.design.power_code].power_tons
+    power_fuel_tons = (power_tons // 3) * 2
+    bridge_tons = _bridge_tons(ship.hull_tons)
+    return ship.hull_tons - (maneuver_tons + power_tons + bridge_tons + power_fuel_tons)
+
+
+def _is_fr014_starved_hull_ship(ship) -> bool:
+    """A ship is an FR-014 ship exactly when its jump fuel falls short of one
+    complete jump at its installed rating *and* no drive legal for its hull
+    could have been fuelled for one complete jump within its own tonnage
+    budget (spec.md FR-014) — both halves recomputable from the finished
+    ship rather than from generator internals."""
+    if ship.jump_fuel >= 0.1 * ship.hull_tons * ship.jump_rating:
+        return False
+    budget = _fr014_budget_tons(ship)
+    legal = [c for c, ratings in DRIVE_PERFORMANCE.items() if ship.hull_tons in ratings]
+    return not any(
+        DRIVE_COSTS[c].jump_tons + 0.1 * ship.hull_tons * DRIVE_PERFORMANCE[c][ship.hull_tons]
+        <= budget
+        for c in legal
+    )
+
+
+def test_sc001_sc002_every_generated_starship_carries_fuel_for_one_full_jump():
+    starved = 0
+    for seed in range(2000):
+        ship = generate_ship(RandomRolls.seeded(seed))
+        if _is_fr014_starved_hull_ship(ship):
+            starved += 1
+            continue
+        assert ship.jump_fuel >= 0.1 * ship.hull_tons * ship.jump_rating
+        assert ship.assumed_jump_distance == ship.jump_rating
+    assert starved == 0
+
+
+def test_us1_as1_a_100_ton_hull_with_maneuver_a_and_power_c_mounts_jump_b_at_jump_4():
+    # Overview scenario / contracts worked example 4: 100/C/72 -> B (Jump-4).
+    # 72 tons remain for the jump drive once the 10-ton bridge, 2-ton maneuver
+    # drive, 10-ton power plant and 6 tons of power-plant fuel are deducted.
+    from cetools.engine.ships.generator import _codes_valid_for_hull
+
+    hull_tons = 100
+    valid = _codes_valid_for_hull(hull_tons)
+    jump_index = valid.index("C")
+    maneuver_index = valid.index("A")
+    required = max(DRIVE_PERFORMANCE["C"][hull_tons], DRIVE_PERFORMANCE["A"][hull_tons])
+    power_candidates = [c for c in valid if DRIVE_PERFORMANCE[c][hull_tons] >= required]
+    power_index = power_candidates.index("C")
+
+    rolls = ScriptedRolls(
+        choices={
+            RollName.SHIP_JUMP_CODE: jump_index,
+            RollName.SHIP_MANEUVER_CODE: maneuver_index,
+            RollName.SHIP_POWER_CODE: power_index,
+        }
+    )
+    ship = generate_ship(rolls, hull_size=hull_tons)
+
+    assert ship.design.jump_code == "B"
+    assert ship.jump_rating == 4
+    assert ship.assumed_jump_distance == 4
+    assert ship.jump_fuel == pytest.approx(40.0)
+
+
+def test_sc007_ships_already_fully_fuelled_before_the_change_keep_their_rating():
+    with open(_PRE_CHANGE_SWEEP_PATH, encoding="utf-8") as handle:
+        baseline = json.load(handle)["standard"]
+
+    checked = 0
+    for seed_text, before in baseline.items():
+        if before["assumed_jump_distance"] != before["jump_rating"]:
+            continue
+        seed = int(seed_text)
+        ship = generate_ship(RandomRolls.seeded(seed))
+
+        assert ship.hull_tons == before["hull_tons"]
+        assert ship.jump_rating == before["jump_rating"]
+        assert ship.design.maneuver_code == before["maneuver_code"]
+        assert ship.design.power_code == before["power_code"]
+        if ship.design.jump_code != before["jump_code"]:
+            before_tons = DRIVE_COSTS[before["jump_code"]].jump_tons
+            after_tons = DRIVE_COSTS[ship.design.jump_code].jump_tons
+            assert after_tons < before_tons
+        checked += 1
+    assert checked > 0
+
+
+def test_sc003_allocated_tonnage_never_overruns_the_hull():
+    # FR-013's other half — "passes exactly the same validation a
+    # caller-supplied design must pass" — needs no separate assertion here:
+    # `generate_ship` returns `build_ship(design)`, so a sweep that completes
+    # without raising has already run every generated design through the
+    # sole validation authority.
+    for seed in range(2000):
+        ship = generate_ship(RandomRolls.seeded(seed))
+        assert ship.cargo_tons >= 0
+        assert ship.tonnage_used <= ship.hull_tons
 
 
 # --- SC-007: a single build or generation is effectively instant ---
