@@ -309,7 +309,10 @@ Randomly generate a ship from a seed, or constrain it to a hull size or the smal
 ```bash
 uv run cetools ship generate --seed 42
 uv run cetools ship generate --hull 10 --small-craft --seed 7
+uv run cetools ship generate --interactive --seed 42
 ```
+
+`--interactive` (`-i`) asks what to pin and rolls the rest. Every question shows its default and pressing Enter takes it, so answering nothing produces exactly the ship the same seed produces without the flag. An answer that is not a tabulated hull size is rejected and asked again with the reason, so a typo costs a line rather than the session. `--hull` and `--small-craft` pre-answer their questions, which are then not asked. Questions and their answers go to stderr, so `--interactive` composes with `--toml` and `--out`.
 
 A randomly generated ship arrives already named, drawn from `generate_ship_name`'s curated catalogue of mythology and folklore, written science fiction, and screen science fiction sources; a hand-authored design's own `name` is never overwritten.
 
@@ -325,7 +328,7 @@ Output above is illustrative; generation is random unless `--seed` is given, so 
 from cetools.engine.ships import build_ship, load_design
 
 ship = build_ship(load_design("tests/data/ships/free-trader.toml"))
-print(ship.total_cost, ship.cargo_tons, ship.crew.total)   # 29.772 135 5
+print(ship.total_cost, ship.cargo_tons, ship.crew.total)   # 29.772 135.0 5
 ```
 
 `build_ship` is the sole validation authority: it allocates every component in SRD build order and rejects a rules-illegal design with a message naming the violated rule. `load_design`/`loads_design` and `dump_design` round-trip a `ShipDesign` through TOML losslessly, including a ship's own `design`, so `build_ship(loads_design(dump_design(ship.design))) == ship`.
@@ -338,9 +341,23 @@ from cetools.engine.ships import generate_ship
 
 result = generate_ship(RandomRolls.seeded(42))
 assert result == generate_ship(RandomRolls.seeded(42))
-print(result.ship.hull_tons, result.unmet)   # 100 ()
+print(result.ship.hull_tons, result.unmet)   # 400 ()
 ```
 
 `generate_ship` returns a `GenerationResult`, not a bare `Ship`: `result.ship` is the ship, and `result.unmet` reports any constraint the tonnage budget could not honour. Unconstrained generation has nothing to report, so `unmet` is empty.
+
+What a referee pins at the prompts, a library caller passes as a `DesignConstraints` value; the wizard is a thin layer over the same seam. Anything left unset is rolled, and a pinned value consumes no dice, so pinning one field does not shift the draws behind the others:
+
+```python
+from cetools.engine.ships import DesignConstraints, HullClass, generate_ship
+
+pinned = generate_ship(RandomRolls.seeded(42), constraints=DesignConstraints(hull_tons=200))
+print(pinned.ship.hull_tons)   # 200
+
+launch = generate_ship(
+    RandomRolls.seeded(7), constraints=DesignConstraints(hull_class=HullClass.SMALL_CRAFT)
+)
+print(launch.ship.design.hull_class is HullClass.SMALL_CRAFT)   # True
+```
 
 A randomly generated starship always carries fuel for at least one complete jump at its installed rating—the drive drawn is a ceiling, not a guarantee, and the generator downgrades it to whatever rating the hull's remaining tonnage can fuel for a full jump. Among drives of that rating, the lightest one is always the one installed, so the tonnage a downgrade frees flows on to fuel and fittings rather than sitting unused. This is generation policy, not an SRD rule: a hand-authored design loaded through `build_ship` is never second-guessed this way, so a short-legged design—one whose `jump_distance` is deliberately below its drive's rating—still builds exactly as written.

@@ -35,7 +35,7 @@ worth more than earlier feedback. Such violations surface at assembly and re-ent
 same revise loop that unmet constraints use, so the referee never loses the session; the
 feedback simply arrives later for that narrow class.
 
-Pinning a value consumes no dice. This matches how `hull_size` has always behaved and
+Pinning a value consumes no dice. This matches how the hull size has always behaved and
 keeps the unconstrained draw sequence byte-identical, so `tests/data/baseline/designs.json`
 holds. The cost is that two runs sharing a seed but differing in one pin diverge
 completely downstream of that pin; the alternative — drawing and discarding to keep the

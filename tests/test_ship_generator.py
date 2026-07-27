@@ -7,7 +7,10 @@ import pytest
 from cetools.engine.rolls import RandomRolls, RollName, Rolls, ScriptedRolls
 from cetools.engine.ships import (
     SHIP_NAMES,
+    UNCONSTRAINED,
+    DesignConstraints,
     GenerationResult,
+    HullClass,
     Ship,
     ShipDesign,
     build_ship,
@@ -18,6 +21,7 @@ from cetools.engine.ships import (
 from cetools.engine.ships.generator import TonnageLedger, generate_ship
 from cetools.engine.ships.tables import DRIVE_COSTS, DRIVE_PERFORMANCE, HULLS
 
+_SMALL_CRAFT = DesignConstraints(hull_class=HullClass.SMALL_CRAFT)
 _CATALOGUE_NAMES = {entry.name for entry in SHIP_NAMES}
 _PRE_CHANGE_SWEEP_PATH = "tests/data/baseline/pre_change_sweep.json"
 _POST_CHANGE_BASELINE_PATH = "tests/data/baseline/designs.json"
@@ -100,7 +104,7 @@ def test_unconstrained_generation_reports_nothing_unmet():
     not fit is a preference declined silently, never an unmet constraint."""
     for seed in range(20):
         assert generate_ship(RandomRolls.seeded(seed)).unmet == ()
-        assert generate_ship(RandomRolls.seeded(seed), small_craft=True).unmet == ()
+        assert generate_ship(RandomRolls.seeded(seed), constraints=_SMALL_CRAFT).unmet == ()
 
 
 def test_result_equality_still_distinguishes_seeds():
@@ -108,6 +112,30 @@ def test_result_equality_still_distinguishes_seeds():
     reproducibility assertions keep their meaning after the return type change."""
     assert generate_ship(RandomRolls.seeded(42)) == generate_ship(RandomRolls.seeded(42))
     assert generate_ship(RandomRolls.seeded(1)) != generate_ship(RandomRolls.seeded(2))
+
+
+# --- DesignConstraints: the referee's answers, carried as a value ---
+
+
+def test_unconstrained_is_the_default_and_pins_nothing():
+    """Constraints are optional, and their absence is `UNCONSTRAINED`.
+
+    Every pin below is measured against this: the same seed with nothing pinned
+    must still produce the ship it produced before constraints existed, which is
+    what `tests/data/baseline/designs.json` holds.
+    """
+    for seed in range(20):
+        assert generate_ship(RandomRolls.seeded(seed)) == generate_ship(
+            RandomRolls.seeded(seed), constraints=UNCONSTRAINED
+        )
+
+
+def test_constraints_carry_the_hull_class_the_ruleset_branches_on():
+    starship = generate_ship(RandomRolls.seeded(7)).ship
+    small_craft = generate_ship(RandomRolls.seeded(7), constraints=_SMALL_CRAFT).ship
+
+    assert starship.design.hull_class is HullClass.STARSHIP
+    assert small_craft.design.hull_class is HullClass.SMALL_CRAFT
 
 
 # --- ScriptedRolls pins a known component selection to an exact Ship ---
@@ -165,18 +193,20 @@ def test_many_seeds_all_produce_ships():
         assert ship.cargo_tons >= 0
 
 
-# --- FR-018: hull_size is honoured ---
+# --- FR-018: a pinned hull tonnage is honoured ---
 
 
 def test_hull_size_is_honoured():
     for seed in range(20):
-        ship = generate_ship(RandomRolls.seeded(seed), hull_size=400).ship
+        ship = generate_ship(
+            RandomRolls.seeded(seed), constraints=DesignConstraints(hull_tons=400)
+        ).ship
         assert ship.hull_tons == 400
 
 
 def test_unknown_hull_size_raises():
     with pytest.raises(ValueError, match="not a tabulated hull size"):
-        generate_ship(RandomRolls.seeded(1), hull_size=150)
+        generate_ship(RandomRolls.seeded(1), constraints=DesignConstraints(hull_tons=150))
 
 
 # --- SC-008: generated ships round-trip losslessly ---
@@ -203,7 +233,7 @@ def test_generated_starship_carries_a_catalogue_name():
 
 
 def test_generated_small_craft_carries_a_catalogue_name():
-    ship = generate_ship(RandomRolls.seeded(7), small_craft=True).ship
+    ship = generate_ship(RandomRolls.seeded(7), constraints=_SMALL_CRAFT).ship
     assert ship.design.name in _CATALOGUE_NAMES
 
 
@@ -236,7 +266,7 @@ def test_generated_ships_over_a_pinned_seed_set_are_mostly_distinct():
 
 def test_small_craft_yields_a_10_to_95_ton_ship_with_no_jump_drive():
     for seed in range(200):
-        ship = generate_ship(RandomRolls.seeded(seed), small_craft=True).ship
+        ship = generate_ship(RandomRolls.seeded(seed), constraints=_SMALL_CRAFT).ship
         assert 10 <= ship.hull_tons <= 95
         assert ship.jump_rating == 0
         assert ship.jump_fuel == pytest.approx(0.0)
@@ -244,26 +274,32 @@ def test_small_craft_yields_a_10_to_95_ton_ship_with_no_jump_drive():
 
 
 def test_small_craft_reproducible_from_a_seed():
-    a = generate_ship(RandomRolls.seeded(42), small_craft=True).ship
-    b = generate_ship(RandomRolls.seeded(42), small_craft=True).ship
+    a = generate_ship(RandomRolls.seeded(42), constraints=_SMALL_CRAFT).ship
+    b = generate_ship(RandomRolls.seeded(42), constraints=_SMALL_CRAFT).ship
     assert a == b
 
 
 def test_small_craft_hull_size_is_honoured():
     for tons in (10, 40, 95):
         for seed in range(10):
-            ship = generate_ship(RandomRolls.seeded(seed), hull_size=tons, small_craft=True).ship
+            ship = generate_ship(
+                RandomRolls.seeded(seed),
+                constraints=DesignConstraints(hull_class=HullClass.SMALL_CRAFT, hull_tons=tons),
+            ).ship
             assert ship.hull_tons == tons
 
 
 def test_small_craft_unknown_hull_size_raises():
     with pytest.raises(ValueError, match="not a tabulated small-craft hull size"):
-        generate_ship(RandomRolls.seeded(1), hull_size=100, small_craft=True)
+        generate_ship(
+            RandomRolls.seeded(1),
+            constraints=DesignConstraints(hull_class=HullClass.SMALL_CRAFT, hull_tons=100),
+        )
 
 
 def test_small_craft_round_trips_losslessly():
     for seed in range(50):
-        ship = generate_ship(RandomRolls.seeded(seed), small_craft=True).ship
+        ship = generate_ship(RandomRolls.seeded(seed), constraints=_SMALL_CRAFT).ship
         assert build_ship(loads_design(dump_design(ship.design))) == ship
 
 
@@ -279,7 +315,7 @@ def test_generated_bays_never_exceed_hardpoints_or_free_tonnage():
 
 def test_generated_ships_never_carry_a_bay_on_small_craft():
     for seed in range(300):
-        ship = generate_ship(RandomRolls.seeded(seed), small_craft=True).ship
+        ship = generate_ship(RandomRolls.seeded(seed), constraints=_SMALL_CRAFT).ship
         assert ship.design.bays == ()
 
 
@@ -287,14 +323,18 @@ def test_a_bay_is_reachable_for_a_large_enough_hull():
     # Sweep enough seeds on a hull with ample hardpoints and tonnage that at
     # least one draw selects a bay (bay selection is randomized, not forced).
     assert any(
-        generate_ship(RandomRolls.seeded(seed), hull_size=2000).ship.design.bays
+        generate_ship(
+            RandomRolls.seeded(seed), constraints=DesignConstraints(hull_tons=2000)
+        ).ship.design.bays
         for seed in range(300)
     )
 
 
 def test_a_screen_is_reachable_for_a_large_enough_hull():
     assert any(
-        generate_ship(RandomRolls.seeded(seed), hull_size=2000).ship.design.screens
+        generate_ship(
+            RandomRolls.seeded(seed), constraints=DesignConstraints(hull_tons=2000)
+        ).ship.design.screens
         for seed in range(300)
     )
 
@@ -554,7 +594,7 @@ def test_us1_as1_a_100_ton_hull_with_maneuver_a_and_power_c_mounts_jump_b_at_jum
             RollName.SHIP_POWER_CODE: power_index,
         }
     )
-    ship = generate_ship(rolls, hull_size=hull_tons).ship
+    ship = generate_ship(rolls, constraints=DesignConstraints(hull_tons=hull_tons)).ship
 
     assert ship.design.jump_code == "B"
     assert ship.jump_rating == 4
@@ -604,12 +644,12 @@ def test_sc003_allocated_tonnage_never_overruns_the_hull():
 def test_sc006_generation_is_deterministic_on_every_path():
     for seed in range(2000):
         assert generate_ship(RandomRolls.seeded(seed)) == generate_ship(RandomRolls.seeded(seed))
-        assert generate_ship(RandomRolls.seeded(seed), small_craft=True) == generate_ship(
-            RandomRolls.seeded(seed), small_craft=True
+        assert generate_ship(RandomRolls.seeded(seed), constraints=_SMALL_CRAFT) == generate_ship(
+            RandomRolls.seeded(seed), constraints=_SMALL_CRAFT
         )
-        assert generate_ship(RandomRolls.seeded(seed), hull_size=400) == generate_ship(
-            RandomRolls.seeded(seed), hull_size=400
-        )
+        assert generate_ship(
+            RandomRolls.seeded(seed), constraints=DesignConstraints(hull_tons=400)
+        ) == generate_ship(RandomRolls.seeded(seed), constraints=DesignConstraints(hull_tons=400))
 
 
 def test_sc005_small_craft_output_is_unchanged_from_before_the_change():
@@ -618,14 +658,16 @@ def test_sc005_small_craft_output_is_unchanged_from_before_the_change():
 
     for seed_text, expected_toml in baseline.items():
         seed = int(seed_text)
-        ship = generate_ship(RandomRolls.seeded(seed), small_craft=True).ship
+        ship = generate_ship(RandomRolls.seeded(seed), constraints=_SMALL_CRAFT).ship
         assert dump_design(ship.design) == expected_toml
 
 
 def test_sc009_hull_size_is_always_honoured():
     for hull_tons in sorted(HULLS):
         for seed in range(10):
-            ship = generate_ship(RandomRolls.seeded(seed), hull_size=hull_tons).ship
+            ship = generate_ship(
+                RandomRolls.seeded(seed), constraints=DesignConstraints(hull_tons=hull_tons)
+            ).ship
             assert ship.hull_tons == hull_tons
 
 
@@ -658,11 +700,40 @@ class RecordingRolls:
 
 def test_sc008_ship_name_is_the_final_draw_and_is_drawn_exactly_once_on_both_paths():
     for seed in range(50):
-        for small_craft in (False, True):
+        for hull_class in HullClass:
             recorder = RecordingRolls(RandomRolls.seeded(seed))
-            generate_ship(recorder, small_craft=small_craft)
+            generate_ship(recorder, constraints=DesignConstraints(hull_class=hull_class))
             assert recorder.drawn[-1] == RollName.SHIP_NAME
             assert recorder.drawn.count(RollName.SHIP_NAME) == 1
+
+
+def test_a_pinned_hull_tonnage_draws_no_dice_on_either_path():
+    """Pinning spends an answer, not a roll (ADR-0001).
+
+    `RecordingRolls` is the only way to see this: the ship alone cannot say
+    whether the hull was drawn and discarded or never drawn at all, and the
+    difference is exactly what keeps the pinned baseline meaningful.
+    """
+    for seed in range(20):
+        recorder = RecordingRolls(RandomRolls.seeded(seed))
+        generate_ship(recorder, constraints=DesignConstraints(hull_tons=400))
+        assert RollName.SHIP_HULL_SIZE not in recorder.drawn
+
+        recorder = RecordingRolls(RandomRolls.seeded(seed))
+        generate_ship(
+            recorder,
+            constraints=DesignConstraints(hull_class=HullClass.SMALL_CRAFT, hull_tons=40),
+        )
+        assert RollName.SHIP_HULL_SIZE not in recorder.drawn
+
+
+def test_an_unpinned_hull_tonnage_is_drawn_exactly_once_on_either_path():
+    """The other half: without a pin the draw is still made, so the test above
+    cannot pass by the roll having been removed altogether."""
+    for hull_class in HullClass:
+        recorder = RecordingRolls(RandomRolls.seeded(3))
+        generate_ship(recorder, constraints=DesignConstraints(hull_class=hull_class))
+        assert recorder.drawn.count(RollName.SHIP_HULL_SIZE) == 1
 
 
 def test_sc008_drive_codes_are_drawn_jump_then_maneuver_then_power():
@@ -676,7 +747,7 @@ def test_sc008_drive_codes_are_drawn_jump_then_maneuver_then_power():
 
     for seed in range(50):
         recorder = RecordingRolls(RandomRolls.seeded(seed))
-        generate_ship(recorder, small_craft=True)
+        generate_ship(recorder, constraints=_SMALL_CRAFT)
         assert RollName.SHIP_JUMP_CODE not in recorder.drawn
         maneuver_at = recorder.drawn.index(RollName.SHIP_MANEUVER_CODE)
         power_at = recorder.drawn.index(RollName.SHIP_POWER_CODE)
@@ -692,7 +763,10 @@ def test_sc008_re_pinned_baseline_pins_seeded_designs_for_future_features():
     for key, expected_toml in baseline.items():
         path, seed_text = key.split(":")
         seed = int(seed_text)
-        ship = generate_ship(RandomRolls.seeded(seed), small_craft=path == "small_craft").ship
+        ship = generate_ship(
+            RandomRolls.seeded(seed),
+            constraints=_SMALL_CRAFT if path == "small_craft" else UNCONSTRAINED,
+        ).ship
         assert dump_design(ship.design) == expected_toml, f"{key}: moved off the pinned baseline"
 
 

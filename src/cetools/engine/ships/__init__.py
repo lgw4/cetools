@@ -4,10 +4,13 @@ from cetools.engine.ships.builder import build_ship
 from cetools.engine.ships.description import render_description
 from cetools.engine.ships.design import dump_design, load_design, loads_design
 from cetools.engine.ships.generator import (
+    UNCONSTRAINED,
+    DesignConstraints,
     GenerationResult,
     TonnageLedger,
     UnmetConstraint,
     generate_ship,
+    validate_hull_tons,
 )
 from cetools.engine.ships.models import (
     AmmoFit,
@@ -43,6 +46,7 @@ __all__ = [
     "ComputerFit",
     "Configuration",
     "Crew",
+    "DesignConstraints",
     "FittingFit",
     "GenerationResult",
     "HullClass",
@@ -56,6 +60,7 @@ __all__ = [
     "Tradition",
     "TonnageLedger",
     "TurretFit",
+    "UNCONSTRAINED",
     "UnmetConstraint",
     "build_ship",
     "dump_design",
@@ -64,4 +69,5 @@ __all__ = [
     "load_design",
     "loads_design",
     "render_description",
+    "validate_hull_tons",
 ]

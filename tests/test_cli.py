@@ -963,6 +963,111 @@ def test_ship_generate_small_craft_hull_100_out_of_range_exits_1():
     assert result.stderr.strip()
 
 
+# --- `cetools ship generate --interactive` (#44) ---
+
+
+def test_ship_generate_interactive_asks_for_the_hull_tonnage_showing_its_default():
+    result = runner.invoke(app, ["ship", "generate", "--interactive", "--seed", "42"], input="\n")
+    assert result.exit_code == 0
+    assert "Hull tonnage [roll]:" in result.stderr
+
+
+def test_ship_generate_interactive_pressing_enter_yields_the_unprompted_ship():
+    """Enter rolls, so answering nothing collapses to today's behaviour exactly.
+
+    Byte equality on stdout also pins that no prompt reaches it, which is what
+    lets `--interactive` compose with `--toml` and `--out`.
+    """
+    prompted = runner.invoke(
+        app, ["ship", "generate", "--interactive", "--seed", "42"], input="\n"
+    )
+    rolled = runner.invoke(app, ["ship", "generate", "--seed", "42"])
+
+    assert prompted.exit_code == 0
+    assert prompted.stdout == rolled.stdout
+
+
+def test_ship_generate_interactive_toml_stdout_is_still_a_readable_design():
+    result = runner.invoke(
+        app, ["ship", "generate", "--interactive", "--seed", "42", "--toml"], input="\n"
+    )
+    assert result.exit_code == 0
+
+    from cetools.engine.ships import build_ship, loads_design
+
+    build_ship(loads_design(result.stdout))
+
+
+def test_ship_generate_interactive_an_answered_tonnage_pins_the_hull():
+    """Seed 42 rolls a 400-ton hull, so pinning 200 is visibly the answer and
+    not the dice."""
+    result = runner.invoke(
+        app, ["ship", "generate", "--interactive", "--seed", "42"], input="200\n"
+    )
+    assert result.exit_code == 0
+    assert "200-ton hull" in result.stdout
+
+
+def test_ship_generate_interactive_untabulated_tonnage_is_reasked_with_the_reason():
+    result = runner.invoke(
+        app, ["ship", "generate", "--interactive", "--seed", "42"], input="150\n200\n"
+    )
+    assert result.exit_code == 0
+    assert "150 tons is not a tabulated hull size" in result.stderr
+    assert result.stderr.count("Hull tonnage [roll]:") == 2
+    assert "200-ton hull" in result.stdout
+
+
+def test_ship_generate_interactive_a_non_numeric_answer_is_reasked():
+    result = runner.invoke(
+        app, ["ship", "generate", "--interactive", "--seed", "42"], input="biggish\n200\n"
+    )
+    assert result.exit_code == 0
+    assert "biggish is not a number of tons" in result.stderr
+    assert "200-ton hull" in result.stdout
+
+
+def test_ship_generate_interactive_small_craft_rejects_a_starship_tonnage():
+    """The prompt validates against the ruleset in play, not against hulls at large."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--small-craft", "--seed", "7"],
+        input="200\n40\n",
+    )
+    assert result.exit_code == 0
+    assert "200 tons is not a tabulated small-craft hull size" in result.stderr
+    assert "40-ton hull" in result.stdout
+
+
+def test_ship_generate_interactive_end_of_input_aborts_without_a_ship():
+    result = runner.invoke(app, ["ship", "generate", "--interactive", "--seed", "42"], input="")
+    assert result.exit_code == 1
+    assert not result.stdout.strip()
+
+
+def test_ship_generate_interactive_hull_flag_pre_answers_the_prompt():
+    """A flag and a prompt must not ask the same thing twice."""
+    prompted = runner.invoke(
+        app, ["ship", "generate", "--interactive", "--hull", "200", "--seed", "42"], input=""
+    )
+    flagged = runner.invoke(app, ["ship", "generate", "--hull", "200", "--seed", "42"])
+
+    assert prompted.exit_code == 0
+    assert "Hull tonnage" not in prompted.stderr
+    assert prompted.stdout == flagged.stdout
+
+
+def test_ship_generate_interactive_small_craft_hull_flag_pre_answers_the_prompt():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--small-craft", "--hull", "40", "--seed", "7"],
+        input="",
+    )
+    assert result.exit_code == 0
+    assert "Hull tonnage" not in result.stderr
+    assert "40-ton hull" in result.stdout
+
+
 # --- small craft descriptions (T045, FR-026, FR-027) ---
 
 _FIGHTER_TOML = "tests/data/ships/fighter.toml"

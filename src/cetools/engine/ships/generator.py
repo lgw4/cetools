@@ -1,4 +1,4 @@
-"""generate_ship(rolls=None, *, hull_size=None, small_craft=False) -> GenerationResult.
+"""generate_ship(rolls=None, *, constraints=DesignConstraints()) -> GenerationResult.
 
 Selects rules-legal components through the `Rolls` seam, reading the same
 `tables.py` data `build_ship` validates against, and assembles a `ShipDesign`
@@ -6,7 +6,11 @@ that is legal by construction: tonnage is tracked against a running budget so
 no candidate is ever chosen that would over-allocate the hull. Ends by calling
 `build_ship`, so a generated ship can never be rules-illegal (FR-016, SC-003).
 
-`small_craft=True` selects under the small-craft ruleset (SRD "Small Craft
+Everything a referee pins arrives on one `DesignConstraints` value rather than
+as a keyword per field, so the interactive wizard in `cli/ship.py` is a thin
+layer over the same seam a library caller uses.
+
+`HullClass.SMALL_CRAFT` selects under the small-craft ruleset (SRD "Small Craft
 Design"): a 10-95 ton hull, a cockpit instead of a bridge, no jump drive, and
 turret weapons constrained to the power plant's energy-weapon cap. Maneuver and
 power drive codes are chosen together, since a small hull's tight tonnage budget
@@ -33,6 +37,7 @@ from cetools.engine.ships.models import (
     ComputerFit,
     Configuration,
     FittingFit,
+    HullClass,
     ScreenFit,
     Ship,
     ShipDesign,
@@ -61,6 +66,27 @@ from cetools.engine.ships.tables import (
 _STANDARD_POWER_WEEKS = 2
 _SMALL_CRAFT_POWER_WEEKS = 1
 _MIN_COCKPIT_TONS = min(row.tons for row in COCKPITS.values())
+
+
+@dataclass(frozen=True)
+class DesignConstraints:
+    """What a referee pinned; everything left unset is rolled.
+
+    One value rather than a keyword per field, because the constrainable surface
+    is the whole of roll parity and a signature cannot carry it. Prompting is a
+    thin layer over this record, so a library caller reaches the same capability
+    without a conversation.
+
+    `hull_class` has no unset state: every ship builds under one ruleset or the
+    other, and the generator has always defaulted to starship.
+    """
+
+    hull_class: HullClass = HullClass.STARSHIP
+    hull_tons: int | None = None
+
+
+UNCONSTRAINED = DesignConstraints()
+"""Roll everything—the behaviour `generate_ship` had before it took constraints."""
 
 
 @dataclass(frozen=True)
@@ -174,13 +200,30 @@ mounts keeps a turret's energy-weapon contribution at 0 or 1, so it can be
 checked directly against the power plant's cap without summing per-slot."""
 
 
-def _select_hull_tons(rolls: Rolls, hull_size: int | None) -> int:
-    if hull_size is not None:
-        if hull_size not in HULLS:
+def validate_hull_tons(hull_class: HullClass, tons: int) -> None:
+    """Raise `ValueError` unless `tons` is a tabulated hull size for `hull_class`.
+
+    Tabulation is the whole of it: `build_ship` remains the sole authority on
+    rules legality. This is exposed because the same sentence has to serve two
+    moments—the wizard rejecting an answer where it was typed, and generation
+    rejecting a pin from a library caller who never saw a prompt—and a referee
+    who is told two different things about one mistake is being told one of them
+    wrongly.
+    """
+    if hull_class is HullClass.SMALL_CRAFT:
+        if tons not in SMALL_CRAFT_HULLS:
             raise ValueError(
-                f"{hull_size} tons is not a tabulated hull size; valid: {sorted(HULLS)}"
+                f"{tons} tons is not a tabulated small-craft hull size; "
+                f"valid: {sorted(SMALL_CRAFT_HULLS)}"
             )
-        return hull_size
+    elif tons not in HULLS:
+        raise ValueError(f"{tons} tons is not a tabulated hull size; valid: {sorted(HULLS)}")
+
+
+def _select_hull_tons(rolls: Rolls, pinned_tons: int | None) -> int:
+    if pinned_tons is not None:
+        validate_hull_tons(HullClass.STARSHIP, pinned_tons)
+        return pinned_tons
     return rolls.choose(sorted(HULLS), RollName.SHIP_HULL_SIZE)
 
 
@@ -331,14 +374,10 @@ def _select_screen(rolls: Rolls, ledger: TonnageLedger) -> ScreenFit | None:
     return ScreenFit(kind=kind)
 
 
-def _select_small_craft_hull_tons(rolls: Rolls, hull_size: int | None) -> int:
-    if hull_size is not None:
-        if hull_size not in SMALL_CRAFT_HULLS:
-            raise ValueError(
-                f"{hull_size} tons is not a tabulated small-craft hull size; "
-                f"valid: {sorted(SMALL_CRAFT_HULLS)}"
-            )
-        return hull_size
+def _select_small_craft_hull_tons(rolls: Rolls, pinned_tons: int | None) -> int:
+    if pinned_tons is not None:
+        validate_hull_tons(HullClass.SMALL_CRAFT, pinned_tons)
+        return pinned_tons
     return rolls.choose(sorted(SMALL_CRAFT_HULLS), RollName.SHIP_HULL_SIZE)
 
 
@@ -396,8 +435,8 @@ def _select_small_craft_turret(
     return (TurretFit(mount=mount_name, weapons=(weapon,)),)
 
 
-def _generate_small_craft(rolls: Rolls, hull_size: int | None) -> Ship:
-    hull_tons = _select_small_craft_hull_tons(rolls, hull_size)
+def _generate_small_craft(rolls: Rolls, constraints: DesignConstraints) -> Ship:
+    hull_tons = _select_small_craft_hull_tons(rolls, constraints.hull_tons)
     configuration = _select_configuration(rolls)
     maneuver_code, power_code = _select_small_craft_drives(rolls, hull_tons)
     maneuver_letter, power_letter = maneuver_code[1:], power_code[1:]
@@ -442,8 +481,7 @@ def _generate_small_craft(rolls: Rolls, hull_size: int | None) -> Ship:
 def generate_ship(
     rolls: Rolls | None = None,
     *,
-    hull_size: int | None = None,
-    small_craft: bool = False,
+    constraints: DesignConstraints = UNCONSTRAINED,
 ) -> GenerationResult:
     """A random, rules-legal ship, selected via `rolls` and validated by `build_ship`.
 
@@ -452,9 +490,13 @@ def generate_ship(
     be honoured. Reach for `.ship` when you do not care.
 
     `rolls` defaults to `RandomRolls()`; pass `RandomRolls.seeded(seed)` for
-    reproducibility (FR-017). `hull_size` constrains generation to a tabulated
-    hull size while staying legal (FR-018); when `None`, one is chosen.
-    `small_craft` generates under the 10-95 ton small-craft ruleset (FR-019).
+    reproducibility (FR-017). `constraints` carries what the referee pinned:
+    `hull_tons` constrains generation to a tabulated hull size while staying
+    legal (FR-018), and `hull_class` selects the 10-95 ton small-craft ruleset
+    (FR-019). Left at its default, nothing is pinned and every value is rolled.
+
+    A pinned value consumes no dice, so the unconstrained draw sequence is
+    byte-identical to the one `tests/data/baseline/designs.json` pins.
 
     `generate_ship_name` is drawn last on both paths, after every component
     decision (FR-010a). `RandomRolls` wraps one `random.Random` stream, so a
@@ -470,10 +512,10 @@ def generate_ship(
     """
     rolls = rolls or RandomRolls()
 
-    if small_craft:
-        return GenerationResult(ship=_generate_small_craft(rolls, hull_size))
+    if constraints.hull_class is HullClass.SMALL_CRAFT:
+        return GenerationResult(ship=_generate_small_craft(rolls, constraints))
 
-    hull_tons = _select_hull_tons(rolls, hull_size)
+    hull_tons = _select_hull_tons(rolls, constraints.hull_tons)
     configuration = _select_configuration(rolls)
     jump_code, maneuver_code, power_code = _select_drive_codes(rolls, hull_tons)
 
