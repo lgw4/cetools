@@ -74,6 +74,8 @@ NOT_CODE = {
     "B",
     "I",
     "O",
+    # keywords a referee types at an interactive prompt, not names in the package
+    "none",
     # standard-library methods used in prose
     "lower",
     "strip",

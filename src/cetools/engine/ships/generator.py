@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from enum import Enum
 
 from cetools.engine.rolls import RandomRolls, RollName, Rolls
 from cetools.engine.ships.builder import BAY_FIRE_CONTROL_TONS, build_ship
@@ -68,6 +69,26 @@ _SMALL_CRAFT_POWER_WEEKS = 1
 _MIN_COCKPIT_TONS = min(row.tons for row in COCKPITS.values())
 
 
+class Absent(Enum):
+    """The type of `ABSENT`, which is the only member worth naming."""
+
+    TOKEN = "absent"
+
+
+ABSENT = Absent.TOKEN
+"""Pins a component's absence: the referee said *no armour*, not nothing at all.
+
+An optional-component field is three-state, and a plain `X | None` cannot carry
+it: `None` already means "unset, roll it", so reusing it for "do not fit one"
+silently turns a deliberate answer into a random one. That confusion is the
+whole reason the `none` keyword exists at the prompt, so the value it produces
+has to be distinguishable from an unanswered question (FR, ADR-0001).
+
+An `Enum` of one member rather than a bare `object()`, so it is a *type* an
+annotation can name and a reader can follow.
+"""
+
+
 @dataclass(frozen=True)
 class DesignConstraints:
     """What a referee pinned; everything left unset is rolled.
@@ -78,11 +99,14 @@ class DesignConstraints:
     without a conversation.
 
     `hull_class` has no unset state: every ship builds under one ruleset or the
-    other, and the generator has always defaulted to starship.
+    other, and the generator has always defaulted to starship. Nor is it
+    three-state: a ship with no hull class is not a ship. Optional *components*
+    are three-state—unset rolls, a value pins, `ABSENT` pins absence.
     """
 
     hull_class: HullClass = HullClass.STARSHIP
     hull_tons: int | None = None
+    armor: ArmorFit | Absent | None = None
 
 
 UNCONSTRAINED = DesignConstraints()
@@ -281,15 +305,52 @@ def _bridge_tons(hull_tons: int) -> int:
     raise AssertionError("BRIDGE_SIZES must end with an unbounded (None, tons) step")
 
 
-def _select_armor(rolls: Rolls, hull_tons: int, ledger: TonnageLedger) -> ArmorFit | None:
+def _armor_tons(hull_tons: int, fit: ArmorFit) -> float:
+    return max(1.0, hull_tons * 0.05) * (fit.percent // 5)
+
+
+def _install_armor(fit: ArmorFit, hull_tons: int, ledger: TonnageLedger) -> bool:
+    """Spend the tonnage `fit` costs, or report that the budget cannot cover it."""
+    tons = _armor_tons(hull_tons, fit)
+    if not ledger.affords(tons):
+        return False
+    ledger.spend(tons)
+    return True
+
+
+def _select_armor(
+    rolls: Rolls,
+    hull_tons: int,
+    ledger: TonnageLedger,
+    pinned: ArmorFit | Absent | None,
+) -> ArmorFit | None:
+    """The armour to fit: the referee's answer if they gave one, else a draw.
+
+    A pinned layer is validated by `build_ship` alone, so any SRD type may be
+    pinned even though `_ARMOR_CHOICES` would never roll it: that list keeps
+    *rolled* output plausible and was never a limit on intent (ADR-0001).
+
+    Both answers can fail to fit, and the difference is the whole rule: a pinned
+    layer that will not fit is recorded, a rolled one is dropped in silence.
+    """
+    if pinned is ABSENT:
+        return None
+
+    if isinstance(pinned, ArmorFit):
+        if _install_armor(pinned, hull_tons, ledger):
+            return pinned
+        ledger.decline(
+            "armor",
+            f"{pinned.type.value} {pinned.percent}%",
+            "none",
+            f"needs {_armor_tons(hull_tons, pinned)}t, {ledger.remaining}t free",
+        )
+        return None
+
     fit = rolls.choose(_ARMOR_CHOICES, RollName.SHIP_ARMOR)
     if fit is None:
         return None
-    tons = max(1.0, hull_tons * 0.05) * (fit.percent // 5)
-    if not ledger.affords(tons):
-        return None
-    ledger.spend(tons)
-    return fit
+    return fit if _install_armor(fit, hull_tons, ledger) else None
 
 
 def _select_computer(rolls: Rolls) -> ComputerFit | None:
@@ -448,7 +509,7 @@ def _generate_small_craft(rolls: Rolls, constraints: DesignConstraints) -> Ship:
     ledger = TonnageLedger(hull_tons - (maneuver_tons + power_tons + power_fuel_tons))
     cockpit = _select_cockpit(rolls, ledger)
 
-    armor = _select_armor(rolls, hull_tons, ledger)
+    armor = _select_armor(rolls, hull_tons, ledger, constraints.armor)
     computer = _select_computer(rolls)
     electronics = _select_electronics(rolls, ledger)
     staterooms = _select_staterooms(rolls, ledger)
@@ -534,7 +595,7 @@ def generate_ship(
     jump_distance = max(0, min(jump_rating, max_jump_distance))
     ledger.spend(0.1 * hull_tons * jump_distance)
 
-    armor = _select_armor(rolls, hull_tons, ledger)
+    armor = _select_armor(rolls, hull_tons, ledger, constraints.armor)
     computer = _select_computer(rolls)
     electronics = _select_electronics(rolls, ledger)
     staterooms = _select_staterooms(rolls, ledger)

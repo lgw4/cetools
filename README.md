@@ -312,7 +312,9 @@ uv run cetools ship generate --hull 10 --small-craft --seed 7
 uv run cetools ship generate --interactive --seed 42
 ```
 
-`--interactive` (`-i`) asks what to pin and rolls the rest. Every question shows its default and pressing Enter takes it, so answering nothing produces exactly the ship the same seed produces without the flag. An answer that is not a tabulated hull size is rejected and asked again with the reason, so a typo costs a line rather than the session. `--hull` and `--small-craft` pre-answer their questions, which are then not asked. Questions and their answers go to stderr, so `--interactive` composes with `--toml` and `--out`.
+`--interactive` (`-i`) asks what to pin and rolls the rest. Every question shows its default and pressing Enter takes it, so answering nothing produces exactly the ship the same seed produces without the flag. Typing `none` at an optional component's question pins its *absence*, which is a different answer from pressing Enter: `none` at the armour question guarantees an unarmoured ship, where Enter rolls for one. An answer the tables do not recognise is rejected and asked again with the reason, so a typo costs a line rather than the session. `--hull` and `--small-craft` pre-answer their questions, which are then not asked. Questions and their answers go to stderr, so `--interactive` composes with `--toml` and `--out`.
+
+Armour is answered as a type and a percent of the hull, like `crystaliron 10`. Any type in the SRD table may be pinned, including ones generation would never roll for itself. Rules that live in `build_ship`, such as armour arriving in 5% increments, are not duplicated into the prompts: an answer that breaks one is accepted where it is typed and reported when the ship is assembled.
 
 A randomly generated ship arrives already named, drawn from `generate_ship_name`'s curated catalogue of mythology and folklore, written science fiction, and screen science fiction sources; a hand-authored design's own `name` is never overwritten.
 
@@ -359,5 +361,21 @@ launch = generate_ship(
 )
 print(launch.ship.design.hull_class is HullClass.SMALL_CRAFT)   # True
 ```
+
+Every optional-component field is three-state, because *roll for armour* and *no armour* are different instructions and the second has to be honoured. Leaving a field unset rolls it, a value pins it, and `ABSENT` pins its absence:
+
+```python
+from cetools.engine.ships import ABSENT, ArmorFit, ArmorType
+
+armored = generate_ship(
+    RandomRolls.seeded(7),
+    constraints=DesignConstraints(armor=ArmorFit(type=ArmorType.BONDED_SUPERDENSE, percent=5)),
+)
+bare = generate_ship(RandomRolls.seeded(0), constraints=DesignConstraints(armor=ABSENT))
+
+print(armored.ship.design.armor[0].type.value, bare.ship.design.armor)   # bonded_superdense ()
+```
+
+A pinned value is validated against the full SRD tables, not the curated lists that keep rolled output plausible, so bonded superdense can be pinned even though no seed would ever produce it.
 
 A randomly generated starship always carries fuel for at least one complete jump at its installed rating—the drive drawn is a ceiling, not a guarantee, and the generator downgrades it to whatever rating the hull's remaining tonnage can fuel for a full jump. Among drives of that rating, the lightest one is always the one installed, so the tonnage a downgrade frees flows on to fuel and fittings rather than sitting unused. This is generation policy, not an SRD rule: a hand-authored design loaded through `build_ship` is never second-guessed this way, so a short-legged design—one whose `jump_distance` is deliberately below its drive's rating—still builds exactly as written.

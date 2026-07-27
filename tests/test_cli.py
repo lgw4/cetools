@@ -966,8 +966,98 @@ def test_ship_generate_small_craft_hull_100_out_of_range_exits_1():
 # --- `cetools ship generate --interactive` (#44) ---
 
 
+_ENTER_THROUGH = "\n" * 12
+"""More Enters than the wizard has questions, so a test that means "take every
+default" keeps meaning that as later tickets add prompts."""
+
+
+def test_ship_generate_interactive_asks_for_armor_showing_its_default():
+    result = runner.invoke(
+        app, ["ship", "generate", "--interactive", "--seed", "7"], input=_ENTER_THROUGH
+    )
+    assert result.exit_code == 0
+    assert "Armor [roll]:" in result.stderr
+
+
+def test_ship_generate_interactive_pins_an_armor_type_and_percent():
+    """Seed 7 draws no armour, so armour on this ship can only be the answer.
+
+    Both spellings of the percent are accepted, because a referee reading
+    "10% of the hull" off the SRD will type the sign as often as not.
+    """
+    from cetools.engine.ships import ArmorType, loads_design
+
+    for answer in ("crystaliron 10", "crystaliron 10%"):
+        result = runner.invoke(
+            app,
+            ["ship", "generate", "--interactive", "--seed", "7", "--toml"],
+            input=f"\n{answer}\n",
+        )
+        assert result.exit_code == 0, answer
+
+        design = loads_design(result.stdout)
+        assert [(fit.type, fit.percent) for fit in design.armor] == [(ArmorType.CRYSTALIRON, 10)]
+
+
+def test_ship_generate_interactive_none_pins_an_unarmored_ship():
+    """Seed 0 draws crystaliron, so an unarmoured ship here is the `none` answer."""
+    rolled = runner.invoke(app, ["ship", "generate", "--seed", "0", "--toml"])
+    result = runner.invoke(
+        app, ["ship", "generate", "--interactive", "--seed", "0", "--toml"], input="\nnone\n"
+    )
+    assert result.exit_code == 0
+
+    from cetools.engine.ships import loads_design
+
+    assert loads_design(rolled.stdout).armor != ()
+    assert loads_design(result.stdout).armor == ()
+
+
+def test_ship_generate_interactive_malformed_armor_answers_are_reasked_with_the_reason():
+    for answer, reason in (
+        ("crystaliron", "give an armor type and a percent"),
+        ("crystaliron ten", "ten is not a percent of the hull"),
+        ("crystaliron 0", "armor percent must be positive"),
+    ):
+        result = runner.invoke(
+            app,
+            ["ship", "generate", "--interactive", "--seed", "7"],
+            input=f"\n{answer}\ncrystaliron 10" + _ENTER_THROUGH,
+        )
+        assert result.exit_code == 0, answer
+        assert reason in result.stderr, answer
+
+
+def test_ship_generate_interactive_armor_percent_rule_surfaces_at_assembly_not_the_prompt():
+    """The multiple-of-5 rule lives in `build_ship` and is deliberately not
+    duplicated outward, so 7% is accepted at the prompt and rejected on
+    assembly (ADR-0001). The revise loop that catches this is #51.
+    """
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7"],
+        input="\ncrystaliron 7" + _ENTER_THROUGH,
+    )
+    assert result.exit_code == 1
+    assert "armor must be added in 5% increments" in result.stderr
+    assert result.stderr.count("Armor [roll]:") == 1
+
+
+def test_ship_generate_interactive_unknown_armor_type_is_reasked_with_the_reason():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7"],
+        input="\nadamantium 10\ncrystaliron 10\n",
+    )
+    assert result.exit_code == 0
+    assert "adamantium is not a known armor type" in result.stderr
+    assert result.stderr.count("Armor [roll]:") == 2
+
+
 def test_ship_generate_interactive_asks_for_the_hull_tonnage_showing_its_default():
-    result = runner.invoke(app, ["ship", "generate", "--interactive", "--seed", "42"], input="\n")
+    result = runner.invoke(
+        app, ["ship", "generate", "--interactive", "--seed", "42"], input=_ENTER_THROUGH
+    )
     assert result.exit_code == 0
     assert "Hull tonnage [roll]:" in result.stderr
 
@@ -979,7 +1069,7 @@ def test_ship_generate_interactive_pressing_enter_yields_the_unprompted_ship():
     lets `--interactive` compose with `--toml` and `--out`.
     """
     prompted = runner.invoke(
-        app, ["ship", "generate", "--interactive", "--seed", "42"], input="\n"
+        app, ["ship", "generate", "--interactive", "--seed", "42"], input=_ENTER_THROUGH
     )
     rolled = runner.invoke(app, ["ship", "generate", "--seed", "42"])
 
@@ -989,7 +1079,7 @@ def test_ship_generate_interactive_pressing_enter_yields_the_unprompted_ship():
 
 def test_ship_generate_interactive_toml_stdout_is_still_a_readable_design():
     result = runner.invoke(
-        app, ["ship", "generate", "--interactive", "--seed", "42", "--toml"], input="\n"
+        app, ["ship", "generate", "--interactive", "--seed", "42", "--toml"], input=_ENTER_THROUGH
     )
     assert result.exit_code == 0
 
@@ -1002,7 +1092,7 @@ def test_ship_generate_interactive_an_answered_tonnage_pins_the_hull():
     """Seed 42 rolls a 400-ton hull, so pinning 200 is visibly the answer and
     not the dice."""
     result = runner.invoke(
-        app, ["ship", "generate", "--interactive", "--seed", "42"], input="200\n"
+        app, ["ship", "generate", "--interactive", "--seed", "42"], input="200" + _ENTER_THROUGH
     )
     assert result.exit_code == 0
     assert "200-ton hull" in result.stdout
@@ -1010,7 +1100,9 @@ def test_ship_generate_interactive_an_answered_tonnage_pins_the_hull():
 
 def test_ship_generate_interactive_untabulated_tonnage_is_reasked_with_the_reason():
     result = runner.invoke(
-        app, ["ship", "generate", "--interactive", "--seed", "42"], input="150\n200\n"
+        app,
+        ["ship", "generate", "--interactive", "--seed", "42"],
+        input="150\n200" + _ENTER_THROUGH,
     )
     assert result.exit_code == 0
     assert "150 tons is not a tabulated hull size" in result.stderr
@@ -1020,7 +1112,9 @@ def test_ship_generate_interactive_untabulated_tonnage_is_reasked_with_the_reaso
 
 def test_ship_generate_interactive_a_non_numeric_answer_is_reasked():
     result = runner.invoke(
-        app, ["ship", "generate", "--interactive", "--seed", "42"], input="biggish\n200\n"
+        app,
+        ["ship", "generate", "--interactive", "--seed", "42"],
+        input="biggish\n200" + _ENTER_THROUGH,
     )
     assert result.exit_code == 0
     assert "biggish is not a number of tons" in result.stderr
@@ -1032,7 +1126,7 @@ def test_ship_generate_interactive_small_craft_rejects_a_starship_tonnage():
     result = runner.invoke(
         app,
         ["ship", "generate", "--interactive", "--small-craft", "--seed", "7"],
-        input="200\n40\n",
+        input="200\n40" + _ENTER_THROUGH,
     )
     assert result.exit_code == 0
     assert "200 tons is not a tabulated small-craft hull size" in result.stderr
@@ -1048,7 +1142,9 @@ def test_ship_generate_interactive_end_of_input_aborts_without_a_ship():
 def test_ship_generate_interactive_hull_flag_pre_answers_the_prompt():
     """A flag and a prompt must not ask the same thing twice."""
     prompted = runner.invoke(
-        app, ["ship", "generate", "--interactive", "--hull", "200", "--seed", "42"], input=""
+        app,
+        ["ship", "generate", "--interactive", "--hull", "200", "--seed", "42"],
+        input=_ENTER_THROUGH,
     )
     flagged = runner.invoke(app, ["ship", "generate", "--hull", "200", "--seed", "42"])
 
@@ -1061,7 +1157,7 @@ def test_ship_generate_interactive_small_craft_hull_flag_pre_answers_the_prompt(
     result = runner.invoke(
         app,
         ["ship", "generate", "--interactive", "--small-craft", "--hull", "40", "--seed", "7"],
-        input="",
+        input=_ENTER_THROUGH,
     )
     assert result.exit_code == 0
     assert "Hull tonnage" not in result.stderr

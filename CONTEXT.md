@@ -62,6 +62,12 @@ A value the referee left unspecified, drawn from chance. A preference: silently 
 if it does not fit the tonnage budget.
 _Avoid_: random value, default, generated value
 
+**Pinned absence**:
+A referee's answer that an optional component is *not* to be fitted. A pinned value like
+any other, and a different answer from leaving the field unspecified: one guarantees no
+armour, the other rolls for it.
+_Avoid_: null, empty, off, disabled
+
 **Unmet constraint**:
 A pinned value the tonnage budget could not accommodate, recorded with what was asked,
 what was got, and why.

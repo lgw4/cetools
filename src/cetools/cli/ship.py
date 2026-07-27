@@ -1,5 +1,7 @@
 import random
 import sys
+from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 from typing import Annotated
 
@@ -7,6 +9,10 @@ import typer
 
 from cetools.engine.rolls import RandomRolls
 from cetools.engine.ships import (
+    ABSENT,
+    Absent,
+    ArmorFit,
+    ArmorType,
     DesignConstraints,
     HullClass,
     build_ship,
@@ -74,28 +80,65 @@ def _ask(question: str, default_label: str) -> str:
     return line.strip()
 
 
-def _ask_hull_tons(hull_class: HullClass) -> int | None:
-    """The referee's hull tonnage, or `None` to leave it to the dice.
+_NONE = "none"
+"""Typed at a prompt, pins a component's *absence*—a different answer from Enter."""
 
-    An untabulated answer is rejected here and asked again, so a typo costs one
-    line rather than the session. Only tabulation is checked: `build_ship`
-    remains the sole authority on rules legality.
+
+def _ask_until_understood[T](question: str, interpret: Callable[[str], T]) -> T | None:
+    """Ask `question` until `interpret` accepts the answer, and return what it made.
+
+    Generic in what `interpret` returns, so each field keeps its own type on the
+    way to `DesignConstraints`—a three-state field must not arrive as `object`.
+
+    Enter returns `None`, leaving the field to the dice. An answer `interpret`
+    rejects is reported by the reason it raised and asked again, so a typo costs
+    a line rather than the session.
     """
     while True:
-        answer = _ask("Hull tonnage", _ROLL)
+        answer = _ask(question, _ROLL)
         if not answer:
             return None
         try:
-            tons = int(answer)
-        except ValueError:
-            typer.echo(f"{answer} is not a number of tons", err=True)
-            continue
-        try:
-            validate_hull_tons(hull_class, tons)
+            return interpret(answer)
         except ValueError as exc:
             typer.echo(str(exc), err=True)
-            continue
-        return tons
+
+
+def _read_hull_tons(hull_class: HullClass, answer: str) -> int:
+    try:
+        tons = int(answer)
+    except ValueError:
+        raise ValueError(f"{answer} is not a number of tons") from None
+    validate_hull_tons(hull_class, tons)  # tabulation only; build_ship owns the rules
+    return tons
+
+
+def _read_armor(answer: str) -> ArmorFit | Absent:
+    """One armour layer from `<type> <percent>`, or `ABSENT` from `none`.
+
+    Any SRD type may be pinned, including ones generation would never roll. The
+    multiple-of-5 rule is *not* checked here: it lives in `build_ship` and is
+    deliberately not duplicated outward, so it surfaces at assembly (ADR-0001).
+    """
+    if answer.lower() == _NONE:
+        return ABSENT
+
+    parts = answer.split()
+    if len(parts) != 2:
+        raise ValueError(f'give an armor type and a percent, like "crystaliron 10"; got {answer}')
+
+    name, percent_text = parts
+    try:
+        kind = ArmorType(name.lower())
+    except ValueError:
+        known = sorted(known_type.value for known_type in ArmorType)
+        raise ValueError(f"{name} is not a known armor type; known: {known}") from None
+    try:
+        percent = int(percent_text.removesuffix("%"))  # a referee may well type "10%"
+    except ValueError:
+        raise ValueError(f"{percent_text} is not a percent of the hull") from None
+
+    return ArmorFit(type=kind, percent=percent)  # rejects a non-positive percent
 
 
 def _ask_constraints(hull_class: HullClass, hull: int | None) -> DesignConstraints:
@@ -104,8 +147,13 @@ def _ask_constraints(hull_class: HullClass, hull: int | None) -> DesignConstrain
     A value a flag already supplied pre-answers its question and that question
     is not asked, so flags and prompts never ask the same thing twice.
     """
-    hull_tons = hull if hull is not None else _ask_hull_tons(hull_class)
-    return DesignConstraints(hull_class=hull_class, hull_tons=hull_tons)
+    hull_tons = (
+        hull
+        if hull is not None
+        else _ask_until_understood("Hull tonnage", partial(_read_hull_tons, hull_class))
+    )
+    armor = _ask_until_understood("Armor", _read_armor)
+    return DesignConstraints(hull_class=hull_class, hull_tons=hull_tons, armor=armor)
 
 
 @app.command("generate")

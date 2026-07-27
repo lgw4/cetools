@@ -4,7 +4,9 @@ from cetools.engine.ships.builder import build_ship
 from cetools.engine.ships.description import render_description
 from cetools.engine.ships.design import dump_design, load_design, loads_design
 from cetools.engine.ships.generator import (
+    ABSENT,
     UNCONSTRAINED,
+    Absent,
     DesignConstraints,
     GenerationResult,
     TonnageLedger,
@@ -38,6 +40,8 @@ from cetools.engine.ships.names import (
 )
 
 __all__ = [
+    "ABSENT",
+    "Absent",
     "AmmoFit",
     "ArmorFit",
     "ArmorType",

@@ -6,8 +6,11 @@ import pytest
 
 from cetools.engine.rolls import RandomRolls, RollName, Rolls, ScriptedRolls
 from cetools.engine.ships import (
+    ABSENT,
     SHIP_NAMES,
     UNCONSTRAINED,
+    ArmorFit,
+    ArmorType,
     DesignConstraints,
     GenerationResult,
     HullClass,
@@ -18,7 +21,7 @@ from cetools.engine.ships import (
     load_design,
     loads_design,
 )
-from cetools.engine.ships.generator import TonnageLedger, generate_ship
+from cetools.engine.ships.generator import _ARMOR_CHOICES, TonnageLedger, generate_ship
 from cetools.engine.ships.tables import DRIVE_COSTS, DRIVE_PERFORMANCE, HULLS
 
 _SMALL_CRAFT = DesignConstraints(hull_class=HullClass.SMALL_CRAFT)
@@ -136,6 +139,83 @@ def test_constraints_carry_the_hull_class_the_ruleset_branches_on():
 
     assert starship.design.hull_class is HullClass.STARSHIP
     assert small_craft.design.hull_class is HullClass.SMALL_CRAFT
+
+
+# --- Three-state fields: unset rolls it, a value pins it, ABSENT pins its absence ---
+
+
+_ROLLS_NO_ARMOR = 7
+"""A seed whose 1200-ton ship draws no armour and has tonnage to spare, so armour
+appearing on it can only be a pin."""
+
+_ROLLS_ARMOR = 0
+"""A seed whose ship draws crystaliron, so armour *not* appearing on it can only
+be a pinned absence."""
+
+
+def test_pinned_armor_is_installed_exactly_as_asked():
+    pinned = ArmorFit(type=ArmorType.CRYSTALIRON, percent=10)
+
+    rolled = generate_ship(RandomRolls.seeded(_ROLLS_NO_ARMOR)).ship
+    result = generate_ship(
+        RandomRolls.seeded(_ROLLS_NO_ARMOR), constraints=DesignConstraints(armor=pinned)
+    )
+
+    assert rolled.design.armor == ()
+    assert result.ship.design.armor == (pinned,)
+
+
+def test_absent_pins_an_unarmored_ship_where_chance_would_have_armored_it():
+    """`ABSENT` is an answer, not an absence of one: the referee said no armour."""
+    rolled = generate_ship(RandomRolls.seeded(_ROLLS_ARMOR)).ship
+    result = generate_ship(
+        RandomRolls.seeded(_ROLLS_ARMOR), constraints=DesignConstraints(armor=ABSENT)
+    )
+
+    assert rolled.design.armor != ()
+    assert result.ship.design.armor == ()
+
+
+def test_unset_armor_is_still_rolled():
+    """The third state: nothing pinned, so the draw stands exactly as before."""
+    for seed in range(20):
+        assert generate_ship(RandomRolls.seeded(seed)) == generate_ship(
+            RandomRolls.seeded(seed), constraints=DesignConstraints(armor=None)
+        )
+
+
+def test_pinned_armor_may_be_a_type_the_generator_would_never_roll():
+    """The curated list keeps *rolled* output plausible; it never bounds intent.
+
+    Bonded superdense is absent from `_ARMOR_CHOICES`, so no seed can produce
+    this ship by chance (ADR-0001, FR-018).
+    """
+    pinned = ArmorFit(type=ArmorType.BONDED_SUPERDENSE, percent=5)
+
+    result = generate_ship(
+        RandomRolls.seeded(_ROLLS_NO_ARMOR), constraints=DesignConstraints(armor=pinned)
+    )
+
+    assert result.ship.design.armor == (pinned,)
+    assert pinned not in _ARMOR_CHOICES
+
+
+def test_pinned_armor_draws_no_dice():
+    for pinned in (ArmorFit(type=ArmorType.CRYSTALIRON, percent=10), ABSENT):
+        recorder = RecordingRolls(RandomRolls.seeded(_ROLLS_NO_ARMOR))
+        generate_ship(recorder, constraints=DesignConstraints(armor=pinned))
+        assert RollName.SHIP_ARMOR not in recorder.drawn
+
+
+def test_pinned_armor_that_will_not_fit_leaves_the_ship_unarmored():
+    """Generation never fails on tonnage. The shortfall is recorded for reporting;
+    surfacing it on the result is #50's work."""
+    result = generate_ship(
+        RandomRolls.seeded(_ROLLS_NO_ARMOR),
+        constraints=DesignConstraints(armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=100)),
+    )
+
+    assert result.ship.design.armor == ()
 
 
 # --- ScriptedRolls pins a known component selection to an exact Ship ---
