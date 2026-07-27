@@ -22,6 +22,7 @@ outright.
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 
 from cetools.engine.rolls import RandomRolls, RollName, Rolls
 from cetools.engine.ships.builder import BAY_FIRE_CONTROL_TONS, build_ship
@@ -60,6 +61,60 @@ from cetools.engine.ships.tables import (
 _STANDARD_POWER_WEEKS = 2
 _SMALL_CRAFT_POWER_WEEKS = 1
 _MIN_COCKPIT_TONS = min(row.tons for row in COCKPITS.values())
+
+
+@dataclass(frozen=True)
+class Declined:
+    """One component a selection step wanted but could not fit.
+
+    Carries the reason as well as the component, because "why" is only knowable
+    where the shortfall is detected: once a design is assembled, the tonnage that
+    was free at the moment of the decision is gone.
+    """
+
+    field: str
+    asked: str
+    reason: str
+
+
+class TonnageLedger:
+    """The running tonnage budget the selection steps spend against.
+
+    Replaces a `remaining` float threaded by hand from step to step. The steps
+    hold the ledger and spend from it, so a step that has to decline a component
+    can record *why* without every step's return type growing a third value.
+
+    Mutable by design, unlike the frozen records elsewhere in this package: it is
+    an accumulator, and the accumulation is the point.
+    """
+
+    def __init__(self, tons: float) -> None:
+        self._remaining = tons
+        self._declined: list[Declined] = []
+
+    @property
+    def remaining(self) -> float:
+        """The tonnage not yet allocated."""
+        return self._remaining
+
+    @property
+    def declined(self) -> tuple[Declined, ...]:
+        """Every component recorded as unaffordable, in the order recorded."""
+        return tuple(self._declined)
+
+    def affords(self, tons: float) -> bool:
+        """Whether `tons` still fits. Steps ask before they spend."""
+        return tons <= self._remaining
+
+    def spend(self, tons: float) -> None:
+        """Allocate `tons`. Callers check `affords` first; nothing here enforces
+        it, so that this remains arithmetic and never a new failure mode."""
+        self._remaining -= tons
+
+    def decline(self, field: str, asked: str, reason: str) -> None:
+        """Record that `field` could not have `asked`, and why."""
+        self._declined.append(Declined(field=field, asked=asked, reason=reason))
+
 
 _ARMOR_CHOICES: tuple[ArmorFit | None, ...] = (
     None,
@@ -165,51 +220,53 @@ def _bridge_tons(hull_tons: int) -> int:
     raise AssertionError("BRIDGE_SIZES must end with an unbounded (None, tons) step")
 
 
-def _select_armor(rolls: Rolls, hull_tons: int, remaining: float) -> tuple[ArmorFit | None, float]:
+def _select_armor(rolls: Rolls, hull_tons: int, ledger: TonnageLedger) -> ArmorFit | None:
     fit = rolls.choose(_ARMOR_CHOICES, RollName.SHIP_ARMOR)
     if fit is None:
-        return None, remaining
+        return None
     tons = max(1.0, hull_tons * 0.05) * (fit.percent // 5)
-    if tons > remaining:
-        return None, remaining
-    return fit, remaining - tons
+    if not ledger.affords(tons):
+        return None
+    ledger.spend(tons)
+    return fit
 
 
 def _select_computer(rolls: Rolls) -> ComputerFit | None:
     return rolls.choose(_COMPUTER_PROFILES, RollName.SHIP_COMPUTER)
 
 
-def _select_electronics(rolls: Rolls, remaining: float) -> tuple[str | None, float]:
+def _select_electronics(rolls: Rolls, ledger: TonnageLedger) -> str | None:
     name = rolls.choose(_ELECTRONICS_CHOICES, RollName.SHIP_ELECTRONICS)
     if name == "standard":
-        return None, remaining
+        return None
     tons = ELECTRONICS[name].tons
-    if tons > remaining:
-        return None, remaining
-    return name, remaining - tons
+    if not ledger.affords(tons):
+        return None
+    ledger.spend(tons)
+    return name
 
 
-def _select_staterooms(rolls: Rolls, remaining: float) -> tuple[int, float]:
+def _select_staterooms(rolls: Rolls, ledger: TonnageLedger) -> int:
     count = rolls.d6(RollName.SHIP_STATEROOMS) - 1
     stateroom_tons = QUARTERS["stateroom"].tons
-    affordable = int(remaining // stateroom_tons) if stateroom_tons else 0
+    affordable = int(ledger.remaining // stateroom_tons) if stateroom_tons else 0
     count = max(0, min(count, affordable))
-    return count, remaining - stateroom_tons * count
+    ledger.spend(stateroom_tons * count)
+    return count
 
 
-def _select_fitting(rolls: Rolls, remaining: float) -> tuple[FittingFit | None, float]:
+def _select_fitting(rolls: Rolls, ledger: TonnageLedger) -> FittingFit | None:
     kind = rolls.choose(_FITTING_CHOICES, RollName.SHIP_FITTING)
     if kind is None:
-        return None, remaining
+        return None
     tons = FITTINGS[kind].tons
-    if tons > remaining:
-        return None, remaining
-    return FittingFit(kind=kind), remaining - tons
+    if not ledger.affords(tons):
+        return None
+    ledger.spend(tons)
+    return FittingFit(kind=kind)
 
 
-def _select_turrets(
-    rolls: Rolls, hull_tons: int, remaining: float
-) -> tuple[tuple[TurretFit, ...], float]:
+def _select_turrets(rolls: Rolls, hull_tons: int, ledger: TonnageLedger) -> tuple[TurretFit, ...]:
     hardpoints = hull_tons // 100
     turret_count = max(0, min(hardpoints, rolls.d6(RollName.SHIP_TURRET_COUNT) - 1))
 
@@ -217,42 +274,43 @@ def _select_turrets(
     for _ in range(turret_count):
         mount_name = rolls.choose(_TURRET_MOUNTS, RollName.SHIP_TURRET_MOUNT)
         mount = TURRET_MOUNTS[mount_name]
-        if mount.tons > remaining:
+        if not ledger.affords(mount.tons):
             continue
         weapon = rolls.choose(_TURRET_WEAPONS, RollName.SHIP_WEAPON)
         turrets.append(TurretFit(mount=mount_name, weapons=(weapon,) * mount.weapon_slots))
-        remaining -= mount.tons
+        ledger.spend(mount.tons)
         if len(turrets) >= hardpoints:
             break
 
-    return tuple(turrets), remaining
+    return tuple(turrets)
 
 
 def _select_bay(
-    rolls: Rolls, hardpoints_remaining: int, remaining: float
-) -> tuple[BayFit | None, int, float]:
+    rolls: Rolls, hardpoints_remaining: int, ledger: TonnageLedger
+) -> tuple[BayFit | None, int]:
     """Pick a bay only among kinds that fit both the remaining hardpoints and
     tonnage (50 t plus fire control), so a chosen bay never needs correction."""
     if hardpoints_remaining <= 0:
-        return None, hardpoints_remaining, remaining
+        return None, hardpoints_remaining
     candidates: tuple[str | None, ...] = (None,) + tuple(
-        kind for kind, row in BAYS.items() if row.tons + BAY_FIRE_CONTROL_TONS <= remaining
+        kind for kind, row in BAYS.items() if ledger.affords(row.tons + BAY_FIRE_CONTROL_TONS)
     )
     kind = rolls.choose(candidates, RollName.SHIP_BAY)
     if kind is None:
-        return None, hardpoints_remaining, remaining
-    tons = BAYS[kind].tons + BAY_FIRE_CONTROL_TONS
-    return BayFit(kind=kind), hardpoints_remaining - 1, remaining - tons
+        return None, hardpoints_remaining
+    ledger.spend(BAYS[kind].tons + BAY_FIRE_CONTROL_TONS)
+    return BayFit(kind=kind), hardpoints_remaining - 1
 
 
-def _select_screen(rolls: Rolls, remaining: float) -> tuple[ScreenFit | None, float]:
+def _select_screen(rolls: Rolls, ledger: TonnageLedger) -> ScreenFit | None:
     candidates: tuple[str | None, ...] = (None,) + tuple(
-        kind for kind, row in SCREENS.items() if row.tons <= remaining
+        kind for kind, row in SCREENS.items() if ledger.affords(row.tons)
     )
     kind = rolls.choose(candidates, RollName.SHIP_SCREEN)
     if kind is None:
-        return None, remaining
-    return ScreenFit(kind=kind), remaining - SCREENS[kind].tons
+        return None
+    ledger.spend(SCREENS[kind].tons)
+    return ScreenFit(kind=kind)
 
 
 def _select_small_craft_hull_tons(rolls: Rolls, hull_size: int | None) -> int:
@@ -298,23 +356,26 @@ def _select_small_craft_drives(rolls: Rolls, hull_tons: int) -> tuple[str, str]:
     return f"s{maneuver_letter}", f"s{power_letter}"
 
 
-def _select_cockpit(rolls: Rolls, remaining: float) -> str:
-    candidates = [name for name, row in COCKPITS.items() if row.tons <= remaining]
-    return rolls.choose(candidates, RollName.SHIP_COCKPIT)
+def _select_cockpit(rolls: Rolls, ledger: TonnageLedger) -> str:
+    candidates = [name for name, row in COCKPITS.items() if ledger.affords(row.tons)]
+    cockpit = rolls.choose(candidates, RollName.SHIP_COCKPIT)
+    ledger.spend(COCKPITS[cockpit].tons)
+    return cockpit
 
 
 def _select_small_craft_turret(
-    rolls: Rolls, remaining: float, energy_cap: int
-) -> tuple[tuple[TurretFit, ...], float]:
+    rolls: Rolls, ledger: TonnageLedger, energy_cap: int
+) -> tuple[TurretFit, ...]:
     if rolls.d6(RollName.SHIP_TURRET_COUNT) <= 3:
-        return (), remaining
+        return ()
     mount_name = rolls.choose(_SMALL_CRAFT_TURRET_MOUNTS, RollName.SHIP_TURRET_MOUNT)
     mount = TURRET_MOUNTS[mount_name]
-    if mount.tons > remaining:
-        return (), remaining
+    if not ledger.affords(mount.tons):
+        return ()
     weapon_choices = _TURRET_WEAPONS if energy_cap > 0 else _NON_ENERGY_TURRET_WEAPONS
     weapon = rolls.choose(weapon_choices, RollName.SHIP_WEAPON)
-    return (TurretFit(mount=mount_name, weapons=(weapon,)),), remaining - mount.tons
+    ledger.spend(mount.tons)
+    return (TurretFit(mount=mount_name, weapons=(weapon,)),)
 
 
 def _generate_small_craft(rolls: Rolls, hull_size: int | None) -> Ship:
@@ -327,18 +388,17 @@ def _generate_small_craft(rolls: Rolls, hull_size: int | None) -> Ship:
     power_tons = DRIVE_COSTS[power_letter].power_tons
     power_fuel_tons = _small_craft_power_fuel(power_tons)
 
-    remaining = hull_tons - (maneuver_tons + power_tons + power_fuel_tons)
-    cockpit = _select_cockpit(rolls, remaining)
-    remaining -= COCKPITS[cockpit].tons
+    ledger = TonnageLedger(hull_tons - (maneuver_tons + power_tons + power_fuel_tons))
+    cockpit = _select_cockpit(rolls, ledger)
 
-    armor, remaining = _select_armor(rolls, hull_tons, remaining)
+    armor = _select_armor(rolls, hull_tons, ledger)
     computer = _select_computer(rolls)
-    electronics, remaining = _select_electronics(rolls, remaining)
-    staterooms, remaining = _select_staterooms(rolls, remaining)
-    fitting, remaining = _select_fitting(rolls, remaining)
+    electronics = _select_electronics(rolls, ledger)
+    staterooms = _select_staterooms(rolls, ledger)
+    fitting = _select_fitting(rolls, ledger)
 
     energy_cap = SMALL_CRAFT_ENERGY_CAPS[power_letter]
-    turrets, remaining = _select_small_craft_turret(rolls, remaining, energy_cap)
+    turrets = _select_small_craft_turret(rolls, ledger, energy_cap)
 
     name = generate_ship_name(rolls)
 
@@ -404,22 +464,22 @@ def generate_ship(
     jump_code = _fit_jump_drive(hull_tons, jump_code, budget)
     jump_rating = DRIVE_PERFORMANCE[jump_code][hull_tons]
 
-    remaining = max(0.0, budget - DRIVE_COSTS[jump_code].jump_tons)
+    ledger = TonnageLedger(max(0.0, budget - DRIVE_COSTS[jump_code].jump_tons))
 
-    max_jump_distance = math.floor(remaining / (0.1 * hull_tons))
+    max_jump_distance = math.floor(ledger.remaining / (0.1 * hull_tons))
     jump_distance = max(0, min(jump_rating, max_jump_distance))
-    remaining -= 0.1 * hull_tons * jump_distance
+    ledger.spend(0.1 * hull_tons * jump_distance)
 
-    armor, remaining = _select_armor(rolls, hull_tons, remaining)
+    armor = _select_armor(rolls, hull_tons, ledger)
     computer = _select_computer(rolls)
-    electronics, remaining = _select_electronics(rolls, remaining)
-    staterooms, remaining = _select_staterooms(rolls, remaining)
-    fitting, remaining = _select_fitting(rolls, remaining)
-    turrets, remaining = _select_turrets(rolls, hull_tons, remaining)
+    electronics = _select_electronics(rolls, ledger)
+    staterooms = _select_staterooms(rolls, ledger)
+    fitting = _select_fitting(rolls, ledger)
+    turrets = _select_turrets(rolls, hull_tons, ledger)
 
     hardpoints_remaining = hull_tons // 100 - len(turrets)
-    bay, hardpoints_remaining, remaining = _select_bay(rolls, hardpoints_remaining, remaining)
-    screen, remaining = _select_screen(rolls, remaining)
+    bay, hardpoints_remaining = _select_bay(rolls, hardpoints_remaining, ledger)
+    screen = _select_screen(rolls, ledger)
 
     name = generate_ship_name(rolls)
 

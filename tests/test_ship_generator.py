@@ -13,12 +13,74 @@ from cetools.engine.ships import (
     load_design,
     loads_design,
 )
-from cetools.engine.ships.generator import generate_ship
+from cetools.engine.ships.generator import TonnageLedger, generate_ship
 from cetools.engine.ships.tables import DRIVE_COSTS, DRIVE_PERFORMANCE, HULLS
 
 _CATALOGUE_NAMES = {entry.name for entry in SHIP_NAMES}
 _PRE_CHANGE_SWEEP_PATH = "tests/data/baseline/pre_change_sweep.json"
 _POST_CHANGE_BASELINE_PATH = "tests/data/baseline/designs.json"
+
+# --- TonnageLedger: the budget the selection steps spend against ---
+
+
+def test_ledger_starts_with_the_tonnage_it_was_given():
+    assert TonnageLedger(42.5).remaining == pytest.approx(42.5)
+
+
+def test_ledger_spending_reduces_what_remains():
+    ledger = TonnageLedger(100.0)
+    ledger.spend(30.0)
+    ledger.spend(0.5)
+    assert ledger.remaining == pytest.approx(69.5)
+
+
+def test_ledger_affords_exactly_what_remains():
+    """The boundary is inclusive: a component costing every remaining ton fits.
+
+    The threaded-float code this replaced declined only when `tons > remaining`,
+    so an exact fit was affordable. Flipping this to exclusive would silently
+    drop components that used to be installed.
+    """
+    ledger = TonnageLedger(10.0)
+    assert ledger.affords(10.0)
+    assert not ledger.affords(10.1)
+
+
+def test_ledger_affords_nothing_once_overspent():
+    ledger = TonnageLedger(1.0)
+    ledger.spend(1.0)
+    assert ledger.affords(0.0)
+    assert not ledger.affords(0.1)
+
+
+def test_ledger_records_nothing_until_something_is_declined():
+    assert TonnageLedger(100.0).declined == ()
+
+
+def test_ledger_records_declines_in_order_with_their_reasons():
+    ledger = TonnageLedger(5.0)
+    ledger.decline("armor", "crystaliron 10%", "needs 20.0t, 5.0t free")
+    ledger.decline("bay", "particle", "needs 51.0t, 5.0t free")
+
+    assert [d.field for d in ledger.declined] == ["armor", "bay"]
+    assert ledger.declined[0].asked == "crystaliron 10%"
+    assert ledger.declined[0].reason == "needs 20.0t, 5.0t free"
+
+
+def test_ledger_declined_is_a_snapshot_not_a_live_view():
+    ledger = TonnageLedger(5.0)
+    before = ledger.declined
+    ledger.decline("screen", "meson", "needs 50.0t, 5.0t free")
+    assert before == ()
+    assert len(ledger.declined) == 1
+
+
+def test_ledger_declining_does_not_move_the_budget():
+    """Recording a decline is bookkeeping, not an allocation."""
+    ledger = TonnageLedger(5.0)
+    ledger.decline("armor", "crystaliron 10%", "needs 20.0t, 5.0t free")
+    assert ledger.remaining == pytest.approx(5.0)
+
 
 # --- ScriptedRolls pins a known component selection to an exact Ship ---
 
