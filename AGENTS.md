@@ -82,4 +82,4 @@ The five canonical roles, used verbatim as label strings: needs-triage, needs-in
 
 ### Domain docs
 
-Single-context: `CONTEXT.md` at the repo root plus `docs/adr/`. Neither exists yet, and skills create them lazily. See `docs/agents/domain.md`.
+Single-context: `CONTEXT.md` at the repo root plus `docs/adr/`. See `docs/agents/domain.md`.
