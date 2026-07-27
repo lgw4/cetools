@@ -17,12 +17,23 @@ fact. It still never emits an illegal ship, but it can now emit a ship that is n
 one that was asked for, so callers must read `unmet` to know whether they got what they
 requested. This is the price of never failing.
 
-Two failure classes exist and are handled in different places. Whether a pinned value is
-*legal* — armour at a multiple of 5%, no jump drive on a small craft — is knowable
-immediately, so it is rejected at the point of input. Whether it is *affordable* depends
-on a tonnage budget that is not settled until fuel is computed, which is not until every
-other component is chosen, so it is only knowable at assembly. Attempts to validate
-affordability earlier will not work.
+Three outcomes exist at assembly, not two. A pinned value may be *met*; *unmet*, meaning
+the tonnage budget could not accommodate it, which degrades and warns but still yields a
+ship; or *illegal*, meaning `build_ship` rejects it outright, which yields no ship at
+all. Only the middle case is a degradation.
+
+Validation is correspondingly split, but not along the line one would first guess.
+Whether a pinned value is *affordable* depends on a tonnage budget that is not settled
+until fuel is computed, which is not until every other component is chosen, so it is
+only ever knowable at assembly. Whether it is *legal* is knowable at the point of input
+**only as far as the tables and the component-fit records know** — an unknown fitting
+name, a weapon that does not exist, a drive rating not tabulated for the chosen hull, a
+jump drive on a small craft. Rules that live inside `build_ship` — armour at a multiple
+of 5% is the clearest example — are deliberately not duplicated outward to make them
+catchable earlier, because the shape-versus-rules boundary those modules document is
+worth more than earlier feedback. Such violations surface at assembly and re-enter the
+same revise loop that unmet constraints use, so the referee never loses the session; the
+feedback simply arrives later for that narrow class.
 
 Pinning a value consumes no dice. This matches how `hull_size` has always behaved and
 keeps the unconstrained draw sequence byte-identical, so `tests/data/baseline/designs.json`
