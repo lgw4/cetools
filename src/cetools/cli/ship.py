@@ -79,10 +79,12 @@ def generate(
         typer.echo(f"seed: {seed}", err=True)
 
     try:
-        ship = generate_ship(RandomRolls.seeded(seed), hull_size=hull, small_craft=small_craft)
+        result = generate_ship(RandomRolls.seeded(seed), hull_size=hull, small_craft=small_craft)
     except ValueError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1)
+
+    ship = result.ship
 
     output = dump_design(ship.design) if toml else render_description(ship)
 

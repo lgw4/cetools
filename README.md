@@ -336,8 +336,11 @@ print(ship.total_cost, ship.cargo_tons, ship.crew.total)   # 29.772 135 5
 from cetools.engine.rolls import RandomRolls
 from cetools.engine.ships import generate_ship
 
-a = generate_ship(RandomRolls.seeded(42))
-assert a == generate_ship(RandomRolls.seeded(42))
+result = generate_ship(RandomRolls.seeded(42))
+assert result == generate_ship(RandomRolls.seeded(42))
+print(result.ship.hull_tons, result.unmet)   # 100 ()
 ```
+
+`generate_ship` returns a `GenerationResult`, not a bare `Ship`: `result.ship` is the ship, and `result.unmet` reports any constraint the tonnage budget could not honour. Unconstrained generation has nothing to report, so `unmet` is empty.
 
 A randomly generated starship always carries fuel for at least one complete jump at its installed rating—the drive drawn is a ceiling, not a guarantee, and the generator downgrades it to whatever rating the hull's remaining tonnage can fuel for a full jump. Among drives of that rating, the lightest one is always the one installed, so the tonnage a downgrade frees flows on to fuel and fittings rather than sitting unused. This is generation policy, not an SRD rule: a hand-authored design loaded through `build_ship` is never second-guessed this way, so a short-legged design—one whose `jump_distance` is deliberately below its drive's rating—still builds exactly as written.

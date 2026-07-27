@@ -1,4 +1,4 @@
-"""generate_ship(rolls=None, *, hull_size=None, small_craft=False) -> Ship.
+"""generate_ship(rolls=None, *, hull_size=None, small_craft=False) -> GenerationResult.
 
 Selects rules-legal components through the `Rolls` seam, reading the same
 `tables.py` data `build_ship` validates against, and assembles a `ShipDesign`
@@ -64,16 +64,21 @@ _MIN_COCKPIT_TONS = min(row.tons for row in COCKPITS.values())
 
 
 @dataclass(frozen=True)
-class Declined:
-    """One component a selection step wanted but could not fit.
+class UnmetConstraint:
+    """A pinned value the tonnage budget could not accommodate.
 
-    Carries the reason as well as the component, because "why" is only knowable
+    Carries the reason as well as the values, because "why" is only knowable
     where the shortfall is detected: once a design is assembled, the tonnage that
     was free at the moment of the decision is gone.
+
+    A *rolled* value that will not fit is declined silently and produces none of
+    these—it was a preference, not a promise. See
+    `docs/adr/0001-constrained-ship-generation.md`.
     """
 
     field: str
     asked: str
+    got: str
     reason: str
 
 
@@ -90,7 +95,7 @@ class TonnageLedger:
 
     def __init__(self, tons: float) -> None:
         self._remaining = tons
-        self._declined: list[Declined] = []
+        self._declined: list[UnmetConstraint] = []
 
     @property
     def remaining(self) -> float:
@@ -98,8 +103,8 @@ class TonnageLedger:
         return self._remaining
 
     @property
-    def declined(self) -> tuple[Declined, ...]:
-        """Every component recorded as unaffordable, in the order recorded."""
+    def declined(self) -> tuple[UnmetConstraint, ...]:
+        """Every pinned value recorded as unaffordable, in the order recorded."""
         return tuple(self._declined)
 
     def affords(self, tons: float) -> bool:
@@ -111,9 +116,22 @@ class TonnageLedger:
         it, so that this remains arithmetic and never a new failure mode."""
         self._remaining -= tons
 
-    def decline(self, field: str, asked: str, reason: str) -> None:
-        """Record that `field` could not have `asked`, and why."""
-        self._declined.append(Declined(field=field, asked=asked, reason=reason))
+    def decline(self, field: str, asked: str, got: str, reason: str) -> None:
+        """Record that `field` could not have `asked`, what it got instead, and why."""
+        self._declined.append(UnmetConstraint(field=field, asked=asked, got=got, reason=reason))
+
+
+@dataclass(frozen=True)
+class GenerationResult:
+    """What generation produced, and what it could not honour.
+
+    Generation never fails on tonnage: a pinned value that will not fit is
+    declined and recorded here, so a caller always gets a ship and can ask
+    separately whether it is the ship that was asked for.
+    """
+
+    ship: Ship
+    unmet: tuple[UnmetConstraint, ...] = ()
 
 
 _ARMOR_CHOICES: tuple[ArmorFit | None, ...] = (
@@ -426,8 +444,12 @@ def generate_ship(
     *,
     hull_size: int | None = None,
     small_craft: bool = False,
-) -> Ship:
+) -> GenerationResult:
     """A random, rules-legal ship, selected via `rolls` and validated by `build_ship`.
+
+    Returns a `GenerationResult`, not a bare `Ship`: generation never fails on
+    tonnage, so the caller needs somewhere to learn that a pinned value could not
+    be honoured. Reach for `.ship` when you do not care.
 
     `rolls` defaults to `RandomRolls()`; pass `RandomRolls.seeded(seed)` for
     reproducibility (FR-017). `hull_size` constrains generation to a tabulated
@@ -449,7 +471,7 @@ def generate_ship(
     rolls = rolls or RandomRolls()
 
     if small_craft:
-        return _generate_small_craft(rolls, hull_size)
+        return GenerationResult(ship=_generate_small_craft(rolls, hull_size))
 
     hull_tons = _select_hull_tons(rolls, hull_size)
     configuration = _select_configuration(rolls)
@@ -500,4 +522,4 @@ def generate_ship(
         screens=(screen,) if screen is not None else (),
         name=name,
     )
-    return build_ship(design)
+    return GenerationResult(ship=build_ship(design))

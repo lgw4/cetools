@@ -7,6 +7,8 @@ import pytest
 from cetools.engine.rolls import RandomRolls, RollName, Rolls, ScriptedRolls
 from cetools.engine.ships import (
     SHIP_NAMES,
+    GenerationResult,
+    Ship,
     ShipDesign,
     build_ship,
     dump_design,
@@ -59,8 +61,8 @@ def test_ledger_records_nothing_until_something_is_declined():
 
 def test_ledger_records_declines_in_order_with_their_reasons():
     ledger = TonnageLedger(5.0)
-    ledger.decline("armor", "crystaliron 10%", "needs 20.0t, 5.0t free")
-    ledger.decline("bay", "particle", "needs 51.0t, 5.0t free")
+    ledger.decline("armor", "crystaliron 10%", "none", "needs 20.0t, 5.0t free")
+    ledger.decline("bay", "particle", "none", "needs 51.0t, 5.0t free")
 
     assert [d.field for d in ledger.declined] == ["armor", "bay"]
     assert ledger.declined[0].asked == "crystaliron 10%"
@@ -70,7 +72,7 @@ def test_ledger_records_declines_in_order_with_their_reasons():
 def test_ledger_declined_is_a_snapshot_not_a_live_view():
     ledger = TonnageLedger(5.0)
     before = ledger.declined
-    ledger.decline("screen", "meson", "needs 50.0t, 5.0t free")
+    ledger.decline("screen", "meson", "none", "needs 50.0t, 5.0t free")
     assert before == ()
     assert len(ledger.declined) == 1
 
@@ -78,15 +80,41 @@ def test_ledger_declined_is_a_snapshot_not_a_live_view():
 def test_ledger_declining_does_not_move_the_budget():
     """Recording a decline is bookkeeping, not an allocation."""
     ledger = TonnageLedger(5.0)
-    ledger.decline("armor", "crystaliron 10%", "needs 20.0t, 5.0t free")
+    ledger.decline("armor", "crystaliron 10%", "none", "needs 20.0t, 5.0t free")
     assert ledger.remaining == pytest.approx(5.0)
+
+
+# --- GenerationResult: what generation produced, and what it could not honour ---
+
+
+def test_generate_ship_returns_a_result_carrying_the_ship():
+    result = generate_ship(ScriptedRolls())
+
+    assert isinstance(result, GenerationResult)
+    assert isinstance(result.ship, Ship)
+    assert result.ship.hull_tons == 100
+
+
+def test_unconstrained_generation_reports_nothing_unmet():
+    """Nothing is pinned, so nothing can go unhonoured: a rolled value that will
+    not fit is a preference declined silently, never an unmet constraint."""
+    for seed in range(20):
+        assert generate_ship(RandomRolls.seeded(seed)).unmet == ()
+        assert generate_ship(RandomRolls.seeded(seed), small_craft=True).unmet == ()
+
+
+def test_result_equality_still_distinguishes_seeds():
+    """The result record is compared, not just the ship it carries, so seeded
+    reproducibility assertions keep their meaning after the return type change."""
+    assert generate_ship(RandomRolls.seeded(42)) == generate_ship(RandomRolls.seeded(42))
+    assert generate_ship(RandomRolls.seeded(1)) != generate_ship(RandomRolls.seeded(2))
 
 
 # --- ScriptedRolls pins a known component selection to an exact Ship ---
 
 
 def test_scripted_rolls_all_defaults_yields_exact_ship():
-    ship = generate_ship(ScriptedRolls())
+    ship = generate_ship(ScriptedRolls()).ship
 
     assert ship.hull_tons == 100
     assert ship.jump_rating == 2
@@ -117,14 +145,14 @@ def test_scripted_rolls_all_defaults_yields_exact_ship():
 
 
 def test_random_rolls_seeded_reproducible():
-    a = generate_ship(RandomRolls.seeded(42))
-    b = generate_ship(RandomRolls.seeded(42))
+    a = generate_ship(RandomRolls.seeded(42)).ship
+    b = generate_ship(RandomRolls.seeded(42)).ship
     assert a == b
 
 
 def test_random_rolls_different_seeds_can_differ():
-    a = generate_ship(RandomRolls.seeded(1))
-    b = generate_ship(RandomRolls.seeded(2))
+    a = generate_ship(RandomRolls.seeded(1)).ship
+    b = generate_ship(RandomRolls.seeded(2)).ship
     assert a != b
 
 
@@ -133,7 +161,7 @@ def test_random_rolls_different_seeds_can_differ():
 
 def test_many_seeds_all_produce_ships():
     for seed in range(200):
-        ship = generate_ship(RandomRolls.seeded(seed))
+        ship = generate_ship(RandomRolls.seeded(seed)).ship
         assert ship.cargo_tons >= 0
 
 
@@ -142,7 +170,7 @@ def test_many_seeds_all_produce_ships():
 
 def test_hull_size_is_honoured():
     for seed in range(20):
-        ship = generate_ship(RandomRolls.seeded(seed), hull_size=400)
+        ship = generate_ship(RandomRolls.seeded(seed), hull_size=400).ship
         assert ship.hull_tons == 400
 
 
@@ -156,13 +184,13 @@ def test_unknown_hull_size_raises():
 
 def test_generated_ships_round_trip():
     for seed in range(20):
-        ship = generate_ship(RandomRolls.seeded(seed))
+        ship = generate_ship(RandomRolls.seeded(seed)).ship
         assert build_ship(loads_design(dump_design(ship.design))) == ship
 
 
 def test_default_rolls_is_random_rolls():
     # No explicit `rolls` argument still produces a valid ship (defaults to RandomRolls()).
-    ship = generate_ship()
+    ship = generate_ship().ship
     assert ship.cargo_tons >= 0
 
 
@@ -170,12 +198,12 @@ def test_default_rolls_is_random_rolls():
 
 
 def test_generated_starship_carries_a_catalogue_name():
-    ship = generate_ship(RandomRolls.seeded(42))
+    ship = generate_ship(RandomRolls.seeded(42)).ship
     assert ship.design.name in _CATALOGUE_NAMES
 
 
 def test_generated_small_craft_carries_a_catalogue_name():
-    ship = generate_ship(RandomRolls.seeded(7), small_craft=True)
+    ship = generate_ship(RandomRolls.seeded(7), small_craft=True).ship
     assert ship.design.name in _CATALOGUE_NAMES
 
 
@@ -183,14 +211,14 @@ def test_generated_small_craft_carries_a_catalogue_name():
 
 
 def test_generated_ship_name_is_reproducible_from_a_seed():
-    a = generate_ship(RandomRolls.seeded(42))
-    b = generate_ship(RandomRolls.seeded(42))
+    a = generate_ship(RandomRolls.seeded(42)).ship
+    b = generate_ship(RandomRolls.seeded(42)).ship
     assert a == b
     assert a.design.name == b.design.name
 
 
 def test_generated_ship_names_across_seeds_are_not_forced_to_match():
-    names = {generate_ship(RandomRolls.seeded(seed)).design.name for seed in range(20)}
+    names = {generate_ship(RandomRolls.seeded(seed)).ship.design.name for seed in range(20)}
     assert len(names) > 1
 
 
@@ -199,7 +227,7 @@ def test_generated_ship_names_across_seeds_are_not_forced_to_match():
 
 
 def test_generated_ships_over_a_pinned_seed_set_are_mostly_distinct():
-    names = [generate_ship(RandomRolls.seeded(seed)).design.name for seed in range(20)]
+    names = [generate_ship(RandomRolls.seeded(seed)).ship.design.name for seed in range(20)]
     assert len(set(names)) >= 17
 
 
@@ -208,7 +236,7 @@ def test_generated_ships_over_a_pinned_seed_set_are_mostly_distinct():
 
 def test_small_craft_yields_a_10_to_95_ton_ship_with_no_jump_drive():
     for seed in range(200):
-        ship = generate_ship(RandomRolls.seeded(seed), small_craft=True)
+        ship = generate_ship(RandomRolls.seeded(seed), small_craft=True).ship
         assert 10 <= ship.hull_tons <= 95
         assert ship.jump_rating == 0
         assert ship.jump_fuel == pytest.approx(0.0)
@@ -216,15 +244,15 @@ def test_small_craft_yields_a_10_to_95_ton_ship_with_no_jump_drive():
 
 
 def test_small_craft_reproducible_from_a_seed():
-    a = generate_ship(RandomRolls.seeded(42), small_craft=True)
-    b = generate_ship(RandomRolls.seeded(42), small_craft=True)
+    a = generate_ship(RandomRolls.seeded(42), small_craft=True).ship
+    b = generate_ship(RandomRolls.seeded(42), small_craft=True).ship
     assert a == b
 
 
 def test_small_craft_hull_size_is_honoured():
     for tons in (10, 40, 95):
         for seed in range(10):
-            ship = generate_ship(RandomRolls.seeded(seed), hull_size=tons, small_craft=True)
+            ship = generate_ship(RandomRolls.seeded(seed), hull_size=tons, small_craft=True).ship
             assert ship.hull_tons == tons
 
 
@@ -235,7 +263,7 @@ def test_small_craft_unknown_hull_size_raises():
 
 def test_small_craft_round_trips_losslessly():
     for seed in range(50):
-        ship = generate_ship(RandomRolls.seeded(seed), small_craft=True)
+        ship = generate_ship(RandomRolls.seeded(seed), small_craft=True).ship
         assert build_ship(loads_design(dump_design(ship.design))) == ship
 
 
@@ -244,14 +272,14 @@ def test_small_craft_round_trips_losslessly():
 
 def test_generated_bays_never_exceed_hardpoints_or_free_tonnage():
     for seed in range(300):
-        ship = generate_ship(RandomRolls.seeded(seed))
+        ship = generate_ship(RandomRolls.seeded(seed)).ship
         assert ship.hardpoints_used <= ship.hardpoints
         assert ship.cargo_tons >= 0
 
 
 def test_generated_ships_never_carry_a_bay_on_small_craft():
     for seed in range(300):
-        ship = generate_ship(RandomRolls.seeded(seed), small_craft=True)
+        ship = generate_ship(RandomRolls.seeded(seed), small_craft=True).ship
         assert ship.design.bays == ()
 
 
@@ -259,13 +287,14 @@ def test_a_bay_is_reachable_for_a_large_enough_hull():
     # Sweep enough seeds on a hull with ample hardpoints and tonnage that at
     # least one draw selects a bay (bay selection is randomized, not forced).
     assert any(
-        generate_ship(RandomRolls.seeded(seed), hull_size=2000).design.bays for seed in range(300)
+        generate_ship(RandomRolls.seeded(seed), hull_size=2000).ship.design.bays
+        for seed in range(300)
     )
 
 
 def test_a_screen_is_reachable_for_a_large_enough_hull():
     assert any(
-        generate_ship(RandomRolls.seeded(seed), hull_size=2000).design.screens
+        generate_ship(RandomRolls.seeded(seed), hull_size=2000).ship.design.screens
         for seed in range(300)
     )
 
@@ -495,7 +524,7 @@ def _is_fr014_starved_hull_ship(ship) -> bool:
 def test_sc001_sc002_every_generated_starship_carries_fuel_for_one_full_jump():
     starved = 0
     for seed in range(2000):
-        ship = generate_ship(RandomRolls.seeded(seed))
+        ship = generate_ship(RandomRolls.seeded(seed)).ship
         if _is_fr014_starved_hull_ship(ship):
             starved += 1
             continue
@@ -525,7 +554,7 @@ def test_us1_as1_a_100_ton_hull_with_maneuver_a_and_power_c_mounts_jump_b_at_jum
             RollName.SHIP_POWER_CODE: power_index,
         }
     )
-    ship = generate_ship(rolls, hull_size=hull_tons)
+    ship = generate_ship(rolls, hull_size=hull_tons).ship
 
     assert ship.design.jump_code == "B"
     assert ship.jump_rating == 4
@@ -542,7 +571,7 @@ def test_sc007_ships_already_fully_fuelled_before_the_change_keep_their_rating()
         if before["assumed_jump_distance"] != before["jump_rating"]:
             continue
         seed = int(seed_text)
-        ship = generate_ship(RandomRolls.seeded(seed))
+        ship = generate_ship(RandomRolls.seeded(seed)).ship
 
         assert ship.hull_tons == before["hull_tons"]
         assert ship.jump_rating == before["jump_rating"]
@@ -563,7 +592,7 @@ def test_sc003_allocated_tonnage_never_overruns_the_hull():
     # without raising has already run every generated design through the
     # sole validation authority.
     for seed in range(2000):
-        ship = generate_ship(RandomRolls.seeded(seed))
+        ship = generate_ship(RandomRolls.seeded(seed)).ship
         assert ship.cargo_tons >= 0
         assert ship.tonnage_used <= ship.hull_tons
 
@@ -589,14 +618,14 @@ def test_sc005_small_craft_output_is_unchanged_from_before_the_change():
 
     for seed_text, expected_toml in baseline.items():
         seed = int(seed_text)
-        ship = generate_ship(RandomRolls.seeded(seed), small_craft=True)
+        ship = generate_ship(RandomRolls.seeded(seed), small_craft=True).ship
         assert dump_design(ship.design) == expected_toml
 
 
 def test_sc009_hull_size_is_always_honoured():
     for hull_tons in sorted(HULLS):
         for seed in range(10):
-            ship = generate_ship(RandomRolls.seeded(seed), hull_size=hull_tons)
+            ship = generate_ship(RandomRolls.seeded(seed), hull_size=hull_tons).ship
             assert ship.hull_tons == hull_tons
 
 
@@ -663,7 +692,7 @@ def test_sc008_re_pinned_baseline_pins_seeded_designs_for_future_features():
     for key, expected_toml in baseline.items():
         path, seed_text = key.split(":")
         seed = int(seed_text)
-        ship = generate_ship(RandomRolls.seeded(seed), small_craft=path == "small_craft")
+        ship = generate_ship(RandomRolls.seeded(seed), small_craft=path == "small_craft").ship
         assert dump_design(ship.design) == expected_toml, f"{key}: moved off the pinned baseline"
 
 
@@ -691,7 +720,7 @@ def test_g4_every_generated_starship_mounts_the_lightest_drive_at_its_rating():
     """
     starved = 0
     for seed in range(2000):
-        ship = generate_ship(RandomRolls.seeded(seed))
+        ship = generate_ship(RandomRolls.seeded(seed)).ship
         # G4 binds even on an FR-014 ship: the fallback defers to FR-004 for
         # the choice among drives sharing the lowest rating, so this is
         # asserted before the starved-hull classification, not after it.
