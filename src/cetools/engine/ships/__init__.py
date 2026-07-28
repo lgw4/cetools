@@ -3,7 +3,29 @@
 from cetools.engine.ships.builder import build_ship
 from cetools.engine.ships.description import render_description
 from cetools.engine.ships.design import dump_design, load_design, loads_design
-from cetools.engine.ships.generator import generate_ship
+from cetools.engine.ships.generator import (
+    ABSENT,
+    UNCONSTRAINED,
+    Absent,
+    DesignConstraints,
+    Drive,
+    GenerationResult,
+    TonnageLedger,
+    TurretPin,
+    UnmetConstraint,
+    available_ratings,
+    generate_ship,
+    power_floor,
+    small_craft_maneuver_ratings,
+    small_craft_power_ratings,
+    validate_electronics,
+    validate_hull_tons,
+    validate_rating,
+    validate_small_craft_weapon,
+    validate_turret_count,
+    validate_turret_mount,
+    validate_turret_weapon,
+)
 from cetools.engine.ships.models import (
     AmmoFit,
     ArmorFit,
@@ -30,6 +52,8 @@ from cetools.engine.ships.names import (
 )
 
 __all__ = [
+    "ABSENT",
+    "Absent",
     "AmmoFit",
     "ArmorFit",
     "ArmorType",
@@ -38,7 +62,10 @@ __all__ = [
     "ComputerFit",
     "Configuration",
     "Crew",
+    "DesignConstraints",
+    "Drive",
     "FittingFit",
+    "GenerationResult",
     "HullClass",
     "LineItem",
     "SHIP_NAMES",
@@ -48,12 +75,27 @@ __all__ = [
     "ShipName",
     "SoftwareFit",
     "Tradition",
+    "TonnageLedger",
     "TurretFit",
+    "TurretPin",
+    "UNCONSTRAINED",
+    "available_ratings",
+    "UnmetConstraint",
     "build_ship",
     "dump_design",
     "generate_ship",
     "generate_ship_name",
     "load_design",
     "loads_design",
+    "power_floor",
     "render_description",
+    "small_craft_maneuver_ratings",
+    "small_craft_power_ratings",
+    "validate_electronics",
+    "validate_hull_tons",
+    "validate_rating",
+    "validate_small_craft_weapon",
+    "validate_turret_count",
+    "validate_turret_mount",
+    "validate_turret_weapon",
 ]

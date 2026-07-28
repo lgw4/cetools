@@ -1,30 +1,1062 @@
 import json
 import math
 import time
+from dataclasses import fields
 
 import pytest
 
 from cetools.engine.rolls import RandomRolls, RollName, Rolls, ScriptedRolls
 from cetools.engine.ships import (
+    ABSENT,
     SHIP_NAMES,
+    UNCONSTRAINED,
+    ArmorFit,
+    ArmorType,
+    BayFit,
+    ComputerFit,
+    Configuration,
+    DesignConstraints,
+    FittingFit,
+    GenerationResult,
+    HullClass,
+    ScreenFit,
+    Ship,
     ShipDesign,
+    TurretPin,
+    UnmetConstraint,
     build_ship,
     dump_design,
     load_design,
     loads_design,
 )
-from cetools.engine.ships.generator import generate_ship
-from cetools.engine.ships.tables import DRIVE_COSTS, DRIVE_PERFORMANCE, HULLS
+from cetools.engine.ships.generator import (
+    _ARMOR_CHOICES,
+    _FITTING_CHOICES,
+    TonnageLedger,
+    _energy_allowance,
+    available_ratings,
+    generate_ship,
+    small_craft_maneuver_ratings,
+    small_craft_power_ratings,
+    validate_small_craft_weapon,
+)
+from cetools.engine.ships.tables import (
+    DRIVE_COSTS,
+    DRIVE_PERFORMANCE,
+    HULLS,
+    SMALL_CRAFT_ENERGY_CAPS,
+    SMALL_CRAFT_HULLS,
+    TURRET_WEAPONS,
+)
 
+_SMALL_CRAFT = DesignConstraints(hull_class=HullClass.SMALL_CRAFT)
 _CATALOGUE_NAMES = {entry.name for entry in SHIP_NAMES}
 _PRE_CHANGE_SWEEP_PATH = "tests/data/baseline/pre_change_sweep.json"
 _POST_CHANGE_BASELINE_PATH = "tests/data/baseline/designs.json"
+
+# --- TonnageLedger: the budget the selection steps spend against ---
+
+
+def test_ledger_starts_with_the_tonnage_it_was_given():
+    assert TonnageLedger(42.5).remaining == pytest.approx(42.5)
+
+
+def test_ledger_spending_reduces_what_remains():
+    ledger = TonnageLedger(100.0)
+    ledger.spend(30.0)
+    ledger.spend(0.5)
+    assert ledger.remaining == pytest.approx(69.5)
+
+
+def test_ledger_affords_exactly_what_remains():
+    """The boundary is inclusive: a component costing every remaining ton fits.
+
+    The threaded-float code this replaced declined only when `tons > remaining`,
+    so an exact fit was affordable. Flipping this to exclusive would silently
+    drop components that used to be installed.
+    """
+    ledger = TonnageLedger(10.0)
+    assert ledger.affords(10.0)
+    assert not ledger.affords(10.1)
+
+
+def test_ledger_affords_nothing_once_overspent():
+    ledger = TonnageLedger(1.0)
+    ledger.spend(1.0)
+    assert ledger.affords(0.0)
+    assert not ledger.affords(0.1)
+
+
+def test_ledger_records_nothing_until_something_is_declined():
+    assert TonnageLedger(100.0).declined == ()
+
+
+def test_ledger_records_declines_in_order_with_their_reasons():
+    ledger = TonnageLedger(5.0)
+    ledger.decline("armor", "crystaliron 10%", "none", "needs 20.0t, 5.0t free")
+    ledger.decline("bay", "particle", "none", "needs 51.0t, 5.0t free")
+
+    assert [d.field for d in ledger.declined] == ["armor", "bay"]
+    assert ledger.declined[0].asked == "crystaliron 10%"
+    assert ledger.declined[0].reason == "needs 20.0t, 5.0t free"
+
+
+def test_ledger_declined_is_a_snapshot_not_a_live_view():
+    ledger = TonnageLedger(5.0)
+    before = ledger.declined
+    ledger.decline("screen", "meson", "none", "needs 50.0t, 5.0t free")
+    assert before == ()
+    assert len(ledger.declined) == 1
+
+
+def test_ledger_declining_does_not_move_the_budget():
+    """Recording a decline is bookkeeping, not an allocation."""
+    ledger = TonnageLedger(5.0)
+    ledger.decline("armor", "crystaliron 10%", "none", "needs 20.0t, 5.0t free")
+    assert ledger.remaining == pytest.approx(5.0)
+
+
+# --- GenerationResult: what generation produced, and what it could not honour ---
+
+
+def test_generate_ship_returns_a_result_carrying_the_ship():
+    result = generate_ship(ScriptedRolls())
+
+    assert isinstance(result, GenerationResult)
+    assert isinstance(result.ship, Ship)
+    assert result.ship.hull_tons == 100
+
+
+def test_unconstrained_generation_reports_nothing_unmet():
+    """Nothing is pinned, so nothing can go unhonoured: a rolled value that will
+    not fit is a preference declined silently, never an unmet constraint."""
+    for seed in range(20):
+        assert generate_ship(RandomRolls.seeded(seed)).unmet == ()
+        assert generate_ship(RandomRolls.seeded(seed), constraints=_SMALL_CRAFT).unmet == ()
+
+
+def test_result_equality_still_distinguishes_seeds():
+    """The result record is compared, not just the ship it carries, so seeded
+    reproducibility assertions keep their meaning after the return type change."""
+    assert generate_ship(RandomRolls.seeded(42)) == generate_ship(RandomRolls.seeded(42))
+    assert generate_ship(RandomRolls.seeded(1)) != generate_ship(RandomRolls.seeded(2))
+
+
+# --- DesignConstraints: the referee's answers, carried as a value ---
+
+
+def test_unconstrained_is_the_default_and_pins_nothing():
+    """Constraints are optional, and their absence is `UNCONSTRAINED`.
+
+    Every pin below is measured against this: the same seed with nothing pinned
+    must still produce the ship it produced before constraints existed, which is
+    what `tests/data/baseline/designs.json` holds.
+    """
+    for seed in range(20):
+        assert generate_ship(RandomRolls.seeded(seed)) == generate_ship(
+            RandomRolls.seeded(seed), constraints=UNCONSTRAINED
+        )
+
+
+def test_constraints_carry_the_hull_class_the_ruleset_branches_on():
+    starship = generate_ship(RandomRolls.seeded(7)).ship
+    small_craft = generate_ship(RandomRolls.seeded(7), constraints=_SMALL_CRAFT).ship
+
+    assert starship.design.hull_class is HullClass.STARSHIP
+    assert small_craft.design.hull_class is HullClass.SMALL_CRAFT
+
+
+# --- Three-state fields: unset rolls it, a value pins it, ABSENT pins its absence ---
+
+
+_ROLLS_NO_ARMOR = 7
+"""A seed whose 1200-ton ship draws no armour and has tonnage to spare, so armour
+appearing on it can only be a pin."""
+
+_ROLLS_ARMOR = 0
+"""A seed whose ship draws crystaliron, so armour *not* appearing on it can only
+be a pinned absence."""
+
+
+def test_pinned_armor_is_installed_exactly_as_asked():
+    pinned = ArmorFit(type=ArmorType.CRYSTALIRON, percent=10)
+
+    rolled = generate_ship(RandomRolls.seeded(_ROLLS_NO_ARMOR)).ship
+    result = generate_ship(
+        RandomRolls.seeded(_ROLLS_NO_ARMOR), constraints=DesignConstraints(armor=pinned)
+    )
+
+    assert rolled.design.armor == ()
+    assert result.ship.design.armor == (pinned,)
+
+
+def test_absent_pins_an_unarmored_ship_where_chance_would_have_armored_it():
+    """`ABSENT` is an answer, not an absence of one: the referee said no armour."""
+    rolled = generate_ship(RandomRolls.seeded(_ROLLS_ARMOR)).ship
+    result = generate_ship(
+        RandomRolls.seeded(_ROLLS_ARMOR), constraints=DesignConstraints(armor=ABSENT)
+    )
+
+    assert rolled.design.armor != ()
+    assert result.ship.design.armor == ()
+
+
+def test_unset_armor_is_still_rolled():
+    """The third state: nothing pinned, so the draw stands exactly as before."""
+    for seed in range(20):
+        assert generate_ship(RandomRolls.seeded(seed)) == generate_ship(
+            RandomRolls.seeded(seed), constraints=DesignConstraints(armor=None)
+        )
+
+
+def test_pinned_armor_may_be_a_type_the_generator_would_never_roll():
+    """The curated list keeps *rolled* output plausible; it never bounds intent.
+
+    Bonded superdense is absent from `_ARMOR_CHOICES`, so no seed can produce
+    this ship by chance (ADR-0001, FR-018).
+    """
+    pinned = ArmorFit(type=ArmorType.BONDED_SUPERDENSE, percent=5)
+
+    result = generate_ship(
+        RandomRolls.seeded(_ROLLS_NO_ARMOR), constraints=DesignConstraints(armor=pinned)
+    )
+
+    assert result.ship.design.armor == (pinned,)
+    assert pinned not in _ARMOR_CHOICES
+
+
+def test_pinned_armor_draws_no_dice():
+    for pinned in (ArmorFit(type=ArmorType.CRYSTALIRON, percent=10), ABSENT):
+        recorder = RecordingRolls(RandomRolls.seeded(_ROLLS_NO_ARMOR))
+        generate_ship(recorder, constraints=DesignConstraints(armor=pinned))
+        assert RollName.SHIP_ARMOR not in recorder.drawn
+
+
+def test_pinned_armor_that_will_not_fit_leaves_the_ship_unarmored():
+    """Generation never fails on tonnage. The shortfall is recorded for reporting;
+    surfacing it on the result is #50's work."""
+    result = generate_ship(
+        RandomRolls.seeded(_ROLLS_NO_ARMOR),
+        constraints=DesignConstraints(armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=100)),
+    )
+
+    assert result.ship.design.armor == ()
+
+
+# --- Drives are pinned as ratings, resolved to the lightest code delivering them ---
+
+
+def test_pinned_jump_rating_installs_the_lightest_code_delivering_it():
+    """A referee asks for Jump-2, not for drive C. Several codes deliver a rating
+    on a hull; the lightest is chosen so the tonnage saved reaches the fuel."""
+    hull_tons = 400
+    result = generate_ship(
+        RandomRolls.seeded(3),
+        constraints=DesignConstraints(hull_tons=hull_tons, jump_rating=2),
+    )
+    ship = result.ship
+
+    assert ship.jump_rating == 2
+    assert ship.design.jump_code == min(
+        (c for c, r in DRIVE_PERFORMANCE.items() if r.get(hull_tons) == 2),
+        key=lambda c: DRIVE_COSTS[c].jump_tons,
+    )
+
+
+def test_pinned_maneuver_and_power_ratings_install_their_lightest_codes():
+    hull_tons = 400
+    result = generate_ship(
+        RandomRolls.seeded(3),
+        constraints=DesignConstraints(
+            hull_tons=hull_tons, jump_rating=1, maneuver_rating=2, power_rating=3
+        ),
+    )
+    ship = result.ship
+
+    assert ship.maneuver_rating == 2
+    assert ship.power_rating == 3
+    assert ship.design.maneuver_code == min(
+        (c for c, r in DRIVE_PERFORMANCE.items() if r.get(hull_tons) == 2),
+        key=lambda c: DRIVE_COSTS[c].maneuver_tons,
+    )
+    assert ship.design.power_code == min(
+        (c for c, r in DRIVE_PERFORMANCE.items() if r.get(hull_tons) == 3),
+        key=lambda c: DRIVE_COSTS[c].power_tons,
+    )
+
+
+def test_pinned_ratings_draw_no_dice():
+    recorder = RecordingRolls(RandomRolls.seeded(3))
+    generate_ship(
+        recorder,
+        constraints=DesignConstraints(
+            hull_tons=400, jump_rating=1, maneuver_rating=2, power_rating=3
+        ),
+    )
+
+    assert RollName.SHIP_JUMP_CODE not in recorder.drawn
+    assert RollName.SHIP_MANEUVER_CODE not in recorder.drawn
+    assert RollName.SHIP_POWER_CODE not in recorder.drawn
+
+
+def test_a_pinned_power_plant_caps_the_drives_left_to_chance():
+    """A pinned plant is a promise; the drives left to chance are a preference.
+
+    Jump and manoeuvre are drawn before the plant is resolved, so drawing them
+    from every code the hull takes let the dice pick drives the pinned plant
+    could not run and `build_ship` refused the design outright—a rolled
+    preference invalidating a promise, which ADR-0001 forbids. Rating 1 is the
+    weakest a 400-ton hull tabulates, so every seed here has somewhere to go
+    wrong.
+    """
+    for seed in range(40):
+        ship = generate_ship(
+            RandomRolls.seeded(seed),
+            constraints=DesignConstraints(hull_tons=400, power_rating=1),
+        ).ship
+
+        assert ship.power_rating == 1, seed
+        assert max(ship.jump_rating, ship.maneuver_rating) <= 1, seed
+
+
+def test_a_pinned_drive_above_a_pinned_plant_is_still_the_referee_s_to_make():
+    """Capping applies to the dice, not to the referee. Two pins that contradict
+    each other are a mistake `build_ship` owns the sentence for (ADR-0001); the
+    cap must not quietly rewrite one pin to suit the other."""
+    with pytest.raises(ValueError, match="below required"):
+        generate_ship(
+            RandomRolls.seeded(3),
+            constraints=DesignConstraints(hull_tons=400, jump_rating=4, power_rating=1),
+        )
+
+
+def test_a_rating_not_tabulated_for_the_hull_is_rejected():
+    """Every starship hull happens to offer ratings 1-6 through some code, so the
+    rejected answer here is one no hull can deliver at all."""
+    with pytest.raises(ValueError, match="not tabulated for a 400-ton hull"):
+        generate_ship(
+            RandomRolls.seeded(3),
+            constraints=DesignConstraints(hull_tons=400, jump_rating=9),
+        )
+
+
+def test_a_pinned_jump_rating_keeps_fuel_for_a_complete_jump():
+    """FR-004's promise survives pinning: whatever rating ends up installed, the
+    ship carries fuel for one full jump at it."""
+    for seed in range(10):
+        for rating in (1, 2):
+            ship = generate_ship(
+                RandomRolls.seeded(seed),
+                constraints=DesignConstraints(hull_tons=400, jump_rating=rating),
+            ).ship
+            assert ship.assumed_jump_distance == ship.jump_rating
+            assert ship.jump_fuel == pytest.approx(0.1 * ship.hull_tons * ship.jump_rating)
+
+
+def test_a_jump_rating_the_hull_cannot_fuel_degrades_to_one_it_can():
+    """The pin is a ceiling, not a promise the tonnage can keep: Jump-6 on a
+    100-ton hull would need 60 tons of fuel on top of the drive. The ship still
+    carries fuel for a full jump at whatever rating it ends up with, and the
+    shortfall is recorded for reporting (#50)."""
+    ship = generate_ship(
+        RandomRolls.seeded(3),
+        constraints=DesignConstraints(hull_tons=100, jump_rating=6),
+    ).ship
+
+    assert ship.jump_rating < 6
+    assert ship.assumed_jump_distance == ship.jump_rating
+    assert ship.tonnage_used <= ship.hull_tons
+
+
+def test_available_ratings_widen_when_the_hull_is_unknown():
+    """What the wizard can offer before the hull is drawn: every rating any hull
+    of the class can deliver."""
+    for hull_class in HullClass:
+        widened = available_ratings(hull_class, None)
+        for hull_tons in (HULLS if hull_class is HullClass.STARSHIP else SMALL_CRAFT_HULLS):
+            assert set(available_ratings(hull_class, hull_tons)) <= set(widened)
+
+
+def test_a_small_craft_rating_no_fitting_drive_delivers_degrades_and_is_recorded():
+    """Tabulated for the hull, but nothing delivering it leaves room for the rest
+    of the craft.
+
+    That is a tonnage shortfall, so it degrades and is reported rather than
+    refused (#50): the referee gets the best rating the hull can carry and is
+    told it is not the one they asked for. This test asserted a refusal when
+    #46 wrote it; #50 owns the rule that generation never raises on tonnage.
+    """
+    result = generate_ship(
+        RandomRolls.seeded(7),
+        constraints=DesignConstraints(
+            hull_class=HullClass.SMALL_CRAFT, hull_tons=10, maneuver_rating=6
+        ),
+    )
+
+    assert result.ship.maneuver_rating < 6
+    assert [(entry.field, entry.asked) for entry in result.unmet] == [("maneuver_rating", "6")]
+
+
+def test_a_jump_rating_pinned_on_a_small_craft_is_rejected():
+    """Legality the tables know at the point of input: small craft carry no jump
+    drive, so the answer is refused rather than quietly ignored (ADR-0001)."""
+    with pytest.raises(ValueError, match="small craft carry no jump drive"):
+        generate_ship(
+            RandomRolls.seeded(7),
+            constraints=DesignConstraints(hull_class=HullClass.SMALL_CRAFT, jump_rating=1),
+        )
+
+
+def test_small_craft_honours_pinned_maneuver_and_power_ratings():
+    """Seed 7 rolls a 1-G craft with a rating-2 plant on this hull, so 2 and 3
+    are visibly the answers rather than the dice."""
+    constraints = DesignConstraints(hull_class=HullClass.SMALL_CRAFT, hull_tons=40)
+    rolled = generate_ship(RandomRolls.seeded(7), constraints=constraints).ship
+
+    result = generate_ship(
+        RandomRolls.seeded(7),
+        constraints=DesignConstraints(
+            hull_class=HullClass.SMALL_CRAFT,
+            hull_tons=40,
+            maneuver_rating=2,
+            power_rating=3,
+        ),
+    )
+    ship = result.ship
+
+    assert (rolled.maneuver_rating, rolled.power_rating) == (1, 2)
+    assert ship.maneuver_rating == 2
+    assert ship.power_rating == 3
+
+
+def test_small_craft_pinned_ratings_draw_no_dice():
+    recorder = RecordingRolls(RandomRolls.seeded(7))
+    generate_ship(
+        recorder,
+        constraints=DesignConstraints(
+            hull_class=HullClass.SMALL_CRAFT,
+            hull_tons=40,
+            maneuver_rating=2,
+            power_rating=3,
+        ),
+    )
+
+    assert RollName.SHIP_MANEUVER_CODE not in recorder.drawn
+    assert RollName.SHIP_POWER_CODE not in recorder.drawn
+
+
+# --- The rest of the scalar surface: every field pins, rolls or is left absent ---
+
+_PINS_AND_ROLLS = (
+    ("configuration", Configuration.STREAMLINED, RollName.SHIP_CONFIGURATION),
+    ("computer", ComputerFit(model=3), RollName.SHIP_COMPUTER),
+    ("electronics", "basic_military", RollName.SHIP_ELECTRONICS),
+    ("staterooms", 4, RollName.SHIP_STATEROOMS),
+    ("fitting", FittingFit(kind="laboratory"), RollName.SHIP_FITTING),
+    ("bay", BayFit(kind="particle"), RollName.SHIP_BAY),
+    ("screen", ScreenFit(kind="meson_screen"), RollName.SHIP_SCREEN),
+    ("name", "Wayfarer", RollName.SHIP_NAME),
+)
+"""Each constrainable field, a value to pin it to, and the draw it must displace."""
+
+
+@pytest.mark.parametrize(
+    "field,pinned,roll", _PINS_AND_ROLLS, ids=[f for f, _, _ in _PINS_AND_ROLLS]
+)
+def test_a_pinned_field_is_honoured_and_draws_no_dice(field, pinned, roll):
+    """One hull big enough for every pin here, so nothing is declined on tonnage."""
+    recorder = RecordingRolls(RandomRolls.seeded(11))
+    result = generate_ship(
+        recorder,
+        constraints=DesignConstraints(hull_tons=2000, **{field: pinned}),
+    )
+
+    assert roll not in recorder.drawn
+    assert _installed(result.ship, field) == pinned
+
+
+def _installed(ship, field):
+    """What the finished design carries for `field`, in the shape it was pinned."""
+    design = ship.design
+    singular = {
+        "armor": design.armor,
+        "fitting": design.fittings,
+        "bay": design.bays,
+        "screen": design.screens,
+    }
+    if field in singular:
+        return singular[field][0] if singular[field] else None
+    return getattr(design, field)
+
+
+@pytest.mark.parametrize(
+    "field,pinned,roll", _PINS_AND_ROLLS, ids=[f for f, _, _ in _PINS_AND_ROLLS]
+)
+def test_an_unset_field_is_still_rolled(field, pinned, roll):
+    """The other half of the no-dice pin: left unset, the draw is still made.
+
+    Without this, `test_a_pinned_field_is_honoured_and_draws_no_dice` would pass
+    just as well if the roll had been deleted outright.
+    """
+    recorder = RecordingRolls(RandomRolls.seeded(11))
+    generate_ship(recorder, constraints=DesignConstraints(hull_tons=2000, **{field: None}))
+
+    assert roll in recorder.drawn
+
+
+@pytest.mark.parametrize("field", ["computer", "electronics", "fitting", "bay", "screen"])
+def test_absent_pins_an_optional_component_away(field):
+    result = generate_ship(
+        RandomRolls.seeded(11),
+        constraints=DesignConstraints(hull_tons=2000, **{field: ABSENT}),
+    )
+
+    assert _installed(result.ship, field) is None
+
+
+def test_a_pinned_stateroom_count_of_zero_is_honoured():
+    """Zero is an answer, not a missing one: `None` rolls, `0` pins an empty ship."""
+    rolled = generate_ship(RandomRolls.seeded(11), constraints=DesignConstraints(hull_tons=2000))
+    pinned = generate_ship(
+        RandomRolls.seeded(11), constraints=DesignConstraints(hull_tons=2000, staterooms=0)
+    )
+
+    assert rolled.ship.design.staterooms > 0
+    assert pinned.ship.design.staterooms == 0
+
+
+def test_absent_pins_a_ship_with_no_name_of_its_own():
+    """A blank name is *no* name, which the renderer already understands, and is
+    a different answer from letting the catalogue supply one."""
+    rolled = generate_ship(RandomRolls.seeded(11)).ship
+    pinned = generate_ship(RandomRolls.seeded(11), constraints=DesignConstraints(name=ABSENT)).ship
+
+    assert rolled.design.name in _CATALOGUE_NAMES
+    assert pinned.design.name == ""
+
+
+def test_a_bay_pinned_on_a_small_craft_is_rejected():
+    """Small craft forbid bays outright, which the tables know at input."""
+    with pytest.raises(ValueError, match="small craft carry no weapon bays"):
+        generate_ship(
+            RandomRolls.seeded(7),
+            constraints=DesignConstraints(
+                hull_class=HullClass.SMALL_CRAFT, bay=BayFit(kind="particle")
+            ),
+        )
+
+
+def test_a_screen_pinned_on_a_small_craft_is_fitted():
+    """Never rolled onto a small craft, but the rules permit one, so a pinned
+    screen is fitted rather than silently dropped."""
+    pinned = ScreenFit(kind="nuclear_damper")
+
+    result = generate_ship(
+        RandomRolls.seeded(7),
+        constraints=DesignConstraints(
+            hull_class=HullClass.SMALL_CRAFT,
+            hull_tons=95,
+            # A screen is 50 tons, which only the largest craft with the
+            # smallest drives can spare; the rest of the budget is cleared so
+            # this tests the wiring rather than the arithmetic.
+            maneuver_rating=1,
+            power_rating=1,
+            armor=ABSENT,
+            fitting=ABSENT,
+            staterooms=0,
+            screen=pinned,
+        ),
+    )
+
+    assert result.ship.design.screens == (pinned,)
+
+
+def test_an_unset_screen_is_never_rolled_onto_a_small_craft():
+    """Honouring a pinned screen must not have turned screens into a draw."""
+    for seed in range(20):
+        recorder = RecordingRolls(RandomRolls.seeded(seed))
+        result = generate_ship(recorder, constraints=_SMALL_CRAFT)
+
+        assert RollName.SHIP_SCREEN not in recorder.drawn
+        assert result.ship.design.screens == ()
+
+
+def test_purpose_is_never_rolled_and_is_carried_when_pinned():
+    """The one field generation does not invent: unanswered leaves it unset."""
+    rolled = generate_ship(RandomRolls.seeded(11)).ship
+    pinned = generate_ship(
+        RandomRolls.seeded(11), constraints=DesignConstraints(purpose="a courier for the mails")
+    ).ship
+
+    assert rolled.design.purpose is None
+    assert pinned.design.purpose == "a courier for the mails"
+
+
+def test_a_pinned_stateroom_count_the_budget_cannot_cover_is_clamped():
+    """The referee asked for rooms, not for a specific ship, so an unaffordable
+    count is clamped like a drawn one rather than refused."""
+    ship = generate_ship(
+        RandomRolls.seeded(11),
+        constraints=DesignConstraints(hull_tons=100, staterooms=100),
+    ).ship
+
+    assert 0 <= ship.design.staterooms < 100
+    assert ship.tonnage_used <= ship.hull_tons
+
+
+def test_a_pinned_bay_with_no_hardpoint_left_is_declined():
+    """Seed 0 spends this hull's single hardpoint on a turret, so the bay has
+    nowhere to mount even though the tonnage might have covered it."""
+    ship = generate_ship(
+        RandomRolls.seeded(0),
+        constraints=DesignConstraints(hull_tons=100, bay=BayFit(kind="missile_bank")),
+    ).ship
+
+    assert ship.design.turrets
+    assert ship.design.bays == ()
+
+
+def test_a_pinned_bay_the_budget_cannot_cover_is_declined():
+    """A hardpoint free to mount it on, but not the 51 tons it needs.
+
+    Jump-3 and 15% crystaliron between them leave this hull under the bay's
+    tonnage, which is a different shortfall from having nowhere to mount it.
+    """
+    ship = generate_ship(
+        RandomRolls.seeded(11),
+        constraints=DesignConstraints(
+            hull_tons=300,
+            jump_rating=3,
+            staterooms=0,
+            fitting=ABSENT,
+            armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=15),
+            bay=BayFit(kind="particle"),
+        ),
+    ).ship
+
+    assert ship.hardpoints > len(ship.design.turrets)  # a hardpoint was free
+    assert ship.design.bays == ()
+
+
+def test_a_pinned_component_may_be_one_the_generator_would_never_roll():
+    """The curated lists bound rolled output, never intent (ADR-0001)."""
+    pinned = FittingFit(kind="vehicle_hangar", vehicle_tons=20)
+
+    result = generate_ship(
+        RandomRolls.seeded(11), constraints=DesignConstraints(hull_tons=2000, fitting=pinned)
+    )
+
+    assert result.ship.design.fittings == (pinned,)
+    assert "vehicle_hangar" not in _FITTING_CHOICES
+
+
+# --- Turrets: a count, and per turret a mount and a weapon ---
+
+
+def test_a_pinned_turret_count_of_zero_leaves_the_ship_unarmed():
+    """Zero is an answer: `None` rolls a count, `()` pins an unarmed ship."""
+    rolled = generate_ship(
+        RandomRolls.seeded(0), constraints=DesignConstraints(hull_tons=400)
+    ).ship
+    pinned = generate_ship(
+        RandomRolls.seeded(0), constraints=DesignConstraints(hull_tons=400, turrets=())
+    ).ship
+
+    assert rolled.design.turrets != ()
+    assert pinned.design.turrets == ()
+
+
+def test_a_pinned_count_alone_fits_that_many_turrets_and_rolls_their_details():
+    """Count-only: the inner questions were skipped, so mount and weapon still draw."""
+    recorder = RecordingRolls(RandomRolls.seeded(11))
+    result = generate_ship(
+        recorder,
+        constraints=DesignConstraints(hull_tons=2000, turrets=(TurretPin(), TurretPin())),
+    )
+
+    assert len(result.ship.design.turrets) == 2
+    assert RollName.SHIP_TURRET_COUNT not in recorder.drawn
+    assert recorder.drawn.count(RollName.SHIP_TURRET_MOUNT) == 2
+    assert recorder.drawn.count(RollName.SHIP_WEAPON) == 2
+
+
+def test_a_pinned_mount_and_weapon_are_fitted_and_draw_no_dice():
+    recorder = RecordingRolls(RandomRolls.seeded(11))
+    result = generate_ship(
+        recorder,
+        constraints=DesignConstraints(
+            hull_tons=2000,
+            turrets=(TurretPin(mount="triple", weapon="pulse_laser"),),
+        ),
+    )
+
+    (turret,) = result.ship.design.turrets
+    assert turret.mount == "triple"
+    assert turret.weapons == ("pulse_laser",) * 3
+    assert RollName.SHIP_TURRET_MOUNT not in recorder.drawn
+    assert RollName.SHIP_WEAPON not in recorder.drawn
+
+
+def test_a_pinned_weapon_may_ride_a_rolled_mount_and_the_reverse():
+    """Each half of a turret is answered on its own."""
+    weapon_only = generate_ship(
+        RandomRolls.seeded(11),
+        constraints=DesignConstraints(hull_tons=2000, turrets=(TurretPin(weapon="sandcaster"),)),
+    ).ship
+    mount_only = generate_ship(
+        RandomRolls.seeded(11),
+        constraints=DesignConstraints(hull_tons=2000, turrets=(TurretPin(mount="pop_up"),)),
+    ).ship
+
+    (weapon_turret,) = weapon_only.design.turrets
+    (mount_turret,) = mount_only.design.turrets
+    assert set(weapon_turret.weapons) == {"sandcaster"}
+    assert mount_turret.mount == "pop_up"
+
+
+def test_a_turret_count_above_the_hulls_hardpoints_is_rejected():
+    """Hardpoints follow from the hull, which is settled before turrets are asked."""
+    with pytest.raises(ValueError, match="a 100-ton starship has 1 hardpoint"):
+        generate_ship(
+            RandomRolls.seeded(11),
+            constraints=DesignConstraints(hull_tons=100, turrets=(TurretPin(), TurretPin())),
+        )
+
+
+def test_a_pinned_turret_the_budget_cannot_cover_is_declined():
+    """A hardpoint to mount it on, but no tonnage left to put in it."""
+    ship = generate_ship(
+        RandomRolls.seeded(11),
+        constraints=DesignConstraints(
+            hull_tons=200,
+            jump_rating=2,
+            # 45% of a 200-ton hull is 90 tons of crystaliron, which fits and
+            # leaves nothing behind it for even a 2-ton pop-up turret.
+            armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=45),
+            staterooms=0,
+            fitting=ABSENT,
+            turrets=(TurretPin(mount="pop_up", weapon="pulse_laser"),),
+        ),
+    ).ship
+
+    assert ship.hardpoints >= 1
+    assert ship.design.turrets == ()
+
+
+def test_a_small_craft_honours_a_pinned_turret_on_its_single_hardpoint():
+    """The smaller ruleset takes its own path, but an answer is still an answer."""
+    result = generate_ship(
+        RandomRolls.seeded(7),
+        constraints=DesignConstraints(
+            hull_class=HullClass.SMALL_CRAFT,
+            hull_tons=95,
+            turrets=(TurretPin(mount="single", weapon="sandcaster"),),
+        ),
+    )
+
+    (turret,) = result.ship.design.turrets
+    assert (turret.mount, turret.weapons) == ("single", ("sandcaster",))
+
+
+def test_a_pinned_multi_slot_mount_caps_the_weapon_left_to_chance():
+    """A mount carries the same weapon in every slot, so the plant's allowance is
+    what three slots ask for, not one.
+
+    `_SMALL_CRAFT_TURRET_MOUNTS` holds only single-slot mounts, so a *drawn*
+    mount can never ask for more than one energy weapon—but a *pinned* triple
+    can, and the weapon was still drawn on whether the plant ran any energy
+    weapon at all. The pin was legal and the roll broke it, which is the wrong
+    way round (ADR-0001).
+    """
+    for seed in range(40):
+        ship = generate_ship(
+            RandomRolls.seeded(seed),
+            constraints=DesignConstraints(
+                hull_class=HullClass.SMALL_CRAFT,
+                hull_tons=50,
+                turrets=(TurretPin(mount="triple"),),
+            ),
+        ).ship
+
+        for turret in ship.design.turrets:
+            energy = sum(TURRET_WEAPONS[weapon].energy for weapon in turret.weapons)
+            assert energy <= SMALL_CRAFT_ENERGY_CAPS[ship.design.power_code[1:]], seed
+
+
+def test_a_small_craft_pinned_to_no_turrets_is_unarmed():
+    """Seed 4 arms this craft, so an unarmed one here can only be the answer."""
+    constraints = DesignConstraints(hull_class=HullClass.SMALL_CRAFT, hull_tons=95)
+    rolled = generate_ship(RandomRolls.seeded(4), constraints=constraints).ship
+    pinned = generate_ship(
+        RandomRolls.seeded(4),
+        constraints=DesignConstraints(hull_class=HullClass.SMALL_CRAFT, hull_tons=95, turrets=()),
+    ).ship
+
+    assert rolled.design.turrets != ()
+    assert pinned.design.turrets == ()
+
+
+def test_a_small_craft_turret_the_budget_cannot_cover_is_not_fitted():
+    """A 20-ton hull with armour on it has a hardpoint but no tonnage behind it.
+
+    The record of the shortfall is written to the ledger, which nothing reads
+    until #50; what is observable here is that the craft still builds.
+    """
+    ship = generate_ship(
+        RandomRolls.seeded(7),
+        constraints=DesignConstraints(
+            hull_class=HullClass.SMALL_CRAFT,
+            hull_tons=20,
+            staterooms=0,
+            fitting=ABSENT,
+            armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=5),
+            turrets=(TurretPin(mount="pop_up", weapon="sandcaster"),),
+        ),
+    ).ship
+
+    assert ship.design.turrets == ()
+    assert ship.tonnage_used <= ship.hull_tons
+
+
+def test_a_small_craft_has_one_hardpoint_however_small_it_is():
+    """Counted by the starship rule a 40-ton launch would have none at all."""
+    with pytest.raises(ValueError, match="a 40-ton small craft has 1 hardpoint"):
+        generate_ship(
+            RandomRolls.seeded(7),
+            constraints=DesignConstraints(
+                hull_class=HullClass.SMALL_CRAFT,
+                hull_tons=40,
+                turrets=(TurretPin(), TurretPin()),
+            ),
+        )
+
+    fitted = generate_ship(
+        RandomRolls.seeded(7),
+        constraints=DesignConstraints(
+            hull_class=HullClass.SMALL_CRAFT, hull_tons=40, turrets=(TurretPin(),)
+        ),
+    ).ship
+    assert len(fitted.design.turrets) == 1
+
+
+def test_unset_turrets_are_still_rolled():
+    for seed in range(20):
+        assert generate_ship(RandomRolls.seeded(seed)) == generate_ship(
+            RandomRolls.seeded(seed), constraints=DesignConstraints(turrets=None)
+        )
+
+
+# --- Unmet constraints reach the caller (#50) ---
+
+
+def _overloaded() -> GenerationResult:
+    """A 200-ton hull asked for more than it can hold.
+
+    Jump-2 and 30% crystaliron take most of the hull between them, leaving room
+    for seven of the eight staterooms and neither turret. The ticket's own
+    example (six staterooms, 20% armour) turns out to *fit* with 22 tons spare,
+    which is why the numbers here are larger than the prose suggests.
+    """
+    return generate_ship(
+        RandomRolls.seeded(11),
+        constraints=DesignConstraints(
+            hull_tons=200,
+            jump_rating=2,
+            armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=30),
+            staterooms=8,
+            turrets=(
+                TurretPin(mount="triple", weapon="pulse_laser"),
+                TurretPin(mount="triple", weapon="pulse_laser"),
+            ),
+        ),
+    )
+
+
+def test_a_pinned_value_that_will_not_fit_is_reported_on_the_result():
+    result = _overloaded()
+
+    assert result.unmet != ()
+    assert all(isinstance(entry, UnmetConstraint) for entry in result.unmet)
+
+
+def test_an_unmet_constraint_carries_the_field_what_was_asked_what_was_got_and_why():
+    """A library caller reads the record; nobody should parse a sentence."""
+    result = _overloaded()
+
+    assert [(entry.field, entry.asked, entry.got) for entry in result.unmet] == [
+        ("staterooms", "8", "7"),
+        ("turrets", "turret 1 (triple pulse_laser)", "none"),
+        ("turrets", "turret 2 (triple pulse_laser)", "none"),
+    ]
+    assert result.unmet[0].reason == "needs 32t, 30t free"
+
+    # Every `field` names an attribute a caller can match on the constraints.
+    known = {field.name for field in fields(DesignConstraints)}
+    assert all(entry.field in known for entry in result.unmet)
+
+
+def test_generation_still_yields_a_ship_when_constraints_go_unmet():
+    """Never fails on tonnage: a real, legal ship comes back regardless."""
+    result = _overloaded()
+
+    assert result.ship.hull_tons == 200
+    assert result.ship.tonnage_used <= result.ship.hull_tons
+
+
+def test_a_rolled_value_that_will_not_fit_is_still_declined_silently():
+    """A preference, not a promise: a sweep with nothing pinned reports nothing,
+    including the many seeds whose drawn components do not all fit."""
+    for seed in range(200):
+        assert generate_ship(RandomRolls.seeded(seed)).unmet == ()
+        assert generate_ship(RandomRolls.seeded(seed), constraints=_SMALL_CRAFT).unmet == ()
+
+
+def test_a_small_craft_reports_its_unmet_constraints_too():
+    """The smaller ruleset takes its own path; the report must come back from it."""
+    result = generate_ship(
+        RandomRolls.seeded(7),
+        constraints=DesignConstraints(
+            hull_class=HullClass.SMALL_CRAFT,
+            hull_tons=20,
+            staterooms=0,
+            fitting=ABSENT,
+            armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=5),
+            turrets=(TurretPin(mount="pop_up", weapon="sandcaster"),),
+        ),
+    )
+
+    assert [entry.field for entry in result.unmet] == ["turrets"]
+
+
+# --- What a small-craft session may offer (#49) ---
+
+
+def test_small_craft_power_ratings_are_those_a_pinned_maneuver_leaves_room_for():
+    """The pair is chosen jointly on this path, so a manoeuvre pin narrows what
+    the power plant can still be: never below it, and never so heavy that the
+    two together leave no room for a cockpit.
+
+    A 15-ton hull is the clearest case. It can deliver ratings 1 through 6
+    through some drive, but a craft already carrying a 1-G manoeuvre drive has
+    room for a plant at only 1 or 2.
+    """
+    offered = small_craft_power_ratings(hull_tons=15, maneuver_rating=1)
+
+    assert offered == (1, 2)
+    assert set(offered) < set(available_ratings(HullClass.SMALL_CRAFT, 15))
+
+
+def test_small_craft_power_ratings_narrow_as_the_maneuver_pin_rises():
+    generous = small_craft_power_ratings(hull_tons=15, maneuver_rating=1)
+    demanding = small_craft_power_ratings(hull_tons=15, maneuver_rating=2)
+
+    assert generous == (1, 2)
+    assert demanding == (2,)
+
+
+def test_a_pinned_power_rating_a_maneuver_pin_forbids_is_reported():
+    """Offered and honoured agree: a rating this helper omits does not generate,
+    and the referee is told so rather than quietly given something else."""
+    forbidden = [
+        rating
+        for rating in available_ratings(HullClass.SMALL_CRAFT, 15)
+        if rating not in small_craft_power_ratings(hull_tons=15, maneuver_rating=1)
+    ]
+    assert forbidden
+
+    for rating in forbidden:
+        result = generate_ship(
+            RandomRolls.seeded(7),
+            constraints=DesignConstraints(
+                hull_class=HullClass.SMALL_CRAFT,
+                hull_tons=15,
+                maneuver_rating=1,
+                power_rating=rating,
+            ),
+        )
+        assert [entry.field for entry in result.unmet] == ["power_rating"], rating
+
+
+def test_a_power_rating_raised_to_meet_its_drive_is_told_which_rule_raised_it():
+    """A pin that comes back *higher* than asked did not run out of tonnage.
+
+    Drive A delivers rating 1 on a 15-ton hull and is the lightest code there, so
+    "no power drive delivering 1 fits" was a tonnage story about a rules
+    constraint: a plant may not be rated below the drive it powers. The referee
+    reads this reason to decide what to revise, and the CLI was offering to
+    revise a field that had come back better than asked.
+    """
+    result = generate_ship(
+        RandomRolls.seeded(3),
+        constraints=DesignConstraints(
+            hull_class=HullClass.SMALL_CRAFT,
+            hull_tons=15,
+            maneuver_rating=2,
+            power_rating=1,
+        ),
+    )
+
+    (unmet,) = result.unmet
+    assert (unmet.field, unmet.asked, unmet.got) == ("power_rating", "1", "2")
+    assert unmet.reason == "a power plant may not be rated below the Maneuver-2 drive it powers"
+
+
+def test_small_craft_maneuver_ratings_are_those_the_craft_can_carry():
+    """Narrower than the drive table: a rating whose every drive leaves no room
+    for a plant beside it is not one this craft can have."""
+    carryable = small_craft_maneuver_ratings(40)
+
+    assert set(carryable) < set(available_ratings(HullClass.SMALL_CRAFT, 40))
+    assert all(small_craft_power_ratings(40, rating) for rating in carryable)
+
+
+def test_a_pinned_energy_weapon_the_plant_cannot_run_is_reported_not_raised():
+    """The plant is only known once chosen, so a weapon it cannot run is
+    declined there. `build_ship` would refuse the design and cost the session
+    its ship; a craft with no turret is still a craft."""
+    result = generate_ship(
+        RandomRolls.seeded(7),
+        constraints=DesignConstraints(
+            hull_class=HullClass.SMALL_CRAFT,
+            hull_tons=40,
+            maneuver_rating=1,
+            power_rating=1,
+            turrets=(TurretPin(mount="single", weapon="pulse_laser"),),
+        ),
+    )
+
+    assert result.ship.design.turrets == ()
+    assert [entry.field for entry in result.unmet] == ["turrets"]
+    assert "energy weapon" in result.unmet[0].reason
+
+
+def test_a_small_craft_plant_with_no_energy_allowance_forbids_an_energy_weapon():
+    """The weapon a small craft may carry is capped by its power plant, so the
+    check needs the plant the pinned rating resolves to."""
+    with pytest.raises(ValueError, match="runs 0 energy weapon"):
+        validate_small_craft_weapon(hull_tons=40, power_rating=1, weapon="pulse_laser")
+
+
+def test_a_small_craft_plant_with_an_allowance_permits_an_energy_weapon():
+    allowance = next(
+        rating
+        for rating in available_ratings(HullClass.SMALL_CRAFT, 40)
+        if _energy_allowance(40, rating)
+    )
+
+    validate_small_craft_weapon(hull_tons=40, power_rating=allowance, weapon="pulse_laser")
+
+
+def test_a_non_energy_weapon_needs_no_allowance():
+    for rating in available_ratings(HullClass.SMALL_CRAFT, 40):
+        validate_small_craft_weapon(hull_tons=40, power_rating=rating, weapon="sandcaster")
+
 
 # --- ScriptedRolls pins a known component selection to an exact Ship ---
 
 
 def test_scripted_rolls_all_defaults_yields_exact_ship():
-    ship = generate_ship(ScriptedRolls())
+    ship = generate_ship(ScriptedRolls()).ship
 
     assert ship.hull_tons == 100
     assert ship.jump_rating == 2
@@ -55,14 +1087,14 @@ def test_scripted_rolls_all_defaults_yields_exact_ship():
 
 
 def test_random_rolls_seeded_reproducible():
-    a = generate_ship(RandomRolls.seeded(42))
-    b = generate_ship(RandomRolls.seeded(42))
+    a = generate_ship(RandomRolls.seeded(42)).ship
+    b = generate_ship(RandomRolls.seeded(42)).ship
     assert a == b
 
 
 def test_random_rolls_different_seeds_can_differ():
-    a = generate_ship(RandomRolls.seeded(1))
-    b = generate_ship(RandomRolls.seeded(2))
+    a = generate_ship(RandomRolls.seeded(1)).ship
+    b = generate_ship(RandomRolls.seeded(2)).ship
     assert a != b
 
 
@@ -71,22 +1103,24 @@ def test_random_rolls_different_seeds_can_differ():
 
 def test_many_seeds_all_produce_ships():
     for seed in range(200):
-        ship = generate_ship(RandomRolls.seeded(seed))
+        ship = generate_ship(RandomRolls.seeded(seed)).ship
         assert ship.cargo_tons >= 0
 
 
-# --- FR-018: hull_size is honoured ---
+# --- FR-018: a pinned hull tonnage is honoured ---
 
 
 def test_hull_size_is_honoured():
     for seed in range(20):
-        ship = generate_ship(RandomRolls.seeded(seed), hull_size=400)
+        ship = generate_ship(
+            RandomRolls.seeded(seed), constraints=DesignConstraints(hull_tons=400)
+        ).ship
         assert ship.hull_tons == 400
 
 
 def test_unknown_hull_size_raises():
     with pytest.raises(ValueError, match="not a tabulated hull size"):
-        generate_ship(RandomRolls.seeded(1), hull_size=150)
+        generate_ship(RandomRolls.seeded(1), constraints=DesignConstraints(hull_tons=150))
 
 
 # --- SC-008: generated ships round-trip losslessly ---
@@ -94,13 +1128,13 @@ def test_unknown_hull_size_raises():
 
 def test_generated_ships_round_trip():
     for seed in range(20):
-        ship = generate_ship(RandomRolls.seeded(seed))
+        ship = generate_ship(RandomRolls.seeded(seed)).ship
         assert build_ship(loads_design(dump_design(ship.design))) == ship
 
 
 def test_default_rolls_is_random_rolls():
     # No explicit `rolls` argument still produces a valid ship (defaults to RandomRolls()).
-    ship = generate_ship()
+    ship = generate_ship().ship
     assert ship.cargo_tons >= 0
 
 
@@ -108,12 +1142,12 @@ def test_default_rolls_is_random_rolls():
 
 
 def test_generated_starship_carries_a_catalogue_name():
-    ship = generate_ship(RandomRolls.seeded(42))
+    ship = generate_ship(RandomRolls.seeded(42)).ship
     assert ship.design.name in _CATALOGUE_NAMES
 
 
 def test_generated_small_craft_carries_a_catalogue_name():
-    ship = generate_ship(RandomRolls.seeded(7), small_craft=True)
+    ship = generate_ship(RandomRolls.seeded(7), constraints=_SMALL_CRAFT).ship
     assert ship.design.name in _CATALOGUE_NAMES
 
 
@@ -121,14 +1155,14 @@ def test_generated_small_craft_carries_a_catalogue_name():
 
 
 def test_generated_ship_name_is_reproducible_from_a_seed():
-    a = generate_ship(RandomRolls.seeded(42))
-    b = generate_ship(RandomRolls.seeded(42))
+    a = generate_ship(RandomRolls.seeded(42)).ship
+    b = generate_ship(RandomRolls.seeded(42)).ship
     assert a == b
     assert a.design.name == b.design.name
 
 
 def test_generated_ship_names_across_seeds_are_not_forced_to_match():
-    names = {generate_ship(RandomRolls.seeded(seed)).design.name for seed in range(20)}
+    names = {generate_ship(RandomRolls.seeded(seed)).ship.design.name for seed in range(20)}
     assert len(names) > 1
 
 
@@ -137,7 +1171,7 @@ def test_generated_ship_names_across_seeds_are_not_forced_to_match():
 
 
 def test_generated_ships_over_a_pinned_seed_set_are_mostly_distinct():
-    names = [generate_ship(RandomRolls.seeded(seed)).design.name for seed in range(20)]
+    names = [generate_ship(RandomRolls.seeded(seed)).ship.design.name for seed in range(20)]
     assert len(set(names)) >= 17
 
 
@@ -146,7 +1180,7 @@ def test_generated_ships_over_a_pinned_seed_set_are_mostly_distinct():
 
 def test_small_craft_yields_a_10_to_95_ton_ship_with_no_jump_drive():
     for seed in range(200):
-        ship = generate_ship(RandomRolls.seeded(seed), small_craft=True)
+        ship = generate_ship(RandomRolls.seeded(seed), constraints=_SMALL_CRAFT).ship
         assert 10 <= ship.hull_tons <= 95
         assert ship.jump_rating == 0
         assert ship.jump_fuel == pytest.approx(0.0)
@@ -154,26 +1188,32 @@ def test_small_craft_yields_a_10_to_95_ton_ship_with_no_jump_drive():
 
 
 def test_small_craft_reproducible_from_a_seed():
-    a = generate_ship(RandomRolls.seeded(42), small_craft=True)
-    b = generate_ship(RandomRolls.seeded(42), small_craft=True)
+    a = generate_ship(RandomRolls.seeded(42), constraints=_SMALL_CRAFT).ship
+    b = generate_ship(RandomRolls.seeded(42), constraints=_SMALL_CRAFT).ship
     assert a == b
 
 
 def test_small_craft_hull_size_is_honoured():
     for tons in (10, 40, 95):
         for seed in range(10):
-            ship = generate_ship(RandomRolls.seeded(seed), hull_size=tons, small_craft=True)
+            ship = generate_ship(
+                RandomRolls.seeded(seed),
+                constraints=DesignConstraints(hull_class=HullClass.SMALL_CRAFT, hull_tons=tons),
+            ).ship
             assert ship.hull_tons == tons
 
 
 def test_small_craft_unknown_hull_size_raises():
     with pytest.raises(ValueError, match="not a tabulated small-craft hull size"):
-        generate_ship(RandomRolls.seeded(1), hull_size=100, small_craft=True)
+        generate_ship(
+            RandomRolls.seeded(1),
+            constraints=DesignConstraints(hull_class=HullClass.SMALL_CRAFT, hull_tons=100),
+        )
 
 
 def test_small_craft_round_trips_losslessly():
     for seed in range(50):
-        ship = generate_ship(RandomRolls.seeded(seed), small_craft=True)
+        ship = generate_ship(RandomRolls.seeded(seed), constraints=_SMALL_CRAFT).ship
         assert build_ship(loads_design(dump_design(ship.design))) == ship
 
 
@@ -182,14 +1222,14 @@ def test_small_craft_round_trips_losslessly():
 
 def test_generated_bays_never_exceed_hardpoints_or_free_tonnage():
     for seed in range(300):
-        ship = generate_ship(RandomRolls.seeded(seed))
+        ship = generate_ship(RandomRolls.seeded(seed)).ship
         assert ship.hardpoints_used <= ship.hardpoints
         assert ship.cargo_tons >= 0
 
 
 def test_generated_ships_never_carry_a_bay_on_small_craft():
     for seed in range(300):
-        ship = generate_ship(RandomRolls.seeded(seed), small_craft=True)
+        ship = generate_ship(RandomRolls.seeded(seed), constraints=_SMALL_CRAFT).ship
         assert ship.design.bays == ()
 
 
@@ -197,13 +1237,18 @@ def test_a_bay_is_reachable_for_a_large_enough_hull():
     # Sweep enough seeds on a hull with ample hardpoints and tonnage that at
     # least one draw selects a bay (bay selection is randomized, not forced).
     assert any(
-        generate_ship(RandomRolls.seeded(seed), hull_size=2000).design.bays for seed in range(300)
+        generate_ship(
+            RandomRolls.seeded(seed), constraints=DesignConstraints(hull_tons=2000)
+        ).ship.design.bays
+        for seed in range(300)
     )
 
 
 def test_a_screen_is_reachable_for_a_large_enough_hull():
     assert any(
-        generate_ship(RandomRolls.seeded(seed), hull_size=2000).design.screens
+        generate_ship(
+            RandomRolls.seeded(seed), constraints=DesignConstraints(hull_tons=2000)
+        ).ship.design.screens
         for seed in range(300)
     )
 
@@ -433,7 +1478,7 @@ def _is_fr014_starved_hull_ship(ship) -> bool:
 def test_sc001_sc002_every_generated_starship_carries_fuel_for_one_full_jump():
     starved = 0
     for seed in range(2000):
-        ship = generate_ship(RandomRolls.seeded(seed))
+        ship = generate_ship(RandomRolls.seeded(seed)).ship
         if _is_fr014_starved_hull_ship(ship):
             starved += 1
             continue
@@ -463,7 +1508,7 @@ def test_us1_as1_a_100_ton_hull_with_maneuver_a_and_power_c_mounts_jump_b_at_jum
             RollName.SHIP_POWER_CODE: power_index,
         }
     )
-    ship = generate_ship(rolls, hull_size=hull_tons)
+    ship = generate_ship(rolls, constraints=DesignConstraints(hull_tons=hull_tons)).ship
 
     assert ship.design.jump_code == "B"
     assert ship.jump_rating == 4
@@ -480,7 +1525,7 @@ def test_sc007_ships_already_fully_fuelled_before_the_change_keep_their_rating()
         if before["assumed_jump_distance"] != before["jump_rating"]:
             continue
         seed = int(seed_text)
-        ship = generate_ship(RandomRolls.seeded(seed))
+        ship = generate_ship(RandomRolls.seeded(seed)).ship
 
         assert ship.hull_tons == before["hull_tons"]
         assert ship.jump_rating == before["jump_rating"]
@@ -501,7 +1546,7 @@ def test_sc003_allocated_tonnage_never_overruns_the_hull():
     # without raising has already run every generated design through the
     # sole validation authority.
     for seed in range(2000):
-        ship = generate_ship(RandomRolls.seeded(seed))
+        ship = generate_ship(RandomRolls.seeded(seed)).ship
         assert ship.cargo_tons >= 0
         assert ship.tonnage_used <= ship.hull_tons
 
@@ -513,12 +1558,12 @@ def test_sc003_allocated_tonnage_never_overruns_the_hull():
 def test_sc006_generation_is_deterministic_on_every_path():
     for seed in range(2000):
         assert generate_ship(RandomRolls.seeded(seed)) == generate_ship(RandomRolls.seeded(seed))
-        assert generate_ship(RandomRolls.seeded(seed), small_craft=True) == generate_ship(
-            RandomRolls.seeded(seed), small_craft=True
+        assert generate_ship(RandomRolls.seeded(seed), constraints=_SMALL_CRAFT) == generate_ship(
+            RandomRolls.seeded(seed), constraints=_SMALL_CRAFT
         )
-        assert generate_ship(RandomRolls.seeded(seed), hull_size=400) == generate_ship(
-            RandomRolls.seeded(seed), hull_size=400
-        )
+        assert generate_ship(
+            RandomRolls.seeded(seed), constraints=DesignConstraints(hull_tons=400)
+        ) == generate_ship(RandomRolls.seeded(seed), constraints=DesignConstraints(hull_tons=400))
 
 
 def test_sc005_small_craft_output_is_unchanged_from_before_the_change():
@@ -527,14 +1572,16 @@ def test_sc005_small_craft_output_is_unchanged_from_before_the_change():
 
     for seed_text, expected_toml in baseline.items():
         seed = int(seed_text)
-        ship = generate_ship(RandomRolls.seeded(seed), small_craft=True)
+        ship = generate_ship(RandomRolls.seeded(seed), constraints=_SMALL_CRAFT).ship
         assert dump_design(ship.design) == expected_toml
 
 
 def test_sc009_hull_size_is_always_honoured():
     for hull_tons in sorted(HULLS):
         for seed in range(10):
-            ship = generate_ship(RandomRolls.seeded(seed), hull_size=hull_tons)
+            ship = generate_ship(
+                RandomRolls.seeded(seed), constraints=DesignConstraints(hull_tons=hull_tons)
+            ).ship
             assert ship.hull_tons == hull_tons
 
 
@@ -567,11 +1614,40 @@ class RecordingRolls:
 
 def test_sc008_ship_name_is_the_final_draw_and_is_drawn_exactly_once_on_both_paths():
     for seed in range(50):
-        for small_craft in (False, True):
+        for hull_class in HullClass:
             recorder = RecordingRolls(RandomRolls.seeded(seed))
-            generate_ship(recorder, small_craft=small_craft)
+            generate_ship(recorder, constraints=DesignConstraints(hull_class=hull_class))
             assert recorder.drawn[-1] == RollName.SHIP_NAME
             assert recorder.drawn.count(RollName.SHIP_NAME) == 1
+
+
+def test_a_pinned_hull_tonnage_draws_no_dice_on_either_path():
+    """Pinning spends an answer, not a roll (ADR-0001).
+
+    `RecordingRolls` is the only way to see this: the ship alone cannot say
+    whether the hull was drawn and discarded or never drawn at all, and the
+    difference is exactly what keeps the pinned baseline meaningful.
+    """
+    for seed in range(20):
+        recorder = RecordingRolls(RandomRolls.seeded(seed))
+        generate_ship(recorder, constraints=DesignConstraints(hull_tons=400))
+        assert RollName.SHIP_HULL_SIZE not in recorder.drawn
+
+        recorder = RecordingRolls(RandomRolls.seeded(seed))
+        generate_ship(
+            recorder,
+            constraints=DesignConstraints(hull_class=HullClass.SMALL_CRAFT, hull_tons=40),
+        )
+        assert RollName.SHIP_HULL_SIZE not in recorder.drawn
+
+
+def test_an_unpinned_hull_tonnage_is_drawn_exactly_once_on_either_path():
+    """The other half: without a pin the draw is still made, so the test above
+    cannot pass by the roll having been removed altogether."""
+    for hull_class in HullClass:
+        recorder = RecordingRolls(RandomRolls.seeded(3))
+        generate_ship(recorder, constraints=DesignConstraints(hull_class=hull_class))
+        assert recorder.drawn.count(RollName.SHIP_HULL_SIZE) == 1
 
 
 def test_sc008_drive_codes_are_drawn_jump_then_maneuver_then_power():
@@ -585,7 +1661,7 @@ def test_sc008_drive_codes_are_drawn_jump_then_maneuver_then_power():
 
     for seed in range(50):
         recorder = RecordingRolls(RandomRolls.seeded(seed))
-        generate_ship(recorder, small_craft=True)
+        generate_ship(recorder, constraints=_SMALL_CRAFT)
         assert RollName.SHIP_JUMP_CODE not in recorder.drawn
         maneuver_at = recorder.drawn.index(RollName.SHIP_MANEUVER_CODE)
         power_at = recorder.drawn.index(RollName.SHIP_POWER_CODE)
@@ -601,7 +1677,10 @@ def test_sc008_re_pinned_baseline_pins_seeded_designs_for_future_features():
     for key, expected_toml in baseline.items():
         path, seed_text = key.split(":")
         seed = int(seed_text)
-        ship = generate_ship(RandomRolls.seeded(seed), small_craft=path == "small_craft")
+        ship = generate_ship(
+            RandomRolls.seeded(seed),
+            constraints=_SMALL_CRAFT if path == "small_craft" else UNCONSTRAINED,
+        ).ship
         assert dump_design(ship.design) == expected_toml, f"{key}: moved off the pinned baseline"
 
 
@@ -629,7 +1708,7 @@ def test_g4_every_generated_starship_mounts_the_lightest_drive_at_its_rating():
     """
     starved = 0
     for seed in range(2000):
-        ship = generate_ship(RandomRolls.seeded(seed))
+        ship = generate_ship(RandomRolls.seeded(seed)).ship
         # G4 binds even on an FR-014 ship: the fallback defers to FR-004 for
         # the choice among drives sharing the lowest rating, so this is
         # asserted before the starved-hull classification, not after it.

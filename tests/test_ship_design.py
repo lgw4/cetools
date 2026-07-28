@@ -412,7 +412,7 @@ def test_a_generated_ships_name_survives_dump_load_and_build():
     # `name = "..."` substring would additionally pin dump_design's quoting and
     # break on the first catalogue name needing an escape. That the key reaches
     # the file at all is the CLI contract's concern, pinned in test_cli.py.
-    ship = generate_ship(RandomRolls.seeded(42))
+    ship = generate_ship(RandomRolls.seeded(42)).ship
     reloaded = loads_design(dump_design(ship.design))
 
     assert reloaded.name == ship.design.name

@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+import pytest
 from typer.testing import CliRunner
 
 from cetools.cli.main import app
@@ -961,6 +962,1104 @@ def test_ship_generate_small_craft_hull_100_out_of_range_exits_1():
     )
     assert result.exit_code == 1
     assert result.stderr.strip()
+
+
+# --- `cetools ship generate --interactive` (#44) ---
+
+
+_QUESTIONS = (
+    "hull_class",
+    "hull",
+    "configuration",
+    "jump",
+    "maneuver",
+    "power",
+    "armor",
+    "computer",
+    "electronics",
+    "staterooms",
+    "fitting",
+    "turrets",
+    "bay",
+    "screen",
+    "name",
+    "purpose",
+)
+"""The wizard's questions, in the order it asks them.
+
+Piped input is positional, so every test that answers one question has to know
+where the others sit. Keeping that knowledge here means a ticket which adds a
+question edits one line rather than every test that answers a later one.
+"""
+
+
+_SMALL_CRAFT_SKIPS = ("jump", "bay")
+"""The questions a small-craft session never asks: the ruleset forbids both."""
+
+_ENTER_THROUGH = "\n" * (len(_QUESTIONS) + 2)
+"""More Enters than the wizard has questions, so a test that means "take every
+default" keeps meaning that as later tickets add prompts."""
+
+
+def _small_craft_answers(*, skip: tuple[str, ...] = (), **given: str) -> str:
+    """Piped input for a session already known to be building a small craft.
+
+    `--small-craft` pre-answers the hull class, and the ruleset omits the jump
+    and bay questions, so those three slots are never asked for.
+    """
+    return _answers(skip=("hull_class",) + _SMALL_CRAFT_SKIPS + skip, **given)
+
+
+def _answers(*, skip: tuple[str, ...] = (), pad: bool = True, **given: str) -> str:
+    """Piped input answering the named questions and pressing Enter through the rest.
+
+    `skip` names questions this invocation never asks, because a flag already
+    pre-answered them: `--hull` means the hull question is not asked, and every
+    answer after it would otherwise land one slot early.
+
+    `pad` appends spare Enters to carry any prompt this table does not know
+    about, such as a turret's mount and weapon. Turn it off when the test has
+    something to say *after* the session ends, since the spare Enters would
+    otherwise be swallowed by the accept-or-revise question.
+    """
+    unknown = (set(given) | set(skip)) - set(_QUESTIONS)
+    assert not unknown, f"no such question: {sorted(unknown)}"
+    asked = (question for question in _QUESTIONS if question not in skip)
+    answered = "".join(f"{given.get(question, '')}\n" for question in asked)
+    return answered + _ENTER_THROUGH if pad else answered
+
+
+_SCALAR_PROMPTS = (
+    ("configuration", "Configuration [roll]:", "streamlined"),
+    ("computer", "Computer model [roll]:", "3"),
+    ("electronics", "Electronics [roll]:", "basic_military"),
+    ("staterooms", "Staterooms [roll]:", "4"),
+    ("fitting", "Fitting [roll]:", "laboratory"),
+    ("bay", "Weapon bay [roll]:", "particle"),
+    ("screen", "Screen [roll]:", "meson_screen"),
+    ("name", "Name [roll]:", "Wayfarer"),
+)
+
+
+@pytest.mark.parametrize(
+    "question,prompt,answer", _SCALAR_PROMPTS, ids=[q for q, _, _ in _SCALAR_PROMPTS]
+)
+def test_ship_generate_interactive_asks_for_each_scalar_field(question, prompt, answer):
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), **{question: answer}),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert prompt in result.stderr
+
+
+def test_ship_generate_interactive_pins_every_scalar_field_at_once():
+    """One session answering the lot, read back off the design it wrote."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
+        input=_answers(
+            skip=("hull",),
+            configuration="streamlined",
+            computer="3",
+            electronics="basic_military",
+            staterooms="4",
+            fitting="laboratory",
+            bay="particle",
+            screen="meson_screen",
+            name="Wayfarer",
+            purpose="a courier for the mails",
+        ),
+    )
+    assert result.exit_code == 0, result.stderr
+
+    from cetools.engine.ships import Configuration, loads_design
+
+    design = loads_design(result.stdout)
+    assert design.configuration is Configuration.STREAMLINED
+    assert design.computer.model == 3
+    assert design.electronics == "basic_military"
+    assert design.staterooms == 4
+    assert [fit.kind for fit in design.fittings] == ["laboratory"]
+    assert [fit.kind for fit in design.bays] == ["particle"]
+    assert [fit.kind for fit in design.screens] == ["meson_screen"]
+    assert design.name == "Wayfarer"
+    assert design.purpose == "a courier for the mails"
+
+
+def test_ship_generate_interactive_purpose_defaults_to_none_not_to_a_roll():
+    """The one field generation never invents, so its prompt must not imply it
+    will: pressing Enter leaves the ship without a purpose."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",)),
+    )
+    assert result.exit_code == 0
+    assert "Purpose [none]:" in result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    assert loads_design(result.stdout).purpose is None
+
+
+def test_ship_generate_interactive_none_pins_zero_staterooms():
+    """Zero is an answer: `none` at the staterooms prompt means a ship with no
+    staterooms, which is different from letting the dice choose."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), staterooms="none"),
+    )
+    assert result.exit_code == 0
+
+    from cetools.engine.ships import loads_design
+
+    assert loads_design(result.stdout).staterooms == 0
+
+
+@pytest.mark.parametrize(
+    "question,answer,reason",
+    [
+        ("configuration", "wedge", "wedge is not a known configuration"),
+        ("computer", "9", "unknown computer model 9"),
+        ("electronics", "psychic", "unknown electronics package 'psychic'"),
+        ("staterooms", "-1", "staterooms cannot be negative"),
+        ("fitting", "swimming_pool", "unknown fitting 'swimming_pool'"),
+        ("bay", "railgun", "unknown bay kind 'railgun'"),
+        ("screen", "deflector", "unknown screen kind 'deflector'"),
+    ],
+)
+def test_ship_generate_interactive_unknown_scalar_answers_are_reasked(question, answer, reason):
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11"],
+        input=_answers(skip=("hull",), **{question: f"{answer}\n"}),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert reason in result.stderr
+
+
+@pytest.mark.parametrize(
+    "question,carried",
+    [
+        ("computer", "computer"),
+        ("electronics", "electronics"),
+        ("fitting", "fittings"),
+        ("bay", "bays"),
+        ("screen", "screens"),
+    ],
+)
+def test_ship_generate_interactive_none_pins_each_optional_component_away(question, carried):
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), **{question: "none"}),
+    )
+    assert result.exit_code == 0, result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    assert not getattr(loads_design(result.stdout), carried)
+
+
+@pytest.mark.parametrize(
+    "question,answer,reason",
+    [
+        ("computer", "quantum", "quantum is not a computer model"),
+        ("staterooms", "loads", "loads is not a number of staterooms"),
+    ],
+)
+def test_ship_generate_interactive_unreadable_scalar_answers_are_reasked(question, answer, reason):
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11"],
+        input=_answers(skip=("hull",), **{question: f"{answer}\n"}),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert reason in result.stderr
+
+
+def test_ship_generate_interactive_pins_a_fitting_the_generator_would_never_roll():
+    """A vault is absent from the curated list, so no seed produces one."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), fitting="vault"),
+    )
+    assert result.exit_code == 0, result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    assert [fit.kind for fit in loads_design(result.stdout).fittings] == ["vault"]
+
+
+def test_ship_generate_interactive_a_vehicle_sized_fitting_is_refused_at_the_prompt():
+    """Vehicle tonnage is out of scope for the wizard (#41), so the record that
+    needs it refuses the answer rather than the wizard inventing a tonnage."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11"],
+        input=_answers(skip=("hull",), fitting="vehicle_hangar\nvault"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "vehicle_hangar requires a positive vehicle_tons" in result.stderr
+
+
+def test_ship_generate_interactive_none_pins_a_ship_with_no_name():
+    """`none` at the name prompt is an answer, not a skipped question: it must
+    not quietly fall through to the catalogue."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), name="none"),
+    )
+    assert result.exit_code == 0, result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    assert loads_design(result.stdout).name == ""
+
+
+_OVERLOADED = [
+    "ship",
+    "generate",
+    "--interactive",
+    "--hull",
+    "200",
+    "--seed",
+    "11",
+]
+"""A session asking a 200-ton hull for more than it can hold."""
+
+_OVERLOADED_ANSWERS = dict(
+    skip=("hull",),
+    jump="2",
+    armor="crystaliron 30",
+    staterooms="8",
+    turrets="2\ntriple\npulse_laser\ntriple\npulse_laser",
+)
+
+
+def test_ship_generate_interactive_offers_accept_or_revise_when_something_went_unmet():
+    """Fourteen answers should not be lost because one did not fit."""
+    result = runner.invoke(app, _OVERLOADED, input=_answers(**_OVERLOADED_ANSWERS))
+
+    assert result.exit_code == 0
+    assert "could not honour" in result.stderr
+    assert "Accept this ship or revise [accept]:" in result.stderr
+
+
+def test_ship_generate_interactive_accepting_prints_the_ship_and_exits_0():
+    """Enter at the accept prompt takes the default, which is to accept."""
+    result = runner.invoke(app, _OVERLOADED, input=_answers(**_OVERLOADED_ANSWERS))
+
+    assert result.exit_code == 0
+    assert result.stdout.strip()
+    assert result.stderr.count("Accept this ship or revise [accept]:") == 1
+
+
+def test_ship_generate_interactive_revising_re_asks_only_the_implicated_prompts():
+    """Only the answers named in the report come back, and every other answer
+    the referee gave is preserved untouched."""
+    result = runner.invoke(
+        app,
+        _OVERLOADED + ["--toml"],
+        input=_answers(pad=False, **_OVERLOADED_ANSWERS) + "revise\n4\nnone\n",
+    )
+    assert result.exit_code == 0, result.stderr
+
+    after_revise = result.stderr.split("Accept this ship or revise")[1]
+    assert "Staterooms [roll]:" in after_revise
+    assert "Turrets [roll]:" in after_revise
+    assert "Configuration" not in after_revise  # an answer nothing implicated
+    assert "Armor" not in after_revise
+
+    from cetools.engine.ships import loads_design
+
+    design = loads_design(result.stdout)
+    assert design.staterooms == 4  # the revised answer
+    assert design.turrets == ()
+    assert design.armor[0].percent == 30  # the answer that was kept
+
+
+def test_ship_generate_interactive_revising_the_hull_class_re_asks_the_tonnage():
+    """Tonnage is tabulated per ruleset, so the class it was validated against
+    leaving takes the answer with it.
+
+    Carrying a 200-ton starship hull into a small-craft session guarantees a
+    refusal on the next attempt and spends one of the five on it, over an answer
+    the referee could not have kept even if they wanted to.
+    """
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), pad=False, armor="crystaliron 7")
+        + "hull_class\nsmall craft\n40\naccept\n",
+    )
+    assert result.exit_code == 0, result.stderr
+
+    after_revise = result.stderr.split("Revise which answers")[1]
+    assert "Hull tonnage" in after_revise
+
+    from cetools.engine.ships import HullClass, loads_design
+
+    design = loads_design(result.stdout)
+    assert design.hull_class is HullClass.SMALL_CRAFT
+    assert design.hull_tons == 40
+
+
+def test_ship_generate_interactive_a_design_the_builder_rejects_re_enters_the_loop():
+    """The other failure class: no ship at all, and interactively that is a
+    question rather than an exit."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), pad=False, armor="crystaliron 7")
+        + "armor\ncrystaliron 5\n",
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "armor must be added in 5% increments" in result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    assert loads_design(result.stdout).armor[0].percent == 5
+
+
+def test_ship_generate_a_design_the_builder_rejects_still_exits_1_when_not_interactive():
+    result = runner.invoke(app, ["ship", "generate", "--hull", "150", "--seed", "11"])
+
+    assert result.exit_code == 1
+    assert not result.stdout.strip()
+
+
+def test_ship_generate_interactive_the_revise_loop_gives_up_on_repeated_conflicts():
+    """A referee who answers the same way every time still gets a ship rather
+    than an endless session."""
+    revisions = "revise\n8\n2\ntriple\npulse_laser\ntriple\npulse_laser\n" * 12
+    result = runner.invoke(
+        app, _OVERLOADED, input=_answers(pad=False, **_OVERLOADED_ANSWERS) + revisions
+    )
+
+    assert result.exit_code == 0
+    assert "revised enough" in result.stderr
+    assert result.stdout.strip()
+
+
+def test_ship_generate_interactive_the_accept_prompt_re_asks_a_typo():
+    """Every other prompt re-asks rather than guessing; this one is no different,
+    because guessing here would silently accept a ship the referee rejected."""
+    result = runner.invoke(
+        app, _OVERLOADED, input=_answers(pad=False, **_OVERLOADED_ANSWERS) + "reivse\naccept\n"
+    )
+
+    assert result.exit_code == 0
+    assert "answer accept or revise; got reivse" in result.stderr
+    assert result.stderr.count("Accept this ship or revise [accept]:") == 2
+
+
+def test_ship_generate_interactive_an_unknown_answer_name_is_reasked():
+    """The answers to revise are named, so a name nothing knows is a typo."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), pad=False, armor="crystaliron 7")
+        + "armour\narmor\ncrystaliron 5\n",
+    )
+
+    assert result.exit_code == 0, result.stderr
+    assert "no such answer: armour" in result.stderr
+
+
+def test_ship_generate_interactive_revising_everything_is_the_default():
+    """Enter at the which-answers prompt puts the whole session back, which is
+    the honest answer when a refusal names nothing the session can act on."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), pad=False, armor="crystaliron 7")
+        # Everything comes back, including the hull class and tonnage the flag
+        # pre-answered the first time round.
+        + "\n" + _answers(pad=False, hull="200", armor="crystaliron 5"),
+    )
+
+    assert result.exit_code == 0, result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    assert loads_design(result.stdout).armor[0].percent == 5
+
+
+def test_ship_generate_interactive_gives_up_and_exits_1_when_every_round_is_refused():
+    """The other end of the loop: a refusal yields no ship at all, so a referee
+    who answers illegally every time has nothing to be handed."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11"],
+        input=_answers(skip=("hull",), pad=False, armor="crystaliron 7")
+        + "armor\ncrystaliron 7\n" * 4,
+    )
+
+    assert result.exit_code == 1
+    assert not result.stdout.strip()
+    assert "revised enough" in result.stderr
+    assert result.stderr.count("armor must be added in 5% increments") == 5
+
+
+def test_ship_generate_interactive_reproduces_a_session_by_saving_and_rebuilding(tmp_path):
+    """No replay format: the TOML round-trip is already lossless, so a saved
+    design rebuilds to exactly the ship the session produced."""
+    out_path = tmp_path / "tonight.toml"
+    generated = runner.invoke(
+        app,
+        _OVERLOADED + ["--toml", "--out", str(out_path)],
+        input=_answers(**_OVERLOADED_ANSWERS),
+    )
+    assert generated.exit_code == 0, generated.stderr
+
+    rebuilt = runner.invoke(app, ["ship", "build", str(out_path), "--toml"])
+    assert rebuilt.exit_code == 0
+    assert rebuilt.stdout == out_path.read_text() + "\n"
+
+
+def test_ship_generate_reports_unmet_constraints_on_stderr_and_still_exits_0():
+    """Generation never fails on tonnage: a real ship comes back, and the
+    referee is told plainly which answers it could not honour."""
+    result = runner.invoke(app, _OVERLOADED, input=_answers(**_OVERLOADED_ANSWERS))
+
+    assert result.exit_code == 0
+    assert "could not honour" in result.stderr
+    assert "staterooms" in result.stderr
+    assert "turrets" in result.stderr
+
+
+def test_ship_generate_unmet_report_names_what_was_asked_and_what_was_got():
+    result = runner.invoke(app, _OVERLOADED, input=_answers(**_OVERLOADED_ANSWERS))
+
+    assert "asked 8, got 7" in result.stderr
+    assert "t free" in result.stderr
+
+
+def test_ship_generate_unmet_constraints_never_reach_stdout():
+    """The ship on stdout stays a design a pipe can read."""
+    result = runner.invoke(app, _OVERLOADED + ["--toml"], input=_answers(**_OVERLOADED_ANSWERS))
+
+    assert result.exit_code == 0
+    assert "could not honour" not in result.stdout
+
+    from cetools.engine.ships import build_ship, loads_design
+
+    build_ship(loads_design(result.stdout))
+
+
+def test_ship_generate_says_nothing_when_every_constraint_is_honoured():
+    result = runner.invoke(app, ["ship", "generate", "--seed", "42"])
+
+    assert result.exit_code == 0
+    assert "could not honour" not in result.stderr
+
+
+def test_ship_generate_interactive_asks_for_the_hull_class_first():
+    """It governs which questions follow, so it cannot be asked later."""
+    result = runner.invoke(
+        app, ["ship", "generate", "--interactive", "--seed", "11"], input=_answers()
+    )
+    assert result.exit_code == 0
+
+    asked = result.stderr
+    assert asked.startswith("Hull class [starship]:")
+    assert asked.index("Hull class") < asked.index("Hull tonnage")
+
+
+def test_ship_generate_interactive_small_craft_session_omits_jump_and_bay():
+    """The ruleset forbids both, so a referee designing a launch is not asked."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7"],
+        input=_answers(hull_class="small craft", skip=_SMALL_CRAFT_SKIPS),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "Jump rating" not in result.stderr
+    assert "Weapon bay" not in result.stderr
+    assert "Maneuver rating" in result.stderr
+
+
+def test_ship_generate_interactive_small_craft_screen_prompt_offers_none_not_a_roll():
+    """A screen is never rolled onto a small craft, so Enter there means none.
+
+    Every other field's Enter genuinely rolls, and the label says `[roll]` on all
+    of them. On this one path it was advertising a draw the generator does not
+    make, which is the one field where a referee pressing Enter got something
+    other than what the prompt promised.
+    """
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--small-craft", "--seed", "7"],
+        input=_small_craft_answers(),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "Screen [none]:" in result.stderr
+
+
+def test_ship_generate_interactive_starship_screen_prompt_still_offers_a_roll():
+    """The label is wrong only on the small-craft path; a starship does roll one."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7"],
+        input=_answers(),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "Screen [roll]:" in result.stderr
+
+
+def test_ship_generate_interactive_hull_class_answer_selects_the_small_craft_ruleset():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7", "--toml"],
+        input=_answers(hull_class="small craft", skip=_SMALL_CRAFT_SKIPS),
+    )
+    assert result.exit_code == 0, result.stderr
+
+    from cetools.engine.ships import HullClass, loads_design
+
+    assert loads_design(result.stdout).hull_class is HullClass.SMALL_CRAFT
+
+
+def test_ship_generate_interactive_small_craft_hull_tonnages_are_the_small_craft_table():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7", "--toml"],
+        input=_answers(hull_class="small craft", hull="200\n40", skip=_SMALL_CRAFT_SKIPS),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "200 tons is not a tabulated small-craft hull size" in result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    assert loads_design(result.stdout).hull_tons == 40
+
+
+def test_ship_generate_interactive_small_craft_flag_pre_answers_the_hull_class():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--small-craft", "--seed", "7"],
+        input=_small_craft_answers(),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "Hull class" not in result.stderr
+
+
+def test_ship_generate_interactive_unknown_hull_class_is_reasked_with_the_reason():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "11"],
+        input=_answers(hull_class="battleship\nstarship"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "battleship is not a known hull class" in result.stderr
+
+
+def test_ship_generate_interactive_small_craft_power_prompt_offers_what_the_maneuver_allows():
+    """A 15-ton craft with a 1-G drive has room for a plant at 1 or 2 only."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--small-craft", "--hull", "15", "--seed", "7"],
+        input=_small_craft_answers(skip=("hull",), maneuver="1", power="4\n2"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "power rating 4 is not available" in result.stderr
+    assert "[1, 2]" in result.stderr
+
+
+def test_ship_generate_interactive_small_craft_energy_weapon_beyond_the_plant_is_reasked():
+    """The craft's armament is capped by its power plant, and the prompt knows
+    the plant once its rating is pinned."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--small-craft", "--hull", "15", "--seed", "7"],
+        input=_small_craft_answers(
+            skip=("hull",),
+            maneuver="1",
+            power="1",
+            turrets="1\nsingle\npulse_laser\nsandcaster",
+        ),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "runs 0 energy weapon(s), so it cannot mount pulse_laser in a single" in result.stderr
+
+
+def test_ship_generate_interactive_small_craft_refuses_a_maneuver_the_craft_cannot_carry():
+    """Refused at its own prompt, so the power question that follows is never
+    left with no acceptable answer: a 40-ton craft has no 4-G option once a
+    plant and a cockpit have to sit beside the drive."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--small-craft", "--hull", "40", "--seed", "7"],
+        input=_small_craft_answers(skip=("hull",), maneuver="4\n2"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "cannot carry a 4-G drive and a power plant beside it" in result.stderr
+    assert "power rating" not in result.stderr  # the power prompt had real options
+
+
+def test_ship_generate_interactive_small_craft_energy_weapon_is_counted_per_slot():
+    """A triple carries three of the weapon, so a plant that runs one energy
+    weapon cannot fill it. Counting the mount's slots is what keeps the prompt
+    and `build_ship` agreeing."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--small-craft", "--hull", "40", "--seed", "7"],
+        input=_small_craft_answers(
+            skip=("hull",),
+            maneuver="1",
+            power="3",
+            turrets="1\ntriple\npulse_laser\nsandcaster",
+        ),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "cannot mount pulse_laser in a triple" in result.stderr
+
+
+def test_ship_generate_interactive_hull_flag_that_the_chosen_class_forbids_is_reasked():
+    """`--hull` pre-answers the tonnage, but the referee picks the ruleset after
+    the flag was written, so a stale pre-answer is reported and the question asked."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "200", "--seed", "7", "--toml"],
+        input=_answers(hull_class="small craft", hull="40", skip=_SMALL_CRAFT_SKIPS),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "200 tons is not a tabulated small-craft hull size" in result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    assert loads_design(result.stdout).hull_tons == 40
+
+
+def test_ship_generate_interactive_asks_for_a_turret_count_showing_its_default():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11"],
+        input=_answers(skip=("hull",)),
+    )
+    assert result.exit_code == 0
+    assert "Turrets [roll]:" in result.stderr
+
+
+def test_ship_generate_interactive_a_pinned_count_asks_for_each_turret_in_turn():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), turrets="2\ntriple\npulse_laser\nsingle\nsandcaster"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "Turret 1 mount [roll]:" in result.stderr
+    assert "Turret 1 weapon [roll]:" in result.stderr
+    assert "Turret 2 mount [roll]:" in result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    turrets = loads_design(result.stdout).turrets
+    assert [(t.mount, t.weapons) for t in turrets] == [
+        ("triple", ("pulse_laser",) * 3),
+        ("single", ("sandcaster",)),
+    ]
+
+
+def test_ship_generate_interactive_a_pinned_count_alone_asks_but_rolls_the_details():
+    """Enter through the inner questions and the count still holds."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), turrets="2\n\n\n\n"),
+    )
+    assert result.exit_code == 0, result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    assert len(loads_design(result.stdout).turrets) == 2
+
+
+def test_ship_generate_interactive_a_pinned_weapon_may_ride_a_rolled_mount():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), turrets="1\n\nsandcaster"),
+    )
+    assert result.exit_code == 0, result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    (turret,) = loads_design(result.stdout).turrets
+    assert set(turret.weapons) == {"sandcaster"}
+
+
+def test_ship_generate_interactive_none_turrets_leaves_the_ship_unarmed():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), turrets="none"),
+    )
+    assert result.exit_code == 0, result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    assert loads_design(result.stdout).turrets == ()
+
+
+def test_ship_generate_interactive_a_turret_count_is_taken_on_trust_when_the_hull_rolls():
+    """With the hull left to the dice the wizard cannot know the hardpoints yet,
+    so the count is accepted and the hull it lands on rules on it."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "11", "--toml"],
+        input=_answers(turrets="1\nsingle\nsandcaster"),
+    )
+    assert result.exit_code == 0, result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    assert len(loads_design(result.stdout).turrets) == 1
+
+
+def test_ship_generate_interactive_a_count_above_the_hardpoints_is_reasked():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11"],
+        input=_answers(skip=("hull",), turrets="5\nnone"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "a 200-ton starship has 2 hardpoint(s), so it cannot mount 5" in result.stderr
+    assert result.stderr.count("Turrets [roll]:") == 2
+
+
+@pytest.mark.parametrize(
+    "answers,reason",
+    [
+        ("1\nswivel\nsingle\npulse_laser", "unknown turret mount 'swivel'"),
+        ("1\nsingle\nbeam_laser\npulse_laser", "unknown turret weapon 'beam_laser'"),
+        ("lots\nnone", "lots is not a number of turrets"),
+        ("-1\nnone", "turrets cannot be negative"),
+    ],
+)
+def test_ship_generate_interactive_unknown_turret_parts_are_reasked(answers, reason):
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11"],
+        input=_answers(skip=("hull",), turrets=answers),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert reason in result.stderr
+
+
+def test_ship_generate_interactive_asks_for_each_drive_as_a_rating():
+    """A referee answers Jump-2, not drive C: the question is the rating."""
+    result = runner.invoke(
+        app, ["ship", "generate", "--interactive", "--seed", "7"], input=_ENTER_THROUGH
+    )
+    assert result.exit_code == 0
+    assert "Jump rating [roll]:" in result.stderr
+    assert "Maneuver rating [roll]:" in result.stderr
+    assert "Power plant rating [roll]:" in result.stderr
+
+
+def test_ship_generate_interactive_pins_a_jump_rating_to_its_lightest_code():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "400", "--seed", "3", "--toml"],
+        input=_answers(skip=("hull",), jump="1"),
+    )
+    assert result.exit_code == 0
+
+    from cetools.engine.ships import build_ship, loads_design
+
+    ship = build_ship(loads_design(result.stdout))
+    assert ship.jump_rating == 1
+    assert ship.design.jump_code == "B"  # the lightest code delivering Jump-1 at 400 tons
+
+
+def test_ship_generate_interactive_power_prompt_states_the_floor_its_drives_set():
+    """The floor is `max(jump, maneuver)`, and the referee should not have to
+    work it out. It can only be stated once both are pinned."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "400", "--seed", "3"],
+        input=_answers(skip=("hull",), jump="1", maneuver="3"),
+    )
+    assert result.exit_code == 0
+    assert "Power plant rating (at least 3) [roll]:" in result.stderr
+
+
+def test_ship_generate_interactive_power_below_its_floor_is_reasked_with_the_reason():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "400", "--seed", "3"],
+        input=_answers(skip=("hull",), jump="2", maneuver="3", power="1\n3"),
+    )
+    assert result.exit_code == 0
+    assert "power plant rating 1 is below the 3 its drives require" in result.stderr
+    assert result.stderr.count("Power plant rating (at least 3) [roll]:") == 2
+
+
+def test_ship_generate_interactive_power_floor_holds_when_only_one_drive_is_pinned():
+    """A floor known in part is still a floor: Jump-2 alone puts the plant at 2,
+    even with the manoeuvre drive left to the dice.
+
+    The floor counts only the drives the referee pinned, because those are the
+    only ones it can count. The drive left to chance needs no floor: it is drawn
+    from what the pinned plant can run, so a plant that clears the prompt is
+    never then refused over a rating nobody asked for. This seed rolled a
+    manoeuvre drive of 5 before that cap existed, and the session lost the ship.
+    """
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "400", "--seed", "3", "--toml"],
+        input=_answers(skip=("hull",), jump="2", power="1\n2"),
+    )
+    assert "Power plant rating (at least 2) [roll]:" in result.stderr
+    assert "power plant rating 1 is below the 2 its drives require" in result.stderr
+    assert result.exit_code == 0, result.stderr
+
+    # The plant the referee asked for, first time, and a rolled drive it can run.
+    assert "Accept this ship or revise" not in result.stderr
+
+    from cetools.engine.ships import build_ship, loads_design
+
+    ship = build_ship(loads_design(result.stdout))
+    assert ship.power_rating == 2
+    assert ship.maneuver_rating <= 2
+
+
+def test_ship_generate_interactive_untabulated_rating_is_reasked_with_the_reason():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "400", "--seed", "3"],
+        input=_answers(skip=("hull",), jump="9\n1"),
+    )
+    assert result.exit_code == 0
+    assert "jump rating 9 is not tabulated for a 400-ton hull" in result.stderr
+    assert result.stderr.count("Jump rating [roll]:") == 2
+
+
+def test_ship_generate_interactive_non_numeric_rating_is_reasked_with_the_reason():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "400", "--seed", "3"],
+        input=_answers(jump="two\n1"),
+    )
+    assert result.exit_code == 0
+    assert "two is not a drive rating" in result.stderr
+
+
+def test_ship_generate_interactive_checks_a_rating_against_every_hull_when_none_is_pinned():
+    """With the hull left to the dice the wizard cannot know what this hull can
+    deliver, but it can still refuse a rating no hull could."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "3"],
+        input=_answers(jump="9\n1"),
+    )
+    assert result.exit_code == 0
+    assert "not tabulated for any starship hull" in result.stderr
+
+
+def test_ship_generate_interactive_asks_for_armor_showing_its_default():
+    result = runner.invoke(
+        app, ["ship", "generate", "--interactive", "--seed", "7"], input=_ENTER_THROUGH
+    )
+    assert result.exit_code == 0
+    assert "Armor [roll]:" in result.stderr
+
+
+def test_ship_generate_interactive_pins_an_armor_type_and_percent():
+    """Seed 7 draws no armour, so armour on this ship can only be the answer.
+
+    Both spellings of the percent are accepted, because a referee reading
+    "10% of the hull" off the SRD will type the sign as often as not.
+    """
+    from cetools.engine.ships import ArmorType, loads_design
+
+    for answer in ("crystaliron 10", "crystaliron 10%"):
+        result = runner.invoke(
+            app,
+            ["ship", "generate", "--interactive", "--seed", "7", "--toml"],
+            input=_answers(armor=answer),
+        )
+        assert result.exit_code == 0, answer
+
+        design = loads_design(result.stdout)
+        assert [(fit.type, fit.percent) for fit in design.armor] == [(ArmorType.CRYSTALIRON, 10)]
+
+
+def test_ship_generate_interactive_none_pins_an_unarmored_ship():
+    """Seed 0 draws crystaliron, so an unarmoured ship here is the `none` answer."""
+    rolled = runner.invoke(app, ["ship", "generate", "--seed", "0", "--toml"])
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "0", "--toml"],
+        input=_answers(armor="none"),
+    )
+    assert result.exit_code == 0
+
+    from cetools.engine.ships import loads_design
+
+    assert loads_design(rolled.stdout).armor != ()
+    assert loads_design(result.stdout).armor == ()
+
+
+def test_ship_generate_interactive_malformed_armor_answers_are_reasked_with_the_reason():
+    for answer, reason in (
+        ("crystaliron", "give an armor type and a percent"),
+        ("crystaliron ten", "ten is not a percent of the hull"),
+        ("crystaliron 0", "armor percent must be positive"),
+    ):
+        result = runner.invoke(
+            app,
+            ["ship", "generate", "--interactive", "--seed", "7"],
+            input=_answers(armor=f"{answer}\ncrystaliron 10"),
+        )
+        assert result.exit_code == 0, answer
+        assert reason in result.stderr, answer
+
+
+def test_ship_generate_interactive_armor_percent_rule_surfaces_at_assembly_not_the_prompt():
+    """The multiple-of-5 rule lives in `build_ship` and is deliberately not
+    duplicated outward, so 7% is accepted at the prompt and rejected on
+    assembly (ADR-0001).
+
+    Since #51 that refusal is a question rather than an exit: the armour prompt
+    comes back, and answering it legally yields a ship.
+    """
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7"],
+        input=_answers(pad=False, armor="crystaliron 7") + "armor\ncrystaliron 5\n",
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "armor must be added in 5% increments" in result.stderr
+    assert result.stderr.count("Armor [roll]:") == 2  # asked, refused, asked again
+
+
+def test_ship_generate_interactive_unknown_armor_type_is_reasked_with_the_reason():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7"],
+        input=_answers(armor="adamantium 10\ncrystaliron 10"),
+    )
+    assert result.exit_code == 0
+    assert "adamantium is not a known armor type" in result.stderr
+    assert result.stderr.count("Armor [roll]:") == 2
+
+
+def test_ship_generate_interactive_asks_for_the_hull_tonnage_showing_its_default():
+    result = runner.invoke(
+        app, ["ship", "generate", "--interactive", "--seed", "42"], input=_ENTER_THROUGH
+    )
+    assert result.exit_code == 0
+    assert "Hull tonnage [roll]:" in result.stderr
+
+
+def test_ship_generate_interactive_pressing_enter_yields_the_unprompted_ship():
+    """Enter rolls, so answering nothing collapses to today's behaviour exactly.
+
+    Byte equality on stdout also pins that no prompt reaches it, which is what
+    lets `--interactive` compose with `--toml` and `--out`.
+    """
+    prompted = runner.invoke(
+        app, ["ship", "generate", "--interactive", "--seed", "42"], input=_ENTER_THROUGH
+    )
+    rolled = runner.invoke(app, ["ship", "generate", "--seed", "42"])
+
+    assert prompted.exit_code == 0
+    assert prompted.stdout == rolled.stdout
+
+
+def test_ship_generate_interactive_toml_stdout_is_still_a_readable_design():
+    result = runner.invoke(
+        app, ["ship", "generate", "--interactive", "--seed", "42", "--toml"], input=_ENTER_THROUGH
+    )
+    assert result.exit_code == 0
+
+    from cetools.engine.ships import build_ship, loads_design
+
+    build_ship(loads_design(result.stdout))
+
+
+def test_ship_generate_interactive_an_answered_tonnage_pins_the_hull():
+    """Seed 42 rolls a 400-ton hull, so pinning 200 is visibly the answer and
+    not the dice."""
+    result = runner.invoke(
+        app, ["ship", "generate", "--interactive", "--seed", "42"], input=_answers(hull="200")
+    )
+    assert result.exit_code == 0
+    assert "200-ton hull" in result.stdout
+
+
+def test_ship_generate_interactive_untabulated_tonnage_is_reasked_with_the_reason():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "42"],
+        input=_answers(hull="150\n200"),
+    )
+    assert result.exit_code == 0
+    assert "150 tons is not a tabulated hull size" in result.stderr
+    assert result.stderr.count("Hull tonnage [roll]:") == 2
+    assert "200-ton hull" in result.stdout
+
+
+def test_ship_generate_interactive_a_non_numeric_answer_is_reasked():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "42"],
+        input=_answers(hull="biggish\n200"),
+    )
+    assert result.exit_code == 0
+    assert "biggish is not a number of tons" in result.stderr
+    assert "200-ton hull" in result.stdout
+
+
+def test_ship_generate_interactive_small_craft_rejects_a_starship_tonnage():
+    """The prompt validates against the ruleset in play, not against hulls at large."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--small-craft", "--seed", "7"],
+        input=_small_craft_answers(hull="200\n40"),
+    )
+    assert result.exit_code == 0
+    assert "200 tons is not a tabulated small-craft hull size" in result.stderr
+    assert "40-ton hull" in result.stdout
+
+
+def test_ship_generate_interactive_end_of_input_aborts_without_a_ship():
+    result = runner.invoke(app, ["ship", "generate", "--interactive", "--seed", "42"], input="")
+    assert result.exit_code == 1
+    assert not result.stdout.strip()
+
+
+def test_ship_generate_interactive_hull_flag_pre_answers_the_prompt():
+    """A flag and a prompt must not ask the same thing twice."""
+    prompted = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "200", "--seed", "42"],
+        input=_ENTER_THROUGH,
+    )
+    flagged = runner.invoke(app, ["ship", "generate", "--hull", "200", "--seed", "42"])
+
+    assert prompted.exit_code == 0
+    assert "Hull tonnage" not in prompted.stderr
+    assert prompted.stdout == flagged.stdout
+
+
+def test_ship_generate_interactive_small_craft_hull_flag_pre_answers_the_prompt():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--small-craft", "--hull", "40", "--seed", "7"],
+        input=_small_craft_answers(skip=("hull",)),
+    )
+    assert result.exit_code == 0
+    assert "Hull tonnage" not in result.stderr
+    assert "40-ton hull" in result.stdout
 
 
 # --- small craft descriptions (T045, FR-026, FR-027) ---

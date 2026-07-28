@@ -309,13 +309,44 @@ Randomly generate a ship from a seed, or constrain it to a hull size or the smal
 ```bash
 uv run cetools ship generate --seed 42
 uv run cetools ship generate --hull 10 --small-craft --seed 7
+uv run cetools ship generate --interactive --seed 42
 ```
+
+`--interactive` (`-i`) asks what to pin and rolls the rest. Every question shows its default and pressing Enter takes it, so answering nothing produces exactly the ship the same seed produces without the flag. Typing `none` at an optional component's question pins its *absence*, which is a different answer from pressing Enter: `none` at the armour question guarantees an unarmoured ship, where Enter rolls for one. An answer the tables do not recognise is rejected and asked again with the reason, so a typo costs a line rather than the session. `--hull` and `--small-craft` pre-answer their questions, which are then not asked. Questions and their answers go to stderr, so `--interactive` composes with `--toml` and `--out`.
+
+Drives are answered as *ratings* (Jump-2, 2-G) rather than as drive code letters, because the letter that delivers a rating depends on the hull and a referee does not think in letters. A pinned rating installs the lightest code delivering it on the chosen hull, so the tonnage a lighter drive saves flows on to fuel and fittings. The power plant is asked for too rather than derived, since a referee may want surplus power for energy weapons; its prompt states the floor the drives *it was given* set, and rejects an answer below it. A drive left to the dice needs no such floor, because the dice are capped at the pinned plant instead: a pin is a promise and a roll only a preference, so the roll gives way. When the hull was left to the dice a rating can only be checked against the ratings some hull of that class can deliver, so one this particular hull cannot reach surfaces when the ship is assembled.
+
+The wizard asks for the hull class first, because it governs everything after it: which hull tonnages are tabulated, and which questions are worth asking at all. It then walks the design in SRD build order: hull tonnage, configuration, the drives, armour, computer, electronics, staterooms, fitting, turrets, weapon bay, screen, name and purpose. A small craft is never asked about a jump drive or a weapon bay, because its ruleset forbids both, and its power plant is offered only the ratings that fit beside the manoeuvre drive already chosen. Its screen prompt defaults to none rather than to a roll, because the rules permit a small craft a screen but generation never draws one. `purpose` is the exception to every rule here, because cetools never invents one: its prompt defaults to none rather than to a roll, and leaving it unanswered yields a ship without a purpose rather than a random one. At the staterooms prompt `none` means a deliberate zero, which is a different answer from letting the dice choose the count.
+
+Turrets are the one repeating question. Answering a count opens a mount and a weapon question for each turret in turn, both defaulting to random, so pinning the count and pressing Enter through the rest gives a ship with that many turrets and nothing else decided. A count above the hull's hardpoints is refused at the prompt, since hardpoints follow from a hull tonnage settled earlier in the session; with the hull left to the dice the count is taken on trust and ruled on by the hull it lands on.
+
+Armour is answered as a type and a percent of the hull, like `crystaliron 10`. Any type in the SRD table may be pinned, including ones generation would never roll for itself. Rules that live in `build_ship`, such as armour arriving in 5% increments, are not duplicated into the prompts: an answer that breaks one is accepted where it is typed and reported when the ship is assembled.
 
 A randomly generated ship arrives already named, drawn from `generate_ship_name`'s curated catalogue of mythology and folklore, written science fiction, and screen science fiction sources; a hand-authored design's own `name` is never overwritten.
 
 Add `--toml` to emit a round-trippable design file instead of the description, and `--out` to write it to a file. Omit `--seed` to have one chosen for you and reported on stderr, so the run can be reproduced.
 
-**Exit codes**: `0` on success; `1` on a missing or malformed design file, an unknown hull size, or a rules-illegal design (e.g. a power plant rated below its drives), with the violated rule on stderr.
+A referee can ask for more than a hull can hold. Generation never fails on tonnage: the ship still comes back, and the answers it could not honour are listed on stderr with what was asked, what was got, and why. That is a degraded ship rather than a failure, so the command still exits `0` and stdout still carries a design a pipe can read. A rolled value that would not fit is dropped in silence, because it was a preference rather than a promise.
+
+Interactively that report is a question rather than a verdict. The session lists what it could not honour and asks whether to accept the ship or revise, with accept as the default:
+
+```text
+could not honour 2 constraint(s):
+  staterooms: asked 8, got 7 (needs 32t, 30t free)
+  turrets: asked turret 1 (triple pulse_laser), got none (needs 1t, 0t free)
+Accept this ship or revise [accept]:
+```
+
+Answering `revise` re-asks only the questions the report names and keeps every other answer, so one bad fit does not cost a session's worth of answers. The same loop catches a design the builder rejects outright: that yields no ship, so interactively it goes back to the answers the refusal points at rather than aborting. Non-interactively it still exits `1`. A session that keeps producing the same conflict stops revising after a few rounds and hands back the ship it has.
+
+To keep tonight's ship, save it and rebuild it: no replay format is needed, because the TOML round-trip is already lossless.
+
+```bash
+uv run cetools ship generate --interactive --toml --out tonight.toml
+uv run cetools ship build tonight.toml
+```
+
+**Exit codes**: `0` on success, including a ship that missed some of its constraints; `1` on a missing or malformed design file, an unknown hull size, or a rules-illegal design (e.g. a power plant rated below its drives), with the violated rule on stderr. Only tonnage shortfalls degrade; a design the builder rejects yields no ship at all, though an interactive session is offered the chance to fix it first.
 
 Output above is illustrative; generation is random unless `--seed` is given, so unseeded results will differ.
 
@@ -325,7 +356,7 @@ Output above is illustrative; generation is random unless `--seed` is given, so 
 from cetools.engine.ships import build_ship, load_design
 
 ship = build_ship(load_design("tests/data/ships/free-trader.toml"))
-print(ship.total_cost, ship.cargo_tons, ship.crew.total)   # 29.772 135 5
+print(ship.total_cost, ship.cargo_tons, ship.crew.total)   # 29.772 135.0 5
 ```
 
 `build_ship` is the sole validation authority: it allocates every component in SRD build order and rejects a rules-illegal design with a message naming the violated rule. `load_design`/`loads_design` and `dump_design` round-trip a `ShipDesign` through TOML losslessly, including a ship's own `design`, so `build_ship(loads_design(dump_design(ship.design))) == ship`.
@@ -336,8 +367,64 @@ print(ship.total_cost, ship.cargo_tons, ship.crew.total)   # 29.772 135 5
 from cetools.engine.rolls import RandomRolls
 from cetools.engine.ships import generate_ship
 
-a = generate_ship(RandomRolls.seeded(42))
-assert a == generate_ship(RandomRolls.seeded(42))
+result = generate_ship(RandomRolls.seeded(42))
+assert result == generate_ship(RandomRolls.seeded(42))
+print(result.ship.hull_tons, result.unmet)   # 400 ()
 ```
+
+`generate_ship` returns a `GenerationResult`, not a bare `Ship`: `result.ship` is the ship, and `result.unmet` reports any constraint the tonnage budget could not honour. Unconstrained generation has nothing to report, so `unmet` is empty.
+
+What a referee pins at the prompts, a library caller passes as a `DesignConstraints` value; the wizard is a thin layer over the same seam. Anything left unset is rolled, and a pinned value consumes no dice. What that buys is that generation with no constraints draws exactly the sequence it always drew, so a seed keeps meaning what it meant. What it costs is that a pin resolving without a draw shifts every draw behind it: two runs on one seed differing in a single pin diverge completely downstream of that pin, so seed 42 below yields a different configuration and a different name once the hull is pinned.
+
+```python
+from cetools.engine.ships import DesignConstraints, HullClass, generate_ship
+
+pinned = generate_ship(RandomRolls.seeded(42), constraints=DesignConstraints(hull_tons=200))
+print(pinned.ship.hull_tons)   # 200
+
+launch = generate_ship(
+    RandomRolls.seeded(7), constraints=DesignConstraints(hull_class=HullClass.SMALL_CRAFT)
+)
+print(launch.ship.design.hull_class is HullClass.SMALL_CRAFT)   # True
+```
+
+Every optional-component field is three-state, because *roll for armour* and *no armour* are different instructions and the second has to be honoured. Leaving a field unset rolls it, a value pins it, and `ABSENT` pins its absence:
+
+```python
+from cetools.engine.ships import ABSENT, ArmorFit, ArmorType
+
+armored = generate_ship(
+    RandomRolls.seeded(7),
+    constraints=DesignConstraints(armor=ArmorFit(type=ArmorType.BONDED_SUPERDENSE, percent=5)),
+)
+bare = generate_ship(RandomRolls.seeded(0), constraints=DesignConstraints(armor=ABSENT))
+
+print(armored.ship.design.armor[0].type.value, bare.ship.design.armor)   # bonded_superdense ()
+```
+
+A pinned value is validated against the full SRD tables, not the curated lists that keep rolled output plausible, so bonded superdense can be pinned even though no seed would ever produce it.
+
+When the hull cannot hold everything asked of it, the shortfalls come back on the result as records rather than as text to parse:
+
+```python
+from cetools.engine.ships import ArmorFit, ArmorType, DesignConstraints, generate_ship
+
+crowded = generate_ship(
+    RandomRolls.seeded(11),
+    constraints=DesignConstraints(
+        hull_tons=200,
+        jump_rating=2,
+        armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=30),
+        staterooms=8,
+    ),
+)
+
+for unmet in crowded.unmet:
+    print(unmet.field, unmet.asked, unmet.got)   # staterooms 8 7
+```
+
+Each record carries the `field` a caller can match against `DesignConstraints`, what was `asked`, what it `got`, and the `reason` it fell short.
+
+Drives are pinned the same way, as ratings: `jump_rating`, `maneuver_rating` and `power_rating` each resolve to the lightest code delivering that rating on the chosen hull. `available_ratings` reports what a hull can deliver, and `validate_rating` raises the same message a referee would see at the prompt. A pinned jump rating is a ceiling rather than a guarantee: if the hull cannot carry fuel for a complete jump at it, the rating degrades exactly as a drawn one would and the shortfall is recorded.
 
 A randomly generated starship always carries fuel for at least one complete jump at its installed rating—the drive drawn is a ceiling, not a guarantee, and the generator downgrades it to whatever rating the hull's remaining tonnage can fuel for a full jump. Among drives of that rating, the lightest one is always the one installed, so the tonnage a downgrade frees flows on to fuel and fittings rather than sitting unused. This is generation policy, not an SRD rule: a hand-authored design loaded through `build_ship` is never second-guessed this way, so a short-legged design—one whose `jump_distance` is deliberately below its drive's rating—still builds exactly as written.

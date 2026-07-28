@@ -20,7 +20,9 @@ from cetools.engine.ships import (
     ComputerFit,
     Configuration,
     Crew,
+    DesignConstraints,
     FittingFit,
+    HullClass,
     ScreenFit,
     ShipDesign,
     TurretFit,
@@ -46,6 +48,8 @@ from cetools.engine.ships.tables import (
 )
 
 # --- Fixtures -------------------------------------------------------------
+
+_SMALL_CRAFT_CONSTRAINTS = DesignConstraints(hull_class=HullClass.SMALL_CRAFT)
 
 _TRIPLE = TurretFit(
     mount="triple",
@@ -988,8 +992,10 @@ def _swept_descriptions() -> list[tuple[str, str]]:
         (str(path), render_description(build_ship(load_design(str(path))))) for path in _EXAMPLES
     ]
     for seed in _SEEDS:
-        for small_craft in (False, True):
-            ship = generate_ship(RandomRolls.seeded(seed), small_craft=small_craft)
+        for hull_class in HullClass:
+            constraints = DesignConstraints(hull_class=hull_class)
+            ship = generate_ship(RandomRolls.seeded(seed), constraints=constraints).ship
+            small_craft = hull_class is HullClass.SMALL_CRAFT
             label = f"seed {seed}{' small craft' if small_craft else ''}"
             swept.append((label, render_description(ship)))
     return swept
@@ -1103,7 +1109,10 @@ def _small_craft_paragraphs() -> list[tuple[str, str]]:
         ("fighter", build_ship(load_design(_FIGHTER))),
     ]
     craft += [
-        (f"seed {seed}", generate_ship(RandomRolls.seeded(seed), small_craft=True))
+        (
+            f"seed {seed}",
+            generate_ship(RandomRolls.seeded(seed), constraints=_SMALL_CRAFT_CONSTRAINTS).ship,
+        )
         for seed in _SEEDS
     ]
     return [(label, _paragraph(ship)) for label, ship in craft]
@@ -1467,7 +1476,7 @@ def test_an_author_supplied_name_always_wins():
 
 
 def test_a_generated_starship_description_carries_its_name_never_unnamed():
-    ship = generate_ship(RandomRolls.seeded(42))
+    ship = generate_ship(RandomRolls.seeded(42)).ship
     text = render_description(ship)
 
     assert ship.design.name is not None
@@ -1476,7 +1485,7 @@ def test_a_generated_starship_description_carries_its_name_never_unnamed():
 
 
 def test_a_generated_small_craft_description_carries_its_name_never_unnamed():
-    ship = generate_ship(RandomRolls.seeded(7), small_craft=True)
+    ship = generate_ship(RandomRolls.seeded(7), constraints=_SMALL_CRAFT_CONSTRAINTS).ship
     text = render_description(ship)
 
     assert ship.design.name is not None
@@ -1573,7 +1582,7 @@ def _is_fr014_starved_hull_ship(ship) -> bool:
 def test_sc004_no_generated_starship_description_reports_a_zero_jump_count():
     starved = 0
     for seed in range(2000):
-        ship = generate_ship(RandomRolls.seeded(seed))
+        ship = generate_ship(RandomRolls.seeded(seed)).ship
         if _is_fr014_starved_hull_ship(ship):
             starved += 1
             continue
@@ -1585,7 +1594,7 @@ def test_the_drive_letter_jump_rating_and_jump_count_agree():
     # Seed 0 downgrades its drive letter; the others are
     # a spread that mostly keeps the drawn letter, so the sweep covers both.
     for seed in (0, 1, 7, 42, 99, 12345):
-        ship = generate_ship(RandomRolls.seeded(seed))
+        ship = generate_ship(RandomRolls.seeded(seed)).ship
         paragraph = _paragraph(ship)
         drives = _clause(paragraph, "It mounts")
         fuel = _clause(paragraph, "Fuel tankage")
