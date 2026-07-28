@@ -44,7 +44,9 @@ from cetools.engine.ships.tables import (
     DRIVE_COSTS,
     DRIVE_PERFORMANCE,
     HULLS,
+    SMALL_CRAFT_ENERGY_CAPS,
     SMALL_CRAFT_HULLS,
+    TURRET_WEAPONS,
 )
 
 _SMALL_CRAFT = DesignConstraints(hull_class=HullClass.SMALL_CRAFT)
@@ -295,6 +297,37 @@ def test_pinned_ratings_draw_no_dice():
     assert RollName.SHIP_JUMP_CODE not in recorder.drawn
     assert RollName.SHIP_MANEUVER_CODE not in recorder.drawn
     assert RollName.SHIP_POWER_CODE not in recorder.drawn
+
+
+def test_a_pinned_power_plant_caps_the_drives_left_to_chance():
+    """A pinned plant is a promise; the drives left to chance are a preference.
+
+    Jump and manoeuvre are drawn before the plant is resolved, so drawing them
+    from every code the hull takes let the dice pick drives the pinned plant
+    could not run and `build_ship` refused the design outright—a rolled
+    preference invalidating a promise, which ADR-0001 forbids. Rating 1 is the
+    weakest a 400-ton hull tabulates, so every seed here has somewhere to go
+    wrong.
+    """
+    for seed in range(40):
+        ship = generate_ship(
+            RandomRolls.seeded(seed),
+            constraints=DesignConstraints(hull_tons=400, power_rating=1),
+        ).ship
+
+        assert ship.power_rating == 1, seed
+        assert max(ship.jump_rating, ship.maneuver_rating) <= 1, seed
+
+
+def test_a_pinned_drive_above_a_pinned_plant_is_still_the_referee_s_to_make():
+    """Capping applies to the dice, not to the referee. Two pins that contradict
+    each other are a mistake `build_ship` owns the sentence for (ADR-0001); the
+    cap must not quietly rewrite one pin to suit the other."""
+    with pytest.raises(ValueError, match="below required"):
+        generate_ship(
+            RandomRolls.seeded(3),
+            constraints=DesignConstraints(hull_tons=400, jump_rating=4, power_rating=1),
+        )
 
 
 def test_a_rating_not_tabulated_for_the_hull_is_rejected():
@@ -725,6 +758,31 @@ def test_a_small_craft_honours_a_pinned_turret_on_its_single_hardpoint():
     assert (turret.mount, turret.weapons) == ("single", ("sandcaster",))
 
 
+def test_a_pinned_multi_slot_mount_caps_the_weapon_left_to_chance():
+    """A mount carries the same weapon in every slot, so the plant's allowance is
+    what three slots ask for, not one.
+
+    `_SMALL_CRAFT_TURRET_MOUNTS` holds only single-slot mounts, so a *drawn*
+    mount can never ask for more than one energy weapon—but a *pinned* triple
+    can, and the weapon was still drawn on whether the plant ran any energy
+    weapon at all. The pin was legal and the roll broke it, which is the wrong
+    way round (ADR-0001).
+    """
+    for seed in range(40):
+        ship = generate_ship(
+            RandomRolls.seeded(seed),
+            constraints=DesignConstraints(
+                hull_class=HullClass.SMALL_CRAFT,
+                hull_tons=50,
+                turrets=(TurretPin(mount="triple"),),
+            ),
+        ).ship
+
+        for turret in ship.design.turrets:
+            energy = sum(TURRET_WEAPONS[weapon].energy for weapon in turret.weapons)
+            assert energy <= SMALL_CRAFT_ENERGY_CAPS[ship.design.power_code[1:]], seed
+
+
 def test_a_small_craft_pinned_to_no_turrets_is_unarmed():
     """Seed 4 arms this craft, so an unarmed one here can only be the answer."""
     constraints = DesignConstraints(hull_class=HullClass.SMALL_CRAFT, hull_tons=95)
@@ -917,6 +975,30 @@ def test_a_pinned_power_rating_a_maneuver_pin_forbids_is_reported():
             ),
         )
         assert [entry.field for entry in result.unmet] == ["power_rating"], rating
+
+
+def test_a_power_rating_raised_to_meet_its_drive_is_told_which_rule_raised_it():
+    """A pin that comes back *higher* than asked did not run out of tonnage.
+
+    Drive A delivers rating 1 on a 15-ton hull and is the lightest code there, so
+    "no power drive delivering 1 fits" was a tonnage story about a rules
+    constraint: a plant may not be rated below the drive it powers. The referee
+    reads this reason to decide what to revise, and the CLI was offering to
+    revise a field that had come back better than asked.
+    """
+    result = generate_ship(
+        RandomRolls.seeded(3),
+        constraints=DesignConstraints(
+            hull_class=HullClass.SMALL_CRAFT,
+            hull_tons=15,
+            maneuver_rating=2,
+            power_rating=1,
+        ),
+    )
+
+    (unmet,) = result.unmet
+    assert (unmet.field, unmet.asked, unmet.got) == ("power_rating", "1", "2")
+    assert unmet.reason == "a power plant may not be rated below the Maneuver-2 drive it powers"
 
 
 def test_small_craft_maneuver_ratings_are_those_the_craft_can_carry():

@@ -1284,6 +1284,32 @@ def test_ship_generate_interactive_revising_re_asks_only_the_implicated_prompts(
     assert design.armor[0].percent == 30  # the answer that was kept
 
 
+def test_ship_generate_interactive_revising_the_hull_class_re_asks_the_tonnage():
+    """Tonnage is tabulated per ruleset, so the class it was validated against
+    leaving takes the answer with it.
+
+    Carrying a 200-ton starship hull into a small-craft session guarantees a
+    refusal on the next attempt and spends one of the five on it, over an answer
+    the referee could not have kept even if they wanted to.
+    """
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), pad=False, armor="crystaliron 7")
+        + "hull_class\nsmall craft\n40\naccept\n",
+    )
+    assert result.exit_code == 0, result.stderr
+
+    after_revise = result.stderr.split("Revise which answers")[1]
+    assert "Hull tonnage" in after_revise
+
+    from cetools.engine.ships import HullClass, loads_design
+
+    design = loads_design(result.stdout)
+    assert design.hull_class is HullClass.SMALL_CRAFT
+    assert design.hull_tons == 40
+
+
 def test_ship_generate_interactive_a_design_the_builder_rejects_re_enters_the_loop():
     """The other failure class: no ship at all, and interactively that is a
     question rather than an exit."""
@@ -1457,6 +1483,34 @@ def test_ship_generate_interactive_small_craft_session_omits_jump_and_bay():
     assert "Jump rating" not in result.stderr
     assert "Weapon bay" not in result.stderr
     assert "Maneuver rating" in result.stderr
+
+
+def test_ship_generate_interactive_small_craft_screen_prompt_offers_none_not_a_roll():
+    """A screen is never rolled onto a small craft, so Enter there means none.
+
+    Every other field's Enter genuinely rolls, and the label says `[roll]` on all
+    of them. On this one path it was advertising a draw the generator does not
+    make, which is the one field where a referee pressing Enter got something
+    other than what the prompt promised.
+    """
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--small-craft", "--seed", "7"],
+        input=_small_craft_answers(),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "Screen [none]:" in result.stderr
+
+
+def test_ship_generate_interactive_starship_screen_prompt_still_offers_a_roll():
+    """The label is wrong only on the small-craft path; a starship does roll one."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7"],
+        input=_answers(),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "Screen [roll]:" in result.stderr
 
 
 def test_ship_generate_interactive_hull_class_answer_selects_the_small_craft_ruleset():
@@ -1752,23 +1806,29 @@ def test_ship_generate_interactive_power_floor_holds_when_only_one_drive_is_pinn
     """A floor known in part is still a floor: Jump-2 alone puts the plant at 2,
     even with the manoeuvre drive left to the dice.
 
-    It is only a partial floor, and this seed shows the limit: the manoeuvre
-    drive rolls a 5, so a plant at 2 clears the prompt and is refused by
-    `build_ship`, which is the authority. Since #51 that refusal sends the
-    referee back to the power prompt, where 5 is accepted.
+    The floor counts only the drives the referee pinned, because those are the
+    only ones it can count. The drive left to chance needs no floor: it is drawn
+    from what the pinned plant can run, so a plant that clears the prompt is
+    never then refused over a rating nobody asked for. This seed rolled a
+    manoeuvre drive of 5 before that cap existed, and the session lost the ship.
     """
     result = runner.invoke(
         app,
-        ["ship", "generate", "--interactive", "--hull", "400", "--seed", "3"],
-        # The refusal is a rules sentence, so the session asks which answers to
-        # put back rather than guessing: the plant alone, this time at 5.
-        input=_answers(skip=("hull",), pad=False, jump="2", power="1\n2") + "power_rating\n5\n",
+        ["ship", "generate", "--interactive", "--hull", "400", "--seed", "3", "--toml"],
+        input=_answers(skip=("hull",), jump="2", power="1\n2"),
     )
     assert "Power plant rating (at least 2) [roll]:" in result.stderr
     assert "power plant rating 1 is below the 2 its drives require" in result.stderr
-
-    assert "power plant rating 2 below required 5" in result.stderr
     assert result.exit_code == 0, result.stderr
+
+    # The plant the referee asked for, first time, and a rolled drive it can run.
+    assert "Accept this ship or revise" not in result.stderr
+
+    from cetools.engine.ships import build_ship, loads_design
+
+    ship = build_ship(loads_design(result.stdout))
+    assert ship.power_rating == 2
+    assert ship.maneuver_rating <= 2
 
 
 def test_ship_generate_interactive_untabulated_rating_is_reasked_with_the_reason():

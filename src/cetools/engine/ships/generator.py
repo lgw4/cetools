@@ -266,15 +266,13 @@ _FITTING_CHOICES: tuple[str | None, ...] = (
 
 _TURRET_MOUNTS: tuple[str, ...] = tuple(sorted(TURRET_MOUNTS))
 _TURRET_WEAPONS: tuple[str, ...] = tuple(sorted(TURRET_WEAPONS))
-_NON_ENERGY_TURRET_WEAPONS: tuple[str, ...] = tuple(
-    w for w in _TURRET_WEAPONS if not TURRET_WEAPONS[w].energy
-)
 _SMALL_CRAFT_TURRET_MOUNTS: tuple[str, ...] = tuple(
     sorted(name for name, row in TURRET_MOUNTS.items() if row.weapon_slots == 1)
 )
-"""Small craft get one hardpoint and one weapon; restricting to single-slot
-mounts keeps a turret's energy-weapon contribution at 0 or 1, so it can be
-checked directly against the power plant's cap without summing per-slot."""
+"""Small craft get one hardpoint and one weapon, so the dice offer single-slot
+mounts only. This narrows what is *drawn*, not what may be pinned: a referee can
+ask for a triple, and the weapon that goes in it is counted per slot against the
+plant's cap either way."""
 
 
 def validate_hull_tons(hull_class: HullClass, tons: int) -> None:
@@ -516,20 +514,35 @@ def _select_drive_codes(
     down the roll stream. That is the documented cost of pinning consuming no
     dice (ADR-0001): two runs on one seed diverge below the first pin.
 
-    A pinned power rating is *not* floored at the drives it must support. The
-    prompt states the floor and rejects an answer below it, and `build_ship`
-    rejects the design outright—duplicating the rule here would make it a third
-    authority on a rule the builder already owns.
+    A pinned power rating is *not* floored at the drives the referee also pinned:
+    two pins that contradict each other are a mistake `build_ship` owns the
+    sentence for, and duplicating that rule here would make this a second
+    authority on it. But the drives left to *chance* are capped at the pinned
+    plant, because a pin is a promise and a roll is only a preference (ADR-0001).
+    Drawing them from every code the hull takes let the dice hand the builder a
+    design it had to refuse, costing the referee a ship over an answer they never
+    gave. A pinned rating is tabulated for the hull, so a code delivers it
+    exactly and the capped pool is never empty.
     """
     valid = _codes_valid_for_hull(hull_tons)
+    drawn_pool = valid
+    if constraints.power_rating is not None:
+        validate_rating(HullClass.STARSHIP, hull_tons, Drive.POWER, constraints.power_rating)
+        drawn_pool = [
+            code
+            for code in valid
+            if DRIVE_PERFORMANCE[code][hull_tons] <= constraints.power_rating
+        ]
 
     def pinned_or_drawn(
         drive: Drive, rating: int | None, roll: RollName, candidates: list[str]
     ) -> str:
+        """`candidates` is the pool to draw from; a pin resolves against `valid`,
+        which is wider, so the cap above never rewrites an answer the referee gave."""
         if rating is None:
             return rolls.choose(candidates, roll)
         validate_rating(HullClass.STARSHIP, hull_tons, drive, rating)
-        code = _lightest_code_at(candidates, HullClass.STARSHIP, hull_tons, drive, rating)
+        code = _lightest_code_at(valid, HullClass.STARSHIP, hull_tons, drive, rating)
         if code is None:
             raise AssertionError(
                 f"{drive.value} rating {rating} passed validation for a {hull_tons}-ton hull "
@@ -538,10 +551,10 @@ def _select_drive_codes(
         return code
 
     jump_code = pinned_or_drawn(
-        Drive.JUMP, constraints.jump_rating, RollName.SHIP_JUMP_CODE, valid
+        Drive.JUMP, constraints.jump_rating, RollName.SHIP_JUMP_CODE, drawn_pool
     )
     maneuver_code = pinned_or_drawn(
-        Drive.MANEUVER, constraints.maneuver_rating, RollName.SHIP_MANEUVER_CODE, valid
+        Drive.MANEUVER, constraints.maneuver_rating, RollName.SHIP_MANEUVER_CODE, drawn_pool
     )
 
     required = max(
@@ -552,14 +565,7 @@ def _select_drive_codes(
         Drive.POWER,
         constraints.power_rating,
         RollName.SHIP_POWER_CODE,
-        # A pinned plant resolves against every code the hull takes, not only
-        # those clearing `required`: a referee is allowed to ask for one too
-        # small, and `build_ship` is the authority that refuses it.
-        (
-            valid
-            if constraints.power_rating is not None
-            else [c for c in valid if DRIVE_PERFORMANCE[c][hull_tons] >= required]
-        ),
+        [c for c in valid if DRIVE_PERFORMANCE[c][hull_tons] >= required],
     )
     return jump_code, maneuver_code, power_code
 
@@ -1026,15 +1032,21 @@ def _pin_small_craft_drive(
     drive: Drive,
     rating: int,
     ledger: TonnageLedger,
+    floor_reason: str,
 ) -> str:
     """The lightest of `candidates` delivering `rating`, degrading if none does.
 
-    `candidates` is already filtered for what fits, so an empty result at the
-    asked-for rating means the rating is tabulated for this hull but no drive
-    delivering it leaves room for the rest of the craft. That is a tonnage
-    shortfall, so it degrades and is recorded rather than refused: the referee
-    gets the best rating the hull can actually carry, and is told it is not the
-    one they asked for. The starship jump drive has always behaved this way.
+    `candidates` is already filtered for what fits beside the drives chosen
+    before it, so a rating with no code has missed in one of two directions and
+    the referee is told which. Something rated *lower* is available, so the craft
+    ran out of tonnage: it degrades to the best rating that fits. Nothing lower
+    is available, so `candidates` had a floor under it and the pin is raised to
+    meet it—`floor_reason` says what put the floor there, because a shortfall
+    story told about a rules floor sends the referee to revise a field that came
+    back better than they asked for.
+
+    Either way this degrades and is recorded rather than refused. The starship
+    jump drive has always behaved this way.
     """
     validate_rating(HullClass.SMALL_CRAFT, hull_tons, drive, rating)
     code = _lightest_code_at(candidates, HullClass.SMALL_CRAFT, hull_tons, drive, rating)
@@ -1043,13 +1055,13 @@ def _pin_small_craft_drive(
 
     affordable = {SMALL_CRAFT_DRIVE_PERFORMANCE[c][hull_tons] for c in candidates}
     below = [candidate for candidate in affordable if candidate < rating]
-    got = max(below) if below else min(affordable)
-    ledger.decline(
-        f"{drive.value}_rating",
-        str(rating),
-        str(got),
-        f"no {drive.value} drive delivering {rating} fits a {hull_tons}-ton hull",
-    )
+    if below:
+        got = max(below)
+        reason = f"no {drive.value} drive delivering {rating} fits a {hull_tons}-ton hull"
+    else:
+        got = min(affordable)
+        reason = floor_reason
+    ledger.decline(f"{drive.value}_rating", str(rating), str(got), reason)
     fallback = _lightest_code_at(candidates, HullClass.SMALL_CRAFT, hull_tons, drive, got)
     if fallback is None:
         raise AssertionError(f"{got} came from {candidates} but no code delivers it")
@@ -1069,7 +1081,8 @@ def _select_small_craft_drives(
     A pinned rating narrows the same candidate list rather than bypassing it, so
     the affordability filtering still holds. The power plant's floor needs no
     separate check here: `_small_craft_power_codes` already drops anything rated
-    below the manoeuvre drive, so a power rating pinned beneath it finds none.
+    below the manoeuvre drive, so a power rating pinned beneath it finds none and
+    degrades upward, carrying the reason that floor gives it.
     """
     valid = _small_craft_codes_for(hull_tons)
     maneuver_candidates = [c for c in valid if _small_craft_power_codes(hull_tons, c)]
@@ -1078,15 +1091,27 @@ def _select_small_craft_drives(
 
     if constraints.maneuver_rating is not None:
         maneuver_letter = _pin_small_craft_drive(
-            maneuver_candidates, hull_tons, Drive.MANEUVER, constraints.maneuver_rating, ledger
+            maneuver_candidates,
+            hull_tons,
+            Drive.MANEUVER,
+            constraints.maneuver_rating,
+            ledger,
+            "no lighter maneuver drive leaves room for a power plant and a cockpit",
         )
     else:
         maneuver_letter = rolls.choose(maneuver_candidates, RollName.SHIP_MANEUVER_CODE)
 
     options = _small_craft_power_codes(hull_tons, maneuver_letter)
     if constraints.power_rating is not None:
+        maneuver_rating = SMALL_CRAFT_DRIVE_PERFORMANCE[maneuver_letter][hull_tons]
         power_letter = _pin_small_craft_drive(
-            options, hull_tons, Drive.POWER, constraints.power_rating, ledger
+            options,
+            hull_tons,
+            Drive.POWER,
+            constraints.power_rating,
+            ledger,
+            f"a power plant may not be rated below the Maneuver-{maneuver_rating} "
+            "drive it powers",
         )
     else:
         power_letter = rolls.choose(options, RollName.SHIP_POWER_CODE)
@@ -1152,7 +1177,16 @@ def _select_small_craft_turret(
             return ()
         weapon = pin.weapon
     else:
-        weapon_choices = _TURRET_WEAPONS if energy_cap > 0 else _NON_ENERGY_TURRET_WEAPONS
+        # The same test the pinned branch above applies, applied to the draw. A
+        # drawn mount is single-slot, so this filter reproduces the old
+        # `energy_cap > 0` split exactly; a *pinned* triple asks three times as
+        # much, and drawing on the old test handed `build_ship` a design it had
+        # to refuse over a weapon the referee never chose.
+        weapon_choices = tuple(
+            weapon
+            for weapon in _TURRET_WEAPONS
+            if not _exceeds_energy_allowance(energy_cap, weapon, mount_name)
+        )
         weapon = rolls.choose(weapon_choices, RollName.SHIP_WEAPON)
 
     ledger.spend(mount.tons)
@@ -1189,7 +1223,9 @@ def _generate_small_craft(rolls: Rolls, constraints: DesignConstraints) -> Gener
     # A screen is never *rolled* onto a small craft, but the rules permit one,
     # so a pinned screen is fitted rather than silently dropped. Passing ABSENT
     # for an unset field keeps this path drawing exactly what it always drew.
-    screen = _select_screen(rolls, ledger, constraints.screen or ABSENT)
+    screen = _select_screen(
+        rolls, ledger, ABSENT if constraints.screen is None else constraints.screen
+    )
 
     name = _select_name(rolls, constraints.name)
 

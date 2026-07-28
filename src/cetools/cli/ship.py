@@ -429,7 +429,11 @@ def _ask_constraints(
             return getattr(keep, field)
         return ask()
 
-    carried_hull_tons = keep is not None and "hull_tons" not in revise
+    # Tonnage is tabulated per ruleset, so a revised hull class takes the
+    # tonnage with it however the referee answered it: carrying a 200-ton
+    # starship hull into a small-craft session buys a certain refusal, and
+    # spends one of the five attempts on it.
+    carried_hull_tons = keep is not None and not {"hull_tons", "hull_class"} & revise
     if keep is not None and "hull_class" not in revise:
         hull_class = keep.hull_class
 
@@ -518,7 +522,15 @@ def _ask_constraints(
         if small_craft
         else answered("bay", lambda: _ask_until_understood("Weapon bay", _read_bay))
     )
-    screen = answered("screen", lambda: _ask_until_understood("Screen", _read_screen))
+    screen = answered(
+        "screen",
+        # A screen is never rolled onto a small craft, so Enter there pins
+        # absence. Labelling it `[roll]` would promise a draw generation does
+        # not make—the one field whose default did something other than it said.
+        lambda: _ask_until_understood(
+            "Screen", _read_screen, default_label=_NONE if small_craft else _ROLL
+        ),
+    )
     name = answered("name", lambda: _ask_until_understood("Name", _read_name))
     purpose = answered(
         "purpose",
