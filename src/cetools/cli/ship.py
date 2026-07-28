@@ -1,6 +1,7 @@
 import random
 import sys
 from collections.abc import Callable
+from dataclasses import fields
 from functools import partial
 from pathlib import Path
 from typing import Annotated
@@ -19,8 +20,10 @@ from cetools.engine.ships import (
     DesignConstraints,
     Drive,
     FittingFit,
+    GenerationResult,
     HullClass,
     ScreenFit,
+    Ship,
     TurretPin,
     UnmetConstraint,
     build_ship,
@@ -398,7 +401,12 @@ def _read_purpose(answer: str) -> str | None:
     return None if answer.lower() == _NONE else answer
 
 
-def _ask_constraints(hull_class: HullClass | None, hull: int | None) -> DesignConstraints:
+def _ask_constraints(
+    hull_class: HullClass | None,
+    hull: int | None,
+    keep: DesignConstraints | None = None,
+    revise: frozenset[str] = frozenset(),
+) -> DesignConstraints:
     """Walk the referee through what they can pin, in SRD build order.
 
     A value a flag already supplied pre-answers its question and that question
@@ -408,7 +416,23 @@ def _ask_constraints(hull_class: HullClass | None, hull: int | None) -> DesignCo
     tonnages are tabulated, and which questions are worth asking at all. A small
     craft carries no jump drive and no weapon bay, so a referee designing a
     launch is never asked about either.
+
+    Passing `keep` walks the same order again but asks only the fields named in
+    `revise`, taking every other answer from the session just held. A referee
+    who has answered fourteen questions should not answer them all again over
+    the one that did not fit.
     """
+
+    def answered[T](field: str, ask: Callable[[], T]) -> T:
+        """One question's answer: asked, or carried over from last time."""
+        if keep is not None and field not in revise:
+            return getattr(keep, field)
+        return ask()
+
+    carried_hull_tons = keep is not None and "hull_tons" not in revise
+    if keep is not None and "hull_class" not in revise:
+        hull_class = keep.hull_class
+
     if hull_class is None:
         hull_class = (
             _ask_until_understood(
@@ -418,53 +442,88 @@ def _ask_constraints(hull_class: HullClass | None, hull: int | None) -> DesignCo
         )
     small_craft = hull_class is HullClass.SMALL_CRAFT
 
-    if hull is not None:
-        try:
-            validate_hull_tons(hull_class, hull)
-        except ValueError as exc:
-            # `--hull` pre-answers the question, but only with an answer this
-            # ruleset accepts. The referee chose the class a moment ago, so the
-            # flag is the stale half: say so and ask.
-            typer.echo(str(exc), err=True)
-            hull = None
+    if keep is not None:
+        # The flag pre-answered the first round only. Afterwards the session's
+        # own answer stands, so a revised tonnage is not overwritten by it.
+        hull = None
 
-    hull_tons = (
-        hull
-        if hull is not None
-        else _ask_until_understood("Hull tonnage", partial(_read_hull_tons, hull_class))
-    )
+    if carried_hull_tons:
+        # Carried whole, `None` included: a hull the dice chose last time was an
+        # answer too, and asking again would be re-asking an unimplicated question.
+        hull_tons = keep.hull_tons  # type: ignore[union-attr]
+    else:
+        if hull is not None:
+            try:
+                validate_hull_tons(hull_class, hull)
+            except ValueError as exc:
+                # `--hull` pre-answers the question, but only with an answer this
+                # ruleset accepts. The referee chose the class a moment ago, so
+                # the flag is the stale half: say so and ask.
+                typer.echo(str(exc), err=True)
+                hull = None
+
+        hull_tons = (
+            hull
+            if hull is not None
+            else _ask_until_understood("Hull tonnage", partial(_read_hull_tons, hull_class))
+        )
 
     def ask_rating(question: str, drive: Drive, floor: int | None = None) -> int | None:
         return _ask_until_understood(
             question, partial(_read_rating, hull_class, hull_tons, drive, floor)
         )
 
-    configuration = _ask_until_understood("Configuration", _read_configuration)
+    configuration = answered(
+        "configuration", lambda: _ask_until_understood("Configuration", _read_configuration)
+    )
 
-    jump_rating = None if small_craft else ask_rating("Jump rating", Drive.JUMP)
-    maneuver_rating = _ask_until_understood(
-        "Maneuver rating", partial(_read_maneuver_rating, hull_class, hull_tons)
+    jump_rating = (
+        None
+        if small_craft
+        else answered("jump_rating", lambda: ask_rating("Jump rating", Drive.JUMP))
+    )
+    maneuver_rating = answered(
+        "maneuver_rating",
+        lambda: _ask_until_understood(
+            "Maneuver rating", partial(_read_maneuver_rating, hull_class, hull_tons)
+        ),
     )
 
     floor = power_floor(hull_class, jump_rating, maneuver_rating)
     power_question = (
         "Power plant rating" if floor is None else f"Power plant rating (at least {floor})"
     )
-    power_rating = _ask_until_understood(
-        power_question,
-        partial(_read_power_rating, hull_class, hull_tons, floor, maneuver_rating),
+    power_rating = answered(
+        "power_rating",
+        lambda: _ask_until_understood(
+            power_question,
+            partial(_read_power_rating, hull_class, hull_tons, floor, maneuver_rating),
+        ),
     )
 
-    armor = _ask_until_understood("Armor", _read_armor)
-    computer = _ask_until_understood("Computer model", _read_computer)
-    electronics = _ask_until_understood("Electronics", _read_electronics)
-    staterooms = _ask_until_understood("Staterooms", _read_staterooms)
-    fitting = _ask_until_understood("Fitting", _read_fitting)
-    turrets = _ask_turrets(hull_class, hull_tons, power_rating)
-    bay = None if small_craft else _ask_until_understood("Weapon bay", _read_bay)
-    screen = _ask_until_understood("Screen", _read_screen)
-    name = _ask_until_understood("Name", _read_name)
-    purpose = _ask_until_understood("Purpose", _read_purpose, default_label=_NONE)
+    armor = answered("armor", lambda: _ask_until_understood("Armor", _read_armor))
+    computer = answered(
+        "computer", lambda: _ask_until_understood("Computer model", _read_computer)
+    )
+    electronics = answered(
+        "electronics", lambda: _ask_until_understood("Electronics", _read_electronics)
+    )
+    staterooms = answered(
+        "staterooms", lambda: _ask_until_understood("Staterooms", _read_staterooms)
+    )
+    fitting = answered("fitting", lambda: _ask_until_understood("Fitting", _read_fitting))
+    turrets = answered("turrets", lambda: _ask_turrets(hull_class, hull_tons, power_rating))
+    bay = (
+        None
+        if small_craft
+        else answered("bay", lambda: _ask_until_understood("Weapon bay", _read_bay))
+    )
+    screen = answered("screen", lambda: _ask_until_understood("Screen", _read_screen))
+    name = answered("name", lambda: _ask_until_understood("Name", _read_name))
+    purpose = answered(
+        "purpose",
+        lambda: _ask_until_understood("Purpose", _read_purpose, default_label=_NONE),
+    )
 
     return DesignConstraints(
         hull_class=hull_class,
@@ -486,6 +545,56 @@ def _ask_constraints(hull_class: HullClass | None, hull: int | None) -> DesignCo
     )
 
 
+_MAX_ATTEMPTS = 5
+"""How many ships a session may try before it settles for what it has.
+
+A referee who answers the same way each time would otherwise revise forever.
+The cap is generous enough that no honest revision reaches it and small enough
+that a mistaken one ends. Four revisions, then the fifth ship stands.
+"""
+
+_REVISABLE = tuple(field.name for field in fields(DesignConstraints))
+
+
+def _read_fields(answer: str) -> frozenset[str]:
+    """The answers a referee named, space-separated, checked against the record."""
+    named = answer.replace(",", " ").split()
+    unknown = [field for field in named if field not in _REVISABLE]
+    if unknown:
+        raise ValueError(f"no such answer: {' '.join(unknown)}; known: {list(_REVISABLE)}")
+    return frozenset(named)
+
+
+def _ask_which_to_revise() -> frozenset[str]:
+    """Which answers to put back to the referee after a refusal.
+
+    An unmet constraint names its own field, so nothing has to be guessed there.
+    A rules refusal is a sentence: `build_ship` is the sole authority on those
+    rules and does not carry a field alongside them, and reading fields out of
+    its prose guesses wrongly more often than not—"a distributed hull cannot
+    mount fuel scoops" is about the configuration and the fitting, and mentions
+    neither by name. So the referee is asked, having just been told the reason.
+    """
+    return _ask_until_understood(
+        "Revise which answers", _read_fields, default_label="all"
+    ) or frozenset(_REVISABLE)
+
+
+def _read_verdict(answer: str) -> bool:
+    """Whether the referee asked to revise. Anything else is a typo, not consent."""
+    if answer.lower() in {"revise", "r"}:
+        return True
+    if answer.lower() in {"accept", "a"}:
+        return False
+    raise ValueError(f"answer accept or revise; got {answer}")
+
+
+def _ask_to_revise() -> bool:
+    """Whether the referee wants another go. Accepting is the default, because
+    a degraded ship is still a ship and the session has already cost them."""
+    return bool(_ask_until_understood("Accept this ship or revise", _read_verdict, "accept"))
+
+
 def _report_unmet(unmet: tuple[UnmetConstraint, ...]) -> None:
     """Say plainly which answers the tonnage could not honour.
 
@@ -502,6 +611,53 @@ def _report_unmet(unmet: tuple[UnmetConstraint, ...]) -> None:
         typer.echo(
             f"  {entry.field}: asked {entry.asked}, got {entry.got} ({entry.reason})", err=True
         )
+
+
+def _generate(seed: int, constraints: DesignConstraints) -> GenerationResult:
+    """Generate, turning a refusal into the exit code it has always had."""
+    try:
+        return generate_ship(RandomRolls.seeded(seed), constraints=constraints)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1)
+
+
+def _run_session(seed: int, hull_class: HullClass | None, hull: int | None) -> Ship:
+    """Ask, generate, and offer the referee the ship or another go.
+
+    Three outcomes at assembly, and this is where the middle two are handled.
+    *Met* hands back the ship. *Unmet* reports the shortfalls and asks; the
+    referee can take the degraded ship or revise the answers the report names.
+    *Illegal* has no ship to offer at all, so it goes straight back to the
+    answers its refusal points at rather than costing the session.
+    """
+    constraints = _ask_constraints(hull_class, hull)
+
+    for attempt in range(_MAX_ATTEMPTS):
+        last = attempt == _MAX_ATTEMPTS - 1
+
+        try:
+            result = generate_ship(RandomRolls.seeded(seed), constraints=constraints)
+        except ValueError as exc:
+            typer.echo(str(exc), err=True)
+            if last:
+                typer.echo("revised enough; these answers still do not build", err=True)
+                raise typer.Exit(1)
+            implicated = _ask_which_to_revise()
+        else:
+            if not result.unmet:
+                return result.ship
+            _report_unmet(result.unmet)
+            if not _ask_to_revise():
+                return result.ship
+            if last:
+                typer.echo("revised enough; taking the ship as it stands", err=True)
+                return result.ship
+            implicated = frozenset(entry.field for entry in result.unmet)
+
+        constraints = _ask_constraints(hull_class, hull, constraints, implicated)
+
+    raise AssertionError("every attempt returns or revises")
 
 
 @app.command("generate")
@@ -537,21 +693,13 @@ def generate(
 
     hull_class = HullClass.SMALL_CRAFT if small_craft else HullClass.STARSHIP
 
-    if interactive:
-        # `--small-craft` pre-answers the hull class; without it the session asks.
-        constraints = _ask_constraints(hull_class if small_craft else None, hull)
+    if not interactive:
+        result = _generate(seed, DesignConstraints(hull_class=hull_class, hull_tons=hull))
+        _report_unmet(result.unmet)
+        ship = result.ship
     else:
-        constraints = DesignConstraints(hull_class=hull_class, hull_tons=hull)
-
-    try:
-        result = generate_ship(RandomRolls.seeded(seed), constraints=constraints)
-    except ValueError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
-
-    _report_unmet(result.unmet)
-
-    ship = result.ship
+        # `--small-craft` pre-answers the hull class; without it the session asks.
+        ship = _run_session(seed, hull_class if small_craft else None, hull)
 
     output = dump_design(ship.design) if toml else render_description(ship)
 

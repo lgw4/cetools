@@ -1010,17 +1010,23 @@ def _small_craft_answers(*, skip: tuple[str, ...] = (), **given: str) -> str:
     return _answers(skip=("hull_class",) + _SMALL_CRAFT_SKIPS + skip, **given)
 
 
-def _answers(*, skip: tuple[str, ...] = (), **given: str) -> str:
+def _answers(*, skip: tuple[str, ...] = (), pad: bool = True, **given: str) -> str:
     """Piped input answering the named questions and pressing Enter through the rest.
 
     `skip` names questions this invocation never asks, because a flag already
     pre-answered them: `--hull` means the hull question is not asked, and every
     answer after it would otherwise land one slot early.
+
+    `pad` appends spare Enters to carry any prompt this table does not know
+    about, such as a turret's mount and weapon. Turn it off when the test has
+    something to say *after* the session ends, since the spare Enters would
+    otherwise be swallowed by the accept-or-revise question.
     """
     unknown = (set(given) | set(skip)) - set(_QUESTIONS)
     assert not unknown, f"no such question: {sorted(unknown)}"
     asked = (question for question in _QUESTIONS if question not in skip)
-    return "".join(f"{given.get(question, '')}\n" for question in asked) + _ENTER_THROUGH
+    answered = "".join(f"{given.get(question, '')}\n" for question in asked)
+    return answered + _ENTER_THROUGH if pad else answered
 
 
 _SCALAR_PROMPTS = (
@@ -1236,6 +1242,161 @@ _OVERLOADED_ANSWERS = dict(
 )
 
 
+def test_ship_generate_interactive_offers_accept_or_revise_when_something_went_unmet():
+    """Fourteen answers should not be lost because one did not fit."""
+    result = runner.invoke(app, _OVERLOADED, input=_answers(**_OVERLOADED_ANSWERS))
+
+    assert result.exit_code == 0
+    assert "could not honour" in result.stderr
+    assert "Accept this ship or revise [accept]:" in result.stderr
+
+
+def test_ship_generate_interactive_accepting_prints_the_ship_and_exits_0():
+    """Enter at the accept prompt takes the default, which is to accept."""
+    result = runner.invoke(app, _OVERLOADED, input=_answers(**_OVERLOADED_ANSWERS))
+
+    assert result.exit_code == 0
+    assert result.stdout.strip()
+    assert result.stderr.count("Accept this ship or revise [accept]:") == 1
+
+
+def test_ship_generate_interactive_revising_re_asks_only_the_implicated_prompts():
+    """Only the answers named in the report come back, and every other answer
+    the referee gave is preserved untouched."""
+    result = runner.invoke(
+        app,
+        _OVERLOADED + ["--toml"],
+        input=_answers(pad=False, **_OVERLOADED_ANSWERS) + "revise\n4\nnone\n",
+    )
+    assert result.exit_code == 0, result.stderr
+
+    after_revise = result.stderr.split("Accept this ship or revise")[1]
+    assert "Staterooms [roll]:" in after_revise
+    assert "Turrets [roll]:" in after_revise
+    assert "Configuration" not in after_revise  # an answer nothing implicated
+    assert "Armor" not in after_revise
+
+    from cetools.engine.ships import loads_design
+
+    design = loads_design(result.stdout)
+    assert design.staterooms == 4  # the revised answer
+    assert design.turrets == ()
+    assert design.armor[0].percent == 30  # the answer that was kept
+
+
+def test_ship_generate_interactive_a_design_the_builder_rejects_re_enters_the_loop():
+    """The other failure class: no ship at all, and interactively that is a
+    question rather than an exit."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), pad=False, armor="crystaliron 7")
+        + "armor\ncrystaliron 5\n",
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "armor must be added in 5% increments" in result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    assert loads_design(result.stdout).armor[0].percent == 5
+
+
+def test_ship_generate_a_design_the_builder_rejects_still_exits_1_when_not_interactive():
+    result = runner.invoke(app, ["ship", "generate", "--hull", "150", "--seed", "11"])
+
+    assert result.exit_code == 1
+    assert not result.stdout.strip()
+
+
+def test_ship_generate_interactive_the_revise_loop_gives_up_on_repeated_conflicts():
+    """A referee who answers the same way every time still gets a ship rather
+    than an endless session."""
+    revisions = "revise\n8\n2\ntriple\npulse_laser\ntriple\npulse_laser\n" * 12
+    result = runner.invoke(
+        app, _OVERLOADED, input=_answers(pad=False, **_OVERLOADED_ANSWERS) + revisions
+    )
+
+    assert result.exit_code == 0
+    assert "revised enough" in result.stderr
+    assert result.stdout.strip()
+
+
+def test_ship_generate_interactive_the_accept_prompt_re_asks_a_typo():
+    """Every other prompt re-asks rather than guessing; this one is no different,
+    because guessing here would silently accept a ship the referee rejected."""
+    result = runner.invoke(
+        app, _OVERLOADED, input=_answers(pad=False, **_OVERLOADED_ANSWERS) + "reivse\naccept\n"
+    )
+
+    assert result.exit_code == 0
+    assert "answer accept or revise; got reivse" in result.stderr
+    assert result.stderr.count("Accept this ship or revise [accept]:") == 2
+
+
+def test_ship_generate_interactive_an_unknown_answer_name_is_reasked():
+    """The answers to revise are named, so a name nothing knows is a typo."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), pad=False, armor="crystaliron 7")
+        + "armour\narmor\ncrystaliron 5\n",
+    )
+
+    assert result.exit_code == 0, result.stderr
+    assert "no such answer: armour" in result.stderr
+
+
+def test_ship_generate_interactive_revising_everything_is_the_default():
+    """Enter at the which-answers prompt puts the whole session back, which is
+    the honest answer when a refusal names nothing the session can act on."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), pad=False, armor="crystaliron 7")
+        # Everything comes back, including the hull class and tonnage the flag
+        # pre-answered the first time round.
+        + "\n" + _answers(pad=False, hull="200", armor="crystaliron 5"),
+    )
+
+    assert result.exit_code == 0, result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    assert loads_design(result.stdout).armor[0].percent == 5
+
+
+def test_ship_generate_interactive_gives_up_and_exits_1_when_every_round_is_refused():
+    """The other end of the loop: a refusal yields no ship at all, so a referee
+    who answers illegally every time has nothing to be handed."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11"],
+        input=_answers(skip=("hull",), pad=False, armor="crystaliron 7")
+        + "armor\ncrystaliron 7\n" * 4,
+    )
+
+    assert result.exit_code == 1
+    assert not result.stdout.strip()
+    assert "revised enough" in result.stderr
+    assert result.stderr.count("armor must be added in 5% increments") == 5
+
+
+def test_ship_generate_interactive_reproduces_a_session_by_saving_and_rebuilding(tmp_path):
+    """No replay format: the TOML round-trip is already lossless, so a saved
+    design rebuilds to exactly the ship the session produced."""
+    out_path = tmp_path / "tonight.toml"
+    generated = runner.invoke(
+        app,
+        _OVERLOADED + ["--toml", "--out", str(out_path)],
+        input=_answers(**_OVERLOADED_ANSWERS),
+    )
+    assert generated.exit_code == 0, generated.stderr
+
+    rebuilt = runner.invoke(app, ["ship", "build", str(out_path), "--toml"])
+    assert rebuilt.exit_code == 0
+    assert rebuilt.stdout == out_path.read_text() + "\n"
+
+
 def test_ship_generate_reports_unmet_constraints_on_stderr_and_still_exits_0():
     """Generation never fails on tonnage: a real ship comes back, and the
     referee is told plainly which answers it could not honour."""
@@ -1271,19 +1432,6 @@ def test_ship_generate_says_nothing_when_every_constraint_is_honoured():
 
     assert result.exit_code == 0
     assert "could not honour" not in result.stderr
-
-
-def test_ship_generate_a_design_the_builder_rejects_still_exits_1_with_no_ship():
-    """Only tonnage shortfalls degrade. An illegal design yields no ship at all."""
-    result = runner.invoke(
-        app,
-        ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11"],
-        input=_answers(skip=("hull",), armor="crystaliron 7"),
-    )
-
-    assert result.exit_code == 1
-    assert not result.stdout.strip()
-    assert "armor must be added in 5% increments" in result.stderr
 
 
 def test_ship_generate_interactive_asks_for_the_hull_class_first():
@@ -1606,19 +1754,21 @@ def test_ship_generate_interactive_power_floor_holds_when_only_one_drive_is_pinn
 
     It is only a partial floor, and this seed shows the limit: the manoeuvre
     drive rolls a 5, so a plant at 2 clears the prompt and is refused by
-    `build_ship`, which is the authority. The revise loop that turns that into
-    another question rather than an exit is #51.
+    `build_ship`, which is the authority. Since #51 that refusal sends the
+    referee back to the power prompt, where 5 is accepted.
     """
     result = runner.invoke(
         app,
         ["ship", "generate", "--interactive", "--hull", "400", "--seed", "3"],
-        input=_answers(skip=("hull",), jump="2", power="1\n2"),
+        # The refusal is a rules sentence, so the session asks which answers to
+        # put back rather than guessing: the plant alone, this time at 5.
+        input=_answers(skip=("hull",), pad=False, jump="2", power="1\n2") + "power_rating\n5\n",
     )
     assert "Power plant rating (at least 2) [roll]:" in result.stderr
     assert "power plant rating 1 is below the 2 its drives require" in result.stderr
 
-    assert result.exit_code == 1
     assert "power plant rating 2 below required 5" in result.stderr
+    assert result.exit_code == 0, result.stderr
 
 
 def test_ship_generate_interactive_untabulated_rating_is_reasked_with_the_reason():
@@ -1716,16 +1866,19 @@ def test_ship_generate_interactive_malformed_armor_answers_are_reasked_with_the_
 def test_ship_generate_interactive_armor_percent_rule_surfaces_at_assembly_not_the_prompt():
     """The multiple-of-5 rule lives in `build_ship` and is deliberately not
     duplicated outward, so 7% is accepted at the prompt and rejected on
-    assembly (ADR-0001). The revise loop that catches this is #51.
+    assembly (ADR-0001).
+
+    Since #51 that refusal is a question rather than an exit: the armour prompt
+    comes back, and answering it legally yields a ship.
     """
     result = runner.invoke(
         app,
         ["ship", "generate", "--interactive", "--seed", "7"],
-        input=_answers(armor="crystaliron 7"),
+        input=_answers(pad=False, armor="crystaliron 7") + "armor\ncrystaliron 5\n",
     )
-    assert result.exit_code == 1
+    assert result.exit_code == 0, result.stderr
     assert "armor must be added in 5% increments" in result.stderr
-    assert result.stderr.count("Armor [roll]:") == 1
+    assert result.stderr.count("Armor [roll]:") == 2  # asked, refused, asked again
 
 
 def test_ship_generate_interactive_unknown_armor_type_is_reasked_with_the_reason():

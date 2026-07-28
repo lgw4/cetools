@@ -76,6 +76,7 @@ NOT_CODE = {
     "O",
     # keywords a referee types at an interactive prompt, not names in the package
     "none",
+    "revise",
     # standard-library methods used in prose
     "lower",
     "strip",

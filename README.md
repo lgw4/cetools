@@ -328,7 +328,25 @@ Add `--toml` to emit a round-trippable design file instead of the description, a
 
 A referee can ask for more than a hull can hold. Generation never fails on tonnage: the ship still comes back, and the answers it could not honour are listed on stderr with what was asked, what was got, and why. That is a degraded ship rather than a failure, so the command still exits `0` and stdout still carries a design a pipe can read. A rolled value that would not fit is dropped in silence, because it was a preference rather than a promise.
 
-**Exit codes**: `0` on success, including a ship that missed some of its constraints; `1` on a missing or malformed design file, an unknown hull size, or a rules-illegal design (e.g. a power plant rated below its drives), with the violated rule on stderr. Only tonnage shortfalls degrade; a design the builder rejects yields no ship at all.
+Interactively that report is a question rather than a verdict. The session lists what it could not honour and asks whether to accept the ship or revise, with accept as the default:
+
+```text
+could not honour 2 constraint(s):
+  staterooms: asked 8, got 7 (needs 32t, 30t free)
+  turrets: asked turret 1 (triple pulse_laser), got none (needs 1t, 0t free)
+Accept this ship or revise [accept]:
+```
+
+Answering `revise` re-asks only the questions the report names and keeps every other answer, so one bad fit does not cost a session's worth of answers. The same loop catches a design the builder rejects outright: that yields no ship, so interactively it goes back to the answers the refusal points at rather than aborting. Non-interactively it still exits `1`. A session that keeps producing the same conflict stops revising after a few rounds and hands back the ship it has.
+
+To keep tonight's ship, save it and rebuild it: no replay format is needed, because the TOML round-trip is already lossless.
+
+```bash
+uv run cetools ship generate --interactive --toml --out tonight.toml
+uv run cetools ship build tonight.toml
+```
+
+**Exit codes**: `0` on success, including a ship that missed some of its constraints; `1` on a missing or malformed design file, an unknown hull size, or a rules-illegal design (e.g. a power plant rated below its drives), with the violated rule on stderr. Only tonnage shortfalls degrade; a design the builder rejects yields no ship at all, though an interactive session is offered the chance to fix it first.
 
 Output above is illustrative; generation is random unless `--seed` is given, so unseeded results will differ.
 
