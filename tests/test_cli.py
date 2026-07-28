@@ -970,6 +970,130 @@ _ENTER_THROUGH = "\n" * 12
 """More Enters than the wizard has questions, so a test that means "take every
 default" keeps meaning that as later tickets add prompts."""
 
+_QUESTIONS = ("hull", "jump", "maneuver", "power", "armor")
+"""The wizard's questions, in the order it asks them.
+
+Piped input is positional, so every test that answers one question has to know
+where the others sit. Keeping that knowledge here means a ticket which adds a
+question edits one line rather than every test that answers a later one.
+"""
+
+
+def _answers(*, skip: tuple[str, ...] = (), **given: str) -> str:
+    """Piped input answering the named questions and pressing Enter through the rest.
+
+    `skip` names questions this invocation never asks, because a flag already
+    pre-answered them: `--hull` means the hull question is not asked, and every
+    answer after it would otherwise land one slot early.
+    """
+    unknown = (set(given) | set(skip)) - set(_QUESTIONS)
+    assert not unknown, f"no such question: {sorted(unknown)}"
+    asked = (question for question in _QUESTIONS if question not in skip)
+    return "".join(f"{given.get(question, '')}\n" for question in asked) + _ENTER_THROUGH
+
+
+def test_ship_generate_interactive_asks_for_each_drive_as_a_rating():
+    """A referee answers Jump-2, not drive C: the question is the rating."""
+    result = runner.invoke(
+        app, ["ship", "generate", "--interactive", "--seed", "7"], input=_ENTER_THROUGH
+    )
+    assert result.exit_code == 0
+    assert "Jump rating [roll]:" in result.stderr
+    assert "Maneuver rating [roll]:" in result.stderr
+    assert "Power plant rating [roll]:" in result.stderr
+
+
+def test_ship_generate_interactive_pins_a_jump_rating_to_its_lightest_code():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "400", "--seed", "3", "--toml"],
+        input="1" + _ENTER_THROUGH,
+    )
+    assert result.exit_code == 0
+
+    from cetools.engine.ships import build_ship, loads_design
+
+    ship = build_ship(loads_design(result.stdout))
+    assert ship.jump_rating == 1
+    assert ship.design.jump_code == "B"  # the lightest code delivering Jump-1 at 400 tons
+
+
+def test_ship_generate_interactive_power_prompt_states_the_floor_its_drives_set():
+    """The floor is `max(jump, maneuver)`, and the referee should not have to
+    work it out. It can only be stated once both are pinned."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "400", "--seed", "3"],
+        input="1\n3" + _ENTER_THROUGH,
+    )
+    assert result.exit_code == 0
+    assert "Power plant rating (at least 3) [roll]:" in result.stderr
+
+
+def test_ship_generate_interactive_power_below_its_floor_is_reasked_with_the_reason():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "400", "--seed", "3"],
+        input="2\n3\n1\n3" + _ENTER_THROUGH,
+    )
+    assert result.exit_code == 0
+    assert "power plant rating 1 is below the 3 its drives require" in result.stderr
+    assert result.stderr.count("Power plant rating (at least 3) [roll]:") == 2
+
+
+def test_ship_generate_interactive_power_floor_holds_when_only_one_drive_is_pinned():
+    """A floor known in part is still a floor: Jump-2 alone puts the plant at 2,
+    even with the manoeuvre drive left to the dice.
+
+    It is only a partial floor, and this seed shows the limit: the manoeuvre
+    drive rolls a 5, so a plant at 2 clears the prompt and is refused by
+    `build_ship`, which is the authority. The revise loop that turns that into
+    another question rather than an exit is #51.
+    """
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "400", "--seed", "3"],
+        input=_answers(skip=("hull",), jump="2", power="1\n2"),
+    )
+    assert "Power plant rating (at least 2) [roll]:" in result.stderr
+    assert "power plant rating 1 is below the 2 its drives require" in result.stderr
+
+    assert result.exit_code == 1
+    assert "power plant rating 2 below required 5" in result.stderr
+
+
+def test_ship_generate_interactive_untabulated_rating_is_reasked_with_the_reason():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "400", "--seed", "3"],
+        input="9\n1" + _ENTER_THROUGH,
+    )
+    assert result.exit_code == 0
+    assert "jump rating 9 is not tabulated for a 400-ton hull" in result.stderr
+    assert result.stderr.count("Jump rating [roll]:") == 2
+
+
+def test_ship_generate_interactive_non_numeric_rating_is_reasked_with_the_reason():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "400", "--seed", "3"],
+        input=_answers(jump="two\n1"),
+    )
+    assert result.exit_code == 0
+    assert "two is not a drive rating" in result.stderr
+
+
+def test_ship_generate_interactive_checks_a_rating_against_every_hull_when_none_is_pinned():
+    """With the hull left to the dice the wizard cannot know what this hull can
+    deliver, but it can still refuse a rating no hull could."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "3"],
+        input=_answers(jump="9\n1"),
+    )
+    assert result.exit_code == 0
+    assert "not tabulated for any starship hull" in result.stderr
+
 
 def test_ship_generate_interactive_asks_for_armor_showing_its_default():
     result = runner.invoke(
@@ -991,7 +1115,7 @@ def test_ship_generate_interactive_pins_an_armor_type_and_percent():
         result = runner.invoke(
             app,
             ["ship", "generate", "--interactive", "--seed", "7", "--toml"],
-            input=f"\n{answer}\n",
+            input=_answers(armor=answer),
         )
         assert result.exit_code == 0, answer
 
@@ -1003,7 +1127,9 @@ def test_ship_generate_interactive_none_pins_an_unarmored_ship():
     """Seed 0 draws crystaliron, so an unarmoured ship here is the `none` answer."""
     rolled = runner.invoke(app, ["ship", "generate", "--seed", "0", "--toml"])
     result = runner.invoke(
-        app, ["ship", "generate", "--interactive", "--seed", "0", "--toml"], input="\nnone\n"
+        app,
+        ["ship", "generate", "--interactive", "--seed", "0", "--toml"],
+        input=_answers(armor="none"),
     )
     assert result.exit_code == 0
 
@@ -1022,7 +1148,7 @@ def test_ship_generate_interactive_malformed_armor_answers_are_reasked_with_the_
         result = runner.invoke(
             app,
             ["ship", "generate", "--interactive", "--seed", "7"],
-            input=f"\n{answer}\ncrystaliron 10" + _ENTER_THROUGH,
+            input=_answers(armor=f"{answer}\ncrystaliron 10"),
         )
         assert result.exit_code == 0, answer
         assert reason in result.stderr, answer
@@ -1036,7 +1162,7 @@ def test_ship_generate_interactive_armor_percent_rule_surfaces_at_assembly_not_t
     result = runner.invoke(
         app,
         ["ship", "generate", "--interactive", "--seed", "7"],
-        input="\ncrystaliron 7" + _ENTER_THROUGH,
+        input=_answers(armor="crystaliron 7"),
     )
     assert result.exit_code == 1
     assert "armor must be added in 5% increments" in result.stderr
@@ -1047,7 +1173,7 @@ def test_ship_generate_interactive_unknown_armor_type_is_reasked_with_the_reason
     result = runner.invoke(
         app,
         ["ship", "generate", "--interactive", "--seed", "7"],
-        input="\nadamantium 10\ncrystaliron 10\n",
+        input=_answers(armor="adamantium 10\ncrystaliron 10"),
     )
     assert result.exit_code == 0
     assert "adamantium is not a known armor type" in result.stderr

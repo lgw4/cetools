@@ -26,8 +26,10 @@ outright.
 from __future__ import annotations
 
 import math
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from enum import Enum
+from operator import attrgetter
 
 from cetools.engine.rolls import RandomRolls, RollName, Rolls
 from cetools.engine.ships.builder import BAY_FIRE_CONTROL_TONS, build_ship
@@ -62,6 +64,7 @@ from cetools.engine.ships.tables import (
     SMALL_CRAFT_HULLS,
     TURRET_MOUNTS,
     TURRET_WEAPONS,
+    DriveRow,
 )
 
 _STANDARD_POWER_WEEKS = 2
@@ -106,6 +109,9 @@ class DesignConstraints:
 
     hull_class: HullClass = HullClass.STARSHIP
     hull_tons: int | None = None
+    jump_rating: int | None = None
+    maneuver_rating: int | None = None
+    power_rating: int | None = None
     armor: ArmorFit | Absent | None = None
 
 
@@ -259,6 +265,106 @@ def _codes_valid_for_hull(hull_tons: int) -> list[str]:
     return sorted(code for code, ratings in DRIVE_PERFORMANCE.items() if hull_tons in ratings)
 
 
+class Drive(Enum):
+    """One of the three drives a design fits.
+
+    Exists because a rating means nothing without saying which drive delivers
+    it: the same letter weighs three different amounts, and the performance
+    tables are read the same way for all three. Naming the drive keeps one
+    validator and one resolver serving all of them.
+    """
+
+    JUMP = "jump"
+    MANEUVER = "maneuver"
+    POWER = "power"
+
+
+_DRIVE_TONS: dict[Drive, Callable[[DriveRow], float]] = {
+    Drive.JUMP: attrgetter("jump_tons"),
+    Drive.MANEUVER: attrgetter("maneuver_tons"),
+    Drive.POWER: attrgetter("power_tons"),
+}
+
+
+def _ratings_table(hull_class: HullClass) -> dict[str, dict[int, int]]:
+    return (
+        SMALL_CRAFT_DRIVE_PERFORMANCE if hull_class is HullClass.SMALL_CRAFT else DRIVE_PERFORMANCE
+    )
+
+
+def available_ratings(hull_class: HullClass, hull_tons: int | None) -> tuple[int, ...]:
+    """Every rating some drive can deliver on `hull_tons`, ascending.
+
+    `hull_tons` of `None` widens the answer to every hull of the class, which is
+    what the wizard can offer when the referee left the hull to the dice: it can
+    still catch a rating no hull could ever deliver, just not one this hull
+    cannot.
+    """
+    table = _ratings_table(hull_class)
+    if hull_tons is None:
+        return tuple(sorted({rating for ratings in table.values() for rating in ratings.values()}))
+    return tuple(
+        sorted({ratings[hull_tons] for ratings in table.values() if hull_tons in ratings})
+    )
+
+
+def validate_rating(
+    hull_class: HullClass, hull_tons: int | None, drive: Drive, rating: int
+) -> None:
+    """Raise `ValueError` unless `drive` can deliver `rating` on this hull.
+
+    Shared by the wizard and the selection steps for the same reason
+    `validate_hull_tons` is: one mistake earns one sentence, whether the referee
+    typed it at a prompt or a library caller passed it in a value.
+    """
+    if drive is Drive.JUMP and hull_class is HullClass.SMALL_CRAFT:
+        raise ValueError("small craft carry no jump drive, so no jump rating can be pinned")
+
+    available = available_ratings(hull_class, hull_tons)
+    if rating not in available:
+        where = (
+            f"a {hull_tons}-ton hull" if hull_tons is not None else f"any {hull_class.value} hull"
+        )
+        raise ValueError(
+            f"{drive.value} rating {rating} is not tabulated for {where}; "
+            f"available: {list(available)}"
+        )
+
+
+def power_floor(
+    hull_class: HullClass, jump_rating: int | None, maneuver_rating: int | None
+) -> int | None:
+    """The rating a power plant must at least match, as far as it is yet known.
+
+    The SRD rule is `build_ship`'s to enforce; this states it early so a prompt
+    can show the floor and refuse an answer beneath it. Only pinned ratings
+    count: a drive left to the dice has no rating yet, and a floor guessed from
+    a drive that has not been chosen would be a lie. A small craft carries no
+    jump drive, so its manoeuvre drive alone sets the floor.
+    """
+    if hull_class is HullClass.SMALL_CRAFT:
+        return maneuver_rating
+    pinned = [rating for rating in (jump_rating, maneuver_rating) if rating is not None]
+    return max(pinned) if pinned else None
+
+
+def _lightest_code_at(
+    candidates: Iterable[str], hull_class: HullClass, hull_tons: int, drive: Drive, rating: int
+) -> str | None:
+    """The lightest of `candidates` delivering `rating` on this hull, or `None`.
+
+    The same rule `_fit_jump_drive` already applies to a drawn drive, applied to
+    a pinned one: tonnage not spent on the drive flows on to fuel and fittings
+    (FR-004).
+    """
+    table = _ratings_table(hull_class)
+    tons_of = _DRIVE_TONS[drive]
+    at_rating = [code for code in candidates if table[code].get(hull_tons) == rating]
+    if not at_rating:
+        return None
+    return min(at_rating, key=lambda code: tons_of(DRIVE_COSTS[code]))
+
+
 def _fit_jump_drive(hull_tons: int, drawn_code: str, budget: float) -> str:
     """The lightest jump drive affording the highest rating `budget` buys,
     never rated above `drawn_code`.
@@ -285,16 +391,60 @@ def _fit_jump_drive(hull_tons: int, drawn_code: str, budget: float) -> str:
     return lightest_by_rating[min(lightest_by_rating)]
 
 
-def _select_drive_codes(rolls: Rolls, hull_tons: int) -> tuple[str, str, str]:
+def _select_drive_codes(
+    rolls: Rolls, hull_tons: int, constraints: DesignConstraints
+) -> tuple[str, str, str]:
+    """Jump, manoeuvre and power codes, drawn in that order unless pinned.
+
+    A pinned rating resolves without a draw, so the codes left to chance shift
+    down the roll stream. That is the documented cost of pinning consuming no
+    dice (ADR-0001): two runs on one seed diverge below the first pin.
+
+    A pinned power rating is *not* floored at the drives it must support. The
+    prompt states the floor and rejects an answer below it, and `build_ship`
+    rejects the design outright—duplicating the rule here would make it a third
+    authority on a rule the builder already owns.
+    """
     valid = _codes_valid_for_hull(hull_tons)
-    jump_code = rolls.choose(valid, RollName.SHIP_JUMP_CODE)
-    maneuver_code = rolls.choose(valid, RollName.SHIP_MANEUVER_CODE)
+
+    def pinned_or_drawn(
+        drive: Drive, rating: int | None, roll: RollName, candidates: list[str]
+    ) -> str:
+        if rating is None:
+            return rolls.choose(candidates, roll)
+        validate_rating(HullClass.STARSHIP, hull_tons, drive, rating)
+        code = _lightest_code_at(candidates, HullClass.STARSHIP, hull_tons, drive, rating)
+        if code is None:
+            raise AssertionError(
+                f"{drive.value} rating {rating} passed validation for a {hull_tons}-ton hull "
+                "but no code delivers it; the validator and the tables disagree"
+            )
+        return code
+
+    jump_code = pinned_or_drawn(
+        Drive.JUMP, constraints.jump_rating, RollName.SHIP_JUMP_CODE, valid
+    )
+    maneuver_code = pinned_or_drawn(
+        Drive.MANEUVER, constraints.maneuver_rating, RollName.SHIP_MANEUVER_CODE, valid
+    )
+
     required = max(
         DRIVE_PERFORMANCE[jump_code][hull_tons],
         DRIVE_PERFORMANCE[maneuver_code][hull_tons],
     )
-    power_candidates = [c for c in valid if DRIVE_PERFORMANCE[c][hull_tons] >= required]
-    power_code = rolls.choose(power_candidates, RollName.SHIP_POWER_CODE)
+    power_code = pinned_or_drawn(
+        Drive.POWER,
+        constraints.power_rating,
+        RollName.SHIP_POWER_CODE,
+        # A pinned plant resolves against every code the hull takes, not only
+        # those clearing `required`: a referee is allowed to ask for one too
+        # small, and `build_ship` is the authority that refuses it.
+        (
+            valid
+            if constraints.power_rating is not None
+            else [c for c in valid if DRIVE_PERFORMANCE[c][hull_tons] >= required]
+        ),
+    )
     return jump_code, maneuver_code, power_code
 
 
@@ -446,9 +596,39 @@ def _small_craft_power_fuel(power_tons: float) -> float:
     return math.floor(power_tons / 3 * 10) / 10
 
 
-def _select_small_craft_drives(rolls: Rolls, hull_tons: int) -> tuple[str, str]:
+def _pin_small_craft_drive(
+    candidates: list[str], hull_tons: int, drive: Drive, rating: int
+) -> str:
+    """The lightest of `candidates` delivering `rating`, or a refusal.
+
+    `candidates` is already filtered for what fits, so an empty result means no
+    craft of this tonnage can carry a drive at that rating and still have room
+    for the rest of itself. That is the ADR's *illegal* outcome rather than its
+    *unmet* one—there is no degraded craft to hand back—so it is refused the way
+    an untabulated hull is, and the way this function's caller has always
+    refused a hull no drive combination suits.
+    """
+    validate_rating(HullClass.SMALL_CRAFT, hull_tons, drive, rating)
+    code = _lightest_code_at(candidates, HullClass.SMALL_CRAFT, hull_tons, drive, rating)
+    if code is None:
+        raise ValueError(
+            f"no small-craft {drive.value} drive fitting a {hull_tons}-ton hull "
+            f"delivers rating {rating}"
+        )
+    return code
+
+
+def _select_small_craft_drives(
+    rolls: Rolls, hull_tons: int, constraints: DesignConstraints
+) -> tuple[str, str]:
     """Pick maneuver+power codes that fit the hull, reserving room for at least
-    the smallest cockpit so `_select_cockpit` always has a legal candidate."""
+    the smallest cockpit so `_select_cockpit` always has a legal candidate.
+
+    A pinned rating narrows the same candidate list rather than bypassing it, so
+    the affordability filtering still holds. The power plant's floor needs no
+    separate check here: `power_options` already drops anything rated below the
+    manoeuvre drive, so a power rating pinned beneath it finds no candidate.
+    """
     valid = sorted(
         c for c, ratings in SMALL_CRAFT_DRIVE_PERFORMANCE.items() if hull_tons in ratings
     )
@@ -469,8 +649,22 @@ def _select_small_craft_drives(rolls: Rolls, hull_tons: int) -> tuple[str, str]:
     maneuver_candidates = [c for c in valid if power_options(c)]
     if not maneuver_candidates:
         raise ValueError(f"no small-craft drive combination fits a {hull_tons}-ton hull")
-    maneuver_letter = rolls.choose(maneuver_candidates, RollName.SHIP_MANEUVER_CODE)
-    power_letter = rolls.choose(power_options(maneuver_letter), RollName.SHIP_POWER_CODE)
+
+    if constraints.maneuver_rating is not None:
+        maneuver_letter = _pin_small_craft_drive(
+            maneuver_candidates, hull_tons, Drive.MANEUVER, constraints.maneuver_rating
+        )
+    else:
+        maneuver_letter = rolls.choose(maneuver_candidates, RollName.SHIP_MANEUVER_CODE)
+
+    options = power_options(maneuver_letter)
+    if constraints.power_rating is not None:
+        power_letter = _pin_small_craft_drive(
+            options, hull_tons, Drive.POWER, constraints.power_rating
+        )
+    else:
+        power_letter = rolls.choose(options, RollName.SHIP_POWER_CODE)
+
     return f"s{maneuver_letter}", f"s{power_letter}"
 
 
@@ -498,8 +692,10 @@ def _select_small_craft_turret(
 
 def _generate_small_craft(rolls: Rolls, constraints: DesignConstraints) -> Ship:
     hull_tons = _select_small_craft_hull_tons(rolls, constraints.hull_tons)
+    if constraints.jump_rating is not None:
+        validate_rating(HullClass.SMALL_CRAFT, hull_tons, Drive.JUMP, constraints.jump_rating)
     configuration = _select_configuration(rolls)
-    maneuver_code, power_code = _select_small_craft_drives(rolls, hull_tons)
+    maneuver_code, power_code = _select_small_craft_drives(rolls, hull_tons, constraints)
     maneuver_letter, power_letter = maneuver_code[1:], power_code[1:]
 
     maneuver_tons = DRIVE_COSTS[maneuver_letter].maneuver_tons
@@ -578,7 +774,7 @@ def generate_ship(
 
     hull_tons = _select_hull_tons(rolls, constraints.hull_tons)
     configuration = _select_configuration(rolls)
-    jump_code, maneuver_code, power_code = _select_drive_codes(rolls, hull_tons)
+    jump_code, maneuver_code, power_code = _select_drive_codes(rolls, hull_tons, constraints)
 
     maneuver_tons = DRIVE_COSTS[maneuver_code].maneuver_tons
     power_tons = DRIVE_COSTS[power_code].power_tons
@@ -590,6 +786,14 @@ def generate_ship(
     jump_rating = DRIVE_PERFORMANCE[jump_code][hull_tons]
 
     ledger = TonnageLedger(max(0.0, budget - DRIVE_COSTS[jump_code].jump_tons))
+    if constraints.jump_rating is not None and jump_rating < constraints.jump_rating:
+        ledger.decline(
+            "jump_rating",
+            f"Jump-{constraints.jump_rating}",
+            f"Jump-{jump_rating}",
+            f"fuelling Jump-{constraints.jump_rating} needs "
+            f"{0.1 * hull_tons * constraints.jump_rating}t of fuel the hull cannot spare",
+        )
 
     max_jump_distance = math.floor(ledger.remaining / (0.1 * hull_tons))
     jump_distance = max(0, min(jump_rating, max_jump_distance))

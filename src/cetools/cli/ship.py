@@ -14,13 +14,16 @@ from cetools.engine.ships import (
     ArmorFit,
     ArmorType,
     DesignConstraints,
+    Drive,
     HullClass,
     build_ship,
     dump_design,
     generate_ship,
     load_design,
+    power_floor,
     render_description,
     validate_hull_tons,
+    validate_rating,
 )
 
 app = typer.Typer()
@@ -113,6 +116,27 @@ def _read_hull_tons(hull_class: HullClass, answer: str) -> int:
     return tons
 
 
+def _read_rating(
+    hull_class: HullClass, hull_tons: int | None, drive: Drive, floor: int | None, answer: str
+) -> int:
+    """One drive rating, checked against the hull as far as it is known.
+
+    When the referee left the hull to the dice, `hull_tons` is `None` and the
+    check widens to every hull of the class: a rating no hull could deliver is
+    still caught, one this hull cannot is not. That narrower case surfaces at
+    assembly instead.
+    """
+    try:
+        rating = int(answer)
+    except ValueError:
+        raise ValueError(f"{answer} is not a drive rating") from None
+
+    if floor is not None and rating < floor:
+        raise ValueError(f"power plant rating {rating} is below the {floor} its drives require")
+    validate_rating(hull_class, hull_tons, drive, rating)
+    return rating
+
+
 def _read_armor(answer: str) -> ArmorFit | Absent:
     """One armour layer from `<type> <percent>`, or `ABSENT` from `none`.
 
@@ -152,8 +176,34 @@ def _ask_constraints(hull_class: HullClass, hull: int | None) -> DesignConstrain
         if hull is not None
         else _ask_until_understood("Hull tonnage", partial(_read_hull_tons, hull_class))
     )
+
+    def ask_rating(question: str, drive: Drive, floor: int | None = None) -> int | None:
+        return _ask_until_understood(
+            question, partial(_read_rating, hull_class, hull_tons, drive, floor)
+        )
+
+    jump_rating = (
+        None
+        if hull_class is HullClass.SMALL_CRAFT
+        else ask_rating("Jump rating", Drive.JUMP)  # small craft carry no jump drive
+    )
+    maneuver_rating = ask_rating("Maneuver rating", Drive.MANEUVER)
+
+    floor = power_floor(hull_class, jump_rating, maneuver_rating)
+    power_question = (
+        "Power plant rating" if floor is None else f"Power plant rating (at least {floor})"
+    )
+    power_rating = ask_rating(power_question, Drive.POWER, floor)
+
     armor = _ask_until_understood("Armor", _read_armor)
-    return DesignConstraints(hull_class=hull_class, hull_tons=hull_tons, armor=armor)
+    return DesignConstraints(
+        hull_class=hull_class,
+        hull_tons=hull_tons,
+        jump_rating=jump_rating,
+        maneuver_rating=maneuver_rating,
+        power_rating=power_rating,
+        armor=armor,
+    )
 
 
 @app.command("generate")

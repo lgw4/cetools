@@ -21,8 +21,18 @@ from cetools.engine.ships import (
     load_design,
     loads_design,
 )
-from cetools.engine.ships.generator import _ARMOR_CHOICES, TonnageLedger, generate_ship
-from cetools.engine.ships.tables import DRIVE_COSTS, DRIVE_PERFORMANCE, HULLS
+from cetools.engine.ships.generator import (
+    _ARMOR_CHOICES,
+    TonnageLedger,
+    available_ratings,
+    generate_ship,
+)
+from cetools.engine.ships.tables import (
+    DRIVE_COSTS,
+    DRIVE_PERFORMANCE,
+    HULLS,
+    SMALL_CRAFT_HULLS,
+)
 
 _SMALL_CRAFT = DesignConstraints(hull_class=HullClass.SMALL_CRAFT)
 _CATALOGUE_NAMES = {entry.name for entry in SHIP_NAMES}
@@ -216,6 +226,170 @@ def test_pinned_armor_that_will_not_fit_leaves_the_ship_unarmored():
     )
 
     assert result.ship.design.armor == ()
+
+
+# --- Drives are pinned as ratings, resolved to the lightest code delivering them ---
+
+
+def test_pinned_jump_rating_installs_the_lightest_code_delivering_it():
+    """A referee asks for Jump-2, not for drive C. Several codes deliver a rating
+    on a hull; the lightest is chosen so the tonnage saved reaches the fuel."""
+    hull_tons = 400
+    result = generate_ship(
+        RandomRolls.seeded(3),
+        constraints=DesignConstraints(hull_tons=hull_tons, jump_rating=2),
+    )
+    ship = result.ship
+
+    assert ship.jump_rating == 2
+    assert ship.design.jump_code == min(
+        (c for c, r in DRIVE_PERFORMANCE.items() if r.get(hull_tons) == 2),
+        key=lambda c: DRIVE_COSTS[c].jump_tons,
+    )
+
+
+def test_pinned_maneuver_and_power_ratings_install_their_lightest_codes():
+    hull_tons = 400
+    result = generate_ship(
+        RandomRolls.seeded(3),
+        constraints=DesignConstraints(
+            hull_tons=hull_tons, jump_rating=1, maneuver_rating=2, power_rating=3
+        ),
+    )
+    ship = result.ship
+
+    assert ship.maneuver_rating == 2
+    assert ship.power_rating == 3
+    assert ship.design.maneuver_code == min(
+        (c for c, r in DRIVE_PERFORMANCE.items() if r.get(hull_tons) == 2),
+        key=lambda c: DRIVE_COSTS[c].maneuver_tons,
+    )
+    assert ship.design.power_code == min(
+        (c for c, r in DRIVE_PERFORMANCE.items() if r.get(hull_tons) == 3),
+        key=lambda c: DRIVE_COSTS[c].power_tons,
+    )
+
+
+def test_pinned_ratings_draw_no_dice():
+    recorder = RecordingRolls(RandomRolls.seeded(3))
+    generate_ship(
+        recorder,
+        constraints=DesignConstraints(
+            hull_tons=400, jump_rating=1, maneuver_rating=2, power_rating=3
+        ),
+    )
+
+    assert RollName.SHIP_JUMP_CODE not in recorder.drawn
+    assert RollName.SHIP_MANEUVER_CODE not in recorder.drawn
+    assert RollName.SHIP_POWER_CODE not in recorder.drawn
+
+
+def test_a_rating_not_tabulated_for_the_hull_is_rejected():
+    """Every starship hull happens to offer ratings 1-6 through some code, so the
+    rejected answer here is one no hull can deliver at all."""
+    with pytest.raises(ValueError, match="not tabulated for a 400-ton hull"):
+        generate_ship(
+            RandomRolls.seeded(3),
+            constraints=DesignConstraints(hull_tons=400, jump_rating=9),
+        )
+
+
+def test_a_pinned_jump_rating_keeps_fuel_for_a_complete_jump():
+    """FR-004's promise survives pinning: whatever rating ends up installed, the
+    ship carries fuel for one full jump at it."""
+    for seed in range(10):
+        for rating in (1, 2):
+            ship = generate_ship(
+                RandomRolls.seeded(seed),
+                constraints=DesignConstraints(hull_tons=400, jump_rating=rating),
+            ).ship
+            assert ship.assumed_jump_distance == ship.jump_rating
+            assert ship.jump_fuel == pytest.approx(0.1 * ship.hull_tons * ship.jump_rating)
+
+
+def test_a_jump_rating_the_hull_cannot_fuel_degrades_to_one_it_can():
+    """The pin is a ceiling, not a promise the tonnage can keep: Jump-6 on a
+    100-ton hull would need 60 tons of fuel on top of the drive. The ship still
+    carries fuel for a full jump at whatever rating it ends up with, and the
+    shortfall is recorded for reporting (#50)."""
+    ship = generate_ship(
+        RandomRolls.seeded(3),
+        constraints=DesignConstraints(hull_tons=100, jump_rating=6),
+    ).ship
+
+    assert ship.jump_rating < 6
+    assert ship.assumed_jump_distance == ship.jump_rating
+    assert ship.tonnage_used <= ship.hull_tons
+
+
+def test_available_ratings_widen_when_the_hull_is_unknown():
+    """What the wizard can offer before the hull is drawn: every rating any hull
+    of the class can deliver."""
+    for hull_class in HullClass:
+        widened = available_ratings(hull_class, None)
+        for hull_tons in (HULLS if hull_class is HullClass.STARSHIP else SMALL_CRAFT_HULLS):
+            assert set(available_ratings(hull_class, hull_tons)) <= set(widened)
+
+
+def test_a_small_craft_rating_no_fitting_drive_delivers_is_refused():
+    """Tabulated for the hull, but nothing delivering it leaves room for the
+    rest of the craft: a design that cannot exist, refused like an untabulated
+    hull rather than degraded."""
+    with pytest.raises(ValueError, match="delivers rating 6"):
+        generate_ship(
+            RandomRolls.seeded(7),
+            constraints=DesignConstraints(
+                hull_class=HullClass.SMALL_CRAFT, hull_tons=10, maneuver_rating=6
+            ),
+        )
+
+
+def test_a_jump_rating_pinned_on_a_small_craft_is_rejected():
+    """Legality the tables know at the point of input: small craft carry no jump
+    drive, so the answer is refused rather than quietly ignored (ADR-0001)."""
+    with pytest.raises(ValueError, match="small craft carry no jump drive"):
+        generate_ship(
+            RandomRolls.seeded(7),
+            constraints=DesignConstraints(hull_class=HullClass.SMALL_CRAFT, jump_rating=1),
+        )
+
+
+def test_small_craft_honours_pinned_maneuver_and_power_ratings():
+    """Seed 7 rolls a 1-G craft with a rating-2 plant on this hull, so 2 and 3
+    are visibly the answers rather than the dice."""
+    constraints = DesignConstraints(hull_class=HullClass.SMALL_CRAFT, hull_tons=40)
+    rolled = generate_ship(RandomRolls.seeded(7), constraints=constraints).ship
+
+    result = generate_ship(
+        RandomRolls.seeded(7),
+        constraints=DesignConstraints(
+            hull_class=HullClass.SMALL_CRAFT,
+            hull_tons=40,
+            maneuver_rating=2,
+            power_rating=3,
+        ),
+    )
+    ship = result.ship
+
+    assert (rolled.maneuver_rating, rolled.power_rating) == (1, 2)
+    assert ship.maneuver_rating == 2
+    assert ship.power_rating == 3
+
+
+def test_small_craft_pinned_ratings_draw_no_dice():
+    recorder = RecordingRolls(RandomRolls.seeded(7))
+    generate_ship(
+        recorder,
+        constraints=DesignConstraints(
+            hull_class=HullClass.SMALL_CRAFT,
+            hull_tons=40,
+            maneuver_rating=2,
+            power_rating=3,
+        ),
+    )
+
+    assert RollName.SHIP_MANEUVER_CODE not in recorder.drawn
+    assert RollName.SHIP_POWER_CODE not in recorder.drawn
 
 
 # --- ScriptedRolls pins a known component selection to an exact Ship ---
