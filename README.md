@@ -326,7 +326,9 @@ A randomly generated ship arrives already named, drawn from `generate_ship_name`
 
 Add `--toml` to emit a round-trippable design file instead of the description, and `--out` to write it to a file. Omit `--seed` to have one chosen for you and reported on stderr, so the run can be reproduced.
 
-**Exit codes**: `0` on success; `1` on a missing or malformed design file, an unknown hull size, or a rules-illegal design (e.g. a power plant rated below its drives), with the violated rule on stderr.
+A referee can ask for more than a hull can hold. Generation never fails on tonnage: the ship still comes back, and the answers it could not honour are listed on stderr with what was asked, what was got, and why. That is a degraded ship rather than a failure, so the command still exits `0` and stdout still carries a design a pipe can read. A rolled value that would not fit is dropped in silence, because it was a preference rather than a promise.
+
+**Exit codes**: `0` on success, including a ship that missed some of its constraints; `1` on a missing or malformed design file, an unknown hull size, or a rules-illegal design (e.g. a power plant rated below its drives), with the violated rule on stderr. Only tonnage shortfalls degrade; a design the builder rejects yields no ship at all.
 
 Output above is illustrative; generation is random unless `--seed` is given, so unseeded results will differ.
 
@@ -383,6 +385,27 @@ print(armored.ship.design.armor[0].type.value, bare.ship.design.armor)   # bonde
 ```
 
 A pinned value is validated against the full SRD tables, not the curated lists that keep rolled output plausible, so bonded superdense can be pinned even though no seed would ever produce it.
+
+When the hull cannot hold everything asked of it, the shortfalls come back on the result as records rather than as text to parse:
+
+```python
+from cetools.engine.ships import ArmorFit, ArmorType, DesignConstraints, generate_ship
+
+crowded = generate_ship(
+    RandomRolls.seeded(11),
+    constraints=DesignConstraints(
+        hull_tons=200,
+        jump_rating=2,
+        armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=30),
+        staterooms=8,
+    ),
+)
+
+for unmet in crowded.unmet:
+    print(unmet.field, unmet.asked, unmet.got)   # staterooms 8 7
+```
+
+Each record carries the `field` a caller can match against `DesignConstraints`, what was `asked`, what it `got`, and the `reason` it fell short.
 
 Drives are pinned the same way, as ratings: `jump_rating`, `maneuver_rating` and `power_rating` each resolve to the lightest code delivering that rating on the chosen hull. `available_ratings` reports what a hull can deliver, and `validate_rating` raises the same message a referee would see at the prompt. A pinned jump rating is a ceiling rather than a guarantee: if the hull cannot carry fuel for a complete jump at it, the rating degrades exactly as a drawn one would and the shortfall is recorded.
 

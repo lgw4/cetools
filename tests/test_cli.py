@@ -1203,6 +1203,76 @@ def test_ship_generate_interactive_none_pins_a_ship_with_no_name():
     assert loads_design(result.stdout).name == ""
 
 
+_OVERLOADED = [
+    "ship",
+    "generate",
+    "--interactive",
+    "--hull",
+    "200",
+    "--seed",
+    "11",
+]
+"""A session asking a 200-ton hull for more than it can hold."""
+
+_OVERLOADED_ANSWERS = dict(
+    skip=("hull",),
+    jump="2",
+    armor="crystaliron 30",
+    staterooms="8",
+    turrets="2\ntriple\npulse_laser\ntriple\npulse_laser",
+)
+
+
+def test_ship_generate_reports_unmet_constraints_on_stderr_and_still_exits_0():
+    """Generation never fails on tonnage: a real ship comes back, and the
+    referee is told plainly which answers it could not honour."""
+    result = runner.invoke(app, _OVERLOADED, input=_answers(**_OVERLOADED_ANSWERS))
+
+    assert result.exit_code == 0
+    assert "could not honour" in result.stderr
+    assert "staterooms" in result.stderr
+    assert "turrets" in result.stderr
+
+
+def test_ship_generate_unmet_report_names_what_was_asked_and_what_was_got():
+    result = runner.invoke(app, _OVERLOADED, input=_answers(**_OVERLOADED_ANSWERS))
+
+    assert "asked 8, got 7" in result.stderr
+    assert "t free" in result.stderr
+
+
+def test_ship_generate_unmet_constraints_never_reach_stdout():
+    """The ship on stdout stays a design a pipe can read."""
+    result = runner.invoke(app, _OVERLOADED + ["--toml"], input=_answers(**_OVERLOADED_ANSWERS))
+
+    assert result.exit_code == 0
+    assert "could not honour" not in result.stdout
+
+    from cetools.engine.ships import build_ship, loads_design
+
+    build_ship(loads_design(result.stdout))
+
+
+def test_ship_generate_says_nothing_when_every_constraint_is_honoured():
+    result = runner.invoke(app, ["ship", "generate", "--seed", "42"])
+
+    assert result.exit_code == 0
+    assert "could not honour" not in result.stderr
+
+
+def test_ship_generate_a_design_the_builder_rejects_still_exits_1_with_no_ship():
+    """Only tonnage shortfalls degrade. An illegal design yields no ship at all."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11"],
+        input=_answers(skip=("hull",), armor="crystaliron 7"),
+    )
+
+    assert result.exit_code == 1
+    assert not result.stdout.strip()
+    assert "armor must be added in 5% increments" in result.stderr
+
+
 def test_ship_generate_interactive_asks_for_a_turret_count_showing_its_default():
     result = runner.invoke(
         app,

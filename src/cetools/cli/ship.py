@@ -22,6 +22,7 @@ from cetools.engine.ships import (
     HullClass,
     ScreenFit,
     TurretPin,
+    UnmetConstraint,
     build_ship,
     dump_design,
     generate_ship,
@@ -371,6 +372,24 @@ def _ask_constraints(hull_class: HullClass, hull: int | None) -> DesignConstrain
     )
 
 
+def _report_unmet(unmet: tuple[UnmetConstraint, ...]) -> None:
+    """Say plainly which answers the tonnage could not honour.
+
+    On stderr and never on stdout, so a degraded ship still pipes; and without
+    an error exit, because a ship really was produced. A referee who is handed
+    a lesser ship in silence would believe they got what they asked for, which
+    is the whole reason the record exists (ADR-0001).
+    """
+    if not unmet:
+        return
+
+    typer.echo(f"could not honour {len(unmet)} constraint(s):", err=True)
+    for entry in unmet:
+        typer.echo(
+            f"  {entry.field}: asked {entry.asked}, got {entry.got} ({entry.reason})", err=True
+        )
+
+
 @app.command("generate")
 def generate(
     hull: Annotated[
@@ -414,6 +433,8 @@ def generate(
     except ValueError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1)
+
+    _report_unmet(result.unmet)
 
     ship = result.ship
 

@@ -167,6 +167,15 @@ class UnmetConstraint:
     reason: str
 
 
+def _tons(value: float) -> str:
+    """Tonnage for a reason string: whole numbers plain, fractions as they are.
+
+    Not `prose.tons`, which spells whole numbers as words for the description; a
+    shortfall is read as a number standing beside another number.
+    """
+    return f"{value:g}"
+
+
 class TonnageLedger:
     """The running tonnage budget the selection steps spend against.
 
@@ -204,6 +213,15 @@ class TonnageLedger:
     def decline(self, field: str, asked: str, got: str, reason: str) -> None:
         """Record that `field` could not have `asked`, what it got instead, and why."""
         self._declined.append(UnmetConstraint(field=field, asked=asked, got=got, reason=reason))
+
+    def decline_unaffordable(self, field: str, asked: str, cost: float) -> None:
+        """Record that `asked` needed `cost` tons the budget could not cover.
+
+        The commonest shortfall by far, and the arithmetic behind it is the
+        ledger's own, so the sentence is composed here once rather than at every
+        step that has to say it.
+        """
+        self.decline(field, asked, "none", f"needs {_tons(cost)}t, {_tons(self._remaining)}t free")
 
 
 @dataclass(frozen=True)
@@ -580,7 +598,7 @@ def _pin_or_draw[T](
         if ledger.affords(cost):
             ledger.spend(cost)
             return pinned
-        ledger.decline(field, asked(pinned), "none", f"needs {cost}t, {ledger.remaining}t free")
+        ledger.decline_unaffordable(field, asked(pinned), cost)
         return None
 
     return draw()
@@ -682,7 +700,7 @@ def _select_staterooms(rolls: Rolls, ledger: TonnageLedger, pinned: int | None) 
                 "staterooms",
                 str(pinned),
                 str(count),
-                f"needs {stateroom_tons * pinned}t, {ledger.remaining}t free",
+                f"needs {_tons(stateroom_tons * pinned)}t, {_tons(ledger.remaining)}t free",
             )
         ledger.spend(stateroom_tons * count)
         return count
@@ -731,13 +749,20 @@ def _select_fitting(
     )
 
 
-def _fit_turret(rolls: Rolls, ledger: TonnageLedger, pinned: TurretPin) -> TurretFit | None:
+def _fit_turret(
+    rolls: Rolls, ledger: TonnageLedger, pinned: TurretPin, ordinal: int, promised: bool
+) -> TurretFit | None:
     """One turret, taking the referee's answer for either half and drawing the rest.
 
     Returns `None` when the mount will not fit, which is how a turret has always
     been dropped. The weapon is drawn only once a mount is secured, so a dropped
     turret costs no weapon draw and the draw sequence is unchanged from before
     turrets could be pinned.
+
+    `promised` comes from the caller because only it knows whether this turret
+    was asked for at all: a count-only answer pins neither half, so the pin
+    itself cannot say. The tonnage the shortfall is measured in is only known
+    here, once a mount has been settled on.
     """
     if pinned.mount is not None:
         validate_turret_mount(pinned.mount)
@@ -747,6 +772,10 @@ def _fit_turret(rolls: Rolls, ledger: TonnageLedger, pinned: TurretPin) -> Turre
 
     mount = TURRET_MOUNTS[mount_name]
     if not ledger.affords(mount.tons):
+        # Only a *pinned* turret is a promise. A drawn one that will not fit has
+        # always been dropped in silence, and still is.
+        if promised:
+            ledger.decline_unaffordable("turrets", _turret_asked(ordinal, pinned), mount.tons)
         return None
 
     if pinned.weapon is not None:
@@ -792,14 +821,8 @@ def _select_turrets(
 
     turrets: list[TurretFit] = []
     for ordinal, pin in enumerate(wanted, 1):
-        turret = _fit_turret(rolls, ledger, pin)
+        turret = _fit_turret(rolls, ledger, pin, ordinal, promised=pinned is not None)
         if turret is None:
-            # Only a *pinned* turret is a promise. A drawn one that will not fit
-            # has always been dropped in silence, and still is.
-            if pinned is not None:
-                ledger.decline(
-                    "turret", _turret_asked(ordinal, pin), "none", "no tonnage left to mount it"
-                )
             continue
         turrets.append(turret)
         if len(turrets) >= hardpoints:
@@ -830,7 +853,7 @@ def _select_bay(
             return None, hardpoints_remaining
         tons = BAYS[pinned.kind].tons + BAY_FIRE_CONTROL_TONS
         if not ledger.affords(tons):
-            ledger.decline("bay", pinned.kind, "none", f"needs {tons}t, {ledger.remaining}t free")
+            ledger.decline_unaffordable("bay", pinned.kind, tons)
             return None, hardpoints_remaining
         ledger.spend(tons)
         return pinned, hardpoints_remaining - 1
@@ -882,32 +905,50 @@ def _small_craft_power_fuel(power_tons: float) -> float:
 
 
 def _pin_small_craft_drive(
-    candidates: list[str], hull_tons: int, drive: Drive, rating: int
+    candidates: list[str],
+    hull_tons: int,
+    drive: Drive,
+    rating: int,
+    ledger: TonnageLedger,
 ) -> str:
-    """The lightest of `candidates` delivering `rating`, or a refusal.
+    """The lightest of `candidates` delivering `rating`, degrading if none does.
 
-    `candidates` is already filtered for what fits, so an empty result means no
-    craft of this tonnage can carry a drive at that rating and still have room
-    for the rest of itself. That is the ADR's *illegal* outcome rather than its
-    *unmet* one—there is no degraded craft to hand back—so it is refused the way
-    an untabulated hull is, and the way this function's caller has always
-    refused a hull no drive combination suits.
+    `candidates` is already filtered for what fits, so an empty result at the
+    asked-for rating means the rating is tabulated for this hull but no drive
+    delivering it leaves room for the rest of the craft. That is a tonnage
+    shortfall, so it degrades and is recorded rather than refused: the referee
+    gets the best rating the hull can actually carry, and is told it is not the
+    one they asked for. The starship jump drive has always behaved this way.
     """
     validate_rating(HullClass.SMALL_CRAFT, hull_tons, drive, rating)
     code = _lightest_code_at(candidates, HullClass.SMALL_CRAFT, hull_tons, drive, rating)
-    if code is None:
-        raise ValueError(
-            f"no small-craft {drive.value} drive fitting a {hull_tons}-ton hull "
-            f"delivers rating {rating}"
-        )
-    return code
+    if code is not None:
+        return code
+
+    affordable = {SMALL_CRAFT_DRIVE_PERFORMANCE[c][hull_tons] for c in candidates}
+    below = [candidate for candidate in affordable if candidate < rating]
+    got = max(below) if below else min(affordable)
+    ledger.decline(
+        f"{drive.value}_rating",
+        str(rating),
+        str(got),
+        f"no {drive.value} drive delivering {rating} fits a {hull_tons}-ton hull",
+    )
+    fallback = _lightest_code_at(candidates, HullClass.SMALL_CRAFT, hull_tons, drive, got)
+    if fallback is None:
+        raise AssertionError(f"{got} came from {candidates} but no code delivers it")
+    return fallback
 
 
 def _select_small_craft_drives(
-    rolls: Rolls, hull_tons: int, constraints: DesignConstraints
+    rolls: Rolls, hull_tons: int, constraints: DesignConstraints, ledger: TonnageLedger
 ) -> tuple[str, str]:
     """Pick maneuver+power codes that fit the hull, reserving room for at least
     the smallest cockpit so `_select_cockpit` always has a legal candidate.
+
+    Takes the ledger only to record a degraded pin. Nothing is spent here: the
+    drives are priced against the hull directly, and what they cost is taken off
+    the budget by the caller once both are known.
 
     A pinned rating narrows the same candidate list rather than bypassing it, so
     the affordability filtering still holds. The power plant's floor needs no
@@ -937,7 +978,7 @@ def _select_small_craft_drives(
 
     if constraints.maneuver_rating is not None:
         maneuver_letter = _pin_small_craft_drive(
-            maneuver_candidates, hull_tons, Drive.MANEUVER, constraints.maneuver_rating
+            maneuver_candidates, hull_tons, Drive.MANEUVER, constraints.maneuver_rating, ledger
         )
     else:
         maneuver_letter = rolls.choose(maneuver_candidates, RollName.SHIP_MANEUVER_CODE)
@@ -945,7 +986,7 @@ def _select_small_craft_drives(
     options = power_options(maneuver_letter)
     if constraints.power_rating is not None:
         power_letter = _pin_small_craft_drive(
-            options, hull_tons, Drive.POWER, constraints.power_rating
+            options, hull_tons, Drive.POWER, constraints.power_rating, ledger
         )
     else:
         power_letter = rolls.choose(options, RollName.SHIP_POWER_CODE)
@@ -993,7 +1034,7 @@ def _select_small_craft_turret(
     mount = TURRET_MOUNTS[mount_name]
     if not ledger.affords(mount.tons):
         if pinned is not None:
-            ledger.decline("turret", _turret_asked(1, pin), "none", "no tonnage left to mount it")
+            ledger.decline_unaffordable("turrets", _turret_asked(1, pin), mount.tons)
         return ()
 
     if pin.weapon is not None:
@@ -1007,21 +1048,22 @@ def _select_small_craft_turret(
     return (TurretFit(mount=mount_name, weapons=(weapon,) * mount.weapon_slots),)
 
 
-def _generate_small_craft(rolls: Rolls, constraints: DesignConstraints) -> Ship:
+def _generate_small_craft(rolls: Rolls, constraints: DesignConstraints) -> GenerationResult:
     hull_tons = _select_small_craft_hull_tons(rolls, constraints.hull_tons)
     if constraints.jump_rating is not None:
         validate_rating(HullClass.SMALL_CRAFT, hull_tons, Drive.JUMP, constraints.jump_rating)
     if isinstance(constraints.bay, BayFit):
         raise ValueError("small craft carry no weapon bays, so no bay can be pinned")
     configuration = _select_configuration(rolls, constraints.configuration)
-    maneuver_code, power_code = _select_small_craft_drives(rolls, hull_tons, constraints)
+    ledger = TonnageLedger(hull_tons)
+    maneuver_code, power_code = _select_small_craft_drives(rolls, hull_tons, constraints, ledger)
     maneuver_letter, power_letter = maneuver_code[1:], power_code[1:]
 
     maneuver_tons = DRIVE_COSTS[maneuver_letter].maneuver_tons
     power_tons = DRIVE_COSTS[power_letter].power_tons
     power_fuel_tons = _small_craft_power_fuel(power_tons)
 
-    ledger = TonnageLedger(hull_tons - (maneuver_tons + power_tons + power_fuel_tons))
+    ledger.spend(maneuver_tons + power_tons + power_fuel_tons)
     cockpit = _select_cockpit(rolls, ledger)
 
     armor = _select_armor(rolls, hull_tons, ledger, constraints.armor)
@@ -1058,7 +1100,7 @@ def _generate_small_craft(rolls: Rolls, constraints: DesignConstraints) -> Ship:
         name=name,
         purpose=constraints.purpose,
     )
-    return build_ship(design)
+    return GenerationResult(ship=build_ship(design), unmet=ledger.declined)
 
 
 def generate_ship(
@@ -1096,7 +1138,7 @@ def generate_ship(
     rolls = rolls or RandomRolls()
 
     if constraints.hull_class is HullClass.SMALL_CRAFT:
-        return GenerationResult(ship=_generate_small_craft(rolls, constraints))
+        return _generate_small_craft(rolls, constraints)
 
     hull_tons = _select_hull_tons(rolls, constraints.hull_tons)
     configuration = _select_configuration(rolls, constraints.configuration)
@@ -1156,4 +1198,4 @@ def generate_ship(
         name=name,
         purpose=constraints.purpose,
     )
-    return GenerationResult(ship=build_ship(design))
+    return GenerationResult(ship=build_ship(design), unmet=ledger.declined)

@@ -1,6 +1,7 @@
 import json
 import math
 import time
+from dataclasses import fields
 
 import pytest
 
@@ -22,6 +23,7 @@ from cetools.engine.ships import (
     Ship,
     ShipDesign,
     TurretPin,
+    UnmetConstraint,
     build_ship,
     dump_design,
     load_design,
@@ -338,17 +340,24 @@ def test_available_ratings_widen_when_the_hull_is_unknown():
             assert set(available_ratings(hull_class, hull_tons)) <= set(widened)
 
 
-def test_a_small_craft_rating_no_fitting_drive_delivers_is_refused():
-    """Tabulated for the hull, but nothing delivering it leaves room for the
-    rest of the craft: a design that cannot exist, refused like an untabulated
-    hull rather than degraded."""
-    with pytest.raises(ValueError, match="delivers rating 6"):
-        generate_ship(
-            RandomRolls.seeded(7),
-            constraints=DesignConstraints(
-                hull_class=HullClass.SMALL_CRAFT, hull_tons=10, maneuver_rating=6
-            ),
-        )
+def test_a_small_craft_rating_no_fitting_drive_delivers_degrades_and_is_recorded():
+    """Tabulated for the hull, but nothing delivering it leaves room for the rest
+    of the craft.
+
+    That is a tonnage shortfall, so it degrades and is reported rather than
+    refused (#50): the referee gets the best rating the hull can carry and is
+    told it is not the one they asked for. This test asserted a refusal when
+    #46 wrote it; #50 owns the rule that generation never raises on tonnage.
+    """
+    result = generate_ship(
+        RandomRolls.seeded(7),
+        constraints=DesignConstraints(
+            hull_class=HullClass.SMALL_CRAFT, hull_tons=10, maneuver_rating=6
+        ),
+    )
+
+    assert result.ship.maneuver_rating < 6
+    assert [(entry.field, entry.asked) for entry in result.unmet] == [("maneuver_rating", "6")]
 
 
 def test_a_jump_rating_pinned_on_a_small_craft_is_rejected():
@@ -773,6 +782,88 @@ def test_unset_turrets_are_still_rolled():
         assert generate_ship(RandomRolls.seeded(seed)) == generate_ship(
             RandomRolls.seeded(seed), constraints=DesignConstraints(turrets=None)
         )
+
+
+# --- Unmet constraints reach the caller (#50) ---
+
+
+def _overloaded() -> GenerationResult:
+    """A 200-ton hull asked for more than it can hold.
+
+    Jump-2 and 30% crystaliron take most of the hull between them, leaving room
+    for seven of the eight staterooms and neither turret. The ticket's own
+    example (six staterooms, 20% armour) turns out to *fit* with 22 tons spare,
+    which is why the numbers here are larger than the prose suggests.
+    """
+    return generate_ship(
+        RandomRolls.seeded(11),
+        constraints=DesignConstraints(
+            hull_tons=200,
+            jump_rating=2,
+            armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=30),
+            staterooms=8,
+            turrets=(
+                TurretPin(mount="triple", weapon="pulse_laser"),
+                TurretPin(mount="triple", weapon="pulse_laser"),
+            ),
+        ),
+    )
+
+
+def test_a_pinned_value_that_will_not_fit_is_reported_on_the_result():
+    result = _overloaded()
+
+    assert result.unmet != ()
+    assert all(isinstance(entry, UnmetConstraint) for entry in result.unmet)
+
+
+def test_an_unmet_constraint_carries_the_field_what_was_asked_what_was_got_and_why():
+    """A library caller reads the record; nobody should parse a sentence."""
+    result = _overloaded()
+
+    assert [(entry.field, entry.asked, entry.got) for entry in result.unmet] == [
+        ("staterooms", "8", "7"),
+        ("turrets", "turret 1 (triple pulse_laser)", "none"),
+        ("turrets", "turret 2 (triple pulse_laser)", "none"),
+    ]
+    assert result.unmet[0].reason == "needs 32t, 30t free"
+
+    # Every `field` names an attribute a caller can match on the constraints.
+    known = {field.name for field in fields(DesignConstraints)}
+    assert all(entry.field in known for entry in result.unmet)
+
+
+def test_generation_still_yields_a_ship_when_constraints_go_unmet():
+    """Never fails on tonnage: a real, legal ship comes back regardless."""
+    result = _overloaded()
+
+    assert result.ship.hull_tons == 200
+    assert result.ship.tonnage_used <= result.ship.hull_tons
+
+
+def test_a_rolled_value_that_will_not_fit_is_still_declined_silently():
+    """A preference, not a promise: a sweep with nothing pinned reports nothing,
+    including the many seeds whose drawn components do not all fit."""
+    for seed in range(200):
+        assert generate_ship(RandomRolls.seeded(seed)).unmet == ()
+        assert generate_ship(RandomRolls.seeded(seed), constraints=_SMALL_CRAFT).unmet == ()
+
+
+def test_a_small_craft_reports_its_unmet_constraints_too():
+    """The smaller ruleset takes its own path; the report must come back from it."""
+    result = generate_ship(
+        RandomRolls.seeded(7),
+        constraints=DesignConstraints(
+            hull_class=HullClass.SMALL_CRAFT,
+            hull_tons=20,
+            staterooms=0,
+            fitting=ABSENT,
+            armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=5),
+            turrets=(TurretPin(mount="pop_up", weapon="sandcaster"),),
+        ),
+    )
+
+    assert [entry.field for entry in result.unmet] == ["turrets"]
 
 
 # --- ScriptedRolls pins a known component selection to an exact Ship ---
