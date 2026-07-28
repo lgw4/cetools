@@ -11,6 +11,7 @@ from cetools.engine.ships.generator import (
     Drive,
     GenerationResult,
     TonnageLedger,
+    TurretPin,
     UnmetConstraint,
     available_ratings,
     generate_ship,
@@ -18,6 +19,9 @@ from cetools.engine.ships.generator import (
     validate_electronics,
     validate_hull_tons,
     validate_rating,
+    validate_turret_count,
+    validate_turret_mount,
+    validate_turret_weapon,
 )
 from cetools.engine.ships.models import (
     AmmoFit,
@@ -70,6 +74,7 @@ __all__ = [
     "Tradition",
     "TonnageLedger",
     "TurretFit",
+    "TurretPin",
     "UNCONSTRAINED",
     "available_ratings",
     "UnmetConstraint",
@@ -84,4 +89,7 @@ __all__ = [
     "validate_electronics",
     "validate_hull_tons",
     "validate_rating",
+    "validate_turret_count",
+    "validate_turret_mount",
+    "validate_turret_weapon",
 ]

@@ -318,6 +318,8 @@ Drives are answered as *ratings* (Jump-2, 2-G) rather than as drive code letters
 
 The wizard walks the whole design in SRD build order: hull, configuration, the three drives, armour, computer, electronics, staterooms, fitting, weapon bay, screen, name and purpose. `purpose` is the exception to every rule here, because cetools never invents one: its prompt defaults to none rather than to a roll, and leaving it unanswered yields a ship without a purpose rather than a random one. At the staterooms prompt `none` means a deliberate zero, which is a different answer from letting the dice choose the count.
 
+Turrets are the one repeating question. Answering a count opens a mount and a weapon question for each turret in turn, both defaulting to random, so pinning the count and pressing Enter through the rest gives a ship with that many turrets and nothing else decided. A count above the hull's hardpoints is refused at the prompt, since hardpoints follow from a hull tonnage settled earlier in the session; with the hull left to the dice the count is taken on trust and ruled on by the hull it lands on.
+
 Armour is answered as a type and a percent of the hull, like `crystaliron 10`. Any type in the SRD table may be pinned, including ones generation would never roll for itself. Rules that live in `build_ship`, such as armour arriving in 5% increments, are not duplicated into the prompts: an answer that breaks one is accepted where it is typed and reported when the ship is assembled.
 
 A randomly generated ship arrives already named, drawn from `generate_ship_name`'s curated catalogue of mythology and folklore, written science fiction, and screen science fiction sources; a hand-authored design's own `name` is never overwritten.

@@ -21,6 +21,7 @@ from cetools.engine.ships import (
     FittingFit,
     HullClass,
     ScreenFit,
+    TurretPin,
     build_ship,
     dump_design,
     generate_ship,
@@ -30,6 +31,9 @@ from cetools.engine.ships import (
     validate_electronics,
     validate_hull_tons,
     validate_rating,
+    validate_turret_count,
+    validate_turret_mount,
+    validate_turret_weapon,
 )
 
 app = typer.Typer()
@@ -240,6 +244,54 @@ def _read_screen(answer: str) -> ScreenFit | Absent:
     return ABSENT if answer.lower() == _NONE else ScreenFit(kind=answer.lower())
 
 
+def _read_turret_mount(answer: str) -> str:
+    validate_turret_mount(answer.lower())
+    return answer.lower()
+
+
+def _read_turret_weapon(answer: str) -> str:
+    validate_turret_weapon(answer.lower())
+    return answer.lower()
+
+
+def _read_turret_count(hull_class: HullClass, hull_tons: int | None, answer: str) -> int:
+    """How many turrets to fit, where `none` is the deliberate unarmed ship.
+
+    A count above the hull's hardpoints is refused here when the hull is
+    settled, which it is by this point unless the referee left it to the dice.
+    """
+    if answer.lower() == _NONE:
+        return 0
+    try:
+        count = int(answer)
+    except ValueError:
+        raise ValueError(f"{answer} is not a number of turrets") from None
+    if count < 0:
+        raise ValueError(f"turrets cannot be negative, got {count}")
+    if hull_tons is not None:
+        validate_turret_count(hull_class, hull_tons, count)
+    return count
+
+
+def _ask_turrets(hull_class: HullClass, hull_tons: int | None) -> tuple[TurretPin, ...] | None:
+    """The turret count, then each turret's mount and weapon in turn.
+
+    The one repeating structure in the session. Answering the count opens the
+    inner questions; pressing Enter through them leaves that turret to chance,
+    which is how a count-only answer works without a mode of its own.
+    """
+    count = _ask_until_understood("Turrets", partial(_read_turret_count, hull_class, hull_tons))
+    if count is None:
+        return None
+
+    pins = []
+    for ordinal in range(1, count + 1):
+        mount = _ask_until_understood(f"Turret {ordinal} mount", _read_turret_mount)
+        weapon = _ask_until_understood(f"Turret {ordinal} weapon", _read_turret_weapon)
+        pins.append(TurretPin(mount=mount, weapon=weapon))
+    return tuple(pins)
+
+
 def _read_name(answer: str) -> str | Absent:
     """The ship's name, taken as written. `none` pins a ship with no name of its
     own, which is a different answer from letting the catalogue supply one.
@@ -293,6 +345,7 @@ def _ask_constraints(hull_class: HullClass, hull: int | None) -> DesignConstrain
     electronics = _ask_until_understood("Electronics", _read_electronics)
     staterooms = _ask_until_understood("Staterooms", _read_staterooms)
     fitting = _ask_until_understood("Fitting", _read_fitting)
+    turrets = _ask_turrets(hull_class, hull_tons)
     bay = _ask_until_understood("Weapon bay", _read_bay)
     screen = _ask_until_understood("Screen", _read_screen)
     name = _ask_until_understood("Name", _read_name)
@@ -310,6 +363,7 @@ def _ask_constraints(hull_class: HullClass, hull: int | None) -> DesignConstrain
         electronics=electronics,
         staterooms=staterooms,
         fitting=fitting,
+        turrets=turrets,
         bay=bay,
         screen=screen,
         name=name,

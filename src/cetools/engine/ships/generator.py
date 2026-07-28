@@ -26,7 +26,7 @@ outright.
 from __future__ import annotations
 
 import math
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from enum import Enum
 from operator import attrgetter
@@ -93,6 +93,23 @@ annotation can name and a reader can follow.
 
 
 @dataclass(frozen=True)
+class TurretPin:
+    """What a referee pinned about one turret; each half answers on its own.
+
+    Not a `TurretFit`, because a fit is a finished turret: it knows its mount
+    and carries a weapon in every slot the mount holds. A pin may name a weapon
+    while leaving the mount to chance, which is exactly the answer a referee
+    gives when they care about the beam lasers and not the housing.
+
+    A tuple of these *is* the turret count, so `()` pins an unarmed ship and a
+    tuple of empty pins asks for that many turrets with everything else rolled.
+    """
+
+    mount: str | None = None
+    weapon: str | None = None
+
+
+@dataclass(frozen=True)
 class DesignConstraints:
     """What a referee pinned; everything left unset is rolled.
 
@@ -118,6 +135,7 @@ class DesignConstraints:
     electronics: str | Absent | None = None
     staterooms: int | None = None
     fitting: FittingFit | Absent | None = None
+    turrets: tuple[TurretPin, ...] | None = None
     bay: BayFit | Absent | None = None
     screen: ScreenFit | Absent | None = None
     name: str | Absent | None = None
@@ -261,16 +279,57 @@ def validate_hull_tons(hull_class: HullClass, tons: int) -> None:
         raise ValueError(f"{tons} tons is not a tabulated hull size; valid: {sorted(HULLS)}")
 
 
-def validate_electronics(name: str) -> None:
-    """Raise `ValueError` unless `name` is a tabulated electronics package.
+def _validate_key(name: str, table: Mapping[str, object], what: str) -> None:
+    """Raise `ValueError` unless `name` is a key of `table`.
 
-    The sensor package is a bare table key rather than a component-fit record,
-    so nothing else would catch a typo before assembly. Exposed for the same
-    reason `validate_hull_tons` is: the wizard and a library caller earn the
-    same sentence for the same mistake.
+    Every value a referee can pin by name earns the same sentence, whether they
+    typed it at a prompt or a library caller passed it in a value. Component-fit
+    records make this check for themselves; these are the fields that arrive as
+    bare table keys with no record to rule on them.
     """
-    if name not in ELECTRONICS:
-        raise ValueError(f"unknown electronics package {name!r}; known: {sorted(ELECTRONICS)}")
+    if name not in table:
+        raise ValueError(f"unknown {what} {name!r}; known: {sorted(table)}")
+
+
+def validate_electronics(name: str) -> None:
+    """Raise `ValueError` unless `name` is a tabulated electronics package."""
+    _validate_key(name, ELECTRONICS, "electronics package")
+
+
+def validate_turret_mount(name: str) -> None:
+    """Raise `ValueError` unless `name` is a tabulated turret mount."""
+    _validate_key(name, TURRET_MOUNTS, "turret mount")
+
+
+def validate_turret_weapon(name: str) -> None:
+    """Raise `ValueError` unless `name` is a tabulated turret weapon."""
+    _validate_key(name, TURRET_WEAPONS, "turret weapon")
+
+
+def _hardpoints_for(hull_class: HullClass, hull_tons: int) -> int:
+    """How many turrets this hull can mount.
+
+    A starship gets one hardpoint per 100 tons; a small craft gets exactly one
+    however small it is, which is why the ruleset has to be named here—counting
+    a 40-ton launch by the starship rule would give it none at all.
+    """
+    if hull_class is HullClass.SMALL_CRAFT:
+        return 1
+    return hull_tons // 100
+
+
+def validate_turret_count(hull_class: HullClass, hull_tons: int, count: int) -> None:
+    """Raise `ValueError` unless this hull has hardpoints for `count` turrets.
+
+    Knowable at the point of input, unlike affordability: hardpoints follow from
+    the hull alone, which is settled before turrets are ever asked about.
+    """
+    hardpoints = _hardpoints_for(hull_class, hull_tons)
+    if count > hardpoints:
+        raise ValueError(
+            f"a {hull_tons}-ton {hull_class.value.replace('_', ' ')} has "
+            f"{hardpoints} hardpoint(s), so it cannot mount {count}"
+        )
 
 
 def _select_hull_tons(rolls: Rolls, pinned_tons: int | None) -> int:
@@ -672,19 +731,77 @@ def _select_fitting(
     )
 
 
-def _select_turrets(rolls: Rolls, hull_tons: int, ledger: TonnageLedger) -> tuple[TurretFit, ...]:
-    hardpoints = hull_tons // 100
-    turret_count = max(0, min(hardpoints, rolls.d6(RollName.SHIP_TURRET_COUNT) - 1))
+def _fit_turret(rolls: Rolls, ledger: TonnageLedger, pinned: TurretPin) -> TurretFit | None:
+    """One turret, taking the referee's answer for either half and drawing the rest.
+
+    Returns `None` when the mount will not fit, which is how a turret has always
+    been dropped. The weapon is drawn only once a mount is secured, so a dropped
+    turret costs no weapon draw and the draw sequence is unchanged from before
+    turrets could be pinned.
+    """
+    if pinned.mount is not None:
+        validate_turret_mount(pinned.mount)
+        mount_name = pinned.mount
+    else:
+        mount_name = rolls.choose(_TURRET_MOUNTS, RollName.SHIP_TURRET_MOUNT)
+
+    mount = TURRET_MOUNTS[mount_name]
+    if not ledger.affords(mount.tons):
+        return None
+
+    if pinned.weapon is not None:
+        validate_turret_weapon(pinned.weapon)
+        weapon = pinned.weapon
+    else:
+        weapon = rolls.choose(_TURRET_WEAPONS, RollName.SHIP_WEAPON)
+
+    ledger.spend(mount.tons)
+    return TurretFit(mount=mount_name, weapons=(weapon,) * mount.weapon_slots)
+
+
+def _turret_asked(ordinal: int, pin: TurretPin) -> str:
+    """What the referee asked for on one turret, as they put it.
+
+    A count-only answer pins neither half, so the record says which turret went
+    unfitted rather than naming parts nobody chose.
+    """
+    wanted = " ".join(part for part in (pin.mount, pin.weapon) if part is not None)
+    return f"turret {ordinal} ({wanted})" if wanted else f"turret {ordinal}"
+
+
+def _select_turrets(
+    rolls: Rolls,
+    hull_tons: int,
+    ledger: TonnageLedger,
+    pinned: tuple[TurretPin, ...] | None,
+) -> tuple[TurretFit, ...]:
+    """The ship's turrets: how many, and what each one is.
+
+    A pinned tuple carries both answers at once—its length is the count, and
+    each entry is what the referee said about that turret. `()` is an unarmed
+    ship, which is an answer rather than an unanswered question.
+    """
+    hardpoints = _hardpoints_for(HullClass.STARSHIP, hull_tons)
+
+    if pinned is not None:
+        validate_turret_count(HullClass.STARSHIP, hull_tons, len(pinned))
+        wanted: tuple[TurretPin, ...] = pinned
+    else:
+        drawn = max(0, min(hardpoints, rolls.d6(RollName.SHIP_TURRET_COUNT) - 1))
+        wanted = (TurretPin(),) * drawn
 
     turrets: list[TurretFit] = []
-    for _ in range(turret_count):
-        mount_name = rolls.choose(_TURRET_MOUNTS, RollName.SHIP_TURRET_MOUNT)
-        mount = TURRET_MOUNTS[mount_name]
-        if not ledger.affords(mount.tons):
+    for ordinal, pin in enumerate(wanted, 1):
+        turret = _fit_turret(rolls, ledger, pin)
+        if turret is None:
+            # Only a *pinned* turret is a promise. A drawn one that will not fit
+            # has always been dropped in silence, and still is.
+            if pinned is not None:
+                ledger.decline(
+                    "turret", _turret_asked(ordinal, pin), "none", "no tonnage left to mount it"
+                )
             continue
-        weapon = rolls.choose(_TURRET_WEAPONS, RollName.SHIP_WEAPON)
-        turrets.append(TurretFit(mount=mount_name, weapons=(weapon,) * mount.weapon_slots))
-        ledger.spend(mount.tons)
+        turrets.append(turret)
         if len(turrets) >= hardpoints:
             break
 
@@ -844,18 +961,50 @@ def _select_cockpit(rolls: Rolls, ledger: TonnageLedger) -> str:
 
 
 def _select_small_craft_turret(
-    rolls: Rolls, ledger: TonnageLedger, energy_cap: int
+    rolls: Rolls,
+    hull_tons: int,
+    ledger: TonnageLedger,
+    energy_cap: int,
+    pinned: tuple[TurretPin, ...] | None,
 ) -> tuple[TurretFit, ...]:
-    if rolls.d6(RollName.SHIP_TURRET_COUNT) <= 3:
-        return ()
-    mount_name = rolls.choose(_SMALL_CRAFT_TURRET_MOUNTS, RollName.SHIP_TURRET_MOUNT)
+    """The one turret a small craft may carry, drawn or pinned.
+
+    A separate path from the starship one because the craft has a single
+    hardpoint and its power plant caps energy weapons. A pin is honoured here
+    just the same: an answer the referee gave must not be quietly dropped for
+    having been given on the smaller ruleset.
+    """
+    if pinned is not None:
+        validate_turret_count(HullClass.SMALL_CRAFT, hull_tons, len(pinned))
+        if not pinned:
+            return ()
+        pin = pinned[0]
+    else:
+        if rolls.d6(RollName.SHIP_TURRET_COUNT) <= 3:
+            return ()
+        pin = TurretPin()
+
+    if pin.mount is not None:
+        validate_turret_mount(pin.mount)
+        mount_name = pin.mount
+    else:
+        mount_name = rolls.choose(_SMALL_CRAFT_TURRET_MOUNTS, RollName.SHIP_TURRET_MOUNT)
+
     mount = TURRET_MOUNTS[mount_name]
     if not ledger.affords(mount.tons):
+        if pinned is not None:
+            ledger.decline("turret", _turret_asked(1, pin), "none", "no tonnage left to mount it")
         return ()
-    weapon_choices = _TURRET_WEAPONS if energy_cap > 0 else _NON_ENERGY_TURRET_WEAPONS
-    weapon = rolls.choose(weapon_choices, RollName.SHIP_WEAPON)
+
+    if pin.weapon is not None:
+        validate_turret_weapon(pin.weapon)
+        weapon = pin.weapon
+    else:
+        weapon_choices = _TURRET_WEAPONS if energy_cap > 0 else _NON_ENERGY_TURRET_WEAPONS
+        weapon = rolls.choose(weapon_choices, RollName.SHIP_WEAPON)
+
     ledger.spend(mount.tons)
-    return (TurretFit(mount=mount_name, weapons=(weapon,)),)
+    return (TurretFit(mount=mount_name, weapons=(weapon,) * mount.weapon_slots),)
 
 
 def _generate_small_craft(rolls: Rolls, constraints: DesignConstraints) -> Ship:
@@ -882,7 +1031,7 @@ def _generate_small_craft(rolls: Rolls, constraints: DesignConstraints) -> Ship:
     fitting = _select_fitting(rolls, ledger, constraints.fitting)
 
     energy_cap = SMALL_CRAFT_ENERGY_CAPS[power_letter]
-    turrets = _select_small_craft_turret(rolls, ledger, energy_cap)
+    turrets = _select_small_craft_turret(rolls, hull_tons, ledger, energy_cap, constraints.turrets)
 
     # A screen is never *rolled* onto a small craft, but the rules permit one,
     # so a pinned screen is fitted rather than silently dropped. Passing ABSENT
@@ -981,9 +1130,9 @@ def generate_ship(
     electronics = _select_electronics(rolls, ledger, constraints.electronics)
     staterooms = _select_staterooms(rolls, ledger, constraints.staterooms)
     fitting = _select_fitting(rolls, ledger, constraints.fitting)
-    turrets = _select_turrets(rolls, hull_tons, ledger)
+    turrets = _select_turrets(rolls, hull_tons, ledger, constraints.turrets)
 
-    hardpoints_remaining = hull_tons // 100 - len(turrets)
+    hardpoints_remaining = _hardpoints_for(HullClass.STARSHIP, hull_tons) - len(turrets)
     bay, hardpoints_remaining = _select_bay(rolls, hardpoints_remaining, ledger, constraints.bay)
     screen = _select_screen(rolls, ledger, constraints.screen)
 

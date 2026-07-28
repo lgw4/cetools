@@ -21,6 +21,7 @@ from cetools.engine.ships import (
     ScreenFit,
     Ship,
     ShipDesign,
+    TurretPin,
     build_ship,
     dump_design,
     load_design,
@@ -601,6 +602,177 @@ def test_a_pinned_component_may_be_one_the_generator_would_never_roll():
 
     assert result.ship.design.fittings == (pinned,)
     assert "vehicle_hangar" not in _FITTING_CHOICES
+
+
+# --- Turrets: a count, and per turret a mount and a weapon ---
+
+
+def test_a_pinned_turret_count_of_zero_leaves_the_ship_unarmed():
+    """Zero is an answer: `None` rolls a count, `()` pins an unarmed ship."""
+    rolled = generate_ship(
+        RandomRolls.seeded(0), constraints=DesignConstraints(hull_tons=400)
+    ).ship
+    pinned = generate_ship(
+        RandomRolls.seeded(0), constraints=DesignConstraints(hull_tons=400, turrets=())
+    ).ship
+
+    assert rolled.design.turrets != ()
+    assert pinned.design.turrets == ()
+
+
+def test_a_pinned_count_alone_fits_that_many_turrets_and_rolls_their_details():
+    """Count-only: the inner questions were skipped, so mount and weapon still draw."""
+    recorder = RecordingRolls(RandomRolls.seeded(11))
+    result = generate_ship(
+        recorder,
+        constraints=DesignConstraints(hull_tons=2000, turrets=(TurretPin(), TurretPin())),
+    )
+
+    assert len(result.ship.design.turrets) == 2
+    assert RollName.SHIP_TURRET_COUNT not in recorder.drawn
+    assert recorder.drawn.count(RollName.SHIP_TURRET_MOUNT) == 2
+    assert recorder.drawn.count(RollName.SHIP_WEAPON) == 2
+
+
+def test_a_pinned_mount_and_weapon_are_fitted_and_draw_no_dice():
+    recorder = RecordingRolls(RandomRolls.seeded(11))
+    result = generate_ship(
+        recorder,
+        constraints=DesignConstraints(
+            hull_tons=2000,
+            turrets=(TurretPin(mount="triple", weapon="pulse_laser"),),
+        ),
+    )
+
+    (turret,) = result.ship.design.turrets
+    assert turret.mount == "triple"
+    assert turret.weapons == ("pulse_laser",) * 3
+    assert RollName.SHIP_TURRET_MOUNT not in recorder.drawn
+    assert RollName.SHIP_WEAPON not in recorder.drawn
+
+
+def test_a_pinned_weapon_may_ride_a_rolled_mount_and_the_reverse():
+    """Each half of a turret is answered on its own."""
+    weapon_only = generate_ship(
+        RandomRolls.seeded(11),
+        constraints=DesignConstraints(hull_tons=2000, turrets=(TurretPin(weapon="sandcaster"),)),
+    ).ship
+    mount_only = generate_ship(
+        RandomRolls.seeded(11),
+        constraints=DesignConstraints(hull_tons=2000, turrets=(TurretPin(mount="pop_up"),)),
+    ).ship
+
+    (weapon_turret,) = weapon_only.design.turrets
+    (mount_turret,) = mount_only.design.turrets
+    assert set(weapon_turret.weapons) == {"sandcaster"}
+    assert mount_turret.mount == "pop_up"
+
+
+def test_a_turret_count_above_the_hulls_hardpoints_is_rejected():
+    """Hardpoints follow from the hull, which is settled before turrets are asked."""
+    with pytest.raises(ValueError, match="a 100-ton starship has 1 hardpoint"):
+        generate_ship(
+            RandomRolls.seeded(11),
+            constraints=DesignConstraints(hull_tons=100, turrets=(TurretPin(), TurretPin())),
+        )
+
+
+def test_a_pinned_turret_the_budget_cannot_cover_is_declined():
+    """A hardpoint to mount it on, but no tonnage left to put in it."""
+    ship = generate_ship(
+        RandomRolls.seeded(11),
+        constraints=DesignConstraints(
+            hull_tons=200,
+            jump_rating=2,
+            # 45% of a 200-ton hull is 90 tons of crystaliron, which fits and
+            # leaves nothing behind it for even a 2-ton pop-up turret.
+            armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=45),
+            staterooms=0,
+            fitting=ABSENT,
+            turrets=(TurretPin(mount="pop_up", weapon="pulse_laser"),),
+        ),
+    ).ship
+
+    assert ship.hardpoints >= 1
+    assert ship.design.turrets == ()
+
+
+def test_a_small_craft_honours_a_pinned_turret_on_its_single_hardpoint():
+    """The smaller ruleset takes its own path, but an answer is still an answer."""
+    result = generate_ship(
+        RandomRolls.seeded(7),
+        constraints=DesignConstraints(
+            hull_class=HullClass.SMALL_CRAFT,
+            hull_tons=95,
+            turrets=(TurretPin(mount="single", weapon="sandcaster"),),
+        ),
+    )
+
+    (turret,) = result.ship.design.turrets
+    assert (turret.mount, turret.weapons) == ("single", ("sandcaster",))
+
+
+def test_a_small_craft_pinned_to_no_turrets_is_unarmed():
+    """Seed 4 arms this craft, so an unarmed one here can only be the answer."""
+    constraints = DesignConstraints(hull_class=HullClass.SMALL_CRAFT, hull_tons=95)
+    rolled = generate_ship(RandomRolls.seeded(4), constraints=constraints).ship
+    pinned = generate_ship(
+        RandomRolls.seeded(4),
+        constraints=DesignConstraints(hull_class=HullClass.SMALL_CRAFT, hull_tons=95, turrets=()),
+    ).ship
+
+    assert rolled.design.turrets != ()
+    assert pinned.design.turrets == ()
+
+
+def test_a_small_craft_turret_the_budget_cannot_cover_is_not_fitted():
+    """A 20-ton hull with armour on it has a hardpoint but no tonnage behind it.
+
+    The record of the shortfall is written to the ledger, which nothing reads
+    until #50; what is observable here is that the craft still builds.
+    """
+    ship = generate_ship(
+        RandomRolls.seeded(7),
+        constraints=DesignConstraints(
+            hull_class=HullClass.SMALL_CRAFT,
+            hull_tons=20,
+            staterooms=0,
+            fitting=ABSENT,
+            armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=5),
+            turrets=(TurretPin(mount="pop_up", weapon="sandcaster"),),
+        ),
+    ).ship
+
+    assert ship.design.turrets == ()
+    assert ship.tonnage_used <= ship.hull_tons
+
+
+def test_a_small_craft_has_one_hardpoint_however_small_it_is():
+    """Counted by the starship rule a 40-ton launch would have none at all."""
+    with pytest.raises(ValueError, match="a 40-ton small craft has 1 hardpoint"):
+        generate_ship(
+            RandomRolls.seeded(7),
+            constraints=DesignConstraints(
+                hull_class=HullClass.SMALL_CRAFT,
+                hull_tons=40,
+                turrets=(TurretPin(), TurretPin()),
+            ),
+        )
+
+    fitted = generate_ship(
+        RandomRolls.seeded(7),
+        constraints=DesignConstraints(
+            hull_class=HullClass.SMALL_CRAFT, hull_tons=40, turrets=(TurretPin(),)
+        ),
+    ).ship
+    assert len(fitted.design.turrets) == 1
+
+
+def test_unset_turrets_are_still_rolled():
+    for seed in range(20):
+        assert generate_ship(RandomRolls.seeded(seed)) == generate_ship(
+            RandomRolls.seeded(seed), constraints=DesignConstraints(turrets=None)
+        )
 
 
 # --- ScriptedRolls pins a known component selection to an exact Ship ---

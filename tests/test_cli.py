@@ -978,6 +978,7 @@ _QUESTIONS = (
     "electronics",
     "staterooms",
     "fitting",
+    "turrets",
     "bay",
     "screen",
     "name",
@@ -1200,6 +1201,122 @@ def test_ship_generate_interactive_none_pins_a_ship_with_no_name():
     from cetools.engine.ships import loads_design
 
     assert loads_design(result.stdout).name == ""
+
+
+def test_ship_generate_interactive_asks_for_a_turret_count_showing_its_default():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11"],
+        input=_answers(skip=("hull",)),
+    )
+    assert result.exit_code == 0
+    assert "Turrets [roll]:" in result.stderr
+
+
+def test_ship_generate_interactive_a_pinned_count_asks_for_each_turret_in_turn():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), turrets="2\ntriple\npulse_laser\nsingle\nsandcaster"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "Turret 1 mount [roll]:" in result.stderr
+    assert "Turret 1 weapon [roll]:" in result.stderr
+    assert "Turret 2 mount [roll]:" in result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    turrets = loads_design(result.stdout).turrets
+    assert [(t.mount, t.weapons) for t in turrets] == [
+        ("triple", ("pulse_laser",) * 3),
+        ("single", ("sandcaster",)),
+    ]
+
+
+def test_ship_generate_interactive_a_pinned_count_alone_asks_but_rolls_the_details():
+    """Enter through the inner questions and the count still holds."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), turrets="2\n\n\n\n"),
+    )
+    assert result.exit_code == 0, result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    assert len(loads_design(result.stdout).turrets) == 2
+
+
+def test_ship_generate_interactive_a_pinned_weapon_may_ride_a_rolled_mount():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), turrets="1\n\nsandcaster"),
+    )
+    assert result.exit_code == 0, result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    (turret,) = loads_design(result.stdout).turrets
+    assert set(turret.weapons) == {"sandcaster"}
+
+
+def test_ship_generate_interactive_none_turrets_leaves_the_ship_unarmed():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), turrets="none"),
+    )
+    assert result.exit_code == 0, result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    assert loads_design(result.stdout).turrets == ()
+
+
+def test_ship_generate_interactive_a_turret_count_is_taken_on_trust_when_the_hull_rolls():
+    """With the hull left to the dice the wizard cannot know the hardpoints yet,
+    so the count is accepted and the hull it lands on rules on it."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "11", "--toml"],
+        input=_answers(turrets="1\nsingle\nsandcaster"),
+    )
+    assert result.exit_code == 0, result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    assert len(loads_design(result.stdout).turrets) == 1
+
+
+def test_ship_generate_interactive_a_count_above_the_hardpoints_is_reasked():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11"],
+        input=_answers(skip=("hull",), turrets="5\nnone"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "a 200-ton starship has 2 hardpoint(s), so it cannot mount 5" in result.stderr
+    assert result.stderr.count("Turrets [roll]:") == 2
+
+
+@pytest.mark.parametrize(
+    "answers,reason",
+    [
+        ("1\nswivel\nsingle\npulse_laser", "unknown turret mount 'swivel'"),
+        ("1\nsingle\nbeam_laser\npulse_laser", "unknown turret weapon 'beam_laser'"),
+        ("lots\nnone", "lots is not a number of turrets"),
+        ("-1\nnone", "turrets cannot be negative"),
+    ],
+)
+def test_ship_generate_interactive_unknown_turret_parts_are_reasked(answers, reason):
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11"],
+        input=_answers(skip=("hull",), turrets=answers),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert reason in result.stderr
 
 
 def test_ship_generate_interactive_asks_for_each_drive_as_a_rating():
