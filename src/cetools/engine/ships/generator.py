@@ -109,10 +109,21 @@ class DesignConstraints:
 
     hull_class: HullClass = HullClass.STARSHIP
     hull_tons: int | None = None
+    configuration: Configuration | None = None
     jump_rating: int | None = None
     maneuver_rating: int | None = None
     power_rating: int | None = None
     armor: ArmorFit | Absent | None = None
+    computer: ComputerFit | Absent | None = None
+    electronics: str | Absent | None = None
+    staterooms: int | None = None
+    fitting: FittingFit | Absent | None = None
+    bay: BayFit | Absent | None = None
+    screen: ScreenFit | Absent | None = None
+    name: str | Absent | None = None
+    purpose: str | None = None
+    """Never rolled: cetools does not invent a ship's purpose, so unset means the
+    design carries none rather than a random one."""
 
 
 UNCONSTRAINED = DesignConstraints()
@@ -250,6 +261,18 @@ def validate_hull_tons(hull_class: HullClass, tons: int) -> None:
         raise ValueError(f"{tons} tons is not a tabulated hull size; valid: {sorted(HULLS)}")
 
 
+def validate_electronics(name: str) -> None:
+    """Raise `ValueError` unless `name` is a tabulated electronics package.
+
+    The sensor package is a bare table key rather than a component-fit record,
+    so nothing else would catch a typo before assembly. Exposed for the same
+    reason `validate_hull_tons` is: the wizard and a library caller earn the
+    same sentence for the same mistake.
+    """
+    if name not in ELECTRONICS:
+        raise ValueError(f"unknown electronics package {name!r}; known: {sorted(ELECTRONICS)}")
+
+
 def _select_hull_tons(rolls: Rolls, pinned_tons: int | None) -> int:
     if pinned_tons is not None:
         validate_hull_tons(HullClass.STARSHIP, pinned_tons)
@@ -257,7 +280,23 @@ def _select_hull_tons(rolls: Rolls, pinned_tons: int | None) -> int:
     return rolls.choose(sorted(HULLS), RollName.SHIP_HULL_SIZE)
 
 
-def _select_configuration(rolls: Rolls) -> Configuration:
+def _select_name(rolls: Rolls, pinned: str | Absent | None) -> str:
+    """The ship's name, drawn last on both paths so naming stays purely additive.
+
+    `ABSENT` pins a ship that carries no name of its own, which the description
+    renderer already understands: a blank name renders as an unnamed ship. That
+    is a different answer from leaving the field to the catalogue.
+    """
+    if pinned is ABSENT:
+        return ""
+    if isinstance(pinned, str):
+        return pinned
+    return generate_ship_name(rolls)
+
+
+def _select_configuration(rolls: Rolls, pinned: Configuration | None) -> Configuration:
+    if pinned is not None:
+        return pinned
     return rolls.choose(list(Configuration), RollName.SHIP_CONFIGURATION)
 
 
@@ -455,6 +494,39 @@ def _bridge_tons(hull_tons: int) -> int:
     raise AssertionError("BRIDGE_SIZES must end with an unbounded (None, tons) step")
 
 
+def _pin_or_draw[T](
+    pinned: T | Absent | None,
+    ledger: TonnageLedger,
+    field: str,
+    tons: Callable[[T], float],
+    asked: Callable[[T], str],
+    draw: Callable[[], T | None],
+) -> T | None:
+    """One optional component, resolved from the referee's answer or the dice.
+
+    The three states in one place, because every optional component answers them
+    identically: `ABSENT` fits nothing and draws nothing, a pinned value is
+    installed if the budget covers it and recorded as unmet if it does not, and
+    an unset field falls through to `draw`.
+
+    A pinned value's tonnage is the only thing checked here. Whether it is
+    *legal* was settled when the referee's answer became a component-fit record,
+    which validates its own kind against the SRD tables (FR-015).
+    """
+    if pinned is ABSENT:
+        return None
+
+    if pinned is not None:
+        cost = tons(pinned)
+        if ledger.affords(cost):
+            ledger.spend(cost)
+            return pinned
+        ledger.decline(field, asked(pinned), "none", f"needs {cost}t, {ledger.remaining}t free")
+        return None
+
+    return draw()
+
+
 def _armor_tons(hull_tons: int, fit: ArmorFit) -> float:
     return max(1.0, hull_tons * 0.05) * (fit.percent // 5)
 
@@ -479,46 +551,83 @@ def _select_armor(
     A pinned layer is validated by `build_ship` alone, so any SRD type may be
     pinned even though `_ARMOR_CHOICES` would never roll it: that list keeps
     *rolled* output plausible and was never a limit on intent (ADR-0001).
-
-    Both answers can fail to fit, and the difference is the whole rule: a pinned
-    layer that will not fit is recorded, a rolled one is dropped in silence.
     """
+
+    def draw() -> ArmorFit | None:
+        fit = rolls.choose(_ARMOR_CHOICES, RollName.SHIP_ARMOR)
+        if fit is None:
+            return None
+        return fit if _install_armor(fit, hull_tons, ledger) else None
+
+    return _pin_or_draw(
+        pinned,
+        ledger,
+        "armor",
+        tons=lambda fit: _armor_tons(hull_tons, fit),
+        asked=lambda fit: f"{fit.type.value} {fit.percent}%",
+        draw=draw,
+    )
+
+
+def _select_computer(rolls: Rolls, pinned: ComputerFit | Absent | None) -> ComputerFit | None:
+    """The computer costs no tonnage, so a pin is never declined—only fitted."""
     if pinned is ABSENT:
         return None
-
-    if isinstance(pinned, ArmorFit):
-        if _install_armor(pinned, hull_tons, ledger):
-            return pinned
-        ledger.decline(
-            "armor",
-            f"{pinned.type.value} {pinned.percent}%",
-            "none",
-            f"needs {_armor_tons(hull_tons, pinned)}t, {ledger.remaining}t free",
-        )
-        return None
-
-    fit = rolls.choose(_ARMOR_CHOICES, RollName.SHIP_ARMOR)
-    if fit is None:
-        return None
-    return fit if _install_armor(fit, hull_tons, ledger) else None
-
-
-def _select_computer(rolls: Rolls) -> ComputerFit | None:
+    if isinstance(pinned, ComputerFit):
+        return pinned
     return rolls.choose(_COMPUTER_PROFILES, RollName.SHIP_COMPUTER)
 
 
-def _select_electronics(rolls: Rolls, ledger: TonnageLedger) -> str | None:
-    name = rolls.choose(_ELECTRONICS_CHOICES, RollName.SHIP_ELECTRONICS)
-    if name == "standard":
-        return None
-    tons = ELECTRONICS[name].tons
-    if not ledger.affords(tons):
-        return None
-    ledger.spend(tons)
-    return name
+def _select_electronics(
+    rolls: Rolls, ledger: TonnageLedger, pinned: str | Absent | None
+) -> str | None:
+    """The sensor package, as a table key. `None` is the Standard package every
+    ship carries, which is what `ABSENT` pins and what a declined draw leaves."""
+
+    def draw() -> str | None:
+        name = rolls.choose(_ELECTRONICS_CHOICES, RollName.SHIP_ELECTRONICS)
+        if name == "standard":
+            return None
+        tons = ELECTRONICS[name].tons
+        if not ledger.affords(tons):
+            return None
+        ledger.spend(tons)
+        return name
+
+    if isinstance(pinned, str):
+        validate_electronics(pinned)
+
+    return _pin_or_draw(
+        pinned,
+        ledger,
+        "electronics",
+        tons=lambda name: ELECTRONICS[name].tons,
+        asked=str,
+        draw=draw,
+    )
 
 
-def _select_staterooms(rolls: Rolls, ledger: TonnageLedger) -> int:
+def _select_staterooms(rolls: Rolls, ledger: TonnageLedger, pinned: int | None) -> int:
+    """How many staterooms to fit.
+
+    Two-state, not three: a stateroom count of zero *is* the pinned absence, and
+    `None` still means roll. A count the budget cannot cover is clamped like a
+    drawn one, since the referee asked for rooms rather than for a specific ship.
+    """
+    stateroom_tons = QUARTERS["stateroom"].tons
+    if pinned is not None:
+        affordable = int(ledger.remaining // stateroom_tons) if stateroom_tons else 0
+        count = max(0, min(pinned, affordable))
+        if count < pinned:
+            ledger.decline(
+                "staterooms",
+                str(pinned),
+                str(count),
+                f"needs {stateroom_tons * pinned}t, {ledger.remaining}t free",
+            )
+        ledger.spend(stateroom_tons * count)
+        return count
+
     count = rolls.d6(RollName.SHIP_STATEROOMS) - 1
     stateroom_tons = QUARTERS["stateroom"].tons
     affordable = int(ledger.remaining // stateroom_tons) if stateroom_tons else 0
@@ -527,15 +636,40 @@ def _select_staterooms(rolls: Rolls, ledger: TonnageLedger) -> int:
     return count
 
 
-def _select_fitting(rolls: Rolls, ledger: TonnageLedger) -> FittingFit | None:
-    kind = rolls.choose(_FITTING_CHOICES, RollName.SHIP_FITTING)
-    if kind is None:
-        return None
-    tons = FITTINGS[kind].tons
-    if not ledger.affords(tons):
-        return None
-    ledger.spend(tons)
-    return FittingFit(kind=kind)
+def _fitting_tons(fit: FittingFit) -> float:
+    """What one fitting costs, mirroring the builder's own fittings step.
+
+    A vehicle-sized fitting (a hangar, a launch tube) is priced by the vehicle it
+    holds rather than by a fixed tonnage, so its table row carries no `tons` at
+    all. The generator would never roll one, but a referee may pin one.
+    """
+    row = FITTINGS[fit.kind]
+    if row.tons_per_vehicle_ton is not None:
+        return fit.vehicle_tons * row.tons_per_vehicle_ton * fit.quantity
+    return row.tons * fit.quantity
+
+
+def _select_fitting(
+    rolls: Rolls, ledger: TonnageLedger, pinned: FittingFit | Absent | None
+) -> FittingFit | None:
+    def draw() -> FittingFit | None:
+        kind = rolls.choose(_FITTING_CHOICES, RollName.SHIP_FITTING)
+        if kind is None:
+            return None
+        tons = FITTINGS[kind].tons
+        if not ledger.affords(tons):
+            return None
+        ledger.spend(tons)
+        return FittingFit(kind=kind)
+
+    return _pin_or_draw(
+        pinned,
+        ledger,
+        "fitting",
+        tons=_fitting_tons,
+        asked=lambda fit: fit.kind,
+        draw=draw,
+    )
 
 
 def _select_turrets(rolls: Rolls, hull_tons: int, ledger: TonnageLedger) -> tuple[TurretFit, ...]:
@@ -558,10 +692,32 @@ def _select_turrets(rolls: Rolls, hull_tons: int, ledger: TonnageLedger) -> tupl
 
 
 def _select_bay(
-    rolls: Rolls, hardpoints_remaining: int, ledger: TonnageLedger
+    rolls: Rolls,
+    hardpoints_remaining: int,
+    ledger: TonnageLedger,
+    pinned: BayFit | Absent | None,
 ) -> tuple[BayFit | None, int]:
     """Pick a bay only among kinds that fit both the remaining hardpoints and
-    tonnage (50 t plus fire control), so a chosen bay never needs correction."""
+    tonnage (50 t plus fire control), so a chosen bay never needs correction.
+
+    A pin faces the same hardpoint check as a draw: with none left there is
+    nowhere to mount it, which is a shortfall the referee should hear about
+    rather than a budget that would not stretch.
+    """
+    if pinned is ABSENT:
+        return None, hardpoints_remaining
+
+    if isinstance(pinned, BayFit):
+        if hardpoints_remaining <= 0:
+            ledger.decline("bay", pinned.kind, "none", "no hardpoint left to mount it")
+            return None, hardpoints_remaining
+        tons = BAYS[pinned.kind].tons + BAY_FIRE_CONTROL_TONS
+        if not ledger.affords(tons):
+            ledger.decline("bay", pinned.kind, "none", f"needs {tons}t, {ledger.remaining}t free")
+            return None, hardpoints_remaining
+        ledger.spend(tons)
+        return pinned, hardpoints_remaining - 1
+
     if hardpoints_remaining <= 0:
         return None, hardpoints_remaining
     candidates: tuple[str | None, ...] = (None,) + tuple(
@@ -574,15 +730,27 @@ def _select_bay(
     return BayFit(kind=kind), hardpoints_remaining - 1
 
 
-def _select_screen(rolls: Rolls, ledger: TonnageLedger) -> ScreenFit | None:
-    candidates: tuple[str | None, ...] = (None,) + tuple(
-        kind for kind, row in SCREENS.items() if ledger.affords(row.tons)
+def _select_screen(
+    rolls: Rolls, ledger: TonnageLedger, pinned: ScreenFit | Absent | None
+) -> ScreenFit | None:
+    def draw() -> ScreenFit | None:
+        candidates: tuple[str | None, ...] = (None,) + tuple(
+            kind for kind, row in SCREENS.items() if ledger.affords(row.tons)
+        )
+        kind = rolls.choose(candidates, RollName.SHIP_SCREEN)
+        if kind is None:
+            return None
+        ledger.spend(SCREENS[kind].tons)
+        return ScreenFit(kind=kind)
+
+    return _pin_or_draw(
+        pinned,
+        ledger,
+        "screen",
+        tons=lambda fit: SCREENS[fit.kind].tons,
+        asked=lambda fit: fit.kind,
+        draw=draw,
     )
-    kind = rolls.choose(candidates, RollName.SHIP_SCREEN)
-    if kind is None:
-        return None
-    ledger.spend(SCREENS[kind].tons)
-    return ScreenFit(kind=kind)
 
 
 def _select_small_craft_hull_tons(rolls: Rolls, pinned_tons: int | None) -> int:
@@ -694,7 +862,9 @@ def _generate_small_craft(rolls: Rolls, constraints: DesignConstraints) -> Ship:
     hull_tons = _select_small_craft_hull_tons(rolls, constraints.hull_tons)
     if constraints.jump_rating is not None:
         validate_rating(HullClass.SMALL_CRAFT, hull_tons, Drive.JUMP, constraints.jump_rating)
-    configuration = _select_configuration(rolls)
+    if isinstance(constraints.bay, BayFit):
+        raise ValueError("small craft carry no weapon bays, so no bay can be pinned")
+    configuration = _select_configuration(rolls, constraints.configuration)
     maneuver_code, power_code = _select_small_craft_drives(rolls, hull_tons, constraints)
     maneuver_letter, power_letter = maneuver_code[1:], power_code[1:]
 
@@ -706,15 +876,20 @@ def _generate_small_craft(rolls: Rolls, constraints: DesignConstraints) -> Ship:
     cockpit = _select_cockpit(rolls, ledger)
 
     armor = _select_armor(rolls, hull_tons, ledger, constraints.armor)
-    computer = _select_computer(rolls)
-    electronics = _select_electronics(rolls, ledger)
-    staterooms = _select_staterooms(rolls, ledger)
-    fitting = _select_fitting(rolls, ledger)
+    computer = _select_computer(rolls, constraints.computer)
+    electronics = _select_electronics(rolls, ledger, constraints.electronics)
+    staterooms = _select_staterooms(rolls, ledger, constraints.staterooms)
+    fitting = _select_fitting(rolls, ledger, constraints.fitting)
 
     energy_cap = SMALL_CRAFT_ENERGY_CAPS[power_letter]
     turrets = _select_small_craft_turret(rolls, ledger, energy_cap)
 
-    name = generate_ship_name(rolls)
+    # A screen is never *rolled* onto a small craft, but the rules permit one,
+    # so a pinned screen is fitted rather than silently dropped. Passing ABSENT
+    # for an unset field keeps this path drawing exactly what it always drew.
+    screen = _select_screen(rolls, ledger, constraints.screen or ABSENT)
+
+    name = _select_name(rolls, constraints.name)
 
     design = ShipDesign(
         hull_tons=hull_tons,
@@ -730,7 +905,9 @@ def _generate_small_craft(rolls: Rolls, constraints: DesignConstraints) -> Ship:
         staterooms=staterooms,
         fittings=(fitting,) if fitting is not None else (),
         turrets=turrets,
+        screens=(screen,) if screen is not None else (),
         name=name,
+        purpose=constraints.purpose,
     )
     return build_ship(design)
 
@@ -773,7 +950,7 @@ def generate_ship(
         return GenerationResult(ship=_generate_small_craft(rolls, constraints))
 
     hull_tons = _select_hull_tons(rolls, constraints.hull_tons)
-    configuration = _select_configuration(rolls)
+    configuration = _select_configuration(rolls, constraints.configuration)
     jump_code, maneuver_code, power_code = _select_drive_codes(rolls, hull_tons, constraints)
 
     maneuver_tons = DRIVE_COSTS[maneuver_code].maneuver_tons
@@ -800,17 +977,17 @@ def generate_ship(
     ledger.spend(0.1 * hull_tons * jump_distance)
 
     armor = _select_armor(rolls, hull_tons, ledger, constraints.armor)
-    computer = _select_computer(rolls)
-    electronics = _select_electronics(rolls, ledger)
-    staterooms = _select_staterooms(rolls, ledger)
-    fitting = _select_fitting(rolls, ledger)
+    computer = _select_computer(rolls, constraints.computer)
+    electronics = _select_electronics(rolls, ledger, constraints.electronics)
+    staterooms = _select_staterooms(rolls, ledger, constraints.staterooms)
+    fitting = _select_fitting(rolls, ledger, constraints.fitting)
     turrets = _select_turrets(rolls, hull_tons, ledger)
 
     hardpoints_remaining = hull_tons // 100 - len(turrets)
-    bay, hardpoints_remaining = _select_bay(rolls, hardpoints_remaining, ledger)
-    screen = _select_screen(rolls, ledger)
+    bay, hardpoints_remaining = _select_bay(rolls, hardpoints_remaining, ledger, constraints.bay)
+    screen = _select_screen(rolls, ledger, constraints.screen)
 
-    name = generate_ship_name(rolls)
+    name = _select_name(rolls, constraints.name)
 
     design = ShipDesign(
         hull_tons=hull_tons,
@@ -828,5 +1005,6 @@ def generate_ship(
         bays=(bay,) if bay is not None else (),
         screens=(screen,) if screen is not None else (),
         name=name,
+        purpose=constraints.purpose,
     )
     return GenerationResult(ship=build_ship(design))

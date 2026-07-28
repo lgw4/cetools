@@ -15,6 +15,7 @@ from cetools.engine.ships.generator import (
     available_ratings,
     generate_ship,
     power_floor,
+    validate_electronics,
     validate_hull_tons,
     validate_rating,
 )
@@ -80,6 +81,7 @@ __all__ = [
     "loads_design",
     "power_floor",
     "render_description",
+    "validate_electronics",
     "validate_hull_tons",
     "validate_rating",
 ]

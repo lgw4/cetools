@@ -11,9 +11,14 @@ from cetools.engine.ships import (
     UNCONSTRAINED,
     ArmorFit,
     ArmorType,
+    BayFit,
+    ComputerFit,
+    Configuration,
     DesignConstraints,
+    FittingFit,
     GenerationResult,
     HullClass,
+    ScreenFit,
     Ship,
     ShipDesign,
     build_ship,
@@ -23,6 +28,7 @@ from cetools.engine.ships import (
 )
 from cetools.engine.ships.generator import (
     _ARMOR_CHOICES,
+    _FITTING_CHOICES,
     TonnageLedger,
     available_ratings,
     generate_ship,
@@ -390,6 +396,211 @@ def test_small_craft_pinned_ratings_draw_no_dice():
 
     assert RollName.SHIP_MANEUVER_CODE not in recorder.drawn
     assert RollName.SHIP_POWER_CODE not in recorder.drawn
+
+
+# --- The rest of the scalar surface: every field pins, rolls or is left absent ---
+
+_PINS_AND_ROLLS = (
+    ("configuration", Configuration.STREAMLINED, RollName.SHIP_CONFIGURATION),
+    ("computer", ComputerFit(model=3), RollName.SHIP_COMPUTER),
+    ("electronics", "basic_military", RollName.SHIP_ELECTRONICS),
+    ("staterooms", 4, RollName.SHIP_STATEROOMS),
+    ("fitting", FittingFit(kind="laboratory"), RollName.SHIP_FITTING),
+    ("bay", BayFit(kind="particle"), RollName.SHIP_BAY),
+    ("screen", ScreenFit(kind="meson_screen"), RollName.SHIP_SCREEN),
+    ("name", "Wayfarer", RollName.SHIP_NAME),
+)
+"""Each constrainable field, a value to pin it to, and the draw it must displace."""
+
+
+@pytest.mark.parametrize(
+    "field,pinned,roll", _PINS_AND_ROLLS, ids=[f for f, _, _ in _PINS_AND_ROLLS]
+)
+def test_a_pinned_field_is_honoured_and_draws_no_dice(field, pinned, roll):
+    """One hull big enough for every pin here, so nothing is declined on tonnage."""
+    recorder = RecordingRolls(RandomRolls.seeded(11))
+    result = generate_ship(
+        recorder,
+        constraints=DesignConstraints(hull_tons=2000, **{field: pinned}),
+    )
+
+    assert roll not in recorder.drawn
+    assert _installed(result.ship, field) == pinned
+
+
+def _installed(ship, field):
+    """What the finished design carries for `field`, in the shape it was pinned."""
+    design = ship.design
+    singular = {
+        "armor": design.armor,
+        "fitting": design.fittings,
+        "bay": design.bays,
+        "screen": design.screens,
+    }
+    if field in singular:
+        return singular[field][0] if singular[field] else None
+    return getattr(design, field)
+
+
+@pytest.mark.parametrize(
+    "field,pinned,roll", _PINS_AND_ROLLS, ids=[f for f, _, _ in _PINS_AND_ROLLS]
+)
+def test_an_unset_field_is_still_rolled(field, pinned, roll):
+    """The other half of the no-dice pin: left unset, the draw is still made.
+
+    Without this, `test_a_pinned_field_is_honoured_and_draws_no_dice` would pass
+    just as well if the roll had been deleted outright.
+    """
+    recorder = RecordingRolls(RandomRolls.seeded(11))
+    generate_ship(recorder, constraints=DesignConstraints(hull_tons=2000, **{field: None}))
+
+    assert roll in recorder.drawn
+
+
+@pytest.mark.parametrize("field", ["computer", "electronics", "fitting", "bay", "screen"])
+def test_absent_pins_an_optional_component_away(field):
+    result = generate_ship(
+        RandomRolls.seeded(11),
+        constraints=DesignConstraints(hull_tons=2000, **{field: ABSENT}),
+    )
+
+    assert _installed(result.ship, field) is None
+
+
+def test_a_pinned_stateroom_count_of_zero_is_honoured():
+    """Zero is an answer, not a missing one: `None` rolls, `0` pins an empty ship."""
+    rolled = generate_ship(RandomRolls.seeded(11), constraints=DesignConstraints(hull_tons=2000))
+    pinned = generate_ship(
+        RandomRolls.seeded(11), constraints=DesignConstraints(hull_tons=2000, staterooms=0)
+    )
+
+    assert rolled.ship.design.staterooms > 0
+    assert pinned.ship.design.staterooms == 0
+
+
+def test_absent_pins_a_ship_with_no_name_of_its_own():
+    """A blank name is *no* name, which the renderer already understands, and is
+    a different answer from letting the catalogue supply one."""
+    rolled = generate_ship(RandomRolls.seeded(11)).ship
+    pinned = generate_ship(RandomRolls.seeded(11), constraints=DesignConstraints(name=ABSENT)).ship
+
+    assert rolled.design.name in _CATALOGUE_NAMES
+    assert pinned.design.name == ""
+
+
+def test_a_bay_pinned_on_a_small_craft_is_rejected():
+    """Small craft forbid bays outright, which the tables know at input."""
+    with pytest.raises(ValueError, match="small craft carry no weapon bays"):
+        generate_ship(
+            RandomRolls.seeded(7),
+            constraints=DesignConstraints(
+                hull_class=HullClass.SMALL_CRAFT, bay=BayFit(kind="particle")
+            ),
+        )
+
+
+def test_a_screen_pinned_on_a_small_craft_is_fitted():
+    """Never rolled onto a small craft, but the rules permit one, so a pinned
+    screen is fitted rather than silently dropped."""
+    pinned = ScreenFit(kind="nuclear_damper")
+
+    result = generate_ship(
+        RandomRolls.seeded(7),
+        constraints=DesignConstraints(
+            hull_class=HullClass.SMALL_CRAFT,
+            hull_tons=95,
+            # A screen is 50 tons, which only the largest craft with the
+            # smallest drives can spare; the rest of the budget is cleared so
+            # this tests the wiring rather than the arithmetic.
+            maneuver_rating=1,
+            power_rating=1,
+            armor=ABSENT,
+            fitting=ABSENT,
+            staterooms=0,
+            screen=pinned,
+        ),
+    )
+
+    assert result.ship.design.screens == (pinned,)
+
+
+def test_an_unset_screen_is_never_rolled_onto_a_small_craft():
+    """Honouring a pinned screen must not have turned screens into a draw."""
+    for seed in range(20):
+        recorder = RecordingRolls(RandomRolls.seeded(seed))
+        result = generate_ship(recorder, constraints=_SMALL_CRAFT)
+
+        assert RollName.SHIP_SCREEN not in recorder.drawn
+        assert result.ship.design.screens == ()
+
+
+def test_purpose_is_never_rolled_and_is_carried_when_pinned():
+    """The one field generation does not invent: unanswered leaves it unset."""
+    rolled = generate_ship(RandomRolls.seeded(11)).ship
+    pinned = generate_ship(
+        RandomRolls.seeded(11), constraints=DesignConstraints(purpose="a courier for the mails")
+    ).ship
+
+    assert rolled.design.purpose is None
+    assert pinned.design.purpose == "a courier for the mails"
+
+
+def test_a_pinned_stateroom_count_the_budget_cannot_cover_is_clamped():
+    """The referee asked for rooms, not for a specific ship, so an unaffordable
+    count is clamped like a drawn one rather than refused."""
+    ship = generate_ship(
+        RandomRolls.seeded(11),
+        constraints=DesignConstraints(hull_tons=100, staterooms=100),
+    ).ship
+
+    assert 0 <= ship.design.staterooms < 100
+    assert ship.tonnage_used <= ship.hull_tons
+
+
+def test_a_pinned_bay_with_no_hardpoint_left_is_declined():
+    """Seed 0 spends this hull's single hardpoint on a turret, so the bay has
+    nowhere to mount even though the tonnage might have covered it."""
+    ship = generate_ship(
+        RandomRolls.seeded(0),
+        constraints=DesignConstraints(hull_tons=100, bay=BayFit(kind="missile_bank")),
+    ).ship
+
+    assert ship.design.turrets
+    assert ship.design.bays == ()
+
+
+def test_a_pinned_bay_the_budget_cannot_cover_is_declined():
+    """A hardpoint free to mount it on, but not the 51 tons it needs.
+
+    Jump-3 and 15% crystaliron between them leave this hull under the bay's
+    tonnage, which is a different shortfall from having nowhere to mount it.
+    """
+    ship = generate_ship(
+        RandomRolls.seeded(11),
+        constraints=DesignConstraints(
+            hull_tons=300,
+            jump_rating=3,
+            staterooms=0,
+            fitting=ABSENT,
+            armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=15),
+            bay=BayFit(kind="particle"),
+        ),
+    ).ship
+
+    assert ship.hardpoints > len(ship.design.turrets)  # a hardpoint was free
+    assert ship.design.bays == ()
+
+
+def test_a_pinned_component_may_be_one_the_generator_would_never_roll():
+    """The curated lists bound rolled output, never intent (ADR-0001)."""
+    pinned = FittingFit(kind="vehicle_hangar", vehicle_tons=20)
+
+    result = generate_ship(
+        RandomRolls.seeded(11), constraints=DesignConstraints(hull_tons=2000, fitting=pinned)
+    )
+
+    assert result.ship.design.fittings == (pinned,)
+    assert "vehicle_hangar" not in _FITTING_CHOICES
 
 
 # --- ScriptedRolls pins a known component selection to an exact Ship ---

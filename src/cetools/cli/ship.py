@@ -13,15 +13,21 @@ from cetools.engine.ships import (
     Absent,
     ArmorFit,
     ArmorType,
+    BayFit,
+    ComputerFit,
+    Configuration,
     DesignConstraints,
     Drive,
+    FittingFit,
     HullClass,
+    ScreenFit,
     build_ship,
     dump_design,
     generate_ship,
     load_design,
     power_floor,
     render_description,
+    validate_electronics,
     validate_hull_tons,
     validate_rating,
 )
@@ -87,7 +93,9 @@ _NONE = "none"
 """Typed at a prompt, pins a component's *absence*—a different answer from Enter."""
 
 
-def _ask_until_understood[T](question: str, interpret: Callable[[str], T]) -> T | None:
+def _ask_until_understood[T](
+    question: str, interpret: Callable[[str], T], default_label: str = _ROLL
+) -> T | None:
     """Ask `question` until `interpret` accepts the answer, and return what it made.
 
     Generic in what `interpret` returns, so each field keeps its own type on the
@@ -96,9 +104,13 @@ def _ask_until_understood[T](question: str, interpret: Callable[[str], T]) -> T 
     Enter returns `None`, leaving the field to the dice. An answer `interpret`
     rejects is reported by the reason it raised and asked again, so a typo costs
     a line rather than the session.
+
+    `default_label` is what Enter is advertised to do. Every field rolls except
+    `purpose`, which is never rolled at all, so promising a roll there would be
+    a lie the referee only discovers in the output.
     """
     while True:
-        answer = _ask(question, _ROLL)
+        answer = _ask(question, default_label)
         if not answer:
             return None
         try:
@@ -165,6 +177,85 @@ def _read_armor(answer: str) -> ArmorFit | Absent:
     return ArmorFit(type=kind, percent=percent)  # rejects a non-positive percent
 
 
+def _read_configuration(answer: str) -> Configuration:
+    try:
+        return Configuration(answer.lower())
+    except ValueError:
+        known = sorted(shape.value for shape in Configuration)
+        raise ValueError(f"{answer} is not a known configuration; known: {known}") from None
+
+
+def _read_computer(answer: str) -> ComputerFit | Absent:
+    """The computer as a bare model number; `ComputerFit` rules on the model.
+
+    Software, hardening and jump control are out of scope for the wizard and
+    remain reachable through hand-authored TOML (#41, Out of Scope).
+    """
+    if answer.lower() == _NONE:
+        return ABSENT
+    try:
+        model = int(answer)
+    except ValueError:
+        raise ValueError(f"{answer} is not a computer model") from None
+    return ComputerFit(model=model)
+
+
+def _read_electronics(answer: str) -> str | Absent:
+    if answer.lower() == _NONE:
+        return ABSENT
+    validate_electronics(answer.lower())
+    return answer.lower()
+
+
+def _read_staterooms(answer: str) -> int:
+    """A count, where `none` is the deliberate zero rather than an absent answer."""
+    if answer.lower() == _NONE:
+        return 0
+    try:
+        count = int(answer)
+    except ValueError:
+        raise ValueError(f"{answer} is not a number of staterooms") from None
+    if count < 0:
+        raise ValueError(f"staterooms cannot be negative, got {count}")
+    return count
+
+
+def _read_fitting(answer: str) -> FittingFit | Absent:
+    """A fitting kind; `FittingFit` rules on whether it is one.
+
+    Quantity and vehicle tonnage are deliberately not askable (#41, Out of
+    Scope), so a vehicle-sized fitting is refused here by the record that needs
+    them and stays reachable through hand-authored TOML.
+    """
+    if answer.lower() == _NONE:
+        return ABSENT
+    return FittingFit(kind=answer.lower())
+
+
+def _read_bay(answer: str) -> BayFit | Absent:
+    return ABSENT if answer.lower() == _NONE else BayFit(kind=answer.lower())
+
+
+def _read_screen(answer: str) -> ScreenFit | Absent:
+    return ABSENT if answer.lower() == _NONE else ScreenFit(kind=answer.lower())
+
+
+def _read_name(answer: str) -> str | Absent:
+    """The ship's name, taken as written. `none` pins a ship with no name of its
+    own, which is a different answer from letting the catalogue supply one.
+
+    The shape rules `ShipDesign` applies to author prose—one line, single
+    spaces—are not repeated here. They live with the record that renders them,
+    and surface at assembly (ADR-0001).
+    """
+    return ABSENT if answer.lower() == _NONE else answer
+
+
+def _read_purpose(answer: str) -> str | None:
+    """The ship's purpose, which is never rolled: `none` and Enter agree here."""
+    return None if answer.lower() == _NONE else answer
+
+
 def _ask_constraints(hull_class: HullClass, hull: int | None) -> DesignConstraints:
     """Walk the referee through what they can pin, in SRD build order.
 
@@ -182,6 +273,8 @@ def _ask_constraints(hull_class: HullClass, hull: int | None) -> DesignConstrain
             question, partial(_read_rating, hull_class, hull_tons, drive, floor)
         )
 
+    configuration = _ask_until_understood("Configuration", _read_configuration)
+
     jump_rating = (
         None
         if hull_class is HullClass.SMALL_CRAFT
@@ -196,13 +289,31 @@ def _ask_constraints(hull_class: HullClass, hull: int | None) -> DesignConstrain
     power_rating = ask_rating(power_question, Drive.POWER, floor)
 
     armor = _ask_until_understood("Armor", _read_armor)
+    computer = _ask_until_understood("Computer model", _read_computer)
+    electronics = _ask_until_understood("Electronics", _read_electronics)
+    staterooms = _ask_until_understood("Staterooms", _read_staterooms)
+    fitting = _ask_until_understood("Fitting", _read_fitting)
+    bay = _ask_until_understood("Weapon bay", _read_bay)
+    screen = _ask_until_understood("Screen", _read_screen)
+    name = _ask_until_understood("Name", _read_name)
+    purpose = _ask_until_understood("Purpose", _read_purpose, default_label=_NONE)
+
     return DesignConstraints(
         hull_class=hull_class,
         hull_tons=hull_tons,
+        configuration=configuration,
         jump_rating=jump_rating,
         maneuver_rating=maneuver_rating,
         power_rating=power_rating,
         armor=armor,
+        computer=computer,
+        electronics=electronics,
+        staterooms=staterooms,
+        fitting=fitting,
+        bay=bay,
+        screen=screen,
+        name=name,
+        purpose=purpose,
     )
 
 
