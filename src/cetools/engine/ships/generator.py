@@ -904,6 +904,122 @@ def _small_craft_power_fuel(power_tons: float) -> float:
     return math.floor(power_tons / 3 * 10) / 10
 
 
+def _small_craft_codes_for(hull_tons: int) -> list[str]:
+    return sorted(
+        code for code, ratings in SMALL_CRAFT_DRIVE_PERFORMANCE.items() if hull_tons in ratings
+    )
+
+
+def _small_craft_power_codes(hull_tons: int, maneuver_letter: str) -> list[str]:
+    """The power plants a craft with this manoeuvre drive can still carry.
+
+    Two rules at once: a plant may not be rated below the drive it powers, and
+    the pair must leave room for at least the smallest cockpit. The small-craft
+    budget is tight enough that both have to be applied before choosing rather
+    than corrected afterwards.
+    """
+    maneuver_tons = DRIVE_COSTS[maneuver_letter].maneuver_tons
+    maneuver_rating = SMALL_CRAFT_DRIVE_PERFORMANCE[maneuver_letter][hull_tons]
+
+    options = []
+    for power_letter in _small_craft_codes_for(hull_tons):
+        if SMALL_CRAFT_DRIVE_PERFORMANCE[power_letter][hull_tons] < maneuver_rating:
+            continue
+        power_tons = DRIVE_COSTS[power_letter].power_tons
+        power_fuel = _small_craft_power_fuel(power_tons)
+        if maneuver_tons + power_tons + power_fuel + _MIN_COCKPIT_TONS <= hull_tons:
+            options.append(power_letter)
+    return options
+
+
+def small_craft_maneuver_ratings(hull_tons: int) -> tuple[int, ...]:
+    """Every manoeuvre rating a small craft of this tonnage can actually carry.
+
+    Narrower than what the drive table tabulates for the hull: a rating whose
+    every drive leaves no room for a plant and a cockpit beside it is not one
+    this craft can have. The wizard offers these so a referee is refused at the
+    manoeuvre prompt rather than at the power prompt that follows it, where
+    every answer would be wrong through no fault of their own.
+    """
+    return tuple(
+        sorted(
+            {
+                SMALL_CRAFT_DRIVE_PERFORMANCE[code][hull_tons]
+                for code in _small_craft_codes_for(hull_tons)
+                if _small_craft_power_codes(hull_tons, code)
+            }
+        )
+    )
+
+
+def small_craft_power_ratings(hull_tons: int, maneuver_rating: int) -> tuple[int, ...]:
+    """Every power plant rating a small craft at this manoeuvre rating can carry.
+
+    The wizard offers these rather than the ratings the hull can deliver at
+    large, because on this path the pair is chosen jointly: a manoeuvre drive
+    already fitted rules out plants that are too weak to power it or too heavy
+    to sit beside it. Exposed so the prompt and the selection step agree on what
+    is possible instead of the prompt promising more than generation can give.
+    """
+    ratings: set[int] = set()
+    for maneuver_letter in _small_craft_codes_for(hull_tons):
+        if SMALL_CRAFT_DRIVE_PERFORMANCE[maneuver_letter][hull_tons] != maneuver_rating:
+            continue
+        for power_letter in _small_craft_power_codes(hull_tons, maneuver_letter):
+            ratings.add(SMALL_CRAFT_DRIVE_PERFORMANCE[power_letter][hull_tons])
+    return tuple(sorted(ratings))
+
+
+def _energy_allowance(hull_tons: int, power_rating: int) -> int:
+    """How many energy weapons the lightest plant at this rating can run."""
+    code = _lightest_code_at(
+        _small_craft_codes_for(hull_tons),
+        HullClass.SMALL_CRAFT,
+        hull_tons,
+        Drive.POWER,
+        power_rating,
+    )
+    return SMALL_CRAFT_ENERGY_CAPS[code] if code is not None else 0
+
+
+def _exceeds_energy_allowance(allowance: int, weapon: str, mount: str | None) -> bool:
+    """Whether a turret of this mount, filled with this weapon, outruns the plant.
+
+    A mount carries the same weapon in every slot it has, so a triple mount asks
+    three times what a single one does. The builder counts installed energy
+    weapons against the cap; this counts the same way, because counting
+    differently is how a prompt comes to accept what assembly then refuses.
+    """
+    if not TURRET_WEAPONS[weapon].energy:
+        return False
+    slots = TURRET_MOUNTS[mount].weapon_slots if mount is not None else 1
+    return slots > allowance
+
+
+def validate_small_craft_weapon(
+    hull_tons: int, power_rating: int, weapon: str, mount: str | None = None
+) -> None:
+    """Raise `ValueError` if this craft's plant cannot run `weapon`.
+
+    A small craft's armament is capped by its power plant (SRD "Small Craft
+    Design"), so an energy weapon needs an allowance to spare. Only checkable
+    once the plant is known, which on this path means once the referee has
+    pinned its rating; when they have not, the same rule is applied at the point
+    of selection instead.
+    """
+    validate_turret_weapon(weapon)
+    if mount is not None:
+        validate_turret_mount(mount)
+
+    allowance = _energy_allowance(hull_tons, power_rating)
+    if _exceeds_energy_allowance(allowance, weapon, mount):
+        mounted = f"{weapon} in a {mount}" if mount is not None else weapon
+        raise ValueError(
+            f"a small craft's power plant at rating {power_rating} runs "
+            f"{allowance} energy weapon(s), so it cannot mount {mounted}"
+        )
+
+
 def _pin_small_craft_drive(
     candidates: list[str],
     hull_tons: int,
@@ -952,27 +1068,11 @@ def _select_small_craft_drives(
 
     A pinned rating narrows the same candidate list rather than bypassing it, so
     the affordability filtering still holds. The power plant's floor needs no
-    separate check here: `power_options` already drops anything rated below the
-    manoeuvre drive, so a power rating pinned beneath it finds no candidate.
+    separate check here: `_small_craft_power_codes` already drops anything rated
+    below the manoeuvre drive, so a power rating pinned beneath it finds none.
     """
-    valid = sorted(
-        c for c, ratings in SMALL_CRAFT_DRIVE_PERFORMANCE.items() if hull_tons in ratings
-    )
-
-    def power_options(maneuver_letter: str) -> list[str]:
-        maneuver_tons = DRIVE_COSTS[maneuver_letter].maneuver_tons
-        maneuver_rating = SMALL_CRAFT_DRIVE_PERFORMANCE[maneuver_letter][hull_tons]
-        options = []
-        for power_letter in valid:
-            if SMALL_CRAFT_DRIVE_PERFORMANCE[power_letter][hull_tons] < maneuver_rating:
-                continue
-            power_tons = DRIVE_COSTS[power_letter].power_tons
-            power_fuel = _small_craft_power_fuel(power_tons)
-            if maneuver_tons + power_tons + power_fuel + _MIN_COCKPIT_TONS <= hull_tons:
-                options.append(power_letter)
-        return options
-
-    maneuver_candidates = [c for c in valid if power_options(c)]
+    valid = _small_craft_codes_for(hull_tons)
+    maneuver_candidates = [c for c in valid if _small_craft_power_codes(hull_tons, c)]
     if not maneuver_candidates:
         raise ValueError(f"no small-craft drive combination fits a {hull_tons}-ton hull")
 
@@ -983,7 +1083,7 @@ def _select_small_craft_drives(
     else:
         maneuver_letter = rolls.choose(maneuver_candidates, RollName.SHIP_MANEUVER_CODE)
 
-    options = power_options(maneuver_letter)
+    options = _small_craft_power_codes(hull_tons, maneuver_letter)
     if constraints.power_rating is not None:
         power_letter = _pin_small_craft_drive(
             options, hull_tons, Drive.POWER, constraints.power_rating, ledger
@@ -1039,6 +1139,17 @@ def _select_small_craft_turret(
 
     if pin.weapon is not None:
         validate_turret_weapon(pin.weapon)
+        if _exceeds_energy_allowance(energy_cap, pin.weapon, mount_name):
+            # The plant this craft ended up with cannot run the weapon asked for.
+            # `build_ship` would refuse the design outright and cost the session
+            # a ship; declining the turret leaves a craft, and says why.
+            ledger.decline(
+                "turrets",
+                _turret_asked(1, pin),
+                "none",
+                f"the power plant runs {energy_cap} energy weapon(s)",
+            )
+            return ()
         weapon = pin.weapon
     else:
         weapon_choices = _TURRET_WEAPONS if energy_cap > 0 else _NON_ENERGY_TURRET_WEAPONS

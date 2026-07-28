@@ -33,8 +33,12 @@ from cetools.engine.ships.generator import (
     _ARMOR_CHOICES,
     _FITTING_CHOICES,
     TonnageLedger,
+    _energy_allowance,
     available_ratings,
     generate_ship,
+    small_craft_maneuver_ratings,
+    small_craft_power_ratings,
+    validate_small_craft_weapon,
 )
 from cetools.engine.ships.tables import (
     DRIVE_COSTS,
@@ -864,6 +868,106 @@ def test_a_small_craft_reports_its_unmet_constraints_too():
     )
 
     assert [entry.field for entry in result.unmet] == ["turrets"]
+
+
+# --- What a small-craft session may offer (#49) ---
+
+
+def test_small_craft_power_ratings_are_those_a_pinned_maneuver_leaves_room_for():
+    """The pair is chosen jointly on this path, so a manoeuvre pin narrows what
+    the power plant can still be: never below it, and never so heavy that the
+    two together leave no room for a cockpit.
+
+    A 15-ton hull is the clearest case. It can deliver ratings 1 through 6
+    through some drive, but a craft already carrying a 1-G manoeuvre drive has
+    room for a plant at only 1 or 2.
+    """
+    offered = small_craft_power_ratings(hull_tons=15, maneuver_rating=1)
+
+    assert offered == (1, 2)
+    assert set(offered) < set(available_ratings(HullClass.SMALL_CRAFT, 15))
+
+
+def test_small_craft_power_ratings_narrow_as_the_maneuver_pin_rises():
+    generous = small_craft_power_ratings(hull_tons=15, maneuver_rating=1)
+    demanding = small_craft_power_ratings(hull_tons=15, maneuver_rating=2)
+
+    assert generous == (1, 2)
+    assert demanding == (2,)
+
+
+def test_a_pinned_power_rating_a_maneuver_pin_forbids_is_reported():
+    """Offered and honoured agree: a rating this helper omits does not generate,
+    and the referee is told so rather than quietly given something else."""
+    forbidden = [
+        rating
+        for rating in available_ratings(HullClass.SMALL_CRAFT, 15)
+        if rating not in small_craft_power_ratings(hull_tons=15, maneuver_rating=1)
+    ]
+    assert forbidden
+
+    for rating in forbidden:
+        result = generate_ship(
+            RandomRolls.seeded(7),
+            constraints=DesignConstraints(
+                hull_class=HullClass.SMALL_CRAFT,
+                hull_tons=15,
+                maneuver_rating=1,
+                power_rating=rating,
+            ),
+        )
+        assert [entry.field for entry in result.unmet] == ["power_rating"], rating
+
+
+def test_small_craft_maneuver_ratings_are_those_the_craft_can_carry():
+    """Narrower than the drive table: a rating whose every drive leaves no room
+    for a plant beside it is not one this craft can have."""
+    carryable = small_craft_maneuver_ratings(40)
+
+    assert set(carryable) < set(available_ratings(HullClass.SMALL_CRAFT, 40))
+    assert all(small_craft_power_ratings(40, rating) for rating in carryable)
+
+
+def test_a_pinned_energy_weapon_the_plant_cannot_run_is_reported_not_raised():
+    """The plant is only known once chosen, so a weapon it cannot run is
+    declined there. `build_ship` would refuse the design and cost the session
+    its ship; a craft with no turret is still a craft."""
+    result = generate_ship(
+        RandomRolls.seeded(7),
+        constraints=DesignConstraints(
+            hull_class=HullClass.SMALL_CRAFT,
+            hull_tons=40,
+            maneuver_rating=1,
+            power_rating=1,
+            turrets=(TurretPin(mount="single", weapon="pulse_laser"),),
+        ),
+    )
+
+    assert result.ship.design.turrets == ()
+    assert [entry.field for entry in result.unmet] == ["turrets"]
+    assert "energy weapon" in result.unmet[0].reason
+
+
+def test_a_small_craft_plant_with_no_energy_allowance_forbids_an_energy_weapon():
+    """The weapon a small craft may carry is capped by its power plant, so the
+    check needs the plant the pinned rating resolves to."""
+    with pytest.raises(ValueError, match="runs 0 energy weapon"):
+        validate_small_craft_weapon(hull_tons=40, power_rating=1, weapon="pulse_laser")
+
+
+def test_a_small_craft_plant_with_an_allowance_permits_an_energy_weapon():
+    allowance = next(
+        rating
+        for rating in available_ratings(HullClass.SMALL_CRAFT, 40)
+        if _energy_allowance(40, rating)
+    )
+
+    validate_small_craft_weapon(hull_tons=40, power_rating=allowance, weapon="pulse_laser")
+
+
+def test_a_non_energy_weapon_needs_no_allowance():
+    for rating in available_ratings(HullClass.SMALL_CRAFT, 40):
+        validate_small_craft_weapon(hull_tons=40, power_rating=rating, weapon="sandcaster")
 
 
 # --- ScriptedRolls pins a known component selection to an exact Ship ---

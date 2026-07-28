@@ -29,9 +29,12 @@ from cetools.engine.ships import (
     load_design,
     power_floor,
     render_description,
+    small_craft_maneuver_ratings,
+    small_craft_power_ratings,
     validate_electronics,
     validate_hull_tons,
     validate_rating,
+    validate_small_craft_weapon,
     validate_turret_count,
     validate_turret_mount,
     validate_turret_weapon,
@@ -122,6 +125,64 @@ def _ask_until_understood[T](
             return interpret(answer)
         except ValueError as exc:
             typer.echo(str(exc), err=True)
+
+
+def _read_hull_class(answer: str) -> HullClass:
+    """Which ruleset the ship builds under, spelled either way a referee might.
+
+    The table keys the value `small_craft`, but nobody types an underscore at a
+    prompt, so a space reads the same.
+    """
+    try:
+        return HullClass(answer.lower().replace(" ", "_"))
+    except ValueError:
+        known = sorted(ruleset.value for ruleset in HullClass)
+        raise ValueError(f"{answer} is not a known hull class; known: {known}") from None
+
+
+def _read_maneuver_rating(hull_class: HullClass, hull_tons: int | None, answer: str) -> int:
+    """A manoeuvre rating, narrowed to what a small craft can actually carry.
+
+    The drive table tabulates ratings this hull could reach in isolation, but a
+    craft also needs a plant and a cockpit. Refusing here keeps the power prompt
+    that follows from having no acceptable answer at all.
+    """
+    rating = _read_rating(hull_class, hull_tons, Drive.MANEUVER, None, answer)
+
+    if hull_class is HullClass.SMALL_CRAFT and hull_tons is not None:
+        carryable = small_craft_maneuver_ratings(hull_tons)
+        if rating not in carryable:
+            raise ValueError(
+                f"a {hull_tons}-ton small craft cannot carry a {rating}-G drive and a "
+                f"power plant beside it; available: {list(carryable)}"
+            )
+    return rating
+
+
+def _read_power_rating(
+    hull_class: HullClass,
+    hull_tons: int | None,
+    floor: int | None,
+    maneuver_rating: int | None,
+    answer: str,
+) -> int:
+    """A power plant rating, narrowed on the small-craft path.
+
+    There the pair is chosen jointly, so a manoeuvre drive already pinned rules
+    out plants too weak to power it or too heavy to sit beside it. Offering a
+    rating generation would then have to decline would be promising more than
+    the hull can give.
+    """
+    rating = _read_rating(hull_class, hull_tons, Drive.POWER, floor, answer)
+
+    if hull_class is HullClass.SMALL_CRAFT and hull_tons is not None and maneuver_rating:
+        offered = small_craft_power_ratings(hull_tons, maneuver_rating)
+        if rating not in offered:
+            raise ValueError(
+                f"power rating {rating} is not available beside a {maneuver_rating}-G "
+                f"drive on a {hull_tons}-ton hull; available: {list(offered)}"
+            )
+    return rating
 
 
 def _read_hull_tons(hull_class: HullClass, answer: str) -> int:
@@ -255,6 +316,19 @@ def _read_turret_weapon(answer: str) -> str:
     return answer.lower()
 
 
+def _read_small_craft_weapon(
+    hull_tons: int, power_rating: int, mount: str | None, answer: str
+) -> str:
+    """A small craft's weapon, checked against the plant that has to run it.
+
+    The mount is known by now—it is asked first—and it decides how many of the
+    weapon the turret carries, which is what the plant's allowance is counted
+    against.
+    """
+    validate_small_craft_weapon(hull_tons, power_rating, answer.lower(), mount)
+    return answer.lower()
+
+
 def _read_turret_count(hull_class: HullClass, hull_tons: int | None, answer: str) -> int:
     """How many turrets to fit, where `none` is the deliberate unarmed ship.
 
@@ -274,21 +348,36 @@ def _read_turret_count(hull_class: HullClass, hull_tons: int | None, answer: str
     return count
 
 
-def _ask_turrets(hull_class: HullClass, hull_tons: int | None) -> tuple[TurretPin, ...] | None:
+def _ask_turrets(
+    hull_class: HullClass, hull_tons: int | None, power_rating: int | None
+) -> tuple[TurretPin, ...] | None:
     """The turret count, then each turret's mount and weapon in turn.
 
     The one repeating structure in the session. Answering the count opens the
     inner questions; pressing Enter through them leaves that turret to chance,
     which is how a count-only answer works without a mode of its own.
+
+    On a small craft the weapon is capped by the power plant, so the plant's
+    rating is needed here. It is only known if the referee pinned it; otherwise
+    the cap is applied when the weapon is drawn, as it always has been.
     """
     count = _ask_until_understood("Turrets", partial(_read_turret_count, hull_class, hull_tons))
     if count is None:
         return None
 
+    capped = (
+        hull_class is HullClass.SMALL_CRAFT and hull_tons is not None and power_rating is not None
+    )
+
     pins = []
     for ordinal in range(1, count + 1):
         mount = _ask_until_understood(f"Turret {ordinal} mount", _read_turret_mount)
-        weapon = _ask_until_understood(f"Turret {ordinal} weapon", _read_turret_weapon)
+        read_weapon = (
+            partial(_read_small_craft_weapon, hull_tons, power_rating, mount)
+            if capped
+            else _read_turret_weapon
+        )
+        weapon = _ask_until_understood(f"Turret {ordinal} weapon", read_weapon)
         pins.append(TurretPin(mount=mount, weapon=weapon))
     return tuple(pins)
 
@@ -309,12 +398,36 @@ def _read_purpose(answer: str) -> str | None:
     return None if answer.lower() == _NONE else answer
 
 
-def _ask_constraints(hull_class: HullClass, hull: int | None) -> DesignConstraints:
+def _ask_constraints(hull_class: HullClass | None, hull: int | None) -> DesignConstraints:
     """Walk the referee through what they can pin, in SRD build order.
 
     A value a flag already supplied pre-answers its question and that question
     is not asked, so flags and prompts never ask the same thing twice.
+
+    Hull class comes first because it governs the rest: it decides which hull
+    tonnages are tabulated, and which questions are worth asking at all. A small
+    craft carries no jump drive and no weapon bay, so a referee designing a
+    launch is never asked about either.
     """
+    if hull_class is None:
+        hull_class = (
+            _ask_until_understood(
+                "Hull class", _read_hull_class, default_label=HullClass.STARSHIP.value
+            )
+            or HullClass.STARSHIP
+        )
+    small_craft = hull_class is HullClass.SMALL_CRAFT
+
+    if hull is not None:
+        try:
+            validate_hull_tons(hull_class, hull)
+        except ValueError as exc:
+            # `--hull` pre-answers the question, but only with an answer this
+            # ruleset accepts. The referee chose the class a moment ago, so the
+            # flag is the stale half: say so and ask.
+            typer.echo(str(exc), err=True)
+            hull = None
+
     hull_tons = (
         hull
         if hull is not None
@@ -328,26 +441,27 @@ def _ask_constraints(hull_class: HullClass, hull: int | None) -> DesignConstrain
 
     configuration = _ask_until_understood("Configuration", _read_configuration)
 
-    jump_rating = (
-        None
-        if hull_class is HullClass.SMALL_CRAFT
-        else ask_rating("Jump rating", Drive.JUMP)  # small craft carry no jump drive
+    jump_rating = None if small_craft else ask_rating("Jump rating", Drive.JUMP)
+    maneuver_rating = _ask_until_understood(
+        "Maneuver rating", partial(_read_maneuver_rating, hull_class, hull_tons)
     )
-    maneuver_rating = ask_rating("Maneuver rating", Drive.MANEUVER)
 
     floor = power_floor(hull_class, jump_rating, maneuver_rating)
     power_question = (
         "Power plant rating" if floor is None else f"Power plant rating (at least {floor})"
     )
-    power_rating = ask_rating(power_question, Drive.POWER, floor)
+    power_rating = _ask_until_understood(
+        power_question,
+        partial(_read_power_rating, hull_class, hull_tons, floor, maneuver_rating),
+    )
 
     armor = _ask_until_understood("Armor", _read_armor)
     computer = _ask_until_understood("Computer model", _read_computer)
     electronics = _ask_until_understood("Electronics", _read_electronics)
     staterooms = _ask_until_understood("Staterooms", _read_staterooms)
     fitting = _ask_until_understood("Fitting", _read_fitting)
-    turrets = _ask_turrets(hull_class, hull_tons)
-    bay = _ask_until_understood("Weapon bay", _read_bay)
+    turrets = _ask_turrets(hull_class, hull_tons, power_rating)
+    bay = None if small_craft else _ask_until_understood("Weapon bay", _read_bay)
     screen = _ask_until_understood("Screen", _read_screen)
     name = _ask_until_understood("Name", _read_name)
     purpose = _ask_until_understood("Purpose", _read_purpose, default_label=_NONE)
@@ -424,7 +538,8 @@ def generate(
     hull_class = HullClass.SMALL_CRAFT if small_craft else HullClass.STARSHIP
 
     if interactive:
-        constraints = _ask_constraints(hull_class, hull)
+        # `--small-craft` pre-answers the hull class; without it the session asks.
+        constraints = _ask_constraints(hull_class if small_craft else None, hull)
     else:
         constraints = DesignConstraints(hull_class=hull_class, hull_tons=hull)
 

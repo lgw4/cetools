@@ -968,6 +968,7 @@ def test_ship_generate_small_craft_hull_100_out_of_range_exits_1():
 
 
 _QUESTIONS = (
+    "hull_class",
     "hull",
     "configuration",
     "jump",
@@ -992,9 +993,21 @@ question edits one line rather than every test that answers a later one.
 """
 
 
+_SMALL_CRAFT_SKIPS = ("jump", "bay")
+"""The questions a small-craft session never asks: the ruleset forbids both."""
+
 _ENTER_THROUGH = "\n" * (len(_QUESTIONS) + 2)
 """More Enters than the wizard has questions, so a test that means "take every
 default" keeps meaning that as later tickets add prompts."""
+
+
+def _small_craft_answers(*, skip: tuple[str, ...] = (), **given: str) -> str:
+    """Piped input for a session already known to be building a small craft.
+
+    `--small-craft` pre-answers the hull class, and the ruleset omits the jump
+    and bay questions, so those three slots are never asked for.
+    """
+    return _answers(skip=("hull_class",) + _SMALL_CRAFT_SKIPS + skip, **given)
 
 
 def _answers(*, skip: tuple[str, ...] = (), **given: str) -> str:
@@ -1271,6 +1284,155 @@ def test_ship_generate_a_design_the_builder_rejects_still_exits_1_with_no_ship()
     assert result.exit_code == 1
     assert not result.stdout.strip()
     assert "armor must be added in 5% increments" in result.stderr
+
+
+def test_ship_generate_interactive_asks_for_the_hull_class_first():
+    """It governs which questions follow, so it cannot be asked later."""
+    result = runner.invoke(
+        app, ["ship", "generate", "--interactive", "--seed", "11"], input=_answers()
+    )
+    assert result.exit_code == 0
+
+    asked = result.stderr
+    assert asked.startswith("Hull class [starship]:")
+    assert asked.index("Hull class") < asked.index("Hull tonnage")
+
+
+def test_ship_generate_interactive_small_craft_session_omits_jump_and_bay():
+    """The ruleset forbids both, so a referee designing a launch is not asked."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7"],
+        input=_answers(hull_class="small craft", skip=_SMALL_CRAFT_SKIPS),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "Jump rating" not in result.stderr
+    assert "Weapon bay" not in result.stderr
+    assert "Maneuver rating" in result.stderr
+
+
+def test_ship_generate_interactive_hull_class_answer_selects_the_small_craft_ruleset():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7", "--toml"],
+        input=_answers(hull_class="small craft", skip=_SMALL_CRAFT_SKIPS),
+    )
+    assert result.exit_code == 0, result.stderr
+
+    from cetools.engine.ships import HullClass, loads_design
+
+    assert loads_design(result.stdout).hull_class is HullClass.SMALL_CRAFT
+
+
+def test_ship_generate_interactive_small_craft_hull_tonnages_are_the_small_craft_table():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7", "--toml"],
+        input=_answers(hull_class="small craft", hull="200\n40", skip=_SMALL_CRAFT_SKIPS),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "200 tons is not a tabulated small-craft hull size" in result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    assert loads_design(result.stdout).hull_tons == 40
+
+
+def test_ship_generate_interactive_small_craft_flag_pre_answers_the_hull_class():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--small-craft", "--seed", "7"],
+        input=_small_craft_answers(),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "Hull class" not in result.stderr
+
+
+def test_ship_generate_interactive_unknown_hull_class_is_reasked_with_the_reason():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "11"],
+        input=_answers(hull_class="battleship\nstarship"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "battleship is not a known hull class" in result.stderr
+
+
+def test_ship_generate_interactive_small_craft_power_prompt_offers_what_the_maneuver_allows():
+    """A 15-ton craft with a 1-G drive has room for a plant at 1 or 2 only."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--small-craft", "--hull", "15", "--seed", "7"],
+        input=_small_craft_answers(skip=("hull",), maneuver="1", power="4\n2"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "power rating 4 is not available" in result.stderr
+    assert "[1, 2]" in result.stderr
+
+
+def test_ship_generate_interactive_small_craft_energy_weapon_beyond_the_plant_is_reasked():
+    """The craft's armament is capped by its power plant, and the prompt knows
+    the plant once its rating is pinned."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--small-craft", "--hull", "15", "--seed", "7"],
+        input=_small_craft_answers(
+            skip=("hull",),
+            maneuver="1",
+            power="1",
+            turrets="1\nsingle\npulse_laser\nsandcaster",
+        ),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "runs 0 energy weapon(s), so it cannot mount pulse_laser in a single" in result.stderr
+
+
+def test_ship_generate_interactive_small_craft_refuses_a_maneuver_the_craft_cannot_carry():
+    """Refused at its own prompt, so the power question that follows is never
+    left with no acceptable answer: a 40-ton craft has no 4-G option once a
+    plant and a cockpit have to sit beside the drive."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--small-craft", "--hull", "40", "--seed", "7"],
+        input=_small_craft_answers(skip=("hull",), maneuver="4\n2"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "cannot carry a 4-G drive and a power plant beside it" in result.stderr
+    assert "power rating" not in result.stderr  # the power prompt had real options
+
+
+def test_ship_generate_interactive_small_craft_energy_weapon_is_counted_per_slot():
+    """A triple carries three of the weapon, so a plant that runs one energy
+    weapon cannot fill it. Counting the mount's slots is what keeps the prompt
+    and `build_ship` agreeing."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--small-craft", "--hull", "40", "--seed", "7"],
+        input=_small_craft_answers(
+            skip=("hull",),
+            maneuver="1",
+            power="3",
+            turrets="1\ntriple\npulse_laser\nsandcaster",
+        ),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "cannot mount pulse_laser in a triple" in result.stderr
+
+
+def test_ship_generate_interactive_hull_flag_that_the_chosen_class_forbids_is_reasked():
+    """`--hull` pre-answers the tonnage, but the referee picks the ruleset after
+    the flag was written, so a stale pre-answer is reported and the question asked."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "200", "--seed", "7", "--toml"],
+        input=_answers(hull_class="small craft", hull="40", skip=_SMALL_CRAFT_SKIPS),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "200 tons is not a tabulated small-craft hull size" in result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    assert loads_design(result.stdout).hull_tons == 40
 
 
 def test_ship_generate_interactive_asks_for_a_turret_count_showing_its_default():
@@ -1649,7 +1811,7 @@ def test_ship_generate_interactive_small_craft_rejects_a_starship_tonnage():
     result = runner.invoke(
         app,
         ["ship", "generate", "--interactive", "--small-craft", "--seed", "7"],
-        input=_answers(hull="200\n40"),
+        input=_small_craft_answers(hull="200\n40"),
     )
     assert result.exit_code == 0
     assert "200 tons is not a tabulated small-craft hull size" in result.stderr
@@ -1680,7 +1842,7 @@ def test_ship_generate_interactive_small_craft_hull_flag_pre_answers_the_prompt(
     result = runner.invoke(
         app,
         ["ship", "generate", "--interactive", "--small-craft", "--hull", "40", "--seed", "7"],
-        input=_ENTER_THROUGH,
+        input=_small_craft_answers(skip=("hull",)),
     )
     assert result.exit_code == 0
     assert "Hull tonnage" not in result.stderr
