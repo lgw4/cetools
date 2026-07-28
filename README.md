@@ -374,7 +374,7 @@ print(result.ship.hull_tons, result.unmet)   # 400 ()
 
 `generate_ship` returns a `GenerationResult`, not a bare `Ship`: `result.ship` is the ship, and `result.unmet` reports any constraint the tonnage budget could not honour. Unconstrained generation has nothing to report, so `unmet` is empty.
 
-What a referee pins at the prompts, a library caller passes as a `DesignConstraints` value; the wizard is a thin layer over the same seam. Anything left unset is rolled, and a pinned value consumes no dice, so pinning one field does not shift the draws behind the others:
+What a referee pins at the prompts, a library caller passes as a `DesignConstraints` value; the wizard is a thin layer over the same seam. Anything left unset is rolled, and a pinned value consumes no dice. What that buys is that generation with no constraints draws exactly the sequence it always drew, so a seed keeps meaning what it meant. What it costs is that a pin resolving without a draw shifts every draw behind it: two runs on one seed differing in a single pin diverge completely downstream of that pin, so seed 42 below yields a different configuration and a different name once the hull is pinned.
 
 ```python
 from cetools.engine.ships import DesignConstraints, HullClass, generate_ship
