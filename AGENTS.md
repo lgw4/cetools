@@ -63,17 +63,3 @@ spaced. Rename a symbol and the docs that name it must move with it.
 
 - Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for all commit messages and PR titles (e.g., `feat: add X`, `fix: correct Y`, `docs: update Z`).
 - Run `uv run black . && uv run flake8 src tests && uv run pytest && uv run python scripts/check_docs.py` before committing. The `pytest` step includes coverage; the suite fails if coverage falls below 85%. The pre-push hooks run the same four.
-
-## Agent skills
-
-### Issue tracker
-
-Issues and PRDs live as GitHub issues in `lgw4/cetools`, driven by the gh CLI. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-The five canonical roles, used verbatim as label strings: needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context: `CONTEXT.md` at the repo root plus `docs/adr/`. See `docs/agents/domain.md`.

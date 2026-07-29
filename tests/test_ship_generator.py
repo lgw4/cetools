@@ -213,7 +213,7 @@ def test_pinned_armor_may_be_a_type_the_generator_would_never_roll():
     """The curated list keeps *rolled* output plausible; it never bounds intent.
 
     Bonded superdense is absent from `_ARMOR_CHOICES`, so no seed can produce
-    this ship by chance (ADR-0001, FR-018).
+    this ship by chance (FR-018).
     """
     pinned = ArmorFit(type=ArmorType.BONDED_SUPERDENSE, percent=5)
 
@@ -305,9 +305,9 @@ def test_a_pinned_power_plant_caps_the_drives_left_to_chance():
     Jump and manoeuvre are drawn before the plant is resolved, so drawing them
     from every code the hull takes let the dice pick drives the pinned plant
     could not run and `build_ship` refused the design outright—a rolled
-    preference invalidating a promise, which ADR-0001 forbids. Rating 1 is the
-    weakest a 400-ton hull tabulates, so every seed here has somewhere to go
-    wrong.
+    preference invalidating a promise, which is the wrong way round. Rating 1
+    is the weakest a 400-ton hull tabulates, so every seed here has somewhere
+    to go wrong.
     """
     for seed in range(40):
         ship = generate_ship(
@@ -321,7 +321,7 @@ def test_a_pinned_power_plant_caps_the_drives_left_to_chance():
 
 def test_a_pinned_drive_above_a_pinned_plant_is_still_the_referee_s_to_make():
     """Capping applies to the dice, not to the referee. Two pins that contradict
-    each other are a mistake `build_ship` owns the sentence for (ADR-0001); the
+    each other are a mistake `build_ship` owns the sentence for; the
     cap must not quietly rewrite one pin to suit the other."""
     with pytest.raises(ValueError, match="below required"):
         generate_ship(
@@ -399,7 +399,7 @@ def test_a_small_craft_rating_no_fitting_drive_delivers_degrades_and_is_recorded
 
 def test_a_jump_rating_pinned_on_a_small_craft_is_rejected():
     """Legality the tables know at the point of input: small craft carry no jump
-    drive, so the answer is refused rather than quietly ignored (ADR-0001)."""
+    drive, so the answer is refused rather than quietly ignored."""
     with pytest.raises(ValueError, match="small craft carry no jump drive"):
         generate_ship(
             RandomRolls.seeded(7),
@@ -639,7 +639,7 @@ def test_a_pinned_bay_the_budget_cannot_cover_is_declined():
 
 
 def test_a_pinned_component_may_be_one_the_generator_would_never_roll():
-    """The curated lists bound rolled output, never intent (ADR-0001)."""
+    """The curated lists bound rolled output, never intent."""
     pinned = FittingFit(kind="vehicle_hangar", vehicle_tons=20)
 
     result = generate_ship(
@@ -766,7 +766,7 @@ def test_a_pinned_multi_slot_mount_caps_the_weapon_left_to_chance():
     mount can never ask for more than one energy weapon—but a *pinned* triple
     can, and the weapon was still drawn on whether the plant ran any energy
     weapon at all. The pin was legal and the roll broke it, which is the wrong
-    way round (ADR-0001).
+    way round.
     """
     for seed in range(40):
         ship = generate_ship(
@@ -1622,7 +1622,7 @@ def test_sc008_ship_name_is_the_final_draw_and_is_drawn_exactly_once_on_both_pat
 
 
 def test_a_pinned_hull_tonnage_draws_no_dice_on_either_path():
-    """Pinning spends an answer, not a roll (ADR-0001).
+    """Pinning spends an answer, not a roll.
 
     `RecordingRolls` is the only way to see this: the ship alone cannot say
     whether the hull was drawn and discarded or never drawn at all, and the
