@@ -1926,7 +1926,7 @@ def test_ship_generate_interactive_malformed_armor_answers_are_reasked_with_the_
 def test_ship_generate_interactive_armor_percent_rule_surfaces_at_assembly_not_the_prompt():
     """The multiple-of-5 rule lives in `build_ship` and is deliberately not
     duplicated outward, so 7% is accepted at the prompt and rejected on
-    assembly (ADR-0001).
+    assembly.
 
     Since #51 that refusal is a question rather than an exit: the armour prompt
     comes back, and answering it legally yields a ship.

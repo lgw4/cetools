@@ -85,7 +85,7 @@ An optional-component field is three-state, and a plain `X | None` cannot carry
 it: `None` already means "unset, roll it", so reusing it for "do not fit one"
 silently turns a deliberate answer into a random one. That confusion is the
 whole reason the `none` keyword exists at the prompt, so the value it produces
-has to be distinguishable from an unanswered question (FR, ADR-0001).
+has to be distinguishable from an unanswered question.
 
 An `Enum` of one member rather than a bare `object()`, so it is a *type* an
 annotation can name and a reader can follow.
@@ -157,8 +157,7 @@ class UnmetConstraint:
     was free at the moment of the decision is gone.
 
     A *rolled* value that will not fit is declined silently and produces none of
-    these—it was a preference, not a promise. See
-    `docs/adr/0001-constrained-ship-generation.md`.
+    these—it was a preference, not a promise.
     """
 
     field: str
@@ -512,13 +511,13 @@ def _select_drive_codes(
 
     A pinned rating resolves without a draw, so the codes left to chance shift
     down the roll stream. That is the documented cost of pinning consuming no
-    dice (ADR-0001): two runs on one seed diverge below the first pin.
+    dice: two runs on one seed diverge below the first pin.
 
     A pinned power rating is *not* floored at the drives the referee also pinned:
     two pins that contradict each other are a mistake `build_ship` owns the
     sentence for, and duplicating that rule here would make this a second
     authority on it. But the drives left to *chance* are capped at the pinned
-    plant, because a pin is a promise and a roll is only a preference (ADR-0001).
+    plant, because a pin is a promise and a roll is only a preference.
     Drawing them from every code the hull takes let the dice hand the builder a
     design it had to refuse, costing the referee a ship over an answer they never
     gave. A pinned rating is tabulated for the hull, so a code delivers it
@@ -633,7 +632,7 @@ def _select_armor(
 
     A pinned layer is validated by `build_ship` alone, so any SRD type may be
     pinned even though `_ARMOR_CHOICES` would never roll it: that list keeps
-    *rolled* output plausible and was never a limit on intent (ADR-0001).
+    *rolled* output plausible and was never a limit on intent.
     """
 
     def draw() -> ArmorFit | None:

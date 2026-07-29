@@ -223,7 +223,7 @@ def _read_armor(answer: str) -> ArmorFit | Absent:
 
     Any SRD type may be pinned, including ones generation would never roll. The
     multiple-of-5 rule is *not* checked here: it lives in `build_ship` and is
-    deliberately not duplicated outward, so it surfaces at assembly (ADR-0001).
+    deliberately not duplicated outward, so it surfaces at assembly.
     """
     if answer.lower() == _NONE:
         return ABSENT
@@ -391,7 +391,7 @@ def _read_name(answer: str) -> str | Absent:
 
     The shape rules `ShipDesign` applies to author prose—one line, single
     spaces—are not repeated here. They live with the record that renders them,
-    and surface at assembly (ADR-0001).
+    and surface at assembly.
     """
     return ABSENT if answer.lower() == _NONE else answer
 
@@ -613,7 +613,7 @@ def _report_unmet(unmet: tuple[UnmetConstraint, ...]) -> None:
     On stderr and never on stdout, so a degraded ship still pipes; and without
     an error exit, because a ship really was produced. A referee who is handed
     a lesser ship in silence would believe they got what they asked for, which
-    is the whole reason the record exists (ADR-0001).
+    is the whole reason the record exists.
     """
     if not unmet:
         return
