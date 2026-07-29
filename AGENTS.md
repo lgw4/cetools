@@ -59,8 +59,6 @@ or `AGENTS.md` no longer exists, if a README Python
 example stops running, if the module map misses an engine module, or if a dash is
 spaced. Rename a symbol and the docs that name it must move with it.
 
-When writing Python code, consult any matching `fluent-python:*` skills as appropriate.
-
 ## PR instructions
 
 - Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for all commit messages and PR titles (e.g., `feat: add X`, `fix: correct Y`, `docs: update Z`).
