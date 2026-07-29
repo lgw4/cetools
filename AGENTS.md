@@ -1,14 +1,8 @@
 # AGENTS.md
 
-## Project layout
-
-- Package source: `src/cetools/`
-- Tests: `tests/`, mirroring the package structure (e.g. `src/cetools/foo.py` -> `tests/test_foo.py`)
-- Dependencies and project metadata: `pyproject.toml`, managed with `uv`
-
 ## Setup
 
-```bash
+```shell
 uv sync
 ```
 
@@ -18,7 +12,7 @@ Installs the project and all dependencies (including dev dependencies) into `.ve
 
 After `uv sync`, install the pre-push quality gate hooks (one-time per clone):
 
-```bash
+```shell
 uv run pre-commit install --hook-type pre-push
 ```
 
@@ -26,19 +20,19 @@ This installs hooks that run isort, Black, flake8, and pytest automatically befo
 
 If a push is rejected because of unsorted imports, fix them with:
 
-```bash
+```shell
 uv run isort .
 ```
 
 To deliberately update pinned hook revisions:
 
-```bash
+```shell
 uv run pre-commit autoupdate
 ```
 
 ## Running tests
 
-```bash
+```shell
 uv run pytest
 ```
 
@@ -46,7 +40,7 @@ Coverage is measured automatically. The suite fails if `src/cetools` coverage dr
 
 Run a single file or test (no coverage enforcement on partial runs):
 
-```bash
+```shell
 uv run pytest tests/test_foo.py --no-cov
 uv run pytest tests/test_foo.py::test_bar -v --no-cov
 ```
@@ -64,6 +58,8 @@ The docs check fails if a backticked symbol in `README.md`, `CONTRIBUTING.md`
 or `AGENTS.md` no longer exists, if a README Python
 example stops running, if the module map misses an engine module, or if a dash is
 spaced. Rename a symbol and the docs that name it must move with it.
+
+When writing Python code, consult any matching `fluent-python:*` skills as appropriate.
 
 ## PR instructions
 
