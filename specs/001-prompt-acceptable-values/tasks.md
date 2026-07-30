@@ -228,70 +228,70 @@ tonnage and read the `on some starship hull` qualifier; reach the empty form thr
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T024 [P] [US2] Rewrite the hull-tonnage, jump/manoeuvre/power-rating and turret-count prompt
+- [X] T024 [P] [US2] Rewrite the hull-tonnage, jump/manoeuvre/power-rating and turret-count prompt
       assertions in `tests/test_cli.py` (including `Power plant rating (at least N)` at lines 1791,
       1802 and 1820, `Hull tonnage [roll]:` at 1960 and 2007, and the `Turrets [roll]:` assertions at
       1275, 1647 and 1734) to the narrowed and unnarrowed forms of contracts/prompt-contract.md §4,
       with the floor clause inside the same parentheses **where the pinned drives establish one**
       (FR-013) and absent where none is pinned; run and observe them fail
-- [ ] T025 [P] [US2] Add refusal-notation tests in `tests/test_cli.py` for the numeric prompts
+- [X] T025 [P] [US2] Add refusal-notation tests in `tests/test_cli.py` for the numeric prompts
       (FR-016, trap 2). A refused hull tonnage names `valid: 100-1000 by 100, 1200-2000 by 200,
       3000-5000 by 1000`; a refused rating on a 400-ton hull names `available: 1-6`; a refused
       turret count on a 200-ton hull names `available: 1-2, none`, where its message names no set at
       all today. Assert the collapsed notation, not merely that a set appears—the reason sentences
       are unchanged, so the existing assertions at 1536, 1633, 1733, 2006 and 2030 stay green and
       these are what must go red; run and observe them fail
-- [ ] T026 [P] [US2] Add the unnarrowed turret-count tests in `tests/test_cli.py` (FR-011, trap 3):
+- [X] T026 [P] [US2] Add the unnarrowed turret-count tests in `tests/test_cli.py` (FR-011, trap 3):
       with Enter at hull tonnage the prompt reads `Turrets (1-50 on some starship hull, none)
       [roll]: ` on a starship and `Turrets (1 on some small craft hull, none) [roll]: ` on a small
       craft, and a count of `51` is **refused** with `available: 1-50, none` and the question asked
       again—where today it is accepted, no count being checked without a pinned tonnage; run and
       observe them fail
-- [ ] T027 [P] [US2] Add a test in `tests/test_cli.py` driving the one session that reaches an empty
+- [X] T027 [P] [US2] Add a test in `tests/test_cli.py` driving the one session that reaches an empty
       narrowed set (research.md Decision 9): Enter at hull tonnage, pin a manoeuvre rating, revise
       `hull tons` to 10 and revise `power rating`. Assert
       `Power plant rating (a 10-ton hull can carry none, at least 6) [roll]: `, that it names no
       value, and that a typed answer is **refused with that same reason** rather than accepted
       (FR-012); run and observe it fail
-- [ ] T028 [P] [US2] Rewrite the revise-prompt assertion in `tests/test_cli.py` to the sixteen
+- [X] T028 [P] [US2] Rewrite the revise-prompt assertion in `tests/test_cli.py` to the sixteen
       spaced names of contract §3, and add `_read_fields` acceptance tests for all four forms—
       `hull class, hull tons`, `hull class hull tons`, `hull_class hull_tons`, and mixed case—plus
       a rejection naming the unknown answer; run and observe them fail
 
 ### Implementation for User Story 2
 
-- [ ] T029 [US2] Add the three narrowing phrasings to the prompt composition in
+- [X] T029 [US2] Add the three narrowing phrasings to the prompt composition in
       `src/cetools/cli/ship.py`: bare values when a tonnage is pinned (FR-010), the
       `on some {ruleset} hull` qualifier when it was left to the dice (FR-011), and the
       `a {n}-ton hull can carry none` form naming no value when the set is empty (FR-012)—and make
       an empty set refuse every typed answer with that same reason
-- [ ] T030 [US2] Route the numeric readers in `src/cetools/cli/ship.py`—`_read_hull_tons`,
+- [X] T030 [US2] Route the numeric readers in `src/cetools/cli/ship.py`—`_read_hull_tons`,
       `_read_rating` and its two narrowing wrappers, `_read_turret_count`—through T018's helper so
       each checks membership against its accessor first and raises the reason with the set rendered
       by `prompts.numbers` (FR-016). Keep each engine sentence word for word and change only the set
       beside it; the engine's own messages keep their bare lists for library callers (research.md
       Decision 3). The power-plant **floor** refusal is not a set refusal and is left alone
-- [ ] T031 [US2] Compose the hull-tonnage question in `src/cetools/cli/ship.py` from
+- [X] T031 [US2] Compose the hull-tonnage question in `src/cetools/cli/ship.py` from
       `hull_tonnages(hull_class)` through `prompts.numbers`, so a starship reads
       `100-1000 by 100, 1200-2000 by 200, 3000-5000 by 1000` and a small craft reads `10-95 by 5`
       (FR-009, FR-005)
-- [ ] T032 [US2] Compose the jump, manoeuvre and power-plant rating questions in
+- [X] T032 [US2] Compose the jump, manoeuvre and power-plant rating questions in
       `src/cetools/cli/ship.py` from `available_ratings`, `small_craft_maneuver_ratings` and
       `small_craft_power_ratings`, choosing the phrasing by narrowing state, and keep `power_floor`'s
       clause inside the same parentheses in all three states **when it returns a floor**, omitting it
       when it returns `None` (FR-013). The sets are computed where the question is asked, so a
       question re-asked after a revised tonnage names the new set (FR-010)
-- [ ] T033 [US2] Compose the turret-count question in `_ask_turrets` in `src/cetools/cli/ship.py`
+- [X] T033 [US2] Compose the turret-count question in `_ask_turrets` in `src/cetools/cli/ship.py`
       from `hardpoints(hull_class, hull_tons)` with `none` last, passing the tonnage through
       unpinned so the unnarrowed form names the ruleset maximum with its qualifier; make
       `_read_turret_count` refuse a count above the named maximum **in both states**, which is the
       `hull_tons is not None` guard at ship.py:349 going away. Narrow each turret's weapon set with
       `small_craft_weapons(hull_tons, power_rating, mount)` using that turret's own mount (FR-010,
       FR-011, contract §1 notes on #13 and #13b)
-- [ ] T034 [US2] Name the sixteen revisable answers in spaced spelling at the revise prompt in
+- [X] T034 [US2] Name the sixteen revisable answers in spaced spelling at the revise prompt in
       `src/cetools/cli/ship.py`, and rewrite `_read_fields` to call `prompts.split_values` against
       `_REVISABLE`, still accepting today's underscored form (research.md Decision 4, FR-007)
-- [ ] T035 [US2] Run `uv run pytest --no-cov` green, then `uv run black . && uv run flake8 src tests`
+- [X] T035 [US2] Run `uv run pytest --no-cov` green, then `uv run black . && uv run flake8 src tests`
 
 **Checkpoint**: US1 and US2 both hold. Every closed-set question now names its set, narrowed where
 the hull narrows it, and refuses in the notation it displayed.

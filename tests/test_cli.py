@@ -1366,7 +1366,7 @@ def test_ship_generate_interactive_revising_re_asks_only_the_implicated_prompts(
 
     after_revise = result.stderr.split("Accept this ship or revise")[1]
     assert "Staterooms (a count, or none) [roll]:" in after_revise
-    assert "Turrets [roll]:" in after_revise
+    assert "Turrets (1-2, none) [roll]:" in after_revise
     assert "Configuration" not in after_revise  # an answer nothing implicated
     assert "Armor" not in after_revise
 
@@ -1464,6 +1464,52 @@ def test_ship_generate_interactive_an_unknown_answer_name_is_reasked():
 
     assert result.exit_code == 0, result.stderr
     assert "no such answer: armour" in result.stderr
+
+
+_REVISE_PROMPT = (
+    "Revise which answers (hull class, hull tons, configuration, jump rating, "
+    "maneuver rating, power rating, armor, computer, electronics, staterooms, "
+    "fitting, turrets, bay, screen, name, purpose) [all]:"
+)
+
+
+def test_ship_generate_interactive_revise_prompt_names_all_sixteen_answers():
+    """FR-007: the revise question is the one prompt exempt from the two-line
+    budget, and names every `DesignConstraints` field in spaced spelling."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), pad=False, armor="crystaliron 7")
+        + "armor\ncrystaliron 5\n",
+    )
+    assert result.exit_code == 0, result.stderr
+    assert _REVISE_PROMPT in result.stderr
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "hull class, hull tons",
+        "hull class hull tons",
+        "hull_class hull_tons",
+        "Hull Class, Hull Tons",
+    ],
+    ids=["spaced-comma", "spaced", "underscored", "mixed-case"],
+)
+def test_ship_generate_interactive_revise_accepts_every_form_of_a_two_word_name(answer):
+    """FR-015: `hull class` and `hull tons` are one value each, not two unknown
+    words—`split_values` matches the whole answer before it is split."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), pad=False, armor="crystaliron 7")
+        + f"{answer}\nsmall craft\n40\naccept\n",
+    )
+    assert result.exit_code == 0, result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    assert loads_design(result.stdout).hull_tons == 40
 
 
 def test_ship_generate_interactive_revising_everything_is_the_default():
@@ -1663,7 +1709,39 @@ def test_ship_generate_interactive_small_craft_power_prompt_offers_what_the_mane
     )
     assert result.exit_code == 0, result.stderr
     assert "power rating 4 is not available" in result.stderr
-    assert "[1, 2]" in result.stderr
+    assert "available: 1-2" in result.stderr
+
+
+def test_ship_generate_interactive_power_prompt_names_no_value_when_the_hull_can_carry_none():
+    """Decision 9's one reachable path to FR-012's empty form: Enter at hull
+    tonnage lets a 6-G manoeuvre rating pass the broad, unnarrowed check;
+    revising the tonnage down to 10 then finds no plant fits beside it.
+
+    The illegal `distributed` + `fuel_scoops` combination is what reaches the
+    referee's own choice of fields to revise (`_ask_which_to_revise`), rather
+    than the automatic re-ask an *unmet* constraint would drive instead.
+    """
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7"],
+        input=_answers(
+            hull_class="small craft",
+            skip=("jump", "bay"),
+            pad=False,
+            configuration="distributed",
+            maneuver="6",
+            fitting="fuel_scoops",
+        )
+        + "hull tons, power rating\n10\n6\n",
+    )
+    assert result.exit_code == 1
+    assert "Power plant rating (a 10-ton hull can carry none, at least 6) [roll]:" in result.stderr
+    assert (
+        "a 10-ton hull can carry none, at least 6"
+        in result.stderr.split(
+            "Power plant rating (a 10-ton hull can carry none, at least 6) [roll]:"
+        )[1]
+    )
 
 
 def test_ship_generate_interactive_small_craft_energy_weapon_beyond_the_plant_is_reasked():
@@ -1738,7 +1816,7 @@ def test_ship_generate_interactive_asks_for_a_turret_count_showing_its_default()
         input=_answers(skip=("hull",)),
     )
     assert result.exit_code == 0
-    assert "Turrets [roll]:" in result.stderr
+    assert "Turrets (1-20, none) [roll]:" in result.stderr
 
 
 def test_ship_generate_interactive_a_pinned_count_asks_for_each_turret_in_turn():
@@ -1827,8 +1905,47 @@ def test_ship_generate_interactive_a_count_above_the_hardpoints_is_reasked():
         input=_answers(skip=("hull",), turrets="5\nnone"),
     )
     assert result.exit_code == 0, result.stderr
-    assert "a 200-ton starship has 2 hardpoint(s), so it cannot mount 5" in result.stderr
-    assert result.stderr.count("Turrets [roll]:") == 2
+    assert (
+        "a 200-ton starship has 2 hardpoint(s), so it cannot mount 5; available: 1-2, none"
+        in result.stderr
+    )
+    assert result.stderr.count("Turrets (1-2, none) [roll]:") == 2
+
+
+def test_ship_generate_interactive_unnarrowed_turrets_name_the_ruleset_maximum():
+    """Trap 3 (FR-011): with no tonnage pinned the prompt cannot narrow to a
+    hull, so it names the ruleset's own widest hull instead of staying silent."""
+    result = runner.invoke(
+        app, ["ship", "generate", "--interactive", "--seed", "11"], input=_answers()
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "Turrets (1-50 on some starship hull, none) [roll]:" in result.stderr
+
+
+def test_ship_generate_interactive_small_craft_unnarrowed_turrets_name_one():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7"],
+        input=_answers(hull_class="small craft", skip=_SMALL_CRAFT_SKIPS),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "Turrets (1 on some small craft hull, none) [roll]:" in result.stderr
+
+
+def test_ship_generate_interactive_an_unnarrowed_count_above_the_maximum_is_reasked():
+    """Trap 3 (FR-002): today an unpinned tonnage means no count is refused at
+    all; a count above the ruleset's own maximum must now be caught here too."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "11"],
+        input=_answers(turrets="51\nnone"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert (
+        "any starship hull has at most 50 hardpoint(s), so it cannot mount 51; "
+        "available: 1-50, none" in result.stderr
+    )
+    assert result.stderr.count("Turrets (1-50 on some starship hull, none) [roll]:") == 2
 
 
 @pytest.mark.parametrize(
@@ -1856,9 +1973,9 @@ def test_ship_generate_interactive_asks_for_each_drive_as_a_rating():
         app, ["ship", "generate", "--interactive", "--seed", "7"], input=_ENTER_THROUGH
     )
     assert result.exit_code == 0
-    assert "Jump rating [roll]:" in result.stderr
-    assert "Maneuver rating [roll]:" in result.stderr
-    assert "Power plant rating [roll]:" in result.stderr
+    assert "Jump rating (1-6 on some starship hull) [roll]:" in result.stderr
+    assert "Maneuver rating (1-6 on some starship hull) [roll]:" in result.stderr
+    assert "Power plant rating (1-6 on some starship hull) [roll]:" in result.stderr
 
 
 def test_ship_generate_interactive_pins_a_jump_rating_to_its_lightest_code():
@@ -1885,7 +2002,7 @@ def test_ship_generate_interactive_power_prompt_states_the_floor_its_drives_set(
         input=_answers(skip=("hull",), jump="1", maneuver="3"),
     )
     assert result.exit_code == 0
-    assert "Power plant rating (at least 3) [roll]:" in result.stderr
+    assert "Power plant rating (1-6, at least 3) [roll]:" in result.stderr
 
 
 def test_ship_generate_interactive_power_below_its_floor_is_reasked_with_the_reason():
@@ -1896,7 +2013,7 @@ def test_ship_generate_interactive_power_below_its_floor_is_reasked_with_the_rea
     )
     assert result.exit_code == 0
     assert "power plant rating 1 is below the 3 its drives require" in result.stderr
-    assert result.stderr.count("Power plant rating (at least 3) [roll]:") == 2
+    assert result.stderr.count("Power plant rating (1-6, at least 3) [roll]:") == 2
 
 
 def test_ship_generate_interactive_power_floor_holds_when_only_one_drive_is_pinned():
@@ -1914,7 +2031,7 @@ def test_ship_generate_interactive_power_floor_holds_when_only_one_drive_is_pinn
         ["ship", "generate", "--interactive", "--hull", "400", "--seed", "3", "--toml"],
         input=_answers(skip=("hull",), jump="2", power="1\n2"),
     )
-    assert "Power plant rating (at least 2) [roll]:" in result.stderr
+    assert "Power plant rating (1-6, at least 2) [roll]:" in result.stderr
     assert "power plant rating 1 is below the 2 its drives require" in result.stderr
     assert result.exit_code == 0, result.stderr
 
@@ -1935,8 +2052,8 @@ def test_ship_generate_interactive_untabulated_rating_is_reasked_with_the_reason
         input=_answers(skip=("hull",), jump="9\n1"),
     )
     assert result.exit_code == 0
-    assert "jump rating 9 is not tabulated for a 400-ton hull" in result.stderr
-    assert result.stderr.count("Jump rating [roll]:") == 2
+    assert "jump rating 9 is not tabulated for a 400-ton hull; available: 1-6" in result.stderr
+    assert result.stderr.count("Jump rating (1-6) [roll]:") == 2
 
 
 def test_ship_generate_interactive_non_numeric_rating_is_reasked_with_the_reason():
@@ -1958,7 +2075,7 @@ def test_ship_generate_interactive_checks_a_rating_against_every_hull_when_none_
         input=_answers(jump="9\n1"),
     )
     assert result.exit_code == 0
-    assert "not tabulated for any starship hull" in result.stderr
+    assert "not tabulated for any starship hull; available: 1-6" in result.stderr
 
 
 _ARMOR_PROMPT = (
@@ -2059,7 +2176,10 @@ def test_ship_generate_interactive_asks_for_the_hull_tonnage_showing_its_default
         app, ["ship", "generate", "--interactive", "--seed", "42"], input=_ENTER_THROUGH
     )
     assert result.exit_code == 0
-    assert "Hull tonnage [roll]:" in result.stderr
+    assert (
+        "Hull tonnage (100-1000 by 100, 1200-2000 by 200, 3000-5000 by 1000) [roll]:"
+        in result.stderr
+    )
 
 
 def test_ship_generate_interactive_pressing_enter_yields_the_unprompted_ship():
@@ -2105,8 +2225,16 @@ def test_ship_generate_interactive_untabulated_tonnage_is_reasked_with_the_reaso
         input=_answers(hull="150\n200"),
     )
     assert result.exit_code == 0
-    assert "150 tons is not a tabulated hull size" in result.stderr
-    assert result.stderr.count("Hull tonnage [roll]:") == 2
+    assert (
+        "150 tons is not a tabulated hull size; "
+        "valid: 100-1000 by 100, 1200-2000 by 200, 3000-5000 by 1000" in result.stderr
+    )
+    assert (
+        result.stderr.count(
+            "Hull tonnage (100-1000 by 100, 1200-2000 by 200, 3000-5000 by 1000) [roll]:"
+        )
+        == 2
+    )
     assert "200-ton hull" in result.stdout
 
 
