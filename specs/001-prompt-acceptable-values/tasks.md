@@ -74,7 +74,7 @@ reads from both.
 
 ### Engine accessors (contracts/engine-accessors.md)
 
-- [ ] T003 [P] Write the accessor/validator agreement tests for the eight table accessors
+- [X] T003 [P] Write the accessor/validator agreement tests for the eight table accessors
       (`hull_tonnages`, `armor_options`, `computer_models`, `electronics_packages`, `bay_kinds`,
       `screen_kinds`, `turret_mounts`, `turret_weapons`) in `tests/test_ship_generator.py`,
       asserting both invariants from contracts/engine-accessors.md—accessor-accepts (every
@@ -82,7 +82,7 @@ reads from both.
       accepts is returned)—plus the documented ordering; run
       `uv run pytest tests/test_ship_generator.py -k accessor --no-cov` and observe them fail on the
       missing names
-- [ ] T004 [P] Write the accessor tests for `fitting_kinds`, `small_craft_weapons` and `hardpoints`
+- [X] T004 [P] Write the accessor tests for `fitting_kinds`, `small_craft_weapons` and `hardpoints`
       in `tests/test_ship_generator.py`, including that `fitting_kinds()` omits every fitting whose
       table `tons` is `None` (so `vehicle_hangar` is absent and the exclusion is derived, not
       listed—FR-024), that `small_craft_weapons` narrows by the plant's energy allowance and by
@@ -90,34 +90,34 @@ reads from both.
       that `hardpoints(hull_class, None)` returns the ruleset maximum—50 for a starship and 1 for
       a small craft, each derived from the tables (`max(HULLS) // 100`) rather than written down;
       run and observe them fail
-- [ ] T005 Implement `hull_tonnages`, `armor_options`, `computer_models`, `electronics_packages`,
+- [X] T005 Implement `hull_tonnages`, `armor_options`, `computer_models`, `electronics_packages`,
       `bay_kinds`, `screen_kinds`, `turret_mounts` and `turret_weapons` in
       `src/cetools/engine/ships/generator.py`, each a single expression placed beside the validator
       it pairs with; preserve table order for the word sets and sort the numeric sets ascending
-- [ ] T006 Implement `fitting_kinds` and `small_craft_weapons` and expose `_hardpoints_for` as the
+- [X] T006 Implement `fitting_kinds` and `small_craft_weapons` and expose `_hardpoints_for` as the
       public `hardpoints(hull_class, hull_tons: int | None)` in
       `src/cetools/engine/ships/generator.py`, deriving the vehicle-sized exclusion from the table
       row rather than from a hard-coded name, and returning the ruleset's largest hardpoint count
       when the tonnage is `None`—the widening `available_ratings` has always had, and what FR-011
       needs at the turret question. `validate_turret_count` is **not** widened and its logic does
       not change
-- [ ] T007 Export the eleven accessors from `src/cetools/engine/ships/__init__.py`—add them to the
+- [X] T007 Export the eleven accessors from `src/cetools/engine/ships/__init__.py`—add them to the
       `from cetools.engine.ships.generator import (...)` list and to `__all__`, both alphabetical—
       then run `uv run pytest tests/test_ship_generator.py --no-cov` green
 
 ### Prompt text composition (research.md Decision 2)
 
-- [ ] T008 [P] Write failing tests for `spell(key)` and `key(answer)` in `tests/test_prompts.py`:
+- [X] T008 [P] Write failing tests for `spell(key)` and `key(answer)` in `tests/test_prompts.py`:
       underscore to space, lowercasing, space and hyphen to underscore, surrounding whitespace
       ignored, an internal whitespace run counting as one space, and `key(spell(k)) == k`; run
       `uv run pytest tests/test_prompts.py --no-cov` and observe them fail
-- [ ] T009 [P] Write failing tests for `numbers(values)` run collapsing in `tests/test_prompts.py`
+- [X] T009 [P] Write failing tests for `numbers(values)` run collapsing in `tests/test_prompts.py`
       covering FR-005 exactly: three or more evenly spaced values collapse to `first-last` or
       `first-last by step`; a two-element run collapses only when its step is 1 (`1, 2` → `1-2`) and
       is otherwise enumerated (`1, 3` stays `1, 3`); several runs are named in ascending order
       (`100-1000 by 100, 1200-2000 by 200, 3000-5000 by 1000`); a value in no run is enumerated in
       its place; run and observe them fail
-- [ ] T010 [P] Write failing tests for `split_values(answer, known)` in `tests/test_prompts.py`—
+- [X] T010 [P] Write failing tests for `split_values(answer, known)` in `tests/test_prompts.py`—
       the greedy longest-match scan FR-015 requires for an answer naming several values. Cover:
       a two-word value survives the split (`reflec self sealing` → `["reflec", "self_sealing"]`);
       commas and whitespace separate alike; the underscored and hyphenated spellings of a multi-word
@@ -125,11 +125,11 @@ reads from both.
       derived from `known` rather than hard-coded, so a three-word value in `known` matches with no
       edit. This is trap 1—the naive `answer.split()` passes every single-word case and fails
       exactly on the values the prompt displays with a space; run and observe them fail
-- [ ] T011 [P] Write failing tests for `offer(question, values, note=...)` in
+- [X] T011 [P] Write failing tests for `offer(question, values, note=...)` in
       `tests/test_prompts.py`: composes `"{question} ({values}{note})"`, returns `question`
       unchanged when values are empty and no note is given, and emits the note alone when values are
       empty (FR-012's phrasing); run and observe them fail
-- [ ] T012 Implement `spell`, `key`, `numbers`, `split_values` and `offer` in
+- [X] T012 Implement `spell`, `key`, `numbers`, `split_values` and `offer` in
       `src/cetools/cli/prompts.py`—five pure functions importing nothing from `cetools.engine`—
       and run `uv run pytest tests/test_prompts.py --no-cov` green
 
