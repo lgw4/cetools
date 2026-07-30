@@ -310,17 +310,20 @@ every closed-set prompt covered.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T036 [P] [US3] Add alternate-spelling acceptance tests in `tests/test_cli.py` (FR-015):
+- [X] T036 [P] [US3] Add alternate-spelling acceptance tests in `tests/test_cli.py` (FR-015):
       `pop up`, `pop_up`, `pop-up`, `Pop Up` and `POP_UP` are one answer at the turret-mount
       question; `bonded superdense 15` and `bonded_superdense 15` are one answer at the armour
       question; `basic  civilian` with a doubled space is the value `basic civilian`; run and observe
       them fail
-- [ ] T037 [US3] Fix in `src/cetools/cli/ship.py` any reader T036 catches that does not accept all
+- [X] T037 [US3] Fix in `src/cetools/cli/ship.py` any reader T036 catches that does not accept all
       four forms, routing it through `prompts.key`; run T036's tests green
+
+      T036 passed immediately: Phase 3/4 already routed every closed-set reader through
+      `prompts.key`, so no fix was needed here. Verified rather than assumed.
 
 ### The invariant (contracts/prompt-contract.md §7)
 
-- [ ] T038 [US3] Add the `(prompt, accessor, reader)` table and the parametrised
+- [X] T038 [US3] Add the `(prompt, accessor, reader)` table and the parametrised
       `acceptable_values` test in `tests/test_cli.py` asserting §7's four clauses per row: every
       displayed value typed back verbatim is accepted; its stored and hyphenated spellings are
       accepted; `set(displayed) == set(accessor(...))`; and a value outside the set is refused with
@@ -328,16 +331,23 @@ every closed-set prompt covered.
       its members, and exclude the Enter label, the narrowing qualifier, the floor clause and a
       compound answer's shape note (FR-002). Give a hull-dependent prompt a row per narrowing state
       it can reach, so the turret count is covered both narrowed and unnarrowed
-- [ ] T039 [US3] Add the completeness assertion in `tests/test_cli.py` that the §7 table names every
+
+      Found and fixed a real gap while building this: on the small-craft turret-weapon path,
+      `_read_small_craft_weapon` delegated an unknown weapon to `validate_small_craft_weapon`,
+      whose message named the engine's bare, unnarrowed `turret_weapons()` list rather than the
+      displayed, narrowed `small_craft_weapons(...)` set. Fixed by giving the reader its own
+      `known` parameter (as every other closed-set reader has) and falling back to the engine's
+      message only when the value *is* a real turret weapon that the plant can't run.
+- [X] T039 [US3] Add the completeness assertion in `tests/test_cli.py` that the §7 table names every
       closed-set reader in `src/cetools/cli/ship.py`, and observe it red by temporarily deleting one
       row before restoring it—this is the assertion that stops a question added later escaping the
       invariant (research.md Decision 5)
-- [ ] T040 [US3] Add the exhaustive `key(spell(k)) == k` property in `tests/test_prompts.py` over
+- [X] T040 [US3] Add the exhaustive `key(spell(k)) == k` property in `tests/test_prompts.py` over
       every **word** value the accessors publish—the eight word accessors plus `ArmorType`,
       `Configuration` and `HullClass`, 39 values in all—and observe it red by temporarily feeding
       it a value containing a character `key` does not round-trip. The numeric accessors are outside
       it: `key(spell(100))` is the string `"100"` and a numeric answer is read with `int()`
-- [ ] T041 [US3] Assert in `tests/test_cli.py` that `0` is accepted as an alternate spelling of
+- [X] T041 [US3] Assert in `tests/test_cli.py` that `0` is accepted as an alternate spelling of
       `none` at the two count questions and is **not** named in either list (FR-002); run green
 
 **Checkpoint**: SC-002's two counts of exceptions are both zero, and asserted rather than read.

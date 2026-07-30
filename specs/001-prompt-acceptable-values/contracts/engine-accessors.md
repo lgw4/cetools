@@ -27,7 +27,7 @@ def turret_weapons() -> tuple[str, ...]: ...
 def small_craft_weapons(
     hull_tons: int, power_rating: int, mount: str | None = None
 ) -> tuple[str, ...]: ...
-def hardpoints(hull_class: HullClass, hull_tons: int) -> int: ...
+def hardpoints(hull_class: HullClass, hull_tons: int | None) -> int: ...
 ```
 
 ## Behaviour
@@ -44,7 +44,7 @@ def hardpoints(hull_class: HullClass, hull_tons: int) -> int: ...
 | `turret_mounts()` | every key of `TURRET_MOUNTS` | table order | `validate_turret_mount` |
 | `turret_weapons()` | every key of `TURRET_WEAPONS` | table order | `validate_turret_weapon` |
 | `small_craft_weapons(tons, rating, mount)` | every turret weapon this plant can run in this mount | as `turret_weapons()` | `validate_small_craft_weapon` |
-| `hardpoints(hull_class, tons)` | how many turrets this hull can mount | n/a | `validate_turret_count` |
+| `hardpoints(hull_class, tons)` | how many turrets this hull can mount, or—`tons` being `None`—the most any hull of that ruleset can | n/a | `validate_turret_count` |
 
 **Ordering**: table order is preserved rather than sorted, because the SRD tables are already in a
 meaningful order (`ELECTRONICS` runs `standard` → `very advanced`; `TURRET_MOUNTS` runs
@@ -54,7 +54,8 @@ existing `_TURRET_MOUNTS`/`_TURRET_WEAPONS` module constants, which sort; those 
 are left alone.
 
 **Empty results**: `small_craft_weapons` is never empty—a sandcaster and a missile rack cost no
-energy allowance. `hardpoints` returns at least 1 for every tabulated hull. Only
+energy allowance. `hardpoints` returns at least 1 for every tabulated hull and for either ruleset
+unnarrowed, so the turret question never reaches FR-012's empty form. Only
 `small_craft_power_ratings` (pre-existing) can come back empty; see
 [research.md Decision 9](../research.md).
 
@@ -63,8 +64,17 @@ listed—a row whose `tons` is `None` is vehicle-sized, which is what `models._v
 already asks. Adding another vehicle-sized fitting therefore drops out of the prompt with no edit
 (SC-006). Today this excludes `vehicle_hangar` only.
 
-**`hardpoints` is a rename, not new logic**: it exposes the existing `_hardpoints_for`, which
-`validate_turret_count` already calls. The private name becomes an alias or is replaced outright.
+**`hardpoints` is a rename plus one widening**: it exposes the existing `_hardpoints_for`, which
+`validate_turret_count` already calls, and the private name becomes an alias or is replaced
+outright. The widening is `hull_tons=None`, which returns the largest count any hull of that
+ruleset can mount—50 for a starship (`max(HULLS) // 100`) and 1 for a small craft, both derived from
+the tables rather than written down. This mirrors `available_ratings`, whose `hull_tons` has always
+been `int | None` for the same reason: the wizard must offer *something* when the referee left the
+hull to the dice, and FR-011 requires that something to be the ruleset's set rather than silence.
+
+`validate_turret_count` is **not** widened and keeps its `int` tonnage: an unpinned count is refused
+by the CLI reader against `hardpoints(hull_class, None)`, in the prompt's notation, exactly as the
+word sets are ([research.md Decision 3](../research.md)). No validator's logic changes.
 
 ## Invariants under test
 

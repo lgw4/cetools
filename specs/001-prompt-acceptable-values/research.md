@@ -51,7 +51,7 @@ FR-003 structural rather than a convention):
 | `turret_mounts()` | `tuple[str, ...]` | `TURRET_MOUNTS` | `validate_turret_mount` |
 | `turret_weapons()` | `tuple[str, ...]` | `TURRET_WEAPONS` | `validate_turret_weapon` |
 | `small_craft_weapons(hull_tons, power_rating, mount=None)` | `tuple[str, ...]` | `TURRET_WEAPONS` filtered by `_exceeds_energy_allowance` | `validate_small_craft_weapon` |
-| `hardpoints(hull_class, hull_tons)` | `int` | none (exposes `_hardpoints_for`) | `validate_turret_count` |
+| `hardpoints(hull_class, hull_tons \| None)` | `int` | `_hardpoints_for`, widened to `None` for the ruleset maximum | `validate_turret_count` |
 
 No accessor is added for armour type, configuration or hull class: `ArmorType`, `Configuration`
 and `HullClass` are already exported, and `[member.value for member in Enum]` is the set. Four
@@ -62,11 +62,12 @@ narrowing functions already exist and are reused unchanged: `available_ratings`,
 
 ## Decision 2: A `cli/prompts.py` module holds the text composition
 
-**Decision**: Add `src/cetools/cli/prompts.py` with four pure functions and mirror it with
+**Decision**: Add `src/cetools/cli/prompts.py` with five pure functions and mirror it with
 `tests/test_prompts.py`. It imports nothing from the engine.
 
-**Rationale**: Three of the four are non-trivial and independently testable: the underscore-to-space
-spelling (FR-014), its inverse for input (FR-015), and the evenly-spaced-run collapsing (FR-005).
+**Rationale**: Four of the five are non-trivial and independently testable: the underscore-to-space
+spelling (FR-014), its inverse for input (FR-015), the evenly-spaced-run collapsing (FR-005), and
+the greedy scan that splits an answer naming several values (FR-015, FR-018).
 Testing run collapsing through a CLI session would need a hull tonnage table with the right shape;
 testing it directly needs a list of integers. `src/cetools/cli/ship.py` is already 721 lines and
 this feature touches nearly every reader in it.
@@ -93,6 +94,18 @@ as "parse arguments, call the engine, format output".
 - `offer(question: str, values: Iterable[str], *, note: str = "") -> str`—compose
   `"{question} ({values}{note})"`, returning `question` unchanged when `values` is empty and no
   note is given.
+- `split_values(answer: str, known: Iterable[str]) -> list[str]`—split an answer naming several
+  values into stored keys by greedy longest-match over words separated by whitespace or commas,
+  raising on a word run that matches nothing. The span limit is derived from `known`, not
+  hard-coded, so a three-word value would need no edit.
+
+**`split_values` serves two questions, which is why it is a function rather than a method of one
+reader.** The revise question needs it because five of its sixteen names are two words (Decision 4),
+and the armour-options question needs it because one of its three values is (`self sealing`).
+Splitting that answer on whitespace and matching word by word—the obvious implementation—would make
+`reflec self sealing` three unknown tokens, so the prompt would refuse a spelling it had just
+displayed, which is precisely the failure US3 exists to prevent. The two call sites differ only in
+the `known` set they pass.
 
 ---
 
@@ -100,13 +113,27 @@ as "parse arguments, call the engine, format output".
 
 **Decision**: Each closed-set reader checks membership against the accessor's set and raises its
 own `ValueError` naming the values in the displayed spelling; the accepted key is then handed to
-the engine record or validator as it is today.
+the engine record or validator as it is today. This covers the **numeric** closed-set readers—hull
+tonnage, the three ratings, the turret count—as well as the word ones.
 
 **Rationale**: FR-016 requires the refusal to name values in the spelling the prompt used. The
 engine's own messages (`_validate_key`: `f"unknown {what} {name!r}; known: {sorted(table)}"`) are
 shared with library callers, who must pass the *stored* key—respelling those with spaces would
 name spellings a library caller cannot use. So the respelling belongs where the spaced spelling
 was shown.
+
+The numeric prompts need it for the same reason in a second dimension: FR-016 asks for the prompt's
+*notation* as well as its spelling, and the engine's messages name their sets as a bare Python list
+(`valid: [100, 200, …, 5000]`, verified at generator.py:294 and generator.py:443) or, at the turret
+count, name no set at all (generator.py:344-347). A refusal listing eighteen numbers beneath a
+prompt reading `100-1000 by 100, …` is the "two different sets" reading FR-016 exists to prevent. So
+each numeric reader checks membership against its accessor first and raises the reason with the set
+rendered by `prompts.numbers`. The reason sentences are kept word for word, so the existing
+assertions that match only the reason (test_cli.py:1536, 1633, 1733, 2006, 2030) stay green and the
+new list assertions are what go red.
+
+The floor refusal (`power plant rating 1 is below the 3 its drives require`) is untouched: it is not
+a "value outside the set" refusal, and the floor it names is already in the prompt (FR-013).
 
 The engine remains the authority: the CLI's check is a pre-filter over the engine's own published
 set, and Decision 5's contract test is what keeps the two from drifting. This is input-domain
@@ -189,7 +216,8 @@ string the session writes, trailing space included (SC-005's measurement basis).
 | `Armor (titanium steel, crystaliron, bonded superdense, each with a percent, or none) [roll]: ` | 93 | 2 |
 | `Turret 1 weapon (missile rack, pulse laser, sandcaster, particle beam) [roll]: ` | 79 | 1 |
 | `Hull tonnage (100-1000 by 100, 1200-2000 by 200, 3000-5000 by 1000) [roll]: ` | 76 | 1 |
-| `Power plant rating (a 10-ton hull can carry none, at least 4) [roll]: ` | 70 | 1 |
+| `Power plant rating (a 10-ton hull can carry none, at least 6) [roll]: ` | 70 | 1 |
+| `Turrets (1-50 on some starship hull, none) [roll]: ` | 51 | 1 |
 | `Weapon bay (missile bank, particle, meson, fusion, none) [roll]: ` | 65 | 1 |
 | `Turret 1 mount (single, double, triple, pop up, fixed) [roll]: ` | 63 | 1 |
 | `Configuration (distributed, standard, streamlined) [roll]: ` | 59 | 1 |
@@ -292,15 +320,22 @@ session rather than only at unit level. Stating it here so the test is not mista
 
 ## Decision 10: Existing prompt-text tests are rewritten, not extended
 
-**Finding**: `tests/test_cli.py` asserts exact prompt strings in 29 places (e.g.
+**Finding**: `tests/test_cli.py` asserts exact prompt strings in 34 places (e.g.
 `assert "Armor [roll]:" in result.stderr`, and a `("configuration", "Configuration [roll]:", …)`
-parametrisation table at line 1033). Every one of them changes.
+parametrisation table at lines 1033-1040). **31** of them change; the three
+`Accept this ship or revise [accept]:` assertions (lines 1251, 1260, 1359) do not, that prompt being
+unchanged (contract §3). Recounted during the 2026-07-30 analysis review, which found the earlier
+figure of 29 two short and one assertion—`Staterooms [roll]:` at line 1274, inside the revise
+test—named by no rewrite task.
 
 **Decision**: Rewrite them to the new text, as the spec's Assumptions anticipate. Under
 Constitution III each rewritten assertion must be seen to fail against the current implementation
 before the implementation moves—a test rewritten to the new string and passing immediately would
 mean the prompt never changed.
 
-**Scope check**: stdout is untouched. No design file, emitted TOML, or ship description changes,
-so `tests/test_ship_design.py`, `tests/test_ship_builder.py` and `tests/test_ship_description.py`
-need no edits beyond the new armour-options round-trip test (FR-020).
+**Scope check**: stdout is untouched. No design file, emitted TOML, or ship description changes, so
+`tests/test_ship_design.py`, `tests/test_ship_builder.py` and `tests/test_ship_description.py` need
+no edits beyond two *additions*: the armour-options round-trip test (FR-020) and one assertion that
+the description still reads `pop-up turret` and `a self-sealing hull` while the prompts space them
+(FR-014, second paragraph). The second is a guard rather than a change—it is the test that would
+catch a global rename following the spelling rule out of the CLI and into the rules text.

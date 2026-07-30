@@ -474,16 +474,29 @@ def _read_turret_weapon(known: list[str], answer: str) -> str:
 
 
 def _read_small_craft_weapon(
-    hull_tons: int, power_rating: int, mount: str | None, answer: str
+    known: list[str], hull_tons: int, power_rating: int, mount: str | None, answer: str
 ) -> str:
     """A small craft's weapon, checked against the plant that has to run it.
 
     The mount is known by now—it is asked first—and it decides how many of the
     weapon the turret carries, which is what the plant's allowance is counted
     against.
+
+    A weapon the plant cannot run keeps the engine's own reason, which already
+    names the mount and the allowance (FR-016 needs no help there). A weapon
+    that is not a turret weapon at all is refused in the displayed spelling of
+    the *narrowed* set this prompt showed, rather than `validate_turret_weapon`'s
+    bare, unnarrowed list for library callers.
     """
     stored = prompts.key(answer)
-    validate_small_craft_weapon(hull_tons, power_rating, stored, mount)
+    try:
+        validate_small_craft_weapon(hull_tons, power_rating, stored, mount)
+    except ValueError:
+        if stored not in turret_weapons():
+            raise ValueError(
+                f"unknown turret weapon {stored!r}; known: {', '.join(known)}"
+            ) from None
+        raise
     return stored
 
 
@@ -556,13 +569,13 @@ def _ask_turrets(
         mount = _ask_until_understood(mount_question, partial(_read_turret_mount, mount_known))
 
         if capped:
-            weapon_question, _ = _closed_set(
+            weapon_question, weapon_known = _closed_set(
                 f"Turret {ordinal} weapon",
                 small_craft_weapons(hull_tons, power_rating, mount),
             )
             weapon = _ask_until_understood(
                 weapon_question,
-                partial(_read_small_craft_weapon, hull_tons, power_rating, mount),
+                partial(_read_small_craft_weapon, weapon_known, hull_tons, power_rating, mount),
             )
         else:
             weapon_question, weapon_known = _closed_set(

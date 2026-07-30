@@ -48,7 +48,7 @@ Computer model (1-7, none) [roll]:
 Electronics (standard, basic civilian, basic military, advanced, very advanced, none) [roll]:
 Staterooms (a count, or none) [roll]:
 Fitting (armory, detention cell, fuel scoops, fuel processor, laboratory, library, luxuries, vault, none) [roll]:
-Turrets (1-6 on some starship hull, none) [roll]:
+Turrets (1-50 on some starship hull, none) [roll]:
 Weapon bay (missile bank, particle, meson, fusion, none) [roll]:
 Screen (meson screen, nuclear damper, none) [roll]:
 Name (any text, or none) [roll]:
@@ -67,6 +67,12 @@ default (FR-004, spec Edge Cases).
 
 **Also check**: the fitting list does **not** name a small craft hangar (AS 1.4), and the computer
 models appear as the range `1-7` rather than enumerated (AS 1.5, FR-005).
+
+**Note the two prompts that carry no floor clause**: with no drive pinned, `power_floor` returns
+`None` and the power-plant question reads `Power plant rating (1-6 on some starship hull) [roll]:`
+with no `at least` (FR-013). The small-craft walk reads
+`Turrets (1 on some small craft hull, none) [roll]:`, every small craft having exactly one
+hardpoint.
 
 ## Scenario 2: hull-dependent questions name what this hull can take (US2, FR-009 to FR-013)
 
@@ -100,6 +106,17 @@ printf '\n\n\n' | uv run cetools ship generate --interactive --seed 42 2>&1 >/de
 
 **Expected**: `Jump rating (1-6 on some starship hull) [roll]:`—the phrase is what stops the
 prompt implying the eventual hull can take all of them (AS 2.4, FR-011).
+
+And the turret count in that same state, which is the one prompt whose accepted set *narrows* with
+this feature:
+
+```shell
+printf '\n\n\n\n\n\n\n\n\n\n\n51\nnone\n\n\n\n' | uv run cetools ship generate --interactive --seed 42 2>&1 >/dev/null
+```
+
+**Expected**: `Turrets (1-50 on some starship hull, none) [roll]:`, and `51` refused with
+`available: 1-50, none` before the question is asked again (FR-011, FR-016). Today `51` is accepted
+here, because a count is checked only when a tonnage is pinned.
 
 And the empty case, reachable only through the revise loop
 ([research.md Decision 9](./research.md)): press Enter at hull tonnage, pin a manoeuvre rating the
@@ -137,6 +154,16 @@ printf '\n200\n\nbonded superdence 15\n' | uv run cetools ship generate --intera
 **Expected**: the reason names the types with spaces, matching the prompt above it, and the armour
 question is asked again (AS 3.5, AS 1.7).
 
+Then the numeric refusals, which must match the prompt's *notation* and not a bare list (FR-016):
+
+```shell
+printf '\n150\n200\n\n\n\n\n\n\n\n\n\n' | uv run cetools ship generate --interactive --seed 42 2>&1 >/dev/null
+```
+
+**Expected**: `150 tons is not a tabulated hull size; valid: 100-1000 by 100, 1200-2000 by 200,
+3000-5000 by 1000`—the same runs the prompt collapsed, not the eighteen numbers the engine's own
+message lists for library callers.
+
 ## Scenario 4: armour options can be pinned (US4, FR-017 to FR-021)
 
 ```shell
@@ -168,6 +195,8 @@ Then the three negative cases:
 | `crystaliron 10` then Enter | armour layer with no options (AS 4.3) |
 | `crystaliron 10` then `none` | armour layer with no options—the literal `none` is accepted though the prompt does not name it (FR-018) |
 | `crystaliron 10` then `reflec, stealth` | both options—commas separate as well as spaces (FR-018) |
+| `crystaliron 10` then `self sealing` | the two-word option, typed exactly as displayed, is **one** option and not two unknown words (FR-018) |
+| `crystaliron 10` then `reflec self sealing` | both options—the greedy scan takes the longest run that names a value (FR-015) |
 | `crystaliron 10` then `reflec bogus` | refused **whole**, pinning neither, and asked again (FR-018, spec Edge Cases) |
 
 One more revise case, for FR-021's second half: pin `crystaliron 10` and `reflec`, revise `armor`,

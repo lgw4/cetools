@@ -39,7 +39,7 @@ not by a runtime assertion.
 | Hull tonnage | hull class | FR-009 |
 | Jump / manoeuvre / power rating | hull class, hull tonnage | FR-010, FR-011 |
 | Power plant rating | plus the pinned manoeuvre rating (small craft) | FR-010 |
-| Turret count | hull class, hull tonnage (hardpoints) | FR-010 |
+| Turret count | hull class, hull tonnage (hardpoints)—or, with no tonnage pinned, the ruleset's largest hardpoint count | FR-010, FR-011 |
 | Small-craft turret weapon | hull tonnage, power rating, mount | FR-010 |
 
 **States**: a narrowed set is *narrowed* (a hull tonnage is pinned), *unnarrowed* (tonnage left to
@@ -65,10 +65,19 @@ key is the single source; the displayed spelling is derived from it.
 |---|---|---|---|
 | stored → displayed | `spell(key)` | each `_` becomes a space | FR-014 |
 | typed → stored | `key(answer)` | lowercase; each space or `-` becomes `_` | FR-015 |
+| typed → several stored | `split_values(answer, known)` | greedy longest-match over words separated by whitespace or commas | FR-015, FR-018 |
 
-**Invariant**: `key(spell(k)) == k` for every published value. This is what makes "displayed
+**Invariant**: `key(spell(k)) == k` for every published **word** value. This is what makes "displayed
 verbatim is accepted" (SC-002) a property rather than a list of cases. Asserted exhaustively over
-all 39 published word values.
+all 39 of them—the 31 table keys the accessors publish plus the 8 members of `ArmorType`,
+`Configuration` and `HullClass`. The numeric sets are outside it: `key(spell(100))` is the string
+`"100"`, not the integer, and a numeric answer is read with `int()` rather than spelled.
+
+**A value may contain a space, so a multi-value answer cannot be split before it is matched.**
+`self sealing` at the armour-options question and `hull class` at the revise question are one value
+each; matching word by word would turn them into unknown tokens and make the prompt refuse a
+spelling it displayed. `split_values` is the one place that is decided
+([research.md Decision 2](./research.md)).
 
 **Accepted input forms** for a value displayed as `pop up`: `pop up`, `pop_up`, `pop-up`, and any
 case of each. `spell` is total over the published keys, so a value added to a rules table displays

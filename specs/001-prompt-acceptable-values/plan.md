@@ -17,12 +17,15 @@ The technical approach has three parts and one new capability:
    `cetools.engine.ships`. This is what makes FR-003 structural: the prompt and the acceptance check
    read one table, so a table edit moves the prompt (SC-006). It is also what keeps `cli/` free of
    game logic, since `tables.py` is not on the package's public surface.
-2. **A new `cli/prompts.py` composes the text.** Four pure functions: the underscore-to-space
-   spelling (FR-014), its inverse for input (FR-015), evenly-spaced-run collapsing (FR-005), and
-   the `question (values) [default]:` composition. Nothing here consults a rule.
-3. **`cli/ship.py`'s readers show and check against the published set.** Each closed-set reader
-   raises its own refusal in the displayed spelling (FR-016) and hands the stored key on to the
-   engine record that has always ruled on it.
+2. **A new `cli/prompts.py` composes the text.** Five pure functions: the underscore-to-space
+   spelling (FR-014), its inverse for input (FR-015), evenly-spaced-run collapsing (FR-005), the
+   greedy longest-match split for an answer naming several values (FR-015, FR-018—a value may itself
+   contain a space, so `self sealing` and `hull class` must survive the split), and the
+   `question (values) [default]:` composition. Nothing here consults a rule.
+3. **`cli/ship.py`'s readers show and check against the published set.** Each closed-set reader—the
+   numeric ones as well as the word ones—raises its own refusal in the displayed spelling and the
+   displayed notation (FR-016) and hands the stored key on to the engine record that has always
+   ruled on it.
 4. **Armour options become a question**, following the armour type-and-percent question and folded
    into the same `ArmorFit`. Everything downstream (validation, cost, description, TOML round-trip)
    already exists and was verified rather than assumed.
@@ -44,8 +47,9 @@ loads (design.py:174) and dumps (design.py:417).
 
 **Testing**: pytest, mirroring source layout. Touched: `tests/test_cli.py` (session behaviour and
 the `displayed == accepted` contract), `tests/test_ship_generator.py` (the accessors), new
-`tests/test_prompts.py` (spelling and run collapsing), `tests/test_ship_design.py` (the armour-options
-round trip).
+`tests/test_prompts.py` (spelling, run collapsing and the multi-value split),
+`tests/test_ship_design.py` (the armour-options round trip), `tests/test_ship_description.py` (one
+assertion that the SRD's hyphenation survives the prompts' spacing, FR-014).
 
 **Target Platform**: terminal, 80 columns assumed for SC-005. stderr for all prompts, stdout for the
 design only.
@@ -65,8 +69,8 @@ prompt.
 
 **Scale/Scope**: 21 prompts (18 in the design walk, 2 in the revise loop, 1 new), of which FR-001
 lists 18 as closed-set questions and FR-006 leaves 3 open. 39 published word
-values across 10 tables, plus 4 numeric sets. One new CLI module (~40 lines), 11 new engine
-accessors (~40 lines), most of `cli/ship.py`'s 20 readers touched, 29 existing prompt-string
+values across 10 tables, plus 4 numeric sets. One new CLI module (~55 lines), 11 new engine
+accessors (~40 lines), most of `cli/ship.py`'s 20 readers touched, 31 existing prompt-string
 assertions rewritten.
 
 ## Constitution Check
@@ -101,7 +105,7 @@ messages must keep naming stored keys for library callers.
 
 ### III. Test-First (NON-NEGOTIABLE)
 
-**Pass, with one hazard called out.** 29 existing assertions already contain the old prompt strings.
+**Pass, with one hazard called out.** 31 existing assertions already contain the old prompt strings.
 Rewriting one to the new string and finding it green would mean the prompt never changed—so each
 rewritten assertion must be run and *seen to fail* before the reader moves, exactly as step 2
 requires for a new test. This is the step most easily skipped here and is the one most worth
@@ -137,6 +141,21 @@ Re-evaluated after Phase 1: **no new violations.** The design added one CLI modu
 one-liners and no records, no fields, no rules and no rolls. The two Complexity Tracking rows below
 were both known before Phase 0 and neither grew.
 
+### Re-check after the 2026-07-30 analysis review
+
+Three artifact gaps were closed and none of them moves a principle:
+
+- **A fifth function in `prompts.py`** (`split_values`). Still presentation: it splits an answer
+  into words and matches them against a set handed in, and consults no rule (II). It is shared by
+  the two questions that take several values rather than written twice (V).
+- **The numeric readers own their refusals**, as the word readers already did. Same seam, same
+  reason: the engine's messages keep their bare lists for library callers (II, Decision 3).
+- **`hardpoints` accepts an unpinned tonnage** and the turret count is refused above the ruleset
+  maximum where today it is not. This is the one *behaviour* change outside the prompts, and it is
+  required by FR-002—a prompt that names `1-50` and accepts 51 displays a set it does not accept.
+  No table, validator or roll changes (I, IV): the maximum is derived from `HULLS`, and
+  `validate_turret_count` is untouched.
+
 ## Project Structure
 
 ### Documentation (this feature)
@@ -161,7 +180,7 @@ src/cetools/
 ├── cli/
 │   ├── ship.py                      # MODIFIED: readers show and check the published set;
 │   │                                #   armour-options question; _read_fields rewritten
-│   └── prompts.py                   # NEW: spell / key / numbers / offer
+│   └── prompts.py                   # NEW: spell / key / numbers / split_values / offer
 └── engine/ships/
     ├── generator.py                 # MODIFIED: 11 accessors beside their validators;
     │                                #   _hardpoints_for exposed as hardpoints
@@ -174,10 +193,11 @@ src/cetools/
 
 tests/
 ├── test_prompts.py                  # NEW: mirrors cli/prompts.py
-├── test_cli.py                      # MODIFIED: 29 prompt assertions rewritten;
+├── test_cli.py                      # MODIFIED: 31 prompt assertions rewritten;
 │                                    #   displayed==accepted contract; length budget
 ├── test_ship_generator.py           # MODIFIED: accessor/validator agreement
-└── test_ship_design.py              # MODIFIED: armour-options round trip
+├── test_ship_design.py              # MODIFIED: armour-options round trip
+└── test_ship_description.py         # MODIFIED: SRD hyphenation survives (FR-014)
 
 README.md                            # MODIFIED: FR-022
 ```
@@ -222,7 +242,7 @@ already 721 lines and this feature touches nearly every reader in it.
 | Risk | Answer |
 |---|---|
 | A prompt displays a value it refuses—worse than displaying nothing (US3 rationale) | The contract test types every displayed value back at every prompt; SC-002's two counts are both asserted, and the table's completeness is asserted too |
-| A rewritten prompt test passes without the prompt changing | Constitution III step 2 is called out explicitly above: each of the 29 rewritten assertions is run red first |
+| A rewritten prompt test passes without the prompt changing | Constitution III step 2 is called out explicitly above: each of the 31 rewritten assertions is run red first |
 | A question added later escapes the invariant | The contract test is driven from one table of rows and asserts it covers every closed-set reader in `ship.py` |
 | The two-line budget breaks as tables grow | Run collapsing keeps the numeric sets short; a length test per prompt is the regression guard |
 | FR-012's empty-set branch looks like dead code and gets deleted | research.md Decision 9 records the one reachable session, and the quickstart tests it through that session |

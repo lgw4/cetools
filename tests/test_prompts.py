@@ -1,6 +1,18 @@
 import pytest
 
 from cetools.cli.prompts import key, numbers, offer, spell, split_values
+from cetools.engine.ships import (
+    ArmorType,
+    Configuration,
+    HullClass,
+    armor_options,
+    bay_kinds,
+    electronics_packages,
+    fitting_kinds,
+    screen_kinds,
+    turret_mounts,
+    turret_weapons,
+)
 
 # --- spell / key: the display <-> stored spelling round trip (FR-014, FR-015) ---
 
@@ -133,3 +145,30 @@ def test_offer_appends_the_note_after_the_joined_values():
         offer("Power plant rating", ["3-5"], note=", at least 3")
         == "Power plant rating (3-5, at least 3)"
     )
+
+
+# --- T040 (US3): key(spell(k)) == k over every published word value (FR-014, FR-015) ---
+
+_PUBLISHED_WORD_VALUES = (
+    armor_options()
+    + electronics_packages()
+    + fitting_kinds()
+    + bay_kinds()
+    + screen_kinds()
+    + turret_mounts()
+    + turret_weapons()
+    + tuple(member.value for member in ArmorType)
+    + tuple(member.value for member in Configuration)
+    + tuple(member.value for member in HullClass)
+)
+"""The 31 table keys the eight word accessors publish, plus the 8 members of
+`ArmorType`, `Configuration` and `HullClass`—39 in all, per data-model.md."""
+
+
+def test_thirty_nine_published_word_values_are_accounted_for():
+    assert len(_PUBLISHED_WORD_VALUES) == 39
+
+
+@pytest.mark.parametrize("value", _PUBLISHED_WORD_VALUES)
+def test_every_published_word_value_round_trips_through_spell_and_key(value):
+    assert key(spell(value)) == value

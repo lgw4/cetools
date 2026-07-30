@@ -15,7 +15,7 @@
 - Q: Naming all sixteen revisable answers takes about three lines, breaking the two-line prompt
   budget. Which way is that resolved? → A: The revise prompt is exempt from the two-line budget; it
   names all sixteen and wraps as far as it needs.
-- Q: Where does a value's displayed spelling come from, given two of the thirty-five values are
+- Q: Where does a value's displayed spelling come from, given two of the thirty-nine values are
   hyphenated in the SRD? → A: Derived mechanically from the stored key, underscore to space, always;
   the hyphenated spelling is still accepted as input.
 - Q: How is "the displayed set is the accepted set" to be stated so it can be checked, given that
@@ -54,6 +54,31 @@ completeness, clarity and consistency before implementation.
 - Q: Does "an answer that ruleset cannot take" (AS 1.6) mean the ruleset refuses it, or that
   generation never rolls it? → A: That the ruleset refuses it. A value the rules permit pinning but
   the dice never draw is still named—all five turret mounts appear on a small craft.
+
+### Session 2026-07-30 (analysis review)
+
+Raised by a cross-artifact consistency pass over spec, plan and tasks, which found three answers the
+implementation could not have derived from the artifacts as they stood.
+
+- Q: One armour option is displayed as two words (`self sealing`) and options are separated by
+  spaces, so `reflec self sealing` is ambiguous. Which parse governs? → A: The same greedy
+  longest-match scan the revise question uses. A displayed spelling is always typeable back, so the
+  longest run of words matching a known option wins, and separators may be spaces or commas.
+- Q: The armour answer is a value *and* a percent (`bonded superdense 15`), so the value itself may
+  contain a space. Where does the type end? → A: The last whitespace-separated token is the percent;
+  everything before it is the type. A compound answer's value part is what the spelling rules
+  normalise, not the whole line.
+- Q: When the tonnage is left to the dice, what set does the turret question name, given hardpoints
+  follow from a tonnage nobody has pinned? → A: The largest hardpoint count any hull of that ruleset
+  has, carrying FR-011's qualifier like every other unnarrowed set, and refusing a count above it.
+- Q: FR-016 requires a refusal to name the values "in the same spelling and the same order the
+  prompt used". Does that reach a numeric set the prompt showed as a range? → A: Yes; the refusal
+  uses the same notation, so a hull-tonnage refusal names the collapsed runs the prompt named rather
+  than a bare list of eighteen numbers.
+- Q: FR-013 requires the power-plant floor stated in all three narrowing forms, but no drive is
+  pinned on an all-Enter walk and there is then no floor. Is a floor invented? → A: No. The floor is
+  stated in all three forms *where the pinned drives establish one*; where none is pinned the clause
+  is absent, as it is today.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -325,14 +350,20 @@ confirm the options are recorded. Nothing in stories 1–3 depends on this.
   the set for the whole ruleset and MUST make clear the set is not narrowed to a chosen hull. It does
   so with a qualifier naming the *ruleset* rather than a hull—"on some starship hull"—so that a
   prompt carrying no such qualifier can be read as a claim about the hull in hand.
+
+  This governs the turret count as it governs the ratings: with no tonnage pinned the set runs to
+  the largest hardpoint count any hull of that ruleset has, and a count above that MUST be refused
+  where today it is accepted, since FR-002 requires the displayed set to be the accepted one in
+  every narrowing state.
 - **FR-012**: When a narrowed set is empty, the question MUST say which hull can take none of the
   values, and MUST name no value at all, instead of displaying an empty choice. Enter is then the
   only answer it accepts: any typed answer MUST be refused with that same reason, so the question
   cannot pin a value it has just called impossible.
 - **FR-013**: The power-plant question MUST continue to state the floor its pinned drives require,
-  in addition to naming the available ratings. The floor MUST be stated in all three of FR-010's,
-  FR-011's and FR-012's forms, since a floor the drives require holds whether or not this hull can
-  meet it.
+  in addition to naming the available ratings. Where the pinned drives establish a floor, it MUST be
+  stated in all three of FR-010's, FR-011's and FR-012's forms, since a floor the drives require
+  holds whether or not this hull can meet it. Where no drive is pinned there is no floor to state
+  and the clause is absent, exactly as today.
 
 **Spelling**
 
@@ -354,9 +385,18 @@ confirm the options are recorded. Nothing in stories 1–3 depends on this.
   one space, so that "basic  civilian" is the value "basic civilian". Where a value is displayed as
   notation rather than named outright (FR-005), it is each *member* of that notation that MUST be
   accepted.
-- **FR-016**: A refusal MUST name the acceptable values in the same spelling and the same order the
-  prompt used, so that the prompt and the refusal do not appear to describe different sets. The
-  refusal names the same set the prompt named, `none` included where the question accepts it.
+
+  Where an answer is compound or names several values, these rules govern the *value* parts of it
+  rather than the whole line. An armour answer's last whitespace-separated token is its percent and
+  everything before it is the type, so "bonded superdense 15" is one type and one percent. An answer
+  naming several values—armour options, the answers to revise—MUST be matched by taking the longest
+  run of words that names a value, so that a value displayed as two words can be typed back beside
+  another, separated by a space or a comma.
+- **FR-016**: A refusal MUST name the acceptable values in the same spelling, the same order **and
+  the same notation** the prompt used, so that the prompt and the refusal do not appear to describe
+  different sets. The refusal names the same set the prompt named, `none` included where the
+  question accepts it, and a numeric set the prompt collapsed into runs (FR-005) is collapsed the
+  same way in the refusal rather than spelled out as a bare list.
 
 **Armour options**
 
@@ -365,7 +405,8 @@ confirm the options are recorded. Nothing in stories 1–3 depends on this.
 - **FR-018**: The armour-options question MUST accept any number of the named options in one
   answer, including none, and MUST refuse a repeated option and an unrecognised one with the
   reason. Options MUST be separable by spaces or commas in any case, as the revise question's
-  answers are. An answer mixing recognised options with an unrecognised or repeated one MUST be
+  answers are, and MUST be matched by FR-015's longest-run rule, so that `self sealing`—a value the
+  prompt displays as two words—is one option beside another rather than two unknown ones. An answer mixing recognised options with an unrecognised or repeated one MUST be
   refused whole, pinning nothing. The question MUST also accept the literal `none` for no options,
   and—following FR-006's rule—need not name it, because its Enter label already says `none`.
 - **FR-019**: The armour-options question MUST NOT be asked when armour was pinned absent or left
@@ -413,10 +454,12 @@ confirm the options are recorded. Nothing in stories 1–3 depends on this.
 ### Measurable Outcomes
 
 - **SC-001**: Every interactive question with a closed set of answers, as FR-001 lists them, names
-  that set. The count is taken over a starship session and a small-craft session that each press
-  Enter at every question, plus one session that reaches the questions an all-Enter walk never
-  does—the armour options and each turret's mount and weapon. The number of listed questions that do
-  not name their set is zero.
+  that set—save where the question text already names every value once, which FR-001 exempts and
+  which the accept-or-revise question is the only instance of. The count is taken over a starship
+  session and a small-craft session that each press Enter at every question, plus one session that
+  reaches the questions an all-Enter walk never does—the armour options and each turret's mount and
+  weapon. The number of listed questions that neither name their set nor carry that exemption is
+  zero.
 - **SC-002**: For every value displayed at every prompt, typing it back verbatim is accepted; and
   for every distinct value a prompt accepts, the prompt named it. Both counts of exceptions are
   zero. The denominator on each side is the set FR-003 publishes for that question. FR-002's three

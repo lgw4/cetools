@@ -1,8 +1,11 @@
+import inspect
+from functools import partial
 from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
 
+from cetools.cli import prompts, ship
 from cetools.cli.main import app
 from cetools.engine.careers.aerospace import AEROSPACE_CAREER
 from cetools.engine.careers.marine import MARINE_CAREER
@@ -10,6 +13,25 @@ from cetools.engine.careers.navy import NAVY_CAREER
 from cetools.engine.careers.scout import SCOUT_CAREER
 from cetools.engine.generator import DRAFT, RANDOM
 from cetools.engine.models import Cash, Character, GenerationFailure
+from cetools.engine.ships import (
+    ArmorType,
+    Configuration,
+    Drive,
+    HullClass,
+    available_ratings,
+    bay_kinds,
+    computer_models,
+    electronics_packages,
+    fitting_kinds,
+    hardpoints,
+    hull_tonnages,
+    screen_kinds,
+    small_craft_maneuver_ratings,
+    small_craft_power_ratings,
+    small_craft_weapons,
+    turret_mounts,
+    turret_weapons,
+)
 
 _SCOUT = SCOUT_CAREER
 _NAVY = NAVY_CAREER
@@ -1168,6 +1190,23 @@ def test_ship_generate_interactive_none_pins_zero_staterooms():
     assert loads_design(result.stdout).staterooms == 0
 
 
+def test_ship_generate_interactive_zero_is_an_alternate_spelling_of_none_at_staterooms():
+    """FR-002: `0` pins the same deliberate zero as `none`, and is not itself
+    named at the prompt—`none` already says it."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), staterooms="0"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "Staterooms (a count, or none) [roll]:" in result.stderr
+    assert "0" not in result.stderr.split("Staterooms")[1].split("[roll]:")[0]
+
+    from cetools.engine.ships import loads_design
+
+    assert loads_design(result.stdout).staterooms == 0
+
+
 @pytest.mark.parametrize(
     "question,answer,reason",
     [
@@ -1233,6 +1272,55 @@ def test_ship_generate_interactive_turret_mount_refusal_names_values_in_displaye
     assert (
         result.stderr.count("Turret 1 mount (single, double, triple, pop up, fixed) [roll]:") == 2
     )
+
+
+# --- T036 (US3): every accepted form of a displayed value is one answer (FR-015) ---
+
+
+@pytest.mark.parametrize(
+    "form", ["pop up", "pop_up", "pop-up", "Pop Up", "POP_UP"], ids=lambda f: repr(f)
+)
+def test_ship_generate_interactive_turret_mount_accepts_every_form_of_pop_up(form):
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), turrets=f"1\n{form}\npulse_laser"),
+    )
+    assert result.exit_code == 0, result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    (turret,) = loads_design(result.stdout).turrets
+    assert turret.mount == "pop_up"
+
+
+@pytest.mark.parametrize("form", ["bonded superdense 15", "bonded_superdense 15"])
+def test_ship_generate_interactive_armor_accepts_the_type_spaced_or_underscored(form):
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), armor=form),
+    )
+    assert result.exit_code == 0, result.stderr
+
+    from cetools.engine.ships import ArmorType, loads_design
+
+    assert [(fit.type, fit.percent) for fit in loads_design(result.stdout).armor] == [
+        (ArmorType.BONDED_SUPERDENSE, 15)
+    ]
+
+
+def test_ship_generate_interactive_electronics_collapses_a_doubled_internal_space():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), electronics="basic  civilian"),
+    )
+    assert result.exit_code == 0, result.stderr
+
+    from cetools.engine.ships import loads_design
+
+    assert loads_design(result.stdout).electronics == "basic_civilian"
 
 
 @pytest.mark.parametrize(
@@ -1883,6 +1971,23 @@ def test_ship_generate_interactive_none_turrets_leaves_the_ship_unarmed():
     assert loads_design(result.stdout).turrets == ()
 
 
+def test_ship_generate_interactive_zero_is_an_alternate_spelling_of_none_at_turrets():
+    """FR-002: `0` pins the same deliberate zero as `none` at the turret count
+    too, and is not itself named—`none` already says it."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), turrets="0"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "Turrets (1-2, none) [roll]:" in result.stderr
+    assert "0" not in result.stderr.split("Turrets")[1].split("[roll]:")[0]
+
+    from cetools.engine.ships import loads_design
+
+    assert loads_design(result.stdout).turrets == ()
+
+
 def test_ship_generate_interactive_a_turret_count_is_taken_on_trust_when_the_hull_rolls():
     """With the hull left to the dice the wizard cannot know the hardpoints yet,
     so the count is accepted and the hull it lands on rules on it."""
@@ -2338,6 +2443,352 @@ def test_ship_generate_toml_carries_a_name_key():
     result = runner.invoke(app, ["ship", "generate", "--seed", "42", "--toml"])
     assert result.exit_code == 0
     assert 'name = "' in result.stdout
+
+
+# --- T038, T039 (US3): the displayed == accepted invariant (contract §7) ---
+#
+# One table of (accessor, reader) rows, driven directly against the private
+# readers in `cetools.cli.ship` rather than through a scripted session: the
+# invariant is about what a reader *accepts*, and the exact prompt text each
+# accessor produces is already pinned, string for string, by Phase 3 and 4's
+# tests. A row per narrowing state a hull-dependent prompt can reach, per the
+# contract.
+
+
+def _closed_row(row_id, raw_values, reader, reader_name, *, kind, takes_known, none=False, refuse):
+    """One row: the accessor's raw values, and a single-argument `accept`
+    bound to the reader that checks them—so the same call answers "is this
+    value accepted" for every clause of the invariant."""
+    raw_values = tuple(raw_values)
+    known = (
+        [prompts.spell(v) for v in raw_values]
+        if kind == "word"
+        else list(prompts.numbers(raw_values))
+    )
+    if none:
+        known = known + ["none"]
+    accept = (lambda answer, _known=known: reader(_known, answer)) if takes_known else reader
+    return {
+        "id": row_id,
+        "kind": kind,
+        "raw_values": raw_values,
+        "none": none,
+        "known": known,
+        "accept": accept,
+        "refuse_answer": refuse,
+        "reader_name": reader_name,
+    }
+
+
+_ARMOR_TYPE_KNOWN = [prompts.spell(kind.value) for kind in ArmorType]
+
+
+def _accept_armor(answer: str) -> None:
+    """The armour type alone, typed back; the percent is the free part FR-002
+    excludes from the count, so a fixed one is appended for the reader."""
+    ship._read_armor(_ARMOR_TYPE_KNOWN, f"{answer} 15")
+
+
+_SMALL_CRAFT_WEAPON_HULL_TONS = 40
+_SMALL_CRAFT_WEAPON_POWER_RATING = 3
+_SMALL_CRAFT_WEAPON_MOUNT = "triple"
+_SMALL_CRAFT_WEAPON_VALUES = small_craft_weapons(
+    _SMALL_CRAFT_WEAPON_HULL_TONS, _SMALL_CRAFT_WEAPON_POWER_RATING, _SMALL_CRAFT_WEAPON_MOUNT
+)
+_SMALL_CRAFT_WEAPON_KNOWN = [prompts.spell(v) for v in _SMALL_CRAFT_WEAPON_VALUES]
+
+
+def _accept_small_craft_weapon(answer: str) -> None:
+    ship._read_small_craft_weapon(
+        _SMALL_CRAFT_WEAPON_KNOWN,
+        _SMALL_CRAFT_WEAPON_HULL_TONS,
+        _SMALL_CRAFT_WEAPON_POWER_RATING,
+        _SMALL_CRAFT_WEAPON_MOUNT,
+        answer,
+    )
+
+
+_ACCEPTABLE_VALUES_TABLE = [
+    _closed_row(
+        "hull_class",
+        [c.value for c in HullClass],
+        ship._read_hull_class,
+        "_read_hull_class",
+        kind="word",
+        takes_known=True,
+        refuse="battleship",
+    ),
+    _closed_row(
+        "configuration",
+        [c.value for c in Configuration],
+        ship._read_configuration,
+        "_read_configuration",
+        kind="word",
+        takes_known=True,
+        refuse="wedge",
+    ),
+    _closed_row(
+        "hull_tonnage_starship",
+        hull_tonnages(HullClass.STARSHIP),
+        partial(ship._read_hull_tons, HullClass.STARSHIP),
+        "_read_hull_tons",
+        kind="number",
+        takes_known=False,
+        refuse="150",
+    ),
+    _closed_row(
+        "hull_tonnage_small_craft",
+        hull_tonnages(HullClass.SMALL_CRAFT),
+        partial(ship._read_hull_tons, HullClass.SMALL_CRAFT),
+        "_read_hull_tons",
+        kind="number",
+        takes_known=False,
+        refuse="200",
+    ),
+    _closed_row(
+        "jump_rating_narrowed",
+        available_ratings(HullClass.STARSHIP, 400),
+        partial(ship._read_rating, HullClass.STARSHIP, 400, Drive.JUMP, None),
+        "_read_rating",
+        kind="number",
+        takes_known=False,
+        refuse="9",
+    ),
+    _closed_row(
+        "jump_rating_unnarrowed",
+        available_ratings(HullClass.STARSHIP, None),
+        partial(ship._read_rating, HullClass.STARSHIP, None, Drive.JUMP, None),
+        "_read_rating",
+        kind="number",
+        takes_known=False,
+        refuse="9",
+    ),
+    _closed_row(
+        "maneuver_rating_narrowed",
+        available_ratings(HullClass.STARSHIP, 400),
+        partial(ship._read_maneuver_rating, HullClass.STARSHIP, 400),
+        "_read_maneuver_rating",
+        kind="number",
+        takes_known=False,
+        refuse="9",
+    ),
+    _closed_row(
+        "maneuver_rating_unnarrowed",
+        available_ratings(HullClass.STARSHIP, None),
+        partial(ship._read_maneuver_rating, HullClass.STARSHIP, None),
+        "_read_maneuver_rating",
+        kind="number",
+        takes_known=False,
+        refuse="9",
+    ),
+    _closed_row(
+        "maneuver_rating_narrowed_small_craft",
+        small_craft_maneuver_ratings(40),
+        partial(ship._read_maneuver_rating, HullClass.SMALL_CRAFT, 40),
+        "_read_maneuver_rating",
+        kind="number",
+        takes_known=False,
+        refuse="4",
+    ),
+    _closed_row(
+        "power_rating_narrowed",
+        available_ratings(HullClass.STARSHIP, 400),
+        partial(ship._read_power_rating, HullClass.STARSHIP, 400, None, None),
+        "_read_power_rating",
+        kind="number",
+        takes_known=False,
+        refuse="9",
+    ),
+    _closed_row(
+        "power_rating_unnarrowed",
+        available_ratings(HullClass.STARSHIP, None),
+        partial(ship._read_power_rating, HullClass.STARSHIP, None, None, None),
+        "_read_power_rating",
+        kind="number",
+        takes_known=False,
+        refuse="9",
+    ),
+    _closed_row(
+        "power_rating_narrowed_small_craft",
+        small_craft_power_ratings(15, 1),
+        partial(ship._read_power_rating, HullClass.SMALL_CRAFT, 15, 1, 1),
+        "_read_power_rating",
+        kind="number",
+        takes_known=False,
+        refuse="4",
+    ),
+    {
+        "id": "armor",
+        "kind": "word",
+        "raw_values": tuple(kind.value for kind in ArmorType),
+        "none": False,
+        "known": _ARMOR_TYPE_KNOWN,
+        "accept": _accept_armor,
+        "refuse_answer": "adamantium",
+        "reader_name": "_read_armor",
+    },
+    _closed_row(
+        "computer",
+        computer_models(),
+        ship._read_computer,
+        "_read_computer",
+        kind="number",
+        takes_known=True,
+        none=True,
+        refuse="99",
+    ),
+    _closed_row(
+        "electronics",
+        electronics_packages(),
+        ship._read_electronics,
+        "_read_electronics",
+        kind="word",
+        takes_known=True,
+        none=True,
+        refuse="psychic",
+    ),
+    _closed_row(
+        "fitting",
+        fitting_kinds(),
+        ship._read_fitting,
+        "_read_fitting",
+        kind="word",
+        takes_known=True,
+        none=True,
+        refuse="swimming_pool",
+    ),
+    _closed_row(
+        "bay",
+        bay_kinds(),
+        ship._read_bay,
+        "_read_bay",
+        kind="word",
+        takes_known=True,
+        none=True,
+        refuse="railgun",
+    ),
+    _closed_row(
+        "screen",
+        screen_kinds(),
+        ship._read_screen,
+        "_read_screen",
+        kind="word",
+        takes_known=True,
+        none=True,
+        refuse="deflector",
+    ),
+    _closed_row(
+        "turret_mount",
+        turret_mounts(),
+        ship._read_turret_mount,
+        "_read_turret_mount",
+        kind="word",
+        takes_known=True,
+        refuse="swivel",
+    ),
+    _closed_row(
+        "turret_weapon",
+        turret_weapons(),
+        ship._read_turret_weapon,
+        "_read_turret_weapon",
+        kind="word",
+        takes_known=True,
+        refuse="beam_laser",
+    ),
+    {
+        "id": "turret_weapon_small_craft_narrowed",
+        "kind": "word",
+        "raw_values": tuple(_SMALL_CRAFT_WEAPON_VALUES),
+        "none": False,
+        "known": _SMALL_CRAFT_WEAPON_KNOWN,
+        "accept": _accept_small_craft_weapon,
+        "refuse_answer": "laser_cannon",
+        "reader_name": "_read_small_craft_weapon",
+    },
+    _closed_row(
+        "turret_count_narrowed",
+        range(1, hardpoints(HullClass.STARSHIP, 200) + 1),
+        partial(ship._read_turret_count, HullClass.STARSHIP, 200),
+        "_read_turret_count",
+        kind="number",
+        takes_known=False,
+        none=True,
+        refuse="5",
+    ),
+    _closed_row(
+        "turret_count_unnarrowed",
+        range(1, hardpoints(HullClass.STARSHIP, None) + 1),
+        partial(ship._read_turret_count, HullClass.STARSHIP, None),
+        "_read_turret_count",
+        kind="number",
+        takes_known=False,
+        none=True,
+        refuse="51",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "row", _ACCEPTABLE_VALUES_TABLE, ids=[row["id"] for row in _ACCEPTABLE_VALUES_TABLE]
+)
+def test_acceptable_values_invariant(row):
+    """Contract §7's four clauses, per row."""
+    accept = row["accept"]
+    raw_values = row["raw_values"]
+
+    # 1. Every displayed value, typed back verbatim, is accepted.
+    for value in raw_values:
+        accept(prompts.spell(value))
+    if row["none"]:
+        accept("none")
+
+    # 2. Its stored and hyphenated spellings are accepted (word rows only—a
+    #    number has no alternate spelling).
+    if row["kind"] == "word":
+        for value in raw_values:
+            accept(value)
+            accept(prompts.spell(value).replace(" ", "-"))
+
+    # 3. The displayed set equals the accessor's set, expanded rather than
+    #    left as range notation (a `1-6` contributes six values, not one).
+    expected_known = (
+        [prompts.spell(v) for v in raw_values]
+        if row["kind"] == "word"
+        else list(prompts.numbers(raw_values))
+    )
+    if row["none"]:
+        expected_known = expected_known + ["none"]
+    assert row["known"] == expected_known
+
+    # 4. A value outside the set is refused, naming the set in the displayed
+    #    spelling and the displayed notation.
+    with pytest.raises(ValueError) as excinfo:
+        accept(row["refuse_answer"])
+    assert ", ".join(row["known"]) in str(excinfo.value)
+
+
+_OPEN_OR_OUTSIDE_SEC7_READERS = frozenset(
+    {
+        "_read_staterooms",  # FR-006: open answer, §2 not §1
+        "_read_name",  # FR-006: open answer, §2 not §1
+        "_read_purpose",  # FR-006: open answer, §2 not §1
+        "_read_fields",  # §3's revise prompt, outside §7's closed-set scope
+        "_read_verdict",  # §3's accept-or-revise prompt, outside §7's scope
+    }
+)
+
+
+def test_acceptable_values_table_covers_every_closed_set_reader_in_ship_py():
+    """The completeness half of Decision 5: a question added to `ship.py`
+    without a row here fails this test rather than escaping silently."""
+    all_readers = {
+        name
+        for name, obj in inspect.getmembers(ship, inspect.isfunction)
+        if name.startswith("_read_") and obj.__module__ == ship.__name__
+    }
+    covered = {row["reader_name"] for row in _ACCEPTABLE_VALUES_TABLE}
+    accounted_for = covered | _OPEN_OR_OUTSIDE_SEC7_READERS
+    assert all_readers == accounted_for
 
 
 def test_ship_build_fighter_prints_a_jump_free_description():
