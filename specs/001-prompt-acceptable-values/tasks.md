@@ -155,35 +155,35 @@ first appearance.
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T013 [P] [US1] Rewrite the parametrised prompt table at `tests/test_cli.py:1033-1040`
+- [X] T013 [P] [US1] Rewrite the parametrised prompt table at `tests/test_cli.py:1033-1040`
       (`configuration`, `computer`, `electronics`, `staterooms`, `fitting`, `bay`, `screen`, `name`)
       to the exact strings in contracts/prompt-contract.md §1; run
       `uv run pytest tests/test_cli.py --no-cov` and observe every rewritten row fail
-- [ ] T014 [P] [US1] Rewrite the remaining single-prompt assertions in `tests/test_cli.py` for
+- [X] T014 [P] [US1] Rewrite the remaining single-prompt assertions in `tests/test_cli.py` for
       `Hull class` (1471), `Armor` (1872, 1941, 1952), `Screen` in both the `[roll]` (1513) and the
       small-craft `[none]` (1502) forms, `Turret N mount` (1657, 1659), `Turret N weapon` (1658),
       `Purpose` (1100) and the `Staterooms` assertion inside the revise test (1274)—that last one
       sits outside the parametrised table and is the assertion the earlier count of 29 missed; run
       and observe them fail
-- [ ] T015 [P] [US1] Add tests in `tests/test_cli.py` asserting that the fitting prompt does **not**
+- [X] T015 [P] [US1] Add tests in `tests/test_cli.py` asserting that the fitting prompt does **not**
       name a vehicle hangar (AS 1.4, FR-024) and that the computer prompt shows `1-7` rather than
       seven enumerated models (AS 1.5, FR-005); run and observe them fail
-- [ ] T016 [P] [US1] Add tests in `tests/test_cli.py` for FR-006's three open questions:
+- [X] T016 [P] [US1] Add tests in `tests/test_cli.py` for FR-006's three open questions:
       `Staterooms (a count, or none) [roll]: `, `Name (any text, or none) [roll]: `, and that
       `Purpose [none]: ` names no `none` and gains no list; run and observe them fail
-- [ ] T017 [P] [US1] Add refusal tests in `tests/test_cli.py` (FR-016): a bad answer at the
+- [X] T017 [P] [US1] Add refusal tests in `tests/test_cli.py` (FR-016): a bad answer at the
       electronics, fitting, screen and turret-mount questions is refused with the values named in the
       *displayed* spelling, in the same order the prompt used, `none` included where accepted, and
       the question is asked again (AS 1.7, AS 3.5); run and observe them fail
 
 ### Implementation for User Story 1
 
-- [ ] T018 [US1] In `src/cetools/cli/ship.py`, import `cetools.cli.prompts` and the new accessors
+- [X] T018 [US1] In `src/cetools/cli/ship.py`, import `cetools.cli.prompts` and the new accessors
       from `cetools.engine.ships`, and add the one shared helper that takes a question and a value
       set and returns both the composed prompt and the displayed-spelling refusal message, so no
       reader spells its own list. Take a rendering callable (`prompts.spell` for words,
       `prompts.numbers` for numeric runs) so the same helper serves Phase 4's numeric readers
-- [ ] T019 [US1] Rewrite the enum-backed readers in `src/cetools/cli/ship.py`—`_read_hull_class`,
+- [X] T019 [US1] Rewrite the enum-backed readers in `src/cetools/cli/ship.py`—`_read_hull_class`,
       `_read_configuration`, `_read_armor`—to normalise the answer with `prompts.key`, refuse in
       the displayed spelling, and compose their questions at the `_ask_constraints` call sites; the
       armour prompt carries its shape note (`each with a percent, or none`) and `none` last, and the
@@ -195,20 +195,20 @@ first appearance.
       `bonded superdense 15`, `bonded_superdense 15` and `Bonded-Superdense 15%` are one answer and
       an answer of fewer than two tokens earns the existing `give an armor type and a percent`
       refusal
-- [ ] T020 [US1] Rewrite the table-backed readers in `src/cetools/cli/ship.py`—`_read_computer`,
+- [X] T020 [US1] Rewrite the table-backed readers in `src/cetools/cli/ship.py`—`_read_computer`,
       `_read_electronics`, `_read_fitting`, `_read_bay`, `_read_screen`—to check membership against
       `computer_models()`, `electronics_packages()`, `fitting_kinds()`, `bay_kinds()` and
       `screen_kinds()`, and compose their questions at the `_ask_constraints` call sites with `none`
       last (research.md Decision 8)
-- [ ] T021 [US1] Compose the turret mount and weapon questions in `_ask_turrets` in
+- [X] T021 [US1] Compose the turret mount and weapon questions in `_ask_turrets` in
       `src/cetools/cli/ship.py` from `turret_mounts()` and `turret_weapons()`, and rewrite
       `_read_turret_mount` and `_read_turret_weapon` to accept the displayed spelling; all five
       mounts are named on a small craft too, since `_SMALL_CRAFT_TURRET_MOUNTS` narrows what is
       *drawn* rather than what may be pinned (contract §8)
-- [ ] T022 [US1] Add FR-006's notes to the two open questions in `src/cetools/cli/ship.py`—
+- [X] T022 [US1] Add FR-006's notes to the two open questions in `src/cetools/cli/ship.py`—
       `Staterooms (a count, or none)` and `Name (any text, or none)`—and leave `Purpose` exactly as
       it is, its `[none]` label already saying it
-- [ ] T023 [US1] Run `uv run pytest --no-cov` and bring the whole suite green, then
+- [X] T023 [US1] Run `uv run pytest --no-cov` and bring the whole suite green, then
       `uv run black . && uv run flake8 src tests`
 
 **Checkpoint**: a referee can pin armour, configuration, electronics, computer, fitting and screen

@@ -1030,14 +1030,24 @@ def _answers(*, skip: tuple[str, ...] = (), pad: bool = True, **given: str) -> s
 
 
 _SCALAR_PROMPTS = (
-    ("configuration", "Configuration [roll]:", "streamlined"),
-    ("computer", "Computer model [roll]:", "3"),
-    ("electronics", "Electronics [roll]:", "basic_military"),
-    ("staterooms", "Staterooms [roll]:", "4"),
-    ("fitting", "Fitting [roll]:", "laboratory"),
-    ("bay", "Weapon bay [roll]:", "particle"),
-    ("screen", "Screen [roll]:", "meson_screen"),
-    ("name", "Name [roll]:", "Wayfarer"),
+    ("configuration", "Configuration (distributed, standard, streamlined) [roll]:", "streamlined"),
+    ("computer", "Computer model (1-7, none) [roll]:", "3"),
+    (
+        "electronics",
+        "Electronics (standard, basic civilian, basic military, advanced, very advanced, "
+        "none) [roll]:",
+        "basic_military",
+    ),
+    ("staterooms", "Staterooms (a count, or none) [roll]:", "4"),
+    (
+        "fitting",
+        "Fitting (armory, detention cell, fuel scoops, fuel processor, laboratory, library, "
+        "luxuries, vault, none) [roll]:",
+        "laboratory",
+    ),
+    ("bay", "Weapon bay (missile bank, particle, meson, fusion, none) [roll]:", "particle"),
+    ("screen", "Screen (meson screen, nuclear damper, none) [roll]:", "meson_screen"),
+    ("name", "Name (any text, or none) [roll]:", "Wayfarer"),
 )
 
 
@@ -1052,6 +1062,31 @@ def test_ship_generate_interactive_asks_for_each_scalar_field(question, prompt, 
     )
     assert result.exit_code == 0, result.stderr
     assert prompt in result.stderr
+
+
+def test_ship_generate_interactive_fitting_prompt_does_not_name_the_vehicle_hangar():
+    """AS 1.4, FR-024: the question cannot supply a vehicle's tonnage, so the
+    one fitting that needs one is not offered."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11"],
+        input=_answers(skip=("hull",)),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "vehicle_hangar" not in result.stderr
+    assert "vehicle hangar" not in result.stderr
+
+
+def test_ship_generate_interactive_computer_prompt_shows_a_range_not_every_model():
+    """AS 1.5, FR-005: seven tabulated models collapse to one run."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11"],
+        input=_answers(skip=("hull",)),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "Computer model (1-7, none) [roll]:" in result.stderr
+    assert "1, 2, 3, 4, 5, 6, 7" not in result.stderr
 
 
 def test_ship_generate_interactive_pins_every_scalar_field_at_once():
@@ -1098,10 +1133,24 @@ def test_ship_generate_interactive_purpose_defaults_to_none_not_to_a_roll():
     )
     assert result.exit_code == 0
     assert "Purpose [none]:" in result.stderr
+    assert "Purpose (" not in result.stderr  # FR-006: the [none] default already says it
 
     from cetools.engine.ships import loads_design
 
     assert loads_design(result.stdout).purpose is None
+
+
+def test_ship_generate_interactive_staterooms_and_name_carry_fr006_notes():
+    """Neither has a closed set, but both must say `none` pins a value Enter
+    does not (FR-006)."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11"],
+        input=_answers(skip=("hull",)),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "Staterooms (a count, or none) [roll]:" in result.stderr
+    assert "Name (any text, or none) [roll]:" in result.stderr
 
 
 def test_ship_generate_interactive_none_pins_zero_staterooms():
@@ -1139,6 +1188,51 @@ def test_ship_generate_interactive_unknown_scalar_answers_are_reasked(question, 
     )
     assert result.exit_code == 0, result.stderr
     assert reason in result.stderr
+
+
+@pytest.mark.parametrize(
+    "question,answer,known",
+    [
+        (
+            "electronics",
+            "psychic",
+            "standard, basic civilian, basic military, advanced, very advanced, none",
+        ),
+        (
+            "fitting",
+            "swimming_pool",
+            "armory, detention cell, fuel scoops, fuel processor, laboratory, library, "
+            "luxuries, vault, none",
+        ),
+        ("screen", "deflector", "meson screen, nuclear damper, none"),
+    ],
+    ids=["electronics", "fitting", "screen"],
+)
+def test_ship_generate_interactive_refusal_names_values_in_displayed_spelling_and_order(
+    question, answer, known
+):
+    """FR-016: the refusal names the same set the prompt named, in the same
+    order, `none` included where the prompt accepted it (AS 1.7, AS 3.5)."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11"],
+        input=_answers(skip=("hull",), **{question: f"{answer}\n"}),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert f"known: {known}" in result.stderr
+
+
+def test_ship_generate_interactive_turret_mount_refusal_names_values_in_displayed_spelling():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11"],
+        input=_answers(skip=("hull",), turrets="1\nswivel\nsingle\npulse_laser"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "known: single, double, triple, pop up, fixed" in result.stderr
+    assert (
+        result.stderr.count("Turret 1 mount (single, double, triple, pop up, fixed) [roll]:") == 2
+    )
 
 
 @pytest.mark.parametrize(
@@ -1271,7 +1365,7 @@ def test_ship_generate_interactive_revising_re_asks_only_the_implicated_prompts(
     assert result.exit_code == 0, result.stderr
 
     after_revise = result.stderr.split("Accept this ship or revise")[1]
-    assert "Staterooms [roll]:" in after_revise
+    assert "Staterooms (a count, or none) [roll]:" in after_revise
     assert "Turrets [roll]:" in after_revise
     assert "Configuration" not in after_revise  # an answer nothing implicated
     assert "Armor" not in after_revise
@@ -1468,7 +1562,7 @@ def test_ship_generate_interactive_asks_for_the_hull_class_first():
     assert result.exit_code == 0
 
     asked = result.stderr
-    assert asked.startswith("Hull class [starship]:")
+    assert asked.startswith("Hull class (starship, small craft) [starship]:")
     assert asked.index("Hull class") < asked.index("Hull tonnage")
 
 
@@ -1499,7 +1593,7 @@ def test_ship_generate_interactive_small_craft_screen_prompt_offers_none_not_a_r
         input=_small_craft_answers(),
     )
     assert result.exit_code == 0, result.stderr
-    assert "Screen [none]:" in result.stderr
+    assert "Screen (meson screen, nuclear damper, none) [none]:" in result.stderr
 
 
 def test_ship_generate_interactive_starship_screen_prompt_still_offers_a_roll():
@@ -1510,7 +1604,7 @@ def test_ship_generate_interactive_starship_screen_prompt_still_offers_a_roll():
         input=_answers(),
     )
     assert result.exit_code == 0, result.stderr
-    assert "Screen [roll]:" in result.stderr
+    assert "Screen (meson screen, nuclear damper, none) [roll]:" in result.stderr
 
 
 def test_ship_generate_interactive_hull_class_answer_selects_the_small_craft_ruleset():
@@ -1654,9 +1748,12 @@ def test_ship_generate_interactive_a_pinned_count_asks_for_each_turret_in_turn()
         input=_answers(skip=("hull",), turrets="2\ntriple\npulse_laser\nsingle\nsandcaster"),
     )
     assert result.exit_code == 0, result.stderr
-    assert "Turret 1 mount [roll]:" in result.stderr
-    assert "Turret 1 weapon [roll]:" in result.stderr
-    assert "Turret 2 mount [roll]:" in result.stderr
+    assert "Turret 1 mount (single, double, triple, pop up, fixed) [roll]:" in result.stderr
+    assert (
+        "Turret 1 weapon (missile rack, pulse laser, sandcaster, particle beam) [roll]:"
+        in result.stderr
+    )
+    assert "Turret 2 mount (single, double, triple, pop up, fixed) [roll]:" in result.stderr
 
     from cetools.engine.ships import loads_design
 
@@ -1864,12 +1961,17 @@ def test_ship_generate_interactive_checks_a_rating_against_every_hull_when_none_
     assert "not tabulated for any starship hull" in result.stderr
 
 
+_ARMOR_PROMPT = (
+    "Armor (titanium steel, crystaliron, bonded superdense, each with a percent, or none) [roll]:"
+)
+
+
 def test_ship_generate_interactive_asks_for_armor_showing_its_default():
     result = runner.invoke(
         app, ["ship", "generate", "--interactive", "--seed", "7"], input=_ENTER_THROUGH
     )
     assert result.exit_code == 0
-    assert "Armor [roll]:" in result.stderr
+    assert _ARMOR_PROMPT in result.stderr
 
 
 def test_ship_generate_interactive_pins_an_armor_type_and_percent():
@@ -1938,7 +2040,7 @@ def test_ship_generate_interactive_armor_percent_rule_surfaces_at_assembly_not_t
     )
     assert result.exit_code == 0, result.stderr
     assert "armor must be added in 5% increments" in result.stderr
-    assert result.stderr.count("Armor [roll]:") == 2  # asked, refused, asked again
+    assert result.stderr.count(_ARMOR_PROMPT) == 2  # asked, refused, asked again
 
 
 def test_ship_generate_interactive_unknown_armor_type_is_reasked_with_the_reason():
@@ -1949,7 +2051,7 @@ def test_ship_generate_interactive_unknown_armor_type_is_reasked_with_the_reason
     )
     assert result.exit_code == 0
     assert "adamantium is not a known armor type" in result.stderr
-    assert result.stderr.count("Armor [roll]:") == 2
+    assert result.stderr.count(_ARMOR_PROMPT) == 2
 
 
 def test_ship_generate_interactive_asks_for_the_hull_tonnage_showing_its_default():
