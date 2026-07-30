@@ -28,6 +28,33 @@
 - Q: Does the computer question, whose models are a closed table of 1 through 7, name them? → A:
   Yes; it names the models as a range and names `none`, like every other closed set.
 
+### Session 2026-07-29 (checklist review)
+
+Raised by [checklists/prompts.md](./checklists/prompts.md), which tested these requirements for
+completeness, clarity and consistency before implementation.
+
+- Q: A collapsed range is displayed text that nobody can type back, yet FR-015 requires every
+  displayed value to be accepted verbatim. Which is it? → A: A range is *notation for* values, not
+  a value. FR-015 and SC-002 count values; a range stands for each of its members and every member
+  must be accepted. The Enter label, the power-plant floor clause, the narrowing qualifier and the
+  compound-answer shape note are likewise not values.
+- Q: FR-005 mandates collapsing a run of three or more, but a 200-ton hull's two turret counts are
+  shown as `1-2`. Which governs? → A: A two-element run collapses when its step is 1; otherwise it
+  is enumerated, because `1-3 by 2` is longer and harder to read than `1, 3`.
+- Q: When a narrowed set is empty, what does the question accept? → A: Only Enter. The prompt names
+  no values, says the hull can take none of them, and refuses every typed answer with that reason.
+- Q: Is the order of values in a list specified, and where does `none` sit? → A: Words in rules-table
+  order, numbers ascending, and `none` always last. The turret prompt is therefore `(1-2, none)`.
+- Q: The count questions accept the digit `0` as well as `none`. Must `0` be named? → A: No. At a
+  count question `0` is an alternate spelling of `none`, which FR-002 already excludes from the
+  count.
+- Q: Does the armour-options question accept the literal `none`, and must it name it? → A: It
+  accepts it and does not name it, for the reason `purpose` does not: its Enter label already says
+  `none`.
+- Q: Does "an answer that ruleset cannot take" (AS 1.6) mean the ruleset refuses it, or that
+  generation never rolls it? → A: That the ruleset refuses it. A value the rules permit pinning but
+  the dice never draw is still named—all five turret mounts appear on a small craft.
+
 ## User Scenarios & Testing *(mandatory)*
 
 The referee is designing a ship at the table with `cetools ship generate --interactive`. Today
@@ -68,7 +95,8 @@ change for this to be verifiable and valuable.
    **Then** it names the tabulated models as a range and names `none`.
 6. **Given** a small-craft session, **When** the questions are displayed, **Then** the jump-rating
    and weapon-bay questions are absent as they are today, and no question names an answer that
-   ruleset cannot take.
+   ruleset *refuses*. A value the ruleset accepts but generation never draws is still named, so all
+   five turret mounts appear on a small craft.
 7. **Given** any question in a session, **When** an answer is refused, **Then** the reason is
    still given and the question asked again, exactly as today.
 
@@ -177,7 +205,8 @@ confirm the options are recorded. Nothing in stories 1–3 depends on this.
 
 - **A hull with nothing to offer**: if a narrowed set turns out to be empty for the hull the
   referee pinned, the question must not display an empty list as though it were a choice. It says
-  the hull can take none of them and leaves the field to generation.
+  the hull can take none of them and leaves the field to generation—so Enter is the only answer it
+  takes, and any typed answer is refused with that same reason.
 - **Tonnage left to the dice**: the ratings question then covers every hull of the ruleset. The
   prompt must not present that wider set as this ship's, since generation may still refuse the
   answer once a hull is drawn—the existing behaviour, now stated where the referee decides.
@@ -195,8 +224,13 @@ confirm the options are recorded. Nothing in stories 1–3 depends on this.
   they accept where Enter does not already advertise it, since that is one answer rather than a
   partial list.
 - **Values pre-answered by a flag**: `--hull` and `--small-craft` suppress their questions, so
-  there is no prompt to list values at. When `--hull` disagrees with a chosen hull class, the
-  existing message is printed and the question is then asked *with* its list.
+  there is no prompt to list values at. When `--hull` names a tonnage the chosen hull class does not
+  tabulate, the existing message is printed and the *hull tonnage* question is then asked, with its
+  list.
+
+- **An answer part right and part wrong**: an answer naming several values, of which one is
+  unrecognised or repeated, is refused whole and asked again. Nothing in it is pinned, so a referee
+  never has to work out which half survived.
 - **Screens on a small craft**: the question is still asked and still defaults to `none` rather
   than a roll, and names the screens that may be pinned.
 
@@ -209,20 +243,57 @@ confirm the options are recorded. Nothing in stories 1–3 depends on this.
 - **FR-001**: Every interactive question whose acceptable answers form a closed, knowable set MUST
   name that set in the prompt, alongside what pressing Enter does. The computer question counts as
   one of these: its models are a table like any other, and it MUST name them.
+
+  A question's set is **closed and knowable** when its acceptable answers are the keys of a rules
+  table, the members of an enumerated type, or a contiguous run of counts derived from one, as
+  narrowed by the answers already given. By that test the eighteen closed-set questions are: hull
+  class, hull tonnage, configuration, jump rating, manoeuvre rating, power plant rating, armour,
+  armour options, computer model, electronics, fitting, turret count, each turret's mount, each
+  turret's weapon, weapon bay, screen, the accept-or-revise question, and the question asking which
+  answers to revise. The questions that fail it are stateroom count, name and purpose (FR-006),
+  whose answers are open.
+
+  A set is named in a parenthesised list between the question and its Enter label, except where the
+  question text already names every value once—the accept-or-revise question does, and needs no
+  list.
 - **FR-002**: The values a prompt names MUST be exactly the distinct values that prompt accepts:
   each named once, in the displayed spelling, with no value the question would refuse and no
-  acceptable value omitted. Alternate spellings of a named value, letter case, and the free part of
-  a compound answer—the percent in "crystaliron 10", a turret count, a stateroom count—lie outside
-  this count and are governed by FR-015 and FR-006. A question that accepts the literal `none`, or
-  a count of zero spelled `none`, MUST say so.
+  acceptable value omitted. A question that accepts the literal `none`, or a count of zero spelled
+  `none`, MUST say so.
+
+  Three things lie outside this count. **Alternate spellings** of a named value and letter case are
+  governed by FR-015; at a count question the digit `0` is an alternate spelling of `none` and is
+  not separately named. **Notation** is not a value: a collapsed numeric run (FR-005), the Enter
+  label, the narrowing qualifier (FR-011), the power-plant floor clause (FR-013) and a compound
+  answer's shape note are all displayed text that no referee types back. The **free part of a
+  compound answer**—the percent in "crystaliron 10", the stateroom count—is governed by FR-006. A
+  turret count is *not* a free part: the counts a hull can take are a closed set and FR-010 requires
+  them named.
+
+  Where a question takes a compound answer, the prompt MUST state its shape—that an armour type
+  carries a percent, that staterooms take a count—so that the shape need not be learnt from a
+  refusal.
+
+  Values MUST be ordered predictably: words in the order the rules table tabulates them, numbers
+  ascending, and `none` last wherever it appears.
 - **FR-003**: The values a prompt names MUST be derived from the same rules data and the same
   checks that decide whether an answer is accepted, so that a change to the tables changes the
   prompt without a second edit.
 - **FR-004**: A prompt MUST continue to state what Enter does, and MUST continue to state it
-  truthfully for the questions where Enter does something other than roll (purpose, and a screen
-  on a small craft, both of which pin absence).
-- **FR-005**: A prompt naming three or more values in an evenly spaced numeric run MUST render
-  that run as a range rather than enumerate it, so the question stays readable.
+  truthfully for every question where Enter does something other than roll: hull class (which takes
+  `starship`), purpose and a screen on a small craft (both of which pin absence), the new
+  armour-options question (which adds none), the accept-or-revise question (which accepts), and the
+  question asking which answers to revise (which revises all of them).
+- **FR-005**: A prompt naming three or more values in an evenly spaced numeric run MUST render that
+  run as a range rather than enumerate it, so the question stays readable. A run of exactly two MUST
+  be rendered as a range when its step is 1 and enumerated otherwise, because `1-3 by 2` is longer
+  and harder to read than `1, 3`.
+
+  A range is written `first-last`, or `first-last by step` where the step is not 1. A set falling
+  into several runs names each in ascending order, separated by commas—`100-1000 by 100, 1200-2000
+  by 200, 3000-5000 by 1000`—and any value belonging to no run is enumerated in its place. A range
+  is notation for its members, not a value in its own right (FR-002), so what a referee types back
+  is a member.
 - **FR-006**: Questions whose answers are open—stateroom count, name, purpose—MUST NOT name a set
   of values. They MUST still name the `none` they accept, unless Enter's advertised default is
   already `none`: the stateroom and name questions name it, because there `none` pins something
@@ -231,23 +302,37 @@ confirm the options are recorded. Nothing in stories 1–3 depends on this.
 - **FR-007**: The question asking which answers to revise MUST name every answer that can be
   revised, and is the one prompt exempt from the length budget of SC-005: it wraps onto as many
   lines as the full list takes rather than shortening or omitting it.
-- **FR-008**: All prompts MUST continue to be written to stderr only, so that `--interactive`
-  composes with `--toml` and `--out` and stdout remains a design a pipe can read.
+- **FR-008**: All prompts **and every refusal message** MUST continue to be written to stderr only,
+  so that `--interactive` composes with `--toml` and `--out` and stdout remains a design a pipe can
+  read.
 
 **Narrowing to the ship in hand**
 
 - **FR-009**: A question whose acceptable set depends on the hull class MUST name only the values
-  that ruleset accepts.
+  that ruleset accepts. The hull tonnage question depends on the class alone; the jump, manoeuvre and
+  power-plant ratings, the turret count and a small craft's turret weapon depend on the class and on
+  the tonnage together (FR-010).
 - **FR-010**: A question whose acceptable set depends on a hull tonnage the referee has pinned
   MUST name the set narrowed to that tonnage—the manoeuvre ratings the hull can carry beside a
   plant and a cockpit, the plant ratings available beside a pinned drive, the turret counts within
   the hull's hardpoints, and the weapons a small craft's plant can run.
+
+  A narrowed set MUST be derived from the answers standing at the moment the question is asked, not
+  from those standing when the session began. This governs the revise loop, where a question re-asked
+  after its tonnage changed MUST name the set the new tonnage allows; and it governs the repeating
+  turret questions, where each turret's weapon set is narrowed by that turret's own mount.
 - **FR-011**: When the hull tonnage was left to generation, a hull-dependent question MUST name
-  the set for the whole ruleset and MUST make clear the set is not narrowed to a chosen hull.
-- **FR-012**: When a narrowed set is empty, the question MUST say the hull can take none of the
-  values instead of displaying an empty choice.
+  the set for the whole ruleset and MUST make clear the set is not narrowed to a chosen hull. It does
+  so with a qualifier naming the *ruleset* rather than a hull—"on some starship hull"—so that a
+  prompt carrying no such qualifier can be read as a claim about the hull in hand.
+- **FR-012**: When a narrowed set is empty, the question MUST say which hull can take none of the
+  values, and MUST name no value at all, instead of displaying an empty choice. Enter is then the
+  only answer it accepts: any typed answer MUST be refused with that same reason, so the question
+  cannot pin a value it has just called impossible.
 - **FR-013**: The power-plant question MUST continue to state the floor its pinned drives require,
-  in addition to naming the available ratings.
+  in addition to naming the available ratings. The floor MUST be stated in all three of FR-010's,
+  FR-011's and FR-012's forms, since a floor the drives require holds whether or not this hull can
+  meet it.
 
 **Spelling**
 
@@ -256,12 +341,22 @@ confirm the options are recorded. Nothing in stories 1–3 depends on this.
   replacing each underscore with a space, so that a value added to a rules table displays
   correctly without a second edit. Where the SRD hyphenates a term the prompt shows it with a
   space—"pop up", "self sealing"—and the hyphenated spelling remains an accepted answer.
+
+  This rule governs prompts and refusals only. A ship's description MUST keep the SRD's own
+  spelling, so a "pop-up turret" and a "self-sealing hull" are unaffected: the feature changes what
+  the session asks, not what the rules call things.
 - **FR-015**: Every displayed value MUST be accepted verbatim when typed back; the stored
   underscored spelling MUST continue to be accepted, so answers copied from a design file work;
   and a hyphen MUST be accepted wherever the displayed spelling has a space, so that `pop_up`,
   "pop up" and "pop-up" are one answer. Answers MUST remain case-insensitive.
-- **FR-016**: A refusal MUST name the acceptable values in the same spelling the prompt used, so
-  that the prompt and the refusal do not appear to describe different sets.
+
+  An answer's surrounding whitespace MUST be ignored and an internal run of whitespace MUST count as
+  one space, so that "basic  civilian" is the value "basic civilian". Where a value is displayed as
+  notation rather than named outright (FR-005), it is each *member* of that notation that MUST be
+  accepted.
+- **FR-016**: A refusal MUST name the acceptable values in the same spelling and the same order the
+  prompt used, so that the prompt and the refusal do not appear to describe different sets. The
+  refusal names the same set the prompt named, `none` included where the question accepts it.
 
 **Armour options**
 
@@ -269,19 +364,39 @@ confirm the options are recorded. Nothing in stories 1–3 depends on this.
   MUST name the available options.
 - **FR-018**: The armour-options question MUST accept any number of the named options in one
   answer, including none, and MUST refuse a repeated option and an unrecognised one with the
-  reason.
+  reason. Options MUST be separable by spaces or commas in any case, as the revise question's
+  answers are. An answer mixing recognised options with an unrecognised or repeated one MUST be
+  refused whole, pinning nothing. The question MUST also accept the literal `none` for no options,
+  and—following FR-006's rule—need not name it, because its Enter label already says `none`.
 - **FR-019**: The armour-options question MUST NOT be asked when armour was pinned absent or left
   to generation.
 - **FR-020**: Armour options pinned at the wizard MUST reach the built ship and MUST round-trip
   through the emitted design format, as an armour layer authored by hand does.
 - **FR-021**: Revising armour MUST re-ask its options under the same rules; revising any other
-  answer MUST leave a pinned set of armour options untouched.
+  answer MUST leave a pinned set of armour options untouched. Where armour is revised and the
+  re-asked armour question is answered `none` or left to generation, any previously pinned options
+  MUST go with the layer they belonged to, since FR-019 leaves no question to carry them.
 
 **Documentation**
 
-- **FR-022**: The user-facing documentation of the interactive session MUST be updated to describe
-  what a prompt now shows, and MUST no longer imply that a refusal is how a referee learns the
-  acceptable values.
+- **FR-022**: The user-facing documentation of the interactive session—the README's
+  `--interactive` section, which is the only prose describing it—MUST be updated to describe what a
+  prompt now shows, and MUST no longer imply that a refusal is how a referee learns the acceptable
+  values. Specifically, the claim that "an answer the tables do not recognise is rejected and asked
+  again with the reason" MUST no longer stand as the referee's route to the acceptable set, and the
+  armour paragraph MUST describe the options question.
+
+**Boundaries the prompts must not cross**
+
+- **FR-023**: A prompt MUST NOT shorten its list by anticipating a refusal that only assembly can
+  decide. Assembly remains the sole authority on rules legality, so a value the question accepts is
+  named even where the ship may fail to build with it—fuel scoops on a distributed hull, armour at a
+  percent that is not a multiple of five. The list is a statement about what the question accepts,
+  not a promise that the ship will build.
+- **FR-024**: A prompt MUST NOT name a value whose acceptance needs an answer the session never
+  asks for. The fitting question therefore omits fittings that require a vehicle tonnage, and MUST
+  derive that omission from the rules data rather than from a hard-coded name, so that a further
+  vehicle-sized fitting drops out of the list with no edit.
 
 ### Key Entities
 
@@ -297,24 +412,33 @@ confirm the options are recorded. Nothing in stories 1–3 depends on this.
 
 ### Measurable Outcomes
 
-- **SC-001**: Every interactive question with a closed set of answers names that set. Counted over
-  a full starship session and a full small-craft session, the number of such questions that do not
-  is zero.
+- **SC-001**: Every interactive question with a closed set of answers, as FR-001 lists them, names
+  that set. The count is taken over a starship session and a small-craft session that each press
+  Enter at every question, plus one session that reaches the questions an all-Enter walk never
+  does—the armour options and each turret's mount and weapon. The number of listed questions that do
+  not name their set is zero.
 - **SC-002**: For every value displayed at every prompt, typing it back verbatim is accepted; and
   for every distinct value a prompt accepts, the prompt named it. Both counts of exceptions are
-  zero. Alternate spellings of a named value and the free part of a compound answer are not
-  counted.
-- **SC-003**: A referee can complete an interactive session pinning armour, configuration,
-  electronics, a computer, a fitting, a turret and a screen without consulting the SRD, the README,
-  or a refusal message to learn what to type.
+  zero. The denominator on each side is the set FR-003 publishes for that question. FR-002's three
+  exclusions—alternate spellings, notation, and the free part of a compound answer—are not counted on
+  either side; where a value is displayed as notation, its members are what count.
+- **SC-003**: Every value needed to answer the armour, configuration, electronics, computer,
+  fitting, turret and screen questions is named at the prompt that asks it, so a referee can pin all
+  seven without consulting the SRD, the README, or a refusal message to learn what to type.
 - **SC-004**: All three armour options are reachable from the interactive session, where none is
   today.
 - **SC-005**: No prompt occupies more than two lines in an 80-column terminal, save the question
-  asking which answers to revise, which names all sixteen and takes the lines it needs.
+  asking which answers to revise, which names all sixteen and takes the lines it needs. A prompt is
+  measured as the string the session writes—question, values, and the Enter label with its trailing
+  space—and excludes whatever the referee then types on the same line.
 - **SC-006**: Adding, renaming or removing a value in a rules table changes what the corresponding
-  prompt offers with no edit to the prompt itself.
+  prompt offers with no edit to the prompt itself. Demonstrated by adding a key to a rules table and
+  finding the new value named at its prompt, spelled from the key, with no change to the code that
+  composes prompts.
 - **SC-007**: A session in which the referee presses Enter at every question produces the same ship
-  from the same seed as generation without `--interactive`, unchanged from today.
+  from the same seed as generation without `--interactive`, unchanged from today. No roll is added
+  and no draw order changes; the armour-options question is not reached on that path, since Enter at
+  armour pins nothing for it to attach to.
 
 ## Assumptions
 
@@ -322,8 +446,8 @@ confirm the options are recorded. Nothing in stories 1–3 depends on this.
   are unchanged, except that a pinned set of armour options now reaches them from one more
   direction.
 - Where a value is knowable but a *rules* refusal is only decidable at assembly, the prompt lists
-  it and the refusal arrives at assembly as it does today. Assembly remains the sole authority on
-  rules legality; no rule is duplicated outward into the prompts to shorten a list.
+  it and the refusal arrives at assembly as it does today. This is no longer only an assumption:
+  FR-023 states it as a requirement, because FR-002's claim that the list is complete depends on it.
 - Armour options are asked as a question of their own, following the type-and-percent question,
   taking any number of options in one answer. Quantity, vehicle tonnage, software, computer
   hardening and jump control remain out of the session's scope and stay reachable through
@@ -334,6 +458,7 @@ confirm the options are recorded. Nothing in stories 1–3 depends on this.
   emitted TOML, or ship description changes.
 - The small craft hangar is excluded from the fitting question's list because the question cannot
   supply the vehicle tonnage that fitting requires. This makes explicit a refusal that already
-  happens; it removes no capability.
-- The README's description of the interactive session is the user-facing documentation this
-  feature updates.
+  happens; it removes no capability. FR-024 states the general rule it is the only instance of.
+- The README's `--interactive` section is the user-facing documentation this feature updates, and it
+  is the only prose describing the session: neither `CONTRIBUTING.md` nor `AGENTS.md` mentions it
+  (verified 2026-07-29), so FR-022 reaches one file.
