@@ -312,7 +312,7 @@ uv run cetools ship generate --hull 10 --small-craft --seed 7
 uv run cetools ship generate --interactive --seed 42
 ```
 
-`--interactive` (`-i`) asks what to pin and rolls the rest. Every closed-set question names its acceptable values right in the prompt—spelled the way they may be typed back (spaces, not underscores), narrowed to the hull already pinned where the rules narrow them, and `none` last wherever the question accepts it—so a referee never has to open the SRD tables to answer one:
+`--interactive` (`-i`) asks what to pin and rolls the rest. Every closed-set question names its acceptable values right in the prompt—spelled the way they may be typed back (spaces, not underscores), narrowed to the hull already pinned where the rules narrow them, and `none` last in every list that names it—so a referee never has to open the SRD tables to answer one:
 
 ```text
 Fitting (armory, detention cell, fuel scoops, fuel processor, laboratory, library, luxuries, vault, none) [roll]:

@@ -164,9 +164,18 @@ def test_accessor_turret_weapons_matches_validate_turret_weapon():
 
 
 def test_accessor_fitting_kinds_omits_vehicle_sized_fittings():
+    """The exclusion is derived from the table row, not from a list of names
+    (FR-024), so the expected sequence is spelled the same way—by row shape.
+    Naming the excluded keys here would fail the day a second vehicle-sized
+    fitting arrived, though the accessor would have dropped it correctly.
+
+    `vehicle_hangar` is still named once, as the anchor for the one instance
+    the table has today (contracts/engine-accessors.md); that assertion stays
+    true however many more are added.
+    """
     values = fitting_kinds()
     assert "vehicle_hangar" not in values
-    assert values == tuple(kind for kind in FITTINGS if kind != "vehicle_hangar")
+    assert values == tuple(kind for kind, row in FITTINGS.items() if row.tons is not None)
     for kind in values:
         FittingFit(kind=kind)
     for kind, row in FITTINGS.items():
