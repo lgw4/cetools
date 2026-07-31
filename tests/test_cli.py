@@ -1,4 +1,5 @@
 import inspect
+import re
 from functools import partial
 from unittest.mock import patch
 
@@ -2290,6 +2291,30 @@ def test_ship_generate_interactive_armor_percent_rule_surfaces_at_assembly_not_t
     assert result.stderr.count(_ARMOR_PROMPT) == 2  # asked, refused, asked again
 
 
+# --- T052 (Polish): FR-023's boundary between the prompt and the rules ---
+
+
+def test_ship_generate_interactive_fitting_still_accepts_fuel_scoops_on_a_distributed_hull():
+    """The prompt's list is a statement about what the *question* accepts, not
+    a promise the ship will build (Constitution I). A distributed hull cannot
+    mount fuel scoops, but that is `build_ship`'s rule to enforce, not the
+    fitting question's to pre-empt by shortening its list—so `fuel_scoops` is
+    still named and still accepted at the prompt, and the refusal reaches the
+    referee at assembly, through the revise loop, exactly as it does today.
+    """
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7"],
+        input=_answers(pad=False, configuration="distributed", fitting="fuel_scoops")
+        + "fitting\nvault\n",
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "Fitting (armory, detention cell, fuel scoops," in result.stderr
+    assert "unknown fitting" not in result.stderr  # accepted at the prompt
+    assert "a distributed hull cannot mount fuel scoops" in result.stderr  # refused at assembly
+    assert result.stderr.count("Fitting (armory, detention cell, fuel scoops,") == 2
+
+
 def test_ship_generate_interactive_unknown_armor_type_is_reasked_with_the_reason():
     result = runner.invoke(
         app,
@@ -3004,6 +3029,203 @@ def test_acceptable_values_table_covers_every_closed_set_reader_in_ship_py():
     covered = {row["reader_name"] for row in _ACCEPTABLE_VALUES_TABLE}
     accounted_for = covered | _OPEN_OR_OUTSIDE_SEC7_READERS
     assert all_readers == accounted_for
+
+
+# --- T049 (Polish): SC-005's two-line budget, 160 characters at 80 columns ---
+#
+# Composed the same way `_ask_constraints` composes them, rather than a
+# retyped table, so the budget is checked against real composition and not a
+# second copy of research.md's measurements. The revise question (FR-007) is
+# the one prompt exempt from the budget and is not in this list.
+
+
+def _full_prompt(text: str, default_label: str) -> str:
+    """`_ask`'s own trailing form: `"{text} [{default_label}]: "`."""
+    return f"{text} [{default_label}]: "
+
+
+def _budgeted_prompts() -> list[tuple[str, str]]:
+    rows: list[tuple[str, str]] = []
+
+    text, _ = ship._closed_set("Hull class", [c.value for c in HullClass])
+    rows.append(("hull_class", _full_prompt(text, HullClass.STARSHIP.value)))
+
+    for hull_class in HullClass:
+        text, _ = ship._closed_set(
+            "Hull tonnage", hull_tonnages(hull_class), render=prompts.numbers
+        )
+        rows.append((f"hull_tonnage_{hull_class.value}", _full_prompt(text, "roll")))
+
+    text, _ = ship._closed_set("Configuration", [c.value for c in Configuration])
+    rows.append(("configuration", _full_prompt(text, "roll")))
+
+    text = ship._narrowed_numbers(
+        "Jump rating", available_ratings(HullClass.STARSHIP, 400), HullClass.STARSHIP, True
+    )
+    rows.append(("jump_rating_narrowed", _full_prompt(text, "roll")))
+    text = ship._narrowed_numbers(
+        "Jump rating", available_ratings(HullClass.STARSHIP, None), HullClass.STARSHIP, False
+    )
+    rows.append(("jump_rating_unnarrowed", _full_prompt(text, "roll")))
+
+    text = ship._narrowed_numbers(
+        "Maneuver rating", available_ratings(HullClass.STARSHIP, 400), HullClass.STARSHIP, True
+    )
+    rows.append(("maneuver_rating_narrowed", _full_prompt(text, "roll")))
+    text = ship._narrowed_numbers(
+        "Maneuver rating", available_ratings(HullClass.STARSHIP, None), HullClass.STARSHIP, False
+    )
+    rows.append(("maneuver_rating_unnarrowed", _full_prompt(text, "roll")))
+    text = ship._narrowed_numbers(
+        "Maneuver rating", small_craft_maneuver_ratings(40), HullClass.SMALL_CRAFT, True
+    )
+    rows.append(("maneuver_rating_small_craft", _full_prompt(text, "roll")))
+
+    text = ship._narrowed_numbers(
+        "Power plant rating",
+        available_ratings(HullClass.STARSHIP, 400),
+        HullClass.STARSHIP,
+        True,
+        note=", at least 3",
+    )
+    rows.append(("power_rating_narrowed_with_floor", _full_prompt(text, "roll")))
+    text = ship._narrowed_numbers(
+        "Power plant rating",
+        available_ratings(HullClass.STARSHIP, None),
+        HullClass.STARSHIP,
+        False,
+    )
+    rows.append(("power_rating_unnarrowed_no_floor", _full_prompt(text, "roll")))
+    floor = ship.power_floor(HullClass.SMALL_CRAFT, None, 6)
+    text = ship._narrowed_numbers(
+        "Power plant rating",
+        small_craft_power_ratings(10, 6),
+        HullClass.SMALL_CRAFT,
+        True,
+        empty_reason="a 10-ton hull can carry none",
+        note=f", at least {floor}",
+    )
+    rows.append(("power_rating_empty_with_floor", _full_prompt(text, "roll")))
+
+    text, _ = ship._closed_set(
+        "Armor", [kind.value for kind in ArmorType], note=", each with a percent, or none"
+    )
+    rows.append(("armor", _full_prompt(text, "roll")))
+    text, _ = ship._closed_set("Armor options", armor_options())
+    rows.append(("armor_options", _full_prompt(text, "none")))
+
+    text, _ = ship._closed_set(
+        "Computer model", computer_models(), render=prompts.numbers, none=True
+    )
+    rows.append(("computer", _full_prompt(text, "roll")))
+    text, _ = ship._closed_set("Electronics", electronics_packages(), none=True)
+    rows.append(("electronics", _full_prompt(text, "roll")))
+    text, _ = ship._closed_set("Fitting", fitting_kinds(), none=True)
+    rows.append(("fitting", _full_prompt(text, "roll")))
+
+    for tons, label in [(200, "200"), (None, "unnarrowed"), (5000, "5000")]:
+        maximum = hardpoints(HullClass.STARSHIP, tons)
+        text = ship._narrowed_numbers(
+            "Turrets", range(1, maximum + 1), HullClass.STARSHIP, tons is not None, none=True
+        )
+        rows.append((f"turrets_starship_{label}", _full_prompt(text, "roll")))
+    maximum = hardpoints(HullClass.SMALL_CRAFT, None)
+    text = ship._narrowed_numbers(
+        "Turrets", range(1, maximum + 1), HullClass.SMALL_CRAFT, False, none=True
+    )
+    rows.append(("turrets_small_craft_unnarrowed", _full_prompt(text, "roll")))
+
+    text, _ = ship._closed_set("Turret 1 mount", turret_mounts())
+    rows.append(("turret_mount", _full_prompt(text, "roll")))
+    text, _ = ship._closed_set("Turret 1 weapon", turret_weapons())
+    rows.append(("turret_weapon", _full_prompt(text, "roll")))
+
+    text, _ = ship._closed_set("Weapon bay", bay_kinds(), none=True)
+    rows.append(("bay", _full_prompt(text, "roll")))
+    text, _ = ship._closed_set("Screen", screen_kinds(), none=True)
+    rows.append(("screen_roll", _full_prompt(text, "roll")))
+    rows.append(("screen_none_default", _full_prompt(text, "none")))
+
+    rows.append(
+        (
+            "staterooms",
+            _full_prompt(prompts.offer("Staterooms", [], note="a count, or none"), "roll"),
+        )
+    )
+    rows.append(
+        ("name", _full_prompt(prompts.offer("Name", [], note="any text, or none"), "roll"))
+    )
+    rows.append(("purpose", _full_prompt("Purpose", "none")))
+
+    return rows
+
+
+_PROMPT_LENGTH_BUDGET = 160
+"""SC-005: no prompt over two lines at 80 columns, save the revise question
+(FR-007), which is not among `_budgeted_prompts`."""
+
+
+@pytest.mark.parametrize(
+    "prompt_id,text", _budgeted_prompts(), ids=[row[0] for row in _budgeted_prompts()]
+)
+def test_prompt_length_budget(prompt_id, text):
+    assert len(text) <= _PROMPT_LENGTH_BUDGET, f"{prompt_id} is {len(text)} chars: {text!r}"
+
+
+# --- T050 (Polish): SC-007 seed parity ---
+
+
+def test_ship_generate_interactive_seed_parity_with_toml_output():
+    """SC-007: an all-Enter session pins nothing, so it must draw exactly what
+    generation without --interactive draws at the same seed—no roll added and
+    no draw order moved by asking. Checked through --toml, which round-trips
+    every field the description prose could otherwise mask a divergence in."""
+    interactive = runner.invoke(
+        app, ["ship", "generate", "--interactive", "--seed", "42", "--toml"], input=_ENTER_THROUGH
+    )
+    direct = runner.invoke(app, ["ship", "generate", "--seed", "42", "--toml"])
+
+    assert interactive.exit_code == 0, interactive.stderr
+    assert direct.exit_code == 0
+    assert interactive.stdout == direct.stdout
+
+
+def test_ship_generate_interactive_small_craft_seed_parity_with_toml_output():
+    interactive = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--small-craft", "--seed", "7", "--toml"],
+        input=_ENTER_THROUGH,
+    )
+    direct = runner.invoke(app, ["ship", "generate", "--small-craft", "--seed", "7", "--toml"])
+
+    assert interactive.exit_code == 0, interactive.stderr
+    assert direct.exit_code == 0
+    assert interactive.stdout == direct.stdout
+
+
+# --- T051 (Polish): FR-008 stream discipline ---
+
+
+def test_ship_generate_interactive_toml_stdout_carries_no_prompt_or_refusal_text_after_a_refusal():
+    """FR-008: `--interactive` composes with `--toml`. A refusal mid-session
+    still costs only a line on stderr—stdout stays valid TOML from its first
+    line, with no question text and no refusal text leaked onto the pipe a
+    --toml caller reads."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), fitting="bogus_kind\nvault"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "unknown fitting" in result.stderr
+    assert "Fitting (" in result.stderr
+
+    stdout = result.stdout
+    first_line = stdout.splitlines()[0]
+    assert re.match(r"^\w+ = ", first_line), first_line
+
+    for leak in ("Fitting (", "[roll]:", "[none]:", "unknown fitting", "?"):
+        assert leak not in stdout
 
 
 def test_ship_build_fighter_prints_a_jump_free_description():

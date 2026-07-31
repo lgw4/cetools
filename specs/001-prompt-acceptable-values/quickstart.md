@@ -119,17 +119,19 @@ printf '\n\n\n\n\n\n\n\n\n\n\n51\nnone\n\n\n\n' | uv run cetools ship generate -
 here, because a count is checked only when a tonnage is pinned.
 
 And the empty case, reachable only through the revise loop
-([research.md Decision 9](./research.md)): press Enter at hull tonnage, pin a manoeuvre rating the
-whole ruleset allows, then revise `hull tons` to a tonnage that cannot carry it and revise
-`power rating`.
+([research.md Decision 9](./research.md)): an illegal combination—a distributed hull with fuel
+scoops—is what reaches the referee's own choice of fields to revise (`_ask_which_to_revise`) rather
+than the automatic re-ask an *unmet* constraint would drive instead. Press Enter at hull tonnage, pin
+a manoeuvre rating the whole ruleset allows, then choose to revise `hull tons` and `power rating`,
+answering a tonnage that cannot carry the pinned drive.
 
 ```shell
-printf 'small craft\n\n\n6\n\n\n\n\n\n\n\n\n\n\nrevise\nhull tons\n10\npower rating\n6\n\n' \
+printf 'small craft\n\ndistributed\n6\n\n\n\n\n\nfuel_scoops\n\n\n\n\nhull tons, power rating\n10\n6\n' \
   | uv run cetools ship generate --interactive --seed 42 2>&1 >/dev/null
 ```
 
 **Expected**: `Power plant rating (a 10-ton hull can carry none, at least 6) [roll]:`—no value
-named, the floor still stated (FR-012, FR-013). Typing `1` is **refused** with that same reason
+named, the floor still stated (FR-012, FR-013). Typing `6` is **refused** with that same reason
 rather than accepted, because Enter is the only answer an empty set takes; pressing Enter leaves the
 plant to generation.
 
@@ -138,7 +140,7 @@ plant to generation.
 Type each displayed spelling back:
 
 ```shell
-printf '\n200\n\nbonded superdense 15\n\n\n\n\n\n\n\n' | uv run cetools ship generate --interactive --toml --seed 42
+printf '\n200\n\n\n\n\nbonded superdense 15\n\n\n\n\n\n\n\n\n\n\n\n' | uv run cetools ship generate --interactive --toml --seed 42
 ```
 
 **Expected**: no refusal; the emitted TOML carries `type = "bonded_superdense"` (AS 3.1). Repeat
@@ -148,7 +150,7 @@ with `bonded_superdense 15` for an identical result (AS 3.2), and at a turret mo
 Then a refusal, to check FR-016:
 
 ```shell
-printf '\n200\n\nbonded superdence 15\n' | uv run cetools ship generate --interactive --seed 42 2>&1 >/dev/null
+printf '\n200\n\n\n\n\nbonded superdence 15\n' | uv run cetools ship generate --interactive --seed 42 2>&1 >/dev/null
 ```
 
 **Expected**: the reason names the types with spaces, matching the prompt above it, and the armour
@@ -167,7 +169,7 @@ message lists for library callers.
 ## Scenario 4: armour options can be pinned (US4, FR-017 to FR-021)
 
 ```shell
-printf '\n200\n\ncrystaliron 10\nreflec stealth\n\n\n\n\n\n\n\n' | uv run cetools ship generate --interactive --toml --out /tmp/pinned.toml --seed 42
+printf '\n200\n\n\n\n\ncrystaliron 10\nreflec stealth\n\n\n\n\n\n\n\n\n\n' | uv run cetools ship generate --interactive --toml --out /tmp/pinned.toml --seed 42
 ```
 
 **Expected**:
@@ -205,10 +207,13 @@ to—there is no armour left for them to attach to, and FR-019 leaves no questio
 
 ## Scenario 5: the revise loop (FR-007, FR-021)
 
-Force a shortfall, then read the revise prompt and answer it in each accepted form:
+Force an illegal answer—armour at a percent the 5% rule refuses, accepted at the prompt and caught
+only at assembly (FR-023)—then read the revise prompt and answer it. A tonnage shortfall does not
+reach this prompt: it is an *unmet* constraint, and the session re-asks the field itself without
+naming which one; only a rules-illegal design reaches the referee's own choice of fields.
 
 ```shell
-printf '\n100\n\n\n\n\ncrystaliron 90\n\n\n\n\n\n\n\n\n\nrevise\narmor\ncrystaliron 5\n\n' \
+printf '\n200\n\n\n\n\ncrystaliron 7\n\n\n\n\n\n\n\n\n\n\narmor\ncrystaliron 5\n\n' \
   | uv run cetools ship generate --interactive --seed 42 2>&1 >/dev/null
 ```
 

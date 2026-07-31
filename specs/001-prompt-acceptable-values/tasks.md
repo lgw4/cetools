@@ -433,41 +433,67 @@ options reachable from the session where none was.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T049 [P] Add the SC-005 length-budget test in `tests/test_cli.py`, named so
+- [X] T049 [P] Add the SC-005 length-budget test in `tests/test_cli.py`, named so
       `uv run pytest tests/test_cli.py -k prompt_length` selects it: every prompt string the session
       writes—question, values, and the Enter label with its trailing space—is at most 160
       characters at 80 columns, save the revise question, which FR-007 exempts. Include the
       unnarrowed forms, the longest of which is `Turrets (1-50 on some starship hull, none) [roll]: `
       at 51 characters (research.md Decision 6)
-- [ ] T050 [P] Add the SC-007 seed-parity test in `tests/test_cli.py`: an all-Enter session with a
+
+      Composed the parametrised rows from the real `ship._closed_set` / `ship._narrowed_numbers`
+      calls rather than a retyped table, so the budget is checked against actual composition; all
+      29 rows passed immediately (the fitting question, at 114 characters, is the longest)
+- [X] T050 [P] Add the SC-007 seed-parity test in `tests/test_cli.py`: an all-Enter session with a
       given seed produces byte-identical output to `generate` without `--interactive` at the same
       seed, so no roll was added and no draw order moved
-- [ ] T051 [P] Add the FR-008 stream-discipline test in `tests/test_cli.py`: with `--toml`, stdout
+- [X] T051 [P] Add the FR-008 stream-discipline test in `tests/test_cli.py`: with `--toml`, stdout
       carries valid TOML from its first line and no prompt or refusal text
-- [ ] T052 [P] Add the FR-023 boundary test in `tests/test_cli.py`: `fuel scoops` is still named at
+- [X] T052 [P] Add the FR-023 boundary test in `tests/test_cli.py`: `fuel scoops` is still named at
       the fitting prompt on a distributed hull and still accepted there, the rules refusal arriving
       at assembly with the revise loop as it does today; and armour at a percent that is not a
       multiple of five is still accepted at the prompt. The prompt's list is a statement about what
       the question accepts, not a promise the ship will build—a prompt that shortened its list
       here would be duplicating a rule outward, which Constitution I forbids. This holds once US1
       lands, so observe it red by temporarily filtering `fuel_scoops` out of `fitting_kinds()`
-- [ ] T053 [P] Add the FR-014 scoping test in `tests/test_ship_description.py`: a built ship's
+
+      The armour-percent half was already covered by
+      `test_ship_generate_interactive_armor_percent_rule_surfaces_at_assembly_not_the_prompt`
+      (Phase 3). Added the fitting/fuel-scoops row and confirmed it red by filtering
+      `fuel_scoops` out of `fitting_kinds()`, then restored the accessor
+- [X] T053 [P] Add the FR-014 scoping test in `tests/test_ship_description.py`: a built ship's
       description still reads `pop-up turret` and `a self-sealing hull`, the SRD's own spelling,
       though the prompts now show `pop up` and `self sealing`. This is the guard that stops a global
       rename following the spelling rule out of the CLI and into the rules text, so observe it red
       by temporarily spacing `TURRET_MOUNTS["pop_up"].name` before restoring it
-- [ ] T054 [P] Update the README `--interactive` section in `README.md` (FR-022): describe what a
+- [X] T054 [P] Update the README `--interactive` section in `README.md` (FR-022): describe what a
       prompt now shows, remove the claim that "an answer the tables do not recognise is rejected and
       asked again with the reason" as the referee's route to the acceptable set, and extend the
       armour paragraph to describe the options question
-- [ ] T055 Run `uv run python scripts/check_docs.py` and resolve every backticked symbol the README
+- [X] T055 Run `uv run python scripts/check_docs.py` and resolve every backticked symbol the README
       edit introduces—the eleven accessors must be exported for it to pass; `src/cetools/cli/`
       needs no module-map entry, the map covering `engine/` only
-- [ ] T056 Walk quickstart.md Scenarios 1 through 8 by hand and confirm each expected output,
+
+      Passed with no edits needed
+- [X] T056 Walk quickstart.md Scenarios 1 through 8 by hand and confirm each expected output,
       including the SC-006 demonstration: add a throwaway key to `SCREENS` at runtime and find it
       named at the prompt with no edit to `src/cetools/cli/ship.py`
-- [ ] T057 Run the full gate green:
+
+      Found and fixed four stale reproduction commands, all predating either the Phase 4 rating
+      questions or the Phase 6 armour-options question: Scenario 2's empty-turret-set example, and
+      Scenario 3 and 4's armour examples, were each missing the jump/maneuver/power blank lines (and,
+      for a pinned real armour type, the new Armor options blank) that a full starship session now
+      asks between hull tonnage and armour—so a value meant for the armour prompt was landing on
+      Jump rating instead. Scenario 5 forced a tonnage shortfall (an *unmet* constraint, auto-revised
+      with no field-choice prompt) where the text claimed it reached "Revise which answers"; that
+      prompt is reachable only through a rules-illegal answer (`_ask_which_to_revise`), so the
+      scenario was rewritten to force one the same way the passing `test_cli.py` revise-prompt test
+      does, with an armour percent that breaks the 5% rule. Every other scenario's command was run
+      verbatim and matched its documented expectation exactly
+- [X] T057 Run the full gate green:
       `uv run isort . && uv run black . && uv run flake8 src tests && uv run pytest && uv run python scripts/check_docs.py`
+
+      All five green: 3239 passed, 99.22% coverage on `src/cetools`, docs OK. (One flake8 line-length
+      fix along the way: T052's test name was shortened.)
 
 ---
 
