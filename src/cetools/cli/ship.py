@@ -47,7 +47,6 @@ from cetools.engine.ships import (
     small_craft_weapons,
     turret_mounts,
     turret_weapons,
-    validate_hull_tons,
     validate_small_craft_weapon,
 )
 
@@ -239,22 +238,26 @@ def _power_values(
     return available_ratings(hull_class, hull_tons)
 
 
-def _read_maneuver_rating(hull_class: HullClass, hull_tons: int | None, answer: str) -> int:
+def _read_maneuver_rating(
+    hull_class: HullClass, hull_tons: int | None, offered: tuple[int, ...], answer: str
+) -> int:
     """A manoeuvre rating, narrowed to what a small craft can actually carry.
 
     The drive table tabulates ratings this hull could reach in isolation, but a
     craft also needs a plant and a cockpit. Refusing here keeps the power prompt
     that follows from having no acceptable answer at all.
-    """
-    rating = _read_rating(hull_class, hull_tons, Drive.MANEUVER, None, answer)
 
-    if hull_class is HullClass.SMALL_CRAFT and hull_tons is not None:
-        carryable = small_craft_maneuver_ratings(hull_tons)
-        if rating not in carryable:
-            raise ValueError(
-                f"a {hull_tons}-ton small craft cannot carry a {rating}-G drive and a "
-                f"power plant beside it; available: {', '.join(prompts.numbers(carryable))}"
-            )
+    `offered` is the set the prompt displayed, threaded down from the call site
+    that composed it rather than recomputed, so the refusal cannot name a set
+    the prompt did not (FR-016).
+    """
+    rating = _read_rating(hull_class, hull_tons, Drive.MANEUVER, None, offered, answer)
+
+    if hull_class is HullClass.SMALL_CRAFT and hull_tons is not None and rating not in offered:
+        raise ValueError(
+            f"a {hull_tons}-ton small craft cannot carry a {rating}-G drive and a "
+            f"power plant beside it; available: {', '.join(prompts.numbers(offered))}"
+        )
     return rating
 
 
@@ -263,6 +266,7 @@ def _read_power_rating(
     hull_tons: int | None,
     floor: int | None,
     maneuver_rating: int | None,
+    offered: tuple[int, ...],
     answer: str,
 ) -> int:
     """A power plant rating, narrowed on the small-craft path.
@@ -270,22 +274,25 @@ def _read_power_rating(
     There the pair is chosen jointly, so a manoeuvre drive already pinned rules
     out plants too weak to power it or too heavy to sit beside it. Offering a
     rating generation would then have to decline would be promising more than
-    the hull can give—and where that leaves nothing at all, every typed answer
-    is refused with the reason the empty prompt already gave (FR-012).
-    """
-    rating = _read_rating(hull_class, hull_tons, Drive.POWER, floor, answer)
+    the hull can give.
 
-    if hull_class is HullClass.SMALL_CRAFT and hull_tons is not None and maneuver_rating:
-        offered = small_craft_power_ratings(hull_tons, maneuver_rating)
-        if rating not in offered:
-            if not offered:
-                clause = f", at least {floor}" if floor is not None else ""
-                raise ValueError(f"a {hull_tons}-ton hull can carry none{clause}")
-            available = ", ".join(prompts.numbers(offered))
-            raise ValueError(
-                f"power rating {rating} is not available beside a {maneuver_rating}-G "
-                f"drive on a {hull_tons}-ton hull; available: {available}"
-            )
+    `offered` is the set the prompt displayed. Where it is empty, `_read_rating`
+    has already refused every typed answer with the reason the prompt gave
+    (FR-012), so this narrowing only ever reports a set it can name.
+    """
+    rating = _read_rating(hull_class, hull_tons, Drive.POWER, floor, offered, answer)
+
+    if (
+        hull_class is HullClass.SMALL_CRAFT
+        and hull_tons is not None
+        and maneuver_rating
+        and rating not in offered
+    ):
+        available = ", ".join(prompts.numbers(offered))
+        raise ValueError(
+            f"power rating {rating} is not available beside a {maneuver_rating}-G "
+            f"drive on a {hull_tons}-ton hull; available: {available}"
+        )
     return rating
 
 
@@ -307,7 +314,12 @@ def _read_hull_tons(hull_class: HullClass, answer: str) -> int:
 
 
 def _read_rating(
-    hull_class: HullClass, hull_tons: int | None, drive: Drive, floor: int | None, answer: str
+    hull_class: HullClass,
+    hull_tons: int | None,
+    drive: Drive,
+    floor: int | None,
+    offered: tuple[int, ...],
+    answer: str,
 ) -> int:
     """One drive rating, checked against the hull as far as it is known.
 
@@ -315,11 +327,26 @@ def _read_rating(
     check widens to every hull of the class: a rating no hull could deliver is
     still caught, one this hull cannot is not. That narrower case surfaces at
     assembly instead.
+
+    `offered` is the set the prompt displayed, which on the small-craft path is
+    narrower than the drive table this still gates on. The tabulation check
+    keeps its own sentence, but names `offered`: a refusal naming the wider set
+    would advertise ratings the question itself refuses, and would leave the
+    prompt above and the refusal below describing different sets (FR-016).
+
+    An empty `offered` is FR-012's form, and it is answered before anything
+    else. The prompt named no value, so nothing typed can be pinned, and every
+    answer earns the reason the prompt already gave rather than a floor or a
+    tabulation sentence that would name values it withheld.
     """
     try:
         rating = int(answer)
     except ValueError:
         raise ValueError(f"{answer} is not a drive rating") from None
+
+    if not offered:
+        clause = f", at least {floor}" if floor is not None else ""
+        raise ValueError(f"a {hull_tons}-ton hull can carry none{clause}")
 
     if floor is not None and rating < floor:
         raise ValueError(f"power plant rating {rating} is below the {floor} its drives require")
@@ -327,14 +354,13 @@ def _read_rating(
     if drive is Drive.JUMP and hull_class is HullClass.SMALL_CRAFT:
         raise ValueError("small craft carry no jump drive, so no jump rating can be pinned")
 
-    available = available_ratings(hull_class, hull_tons)
-    if rating not in available:
+    if rating not in available_ratings(hull_class, hull_tons):
         where = (
             f"a {hull_tons}-ton hull" if hull_tons is not None else f"any {hull_class.value} hull"
         )
         raise ValueError(
             f"{drive.value} rating {rating} is not tabulated for {where}; "
-            f"available: {', '.join(prompts.numbers(available))}"
+            f"available: {', '.join(prompts.numbers(offered))}"
         )
     return rating
 
@@ -701,7 +727,13 @@ def _ask_constraints(
     else:
         if hull is not None:
             try:
-                validate_hull_tons(hull_class, hull)
+                # Checked by the same reader the question below uses, rather
+                # than by the engine directly: the flag and the prompt are then
+                # one refusal in one notation by construction, where echoing
+                # the engine's message would print its bare list—which library
+                # callers need and a referee reading `100-1000 by 100` does
+                # not (FR-016, research.md Decision 3).
+                hull = _read_hull_tons(hull_class, str(hull))
             except ValueError as exc:
                 # `--hull` pre-answers the question, but only with an answer this
                 # ruleset accepts. The referee chose the class a moment ago, so
@@ -724,14 +756,19 @@ def _ask_constraints(
     def ask_rating(
         question: str,
         values: Iterable[int],
-        read: Callable[[str], int],
+        read: Callable[[tuple[int, ...], str], int],
         floor: int | None = None,
     ) -> int | None:
+        """Compose a hull-dependent numeric question and ask it, binding the
+        set it displayed into the reader that checks the answer—so the prompt
+        and its refusal are one set by construction rather than by two edits
+        staying in step (FR-016)."""
+        offered = tuple(values)
         note = f", at least {floor}" if floor is not None else ""
         text = _narrowed_numbers(
-            question, values, hull_class, narrowed, empty_reason=empty_reason, note=note
+            question, offered, hull_class, narrowed, empty_reason=empty_reason, note=note
         )
-        return _ask_until_understood(text, read)
+        return _ask_until_understood(text, partial(read, offered))
 
     configuration = answered(
         "configuration",

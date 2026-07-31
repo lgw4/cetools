@@ -1857,6 +1857,84 @@ def test_ship_generate_interactive_power_prompt_names_no_value_when_the_hull_can
     )
 
 
+# --- T058/T059 (Convergence): a refusal names the set its prompt named ---
+#
+# The two readers whose prompt is narrower than `available_ratings` are the
+# small craft's manoeuvre and power questions. An answer outside the *wider*
+# set used to be refused by `_read_rating` naming that wider set, so the prompt
+# above and the refusal below described different sets—the failure FR-016
+# exists to prevent, and one that also named ratings the question then refused.
+
+
+def test_ship_generate_interactive_small_craft_maneuver_refusal_names_the_offered_ratings():
+    """A 15-ton craft is offered `1-2`; the drive table tabulates `1-2, 4-6`
+    for it. A `3` misses both, and the refusal must name what the prompt did
+    (FR-016)."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--small-craft", "--hull", "15", "--seed", "7"],
+        input=_small_craft_answers(skip=("hull",), maneuver="3\n1"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "Maneuver rating (1-2) [roll]:" in result.stderr
+    assert "maneuver rating 3 is not tabulated for a 15-ton hull; available: 1-2" in result.stderr
+    assert "available: 1-2, 4-6" not in result.stderr
+
+
+def test_ship_generate_interactive_small_craft_power_refusal_names_the_offered_ratings():
+    """The same seam at the power question: beside a 1-G drive a 15-ton craft
+    is offered `1-2`, and a `3`—untabulated for the hull at all—must still be
+    refused with `1-2` rather than the drive table's `1-2, 4-6`."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--small-craft", "--hull", "15", "--seed", "7"],
+        input=_small_craft_answers(skip=("hull",), maneuver="1", power="3\n2"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "Power plant rating (1-2, at least 1) [roll]:" in result.stderr
+    assert "power rating 3 is not tabulated for a 15-ton hull; available: 1-2" in result.stderr
+    assert "available: 1-2, 4-6" not in result.stderr
+
+
+_EMPTY_POWER_PROMPT = "Power plant rating (a 10-ton hull can carry none, at least 6) [roll]: "
+
+
+def test_ship_generate_interactive_empty_power_set_refuses_every_answer_with_its_own_reason():
+    """FR-012: the prompt named no value, so nothing typed can be pinned and
+    every answer earns the reason the prompt already gave.
+
+    Three answers, one per path the reader used to take: `8` is untabulated for
+    the hull, `2` is below the floor the drives require, and `6` is both
+    tabulated and above the floor. Only the last used to reach the empty
+    reason—`8` was refused naming `available: 2-6 by 2`, a set this prompt
+    named none of, and `2` earned the floor sentence instead.
+    """
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7"],
+        input=_answers(
+            hull_class="small craft",
+            skip=("jump", "bay"),
+            pad=False,
+            configuration="distributed",
+            maneuver="6",
+            fitting="fuel_scoops",
+        )
+        + "hull tons, power rating\n10\n8\n2\n6\n",
+    )
+    assert result.exit_code == 1
+
+    # Asked once, then again after each of the three refusals.
+    segments = result.stderr.split(_EMPTY_POWER_PROMPT)
+    assert len(segments) == 5
+    for refusal in segments[1:4]:
+        assert refusal.strip().startswith("a 10-ton hull can carry none, at least 6")
+
+    after = _EMPTY_POWER_PROMPT.join(segments[1:])
+    assert "available:" not in after
+    assert "is below the" not in after
+
+
 def test_ship_generate_interactive_small_craft_energy_weapon_beyond_the_plant_is_reasked():
     """The craft's armament is capped by its power plant, and the prompt knows
     the plant once its rating is pinned."""
@@ -1915,11 +1993,42 @@ def test_ship_generate_interactive_hull_flag_that_the_chosen_class_forbids_is_re
         input=_answers(hull_class="small craft", hull="40", skip=_SMALL_CRAFT_SKIPS),
     )
     assert result.exit_code == 0, result.stderr
-    assert "200 tons is not a tabulated small-craft hull size" in result.stderr
+    # T062: in the notation the question below it uses, not the engine's bare
+    # list for library callers (FR-016).
+    assert "200 tons is not a tabulated small-craft hull size; valid: 10-95 by 5" in result.stderr
+    assert "[10," not in result.stderr
 
     from cetools.engine.ships import loads_design
 
     assert loads_design(result.stdout).hull_tons == 40
+
+
+def test_ship_generate_interactive_hull_flag_refusal_is_collapsed_like_the_prompt_below_it():
+    """The one refusal a session shows that no reader raises. Trap 2's own
+    example: a bare `[100, 200, …]` directly above a prompt reading
+    `100-1000 by 100, …` is the two-different-sets failure FR-016 exists to
+    prevent, and the sentence is the very one `_read_hull_tons` already
+    collapses when the same tonnage is typed rather than flagged.
+    """
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "150", "--seed", "7", "--toml"],
+        input=_answers(hull="400"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert (
+        "150 tons is not a tabulated hull size; "
+        "valid: 100-1000 by 100, 1200-2000 by 200, 3000-5000 by 1000" in result.stderr
+    )
+    assert "[100," not in result.stderr
+    assert (
+        "Hull tonnage (100-1000 by 100, 1200-2000 by 200, 3000-5000 by 1000) [roll]:"
+        in result.stderr
+    )
+
+    from cetools.engine.ships import loads_design
+
+    assert loads_design(result.stdout).hull_tons == 400
 
 
 def test_ship_generate_interactive_asks_for_a_turret_count_showing_its_default():
@@ -2686,10 +2795,33 @@ def test_ship_generate_toml_carries_a_name_key():
 # contract.
 
 
-def _closed_row(row_id, raw_values, reader, reader_name, *, kind, takes_known, none=False, refuse):
+def _closed_row(
+    row_id,
+    raw_values,
+    reader,
+    reader_name,
+    *,
+    kind,
+    takes_known,
+    none=False,
+    refuse,
+    takes_offered=False,
+):
     """One row: the accessor's raw values, and a single-argument `accept`
     bound to the reader that checks them—so the same call answers "is this
-    value accepted" for every clause of the invariant."""
+    value accepted" for every clause of the invariant.
+
+    `refuse` is a value outside the set, or several of them (T060). Several are
+    what a numeric row needs: a reader may reach its refusal by more than one
+    route—one check against the set the prompt displayed, another against the
+    wider set the engine tabulates—and a single probe proves only the route it
+    happened to take. Clause 4 must hold on every route.
+
+    `takes_offered` binds the row's own raw values into the reader as the set
+    the prompt displayed, exactly as `ask_rating` binds them in `ship.py`. The
+    row's accessor set and the reader's offered set are then one value, which
+    is what clause 3 is asserting about the session.
+    """
     raw_values = tuple(raw_values)
     known = (
         [prompts.spell(v) for v in raw_values]
@@ -2698,7 +2830,18 @@ def _closed_row(row_id, raw_values, reader, reader_name, *, kind, takes_known, n
     )
     if none:
         known = known + ["none"]
-    accept = (lambda answer, _known=known: reader(_known, answer)) if takes_known else reader
+    if takes_known:
+
+        def accept(answer, _known=known):
+            return reader(_known, answer)
+
+    elif takes_offered:
+
+        def accept(answer, _offered=raw_values):
+            return reader(_offered, answer)
+
+    else:
+        accept = reader
     return {
         "id": row_id,
         "kind": kind,
@@ -2706,7 +2849,7 @@ def _closed_row(row_id, raw_values, reader, reader_name, *, kind, takes_known, n
         "none": none,
         "known": known,
         "accept": accept,
-        "refuse_answer": refuse,
+        "refuse_answers": (refuse,) if isinstance(refuse, str) else tuple(refuse),
         "reader_name": reader_name,
     }
 
@@ -2765,7 +2908,7 @@ _ACCEPTABLE_VALUES_TABLE = [
         "_read_hull_tons",
         kind="number",
         takes_known=False,
-        refuse="150",
+        refuse=("150", "7"),
     ),
     _closed_row(
         "hull_tonnage_small_craft",
@@ -2774,7 +2917,7 @@ _ACCEPTABLE_VALUES_TABLE = [
         "_read_hull_tons",
         kind="number",
         takes_known=False,
-        refuse="200",
+        refuse=("200", "7"),
     ),
     _closed_row(
         "jump_rating_narrowed",
@@ -2783,7 +2926,8 @@ _ACCEPTABLE_VALUES_TABLE = [
         "_read_rating",
         kind="number",
         takes_known=False,
-        refuse="9",
+        takes_offered=True,
+        refuse=("9", "0"),
     ),
     _closed_row(
         "jump_rating_unnarrowed",
@@ -2792,7 +2936,8 @@ _ACCEPTABLE_VALUES_TABLE = [
         "_read_rating",
         kind="number",
         takes_known=False,
-        refuse="9",
+        takes_offered=True,
+        refuse=("9", "0"),
     ),
     _closed_row(
         "maneuver_rating_narrowed",
@@ -2801,7 +2946,8 @@ _ACCEPTABLE_VALUES_TABLE = [
         "_read_maneuver_rating",
         kind="number",
         takes_known=False,
-        refuse="9",
+        takes_offered=True,
+        refuse=("9", "0"),
     ),
     _closed_row(
         "maneuver_rating_unnarrowed",
@@ -2810,7 +2956,8 @@ _ACCEPTABLE_VALUES_TABLE = [
         "_read_maneuver_rating",
         kind="number",
         takes_known=False,
-        refuse="9",
+        takes_offered=True,
+        refuse=("9", "0"),
     ),
     _closed_row(
         "maneuver_rating_narrowed_small_craft",
@@ -2819,7 +2966,8 @@ _ACCEPTABLE_VALUES_TABLE = [
         "_read_maneuver_rating",
         kind="number",
         takes_known=False,
-        refuse="4",
+        takes_offered=True,
+        refuse=("4", "7"),
     ),
     _closed_row(
         "power_rating_narrowed",
@@ -2828,7 +2976,8 @@ _ACCEPTABLE_VALUES_TABLE = [
         "_read_power_rating",
         kind="number",
         takes_known=False,
-        refuse="9",
+        takes_offered=True,
+        refuse=("9", "0"),
     ),
     _closed_row(
         "power_rating_unnarrowed",
@@ -2837,7 +2986,8 @@ _ACCEPTABLE_VALUES_TABLE = [
         "_read_power_rating",
         kind="number",
         takes_known=False,
-        refuse="9",
+        takes_offered=True,
+        refuse=("9", "0"),
     ),
     _closed_row(
         "power_rating_narrowed_small_craft",
@@ -2846,7 +2996,8 @@ _ACCEPTABLE_VALUES_TABLE = [
         "_read_power_rating",
         kind="number",
         takes_known=False,
-        refuse="4",
+        takes_offered=True,
+        refuse=("4", "3"),
     ),
     {
         "id": "armor",
@@ -2855,7 +3006,7 @@ _ACCEPTABLE_VALUES_TABLE = [
         "none": False,
         "known": _ARMOR_TYPE_KNOWN,
         "accept": _accept_armor,
-        "refuse_answer": "adamantium",
+        "refuse_answers": ("adamantium",),
         "reader_name": "_read_armor",
     },
     _closed_row(
@@ -2875,7 +3026,7 @@ _ACCEPTABLE_VALUES_TABLE = [
         kind="number",
         takes_known=True,
         none=True,
-        refuse="99",
+        refuse=("99", "0"),
     ),
     _closed_row(
         "electronics",
@@ -2942,7 +3093,7 @@ _ACCEPTABLE_VALUES_TABLE = [
         "none": False,
         "known": _SMALL_CRAFT_WEAPON_KNOWN,
         "accept": _accept_small_craft_weapon,
-        "refuse_answer": "laser_cannon",
+        "refuse_answers": ("laser_cannon",),
         "reader_name": "_read_small_craft_weapon",
     },
     _closed_row(
@@ -2953,7 +3104,7 @@ _ACCEPTABLE_VALUES_TABLE = [
         kind="number",
         takes_known=False,
         none=True,
-        refuse="5",
+        refuse=("5", "99"),
     ),
     _closed_row(
         "turret_count_unnarrowed",
@@ -2963,9 +3114,26 @@ _ACCEPTABLE_VALUES_TABLE = [
         kind="number",
         takes_known=False,
         none=True,
-        refuse="51",
+        refuse=("51", "999"),
     ),
 ]
+
+
+_SET_MARKERS = ("; known: ", "; valid: ", "; available: ")
+
+
+def _named_set(message: str) -> str:
+    """The value list a refusal ends with, whichever word introduces it.
+
+    Every closed-set refusal in `ship.py` closes with `; known:`, `; valid:` or
+    `; available:` and then the set, so the set can be lifted out and compared
+    whole rather than searched for as a substring.
+    """
+    for marker in _SET_MARKERS:
+        _, found, tail = message.rpartition(marker)
+        if found:
+            return tail
+    raise AssertionError(f"refusal names no set: {message}")
 
 
 @pytest.mark.parametrize(
@@ -3001,10 +3169,15 @@ def test_acceptable_values_invariant(row):
     assert row["known"] == expected_known
 
     # 4. A value outside the set is refused, naming the set in the displayed
-    #    spelling and the displayed notation.
-    with pytest.raises(ValueError) as excinfo:
-        accept(row["refuse_answer"])
-    assert ", ".join(row["known"]) in str(excinfo.value)
+    #    spelling and the displayed notation—on every route the reader can
+    #    reach a refusal by, not merely the one a single probe happens to take
+    #    (T060). Compared exactly rather than by substring: `1-2` reads as
+    #    present inside `1-2, 4-6`, which is how a refusal naming a wider set
+    #    than its prompt passed this clause before.
+    for refused in row["refuse_answers"]:
+        with pytest.raises(ValueError) as excinfo:
+            accept(refused)
+        assert _named_set(str(excinfo.value)) == ", ".join(row["known"]), refused
 
 
 _OPEN_OR_OUTSIDE_SEC7_READERS = frozenset(

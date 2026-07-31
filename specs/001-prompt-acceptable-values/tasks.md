@@ -587,3 +587,105 @@ Each step leaves the suite green and the session usable.
   behaviour change outside prompt text is T033's: a turret count above the ruleset maximum is refused
   where the tonnage is unpinned, which FR-002 requires of a prompt that names that maximum
 - Commit after each task or logical group, Conventional Commits, one logical change per PR
+
+---
+
+## Phase 8: Convergence
+
+**Purpose**: Close the gaps a codebase assessment against spec, plan and contracts found after
+Phase 7. All three share one root: `_read_rating` renders its refusal from the *unnarrowed*
+`available_ratings`, while the prompt above it is composed from the narrowed
+`_maneuver_values`/`_power_values`—so on the small-craft path the refusal and the prompt describe
+different sets, which is exactly what FR-016 exists to prevent. The §7 invariant did not catch it
+because each row carries a single `refuse_answer`, and the three narrowed small-craft rows happened
+to pick one inside the wider set.
+
+Constitution III still governs: write the test, run it, **observe it fail**, then move the reader.
+Each task below names the red it must produce.
+
+- [X] T058 Narrow the refusal set at the manoeuvre and power-plant questions per FR-016 (contradicts).
+      In `src/cetools/cli/ship.py`, `_read_rating`'s refusal (line 330-338) names
+      `available_ratings(hull_class, hull_tons)` where the prompt named `_maneuver_values` /
+      `_power_values`. Confirmed live: on a 15-ton small craft, `Maneuver rating (1-2) [roll]: `
+      refuses `3` with `available: 1-2, 4-6`, and `Power plant rating (2, at least 2) [roll]: `
+      refuses `3` with the same wider list—naming four ratings the question itself refuses.
+
+      Write the failing tests in `tests/test_cli.py` first: a `3` at each of those two prompts is
+      refused with `available: 1-2` and nothing wider. Then give `_read_rating` the displayed set to
+      name—passing the narrowed values down from the caller that already computes them, rather than
+      recomputing a rule in the reader—so the refusal names what the prompt named, in the same
+      notation. Keep the engine's own `available_ratings` check as the tabulation gate and keep each
+      reason sentence word for word; only the set beside it moves. The starship rows are unaffected,
+      their prompt and check reading one accessor already
+
+- [X] T059 Refuse every typed answer at an empty narrowed set with the prompt's own reason per FR-012
+      (contradicts). Contract §4 requires that in the empty form "any typed answer is refused with
+      the same reason the prompt gave", and FR-012 that the question "cannot pin a value it has just
+      called impossible". Today only one of three paths reaches that reason: at
+      `Power plant rating (a 10-ton hull can carry none, at least 6) [roll]: `, typing `8` is refused
+      with `power rating 8 is not tabulated for a 10-ton hull; available: 2-6 by 2`—naming a set the
+      prompt named none of—and typing `2` earns the floor sentence instead. Only `6`, which clears
+      both the floor and `available_ratings`, reaches `_read_power_rating`'s empty branch.
+
+      Write the failing tests in `tests/test_cli.py` first, driving research.md Decision 9's session
+      (the one reachable path, as `test_..._power_prompt_names_no_value_when_the_hull_can_carry_none`
+      already does) and asserting that `8`, `2` and `6` are each refused with
+      `a 10-ton hull can carry none, at least 6` and that no `available:` list appears after that
+      prompt. Then hoist the empty-set check in `src/cetools/cli/ship.py` ahead of `_read_rating`'s
+      floor and tabulation checks, so an empty narrowed set short-circuits every typed answer
+
+- [X] T060 Close the hole in the §7 invariant that let T058 and T059 through, per
+      contracts/prompt-contract.md §7 clause 4 and SC-002 (partial). The
+      `_ACCEPTABLE_VALUES_TABLE` rows `maneuver_rating_narrowed_small_craft` (tests/test_cli.py:2813)
+      and `power_rating_narrowed_small_craft` (2843) each refuse `4`, which sits *inside*
+      `available_ratings` and so routes through the narrowed refusal, stepping around `_read_rating`
+      entirely—so clause 4 passed while the wider path named a different set.
+
+      Give each numeric row a second refusal probe drawn from *outside* the widest set any check
+      consults (`7` for the 40-ton manoeuvre row, `3` for the 15-ton power row) and assert clause 4
+      against both, so a row cannot be satisfied by whichever path its one probe happens to take.
+      Observe it red against the pre-T058 readers before T058 and T059 land, then green after
+
+- [X] T061 Run the full gate green:
+      `uv run isort . && uv run black . && uv run flake8 src tests && uv run pytest && uv run python scripts/check_docs.py`,
+      and re-walk quickstart.md Scenario 2 by hand to confirm the narrowed refusals now read the way
+      the prompts above them do
+
+---
+
+## Phase 9: Convergence
+
+**Purpose**: Close the last place an engine message reaches a referee with its bare-list notation
+intact. T030 gave every closed-set *reader* its own refusal in the prompt's notation; the one
+refusal a session shows that no reader raises was not in its list, because it is not a reader.
+
+- [X] T062 Collapse the value set in the `--hull` mismatch message per FR-016 (contradicts).
+      `src/cetools/cli/ship.py:736` echoes `validate_hull_tons`'s message verbatim when `--hull`
+      names a tonnage the hull class the referee just chose does not tabulate. The engine names its
+      set as a bare Python list—it must, for library callers who never saw a prompt (research.md
+      Decision 3)—so the session prints:
+
+      ```text
+      150 tons is not a tabulated hull size; valid: [100, 200, 300, …, 5000]
+      Hull tonnage (100-1000 by 100, 1200-2000 by 200, 3000-5000 by 1000) [roll]:
+      ```
+
+      That is trap 2's own example: a prompt in collapsed notation directly above a refusal in bare
+      lists, the two-different-sets failure FR-016 exists to prevent. The identical sentence raised
+      by `_read_hull_tons` is already collapsed and asserted (`tests/test_cli.py:2642`), so today the
+      notation depends on whether the tonnage arrived by flag or by prompt.
+
+      Write the failing tests in `tests/test_cli.py` first, one per ruleset—`--hull 150` with
+      `starship`, and the existing `--hull 200` with `small craft`
+      (`test_ship_generate_interactive_hull_flag_that_the_chosen_class_forbids_is_reasked`)—asserting
+      the message reads `valid: 100-1000 by 100, 1200-2000 by 200, 3000-5000 by 1000` and
+      `valid: 10-95 by 5` respectively, and that no `[` appears in it; run and observe them fail.
+      Then raise the refusal at the call site from `hull_tonnages(hull_class)` through
+      `prompts.numbers`, keeping the engine's sentence word for word and moving only the set beside
+      it, exactly as T030 did for the readers. `validate_hull_tons` itself is **not** changed: its
+      bare list is what a library caller passing stored values needs (Constitution II, Decision 3)
+
+- [X] T063 Run the full gate green:
+      `uv run isort . && uv run black . && uv run flake8 src tests && uv run pytest && uv run python scripts/check_docs.py`,
+      and confirm by hand that a `--hull` disagreeing with the chosen class now reads in one notation
+      from the message through to the prompt below it
