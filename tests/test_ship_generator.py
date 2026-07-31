@@ -28,24 +28,48 @@ from cetools.engine.ships import (
     dump_design,
     load_design,
     loads_design,
+    validate_electronics,
+    validate_hull_tons,
+    validate_turret_count,
+    validate_turret_mount,
+    validate_turret_weapon,
 )
 from cetools.engine.ships.generator import (
     _ARMOR_CHOICES,
     _FITTING_CHOICES,
     TonnageLedger,
     _energy_allowance,
+    _exceeds_energy_allowance,
+    armor_options,
     available_ratings,
+    bay_kinds,
+    computer_models,
+    electronics_packages,
+    fitting_kinds,
     generate_ship,
+    hardpoints,
+    hull_tonnages,
+    screen_kinds,
     small_craft_maneuver_ratings,
     small_craft_power_ratings,
+    small_craft_weapons,
+    turret_mounts,
+    turret_weapons,
     validate_small_craft_weapon,
 )
 from cetools.engine.ships.tables import (
+    ARMOR_OPTIONS,
+    BAYS,
+    COMPUTERS,
     DRIVE_COSTS,
     DRIVE_PERFORMANCE,
+    ELECTRONICS,
+    FITTINGS,
     HULLS,
+    SCREENS,
     SMALL_CRAFT_ENERGY_CAPS,
     SMALL_CRAFT_HULLS,
+    TURRET_MOUNTS,
     TURRET_WEAPONS,
 )
 
@@ -53,6 +77,153 @@ _SMALL_CRAFT = DesignConstraints(hull_class=HullClass.SMALL_CRAFT)
 _CATALOGUE_NAMES = {entry.name for entry in SHIP_NAMES}
 _PRE_CHANGE_SWEEP_PATH = "tests/data/baseline/pre_change_sweep.json"
 _POST_CHANGE_BASELINE_PATH = "tests/data/baseline/designs.json"
+
+# --- Engine accessors: the published value sets (contracts/engine-accessors.md) ---
+
+
+def test_accessor_hull_tonnages_starship_matches_validate_hull_tons():
+    values = hull_tonnages(HullClass.STARSHIP)
+    assert values == tuple(sorted(HULLS))
+    for tons in values:
+        validate_hull_tons(HullClass.STARSHIP, tons)
+    for tons in HULLS:
+        assert tons in values
+
+
+def test_accessor_hull_tonnages_small_craft_matches_validate_hull_tons():
+    values = hull_tonnages(HullClass.SMALL_CRAFT)
+    assert values == tuple(sorted(SMALL_CRAFT_HULLS))
+    for tons in values:
+        validate_hull_tons(HullClass.SMALL_CRAFT, tons)
+    for tons in SMALL_CRAFT_HULLS:
+        assert tons in values
+
+
+def test_accessor_armor_options_matches_armor_fit_validation():
+    values = armor_options()
+    assert values == tuple(ARMOR_OPTIONS)
+    for option in values:
+        ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5, options=(option,))
+    for option in ARMOR_OPTIONS:
+        assert option in values
+
+
+def test_accessor_computer_models_matches_computer_fit_validation():
+    values = computer_models()
+    assert values == tuple(sorted(COMPUTERS))
+    for model in values:
+        ComputerFit(model=model)
+    for model in COMPUTERS:
+        assert model in values
+
+
+def test_accessor_electronics_packages_matches_validate_electronics():
+    values = electronics_packages()
+    assert values == tuple(ELECTRONICS)
+    assert values[0] == "standard"
+    for name in values:
+        validate_electronics(name)
+    for name in ELECTRONICS:
+        assert name in values
+
+
+def test_accessor_bay_kinds_matches_bay_fit_validation():
+    values = bay_kinds()
+    assert values == tuple(BAYS)
+    for kind in values:
+        BayFit(kind=kind)
+    for kind in BAYS:
+        assert kind in values
+
+
+def test_accessor_screen_kinds_matches_screen_fit_validation():
+    values = screen_kinds()
+    assert values == tuple(SCREENS)
+    for kind in values:
+        ScreenFit(kind=kind)
+    for kind in SCREENS:
+        assert kind in values
+
+
+def test_accessor_turret_mounts_matches_validate_turret_mount():
+    values = turret_mounts()
+    assert values == tuple(TURRET_MOUNTS)
+    for mount in values:
+        validate_turret_mount(mount)
+    for mount in TURRET_MOUNTS:
+        assert mount in values
+
+
+def test_accessor_turret_weapons_matches_validate_turret_weapon():
+    values = turret_weapons()
+    assert values == tuple(TURRET_WEAPONS)
+    for weapon in values:
+        validate_turret_weapon(weapon)
+    for weapon in TURRET_WEAPONS:
+        assert weapon in values
+
+
+def test_accessor_fitting_kinds_omits_vehicle_sized_fittings():
+    """The exclusion is derived from the table row, not from a list of names
+    (FR-024), so the expected sequence is spelled the same way—by row shape.
+    Naming the excluded keys here would fail the day a second vehicle-sized
+    fitting arrived, though the accessor would have dropped it correctly.
+
+    `vehicle_hangar` is still named once, as the anchor for the one instance
+    the table has today (contracts/engine-accessors.md); that assertion stays
+    true however many more are added.
+    """
+    values = fitting_kinds()
+    assert "vehicle_hangar" not in values
+    assert values == tuple(kind for kind, row in FITTINGS.items() if row.tons is not None)
+    for kind in values:
+        FittingFit(kind=kind)
+    for kind, row in FITTINGS.items():
+        if row.tons is not None:
+            assert kind in values
+        else:
+            assert kind not in values
+
+
+@pytest.mark.parametrize("hull_tons, power_rating", [(40, 1), (95, 6), (10, 2)])
+def test_accessor_small_craft_weapons_narrows_by_energy_allowance_and_mount(
+    hull_tons, power_rating
+):
+    for mount in (None, *turret_mounts()):
+        values = small_craft_weapons(hull_tons, power_rating, mount)
+        allowance = _energy_allowance(hull_tons, power_rating)
+        expected = tuple(
+            weapon
+            for weapon in turret_weapons()
+            if not _exceeds_energy_allowance(allowance, weapon, mount)
+        )
+        assert values == expected
+        for weapon in values:
+            validate_small_craft_weapon(hull_tons, power_rating, weapon, mount)
+        for weapon in turret_weapons():
+            if weapon not in values:
+                with pytest.raises(ValueError):
+                    validate_small_craft_weapon(hull_tons, power_rating, weapon, mount)
+
+
+@pytest.mark.parametrize(
+    "hull_class, hull_tons",
+    [(HullClass.STARSHIP, 200), (HullClass.STARSHIP, 1000), (HullClass.SMALL_CRAFT, 40)],
+)
+def test_accessor_hardpoints_pinned_matches_validate_turret_count(hull_class, hull_tons):
+    count = hardpoints(hull_class, hull_tons)
+    validate_turret_count(hull_class, hull_tons, count)
+    with pytest.raises(ValueError):
+        validate_turret_count(hull_class, hull_tons, count + 1)
+
+
+def test_accessor_hardpoints_unpinned_starship_is_ruleset_maximum():
+    assert hardpoints(HullClass.STARSHIP, None) == max(HULLS) // 100
+
+
+def test_accessor_hardpoints_unpinned_small_craft_is_one():
+    assert hardpoints(HullClass.SMALL_CRAFT, None) == 1
+
 
 # --- TonnageLedger: the budget the selection steps spend against ---
 

@@ -1,6 +1,6 @@
 import random
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import fields
 from functools import partial
 from pathlib import Path
@@ -8,6 +8,7 @@ from typing import Annotated
 
 import typer
 
+from cetools.cli import prompts
 from cetools.engine.rolls import RandomRolls
 from cetools.engine.ships import (
     ABSENT,
@@ -26,21 +27,27 @@ from cetools.engine.ships import (
     Ship,
     TurretPin,
     UnmetConstraint,
+    armor_options,
+    available_ratings,
+    bay_kinds,
     build_ship,
+    computer_models,
     dump_design,
+    electronics_packages,
+    fitting_kinds,
     generate_ship,
+    hardpoints,
+    hull_tonnages,
     load_design,
     power_floor,
     render_description,
+    screen_kinds,
     small_craft_maneuver_ratings,
     small_craft_power_ratings,
-    validate_electronics,
-    validate_hull_tons,
-    validate_rating,
+    small_craft_weapons,
+    turret_mounts,
+    turret_weapons,
     validate_small_craft_weapon,
-    validate_turret_count,
-    validate_turret_mount,
-    validate_turret_weapon,
 )
 
 app = typer.Typer()
@@ -130,35 +137,127 @@ def _ask_until_understood[T](
             typer.echo(str(exc), err=True)
 
 
-def _read_hull_class(answer: str) -> HullClass:
-    """Which ruleset the ship builds under, spelled either way a referee might.
+def _spelled(values: Iterable) -> list[str]:
+    """`prompts.spell` mapped over a set of words—the default rendering for
+    `_closed_set`. A numeric set is rendered with `prompts.numbers` instead,
+    which collapses runs rather than mapping per value."""
+    return [prompts.spell(value) for value in values]
 
-    The table keys the value `small_craft`, but nobody types an underscore at a
-    prompt, so a space reads the same.
+
+def _closed_set(
+    question: str,
+    values: Iterable,
+    render: Callable[[Iterable], Iterable[str]] = _spelled,
+    *,
+    none: bool = False,
+    note: str = "",
+) -> tuple[str, list[str]]:
+    """Compose a closed-set question, and hand back its values as displayed.
+
+    Returns the question text with the value list composed in, and that same
+    list, so a reader's own refusal can name exactly what the prompt named
+    instead of spelling its own (FR-016). `none=True` appends the literal
+    `none` last, per FR-002's ordering.
     """
+    displayed = list(render(values))
+    if none:
+        displayed = displayed + [_NONE]
+    return prompts.offer(question, displayed, note=note), displayed
+
+
+def _hull_qualifier(hull_class: HullClass) -> str:
+    """`"on some starship hull"` / `"on some small craft hull"`—names the
+    ruleset, never a hull, so an unnarrowed prompt does not read as a claim
+    about the hull in hand (FR-011)."""
+    return f"on some {prompts.spell(hull_class.value)} hull"
+
+
+def _narrowed_numbers(
+    question: str,
+    values: Iterable[int],
+    hull_class: HullClass,
+    narrowed: bool,
+    *,
+    none: bool = False,
+    empty_reason: str = "",
+    note: str = "",
+) -> str:
+    """Compose a hull-dependent numeric question in its narrowed, unnarrowed or
+    empty form (FR-010, FR-011, FR-012).
+
+    The unnarrowed qualifier is folded into the last collapsed run for display
+    only; it never reaches a refusal, which a reader renders straight from the
+    same accessor call this composition used (FR-016)—so this function hands
+    back the composed text alone, not a value list for a reader to reuse.
+    """
+    segments = prompts.numbers(values)
+    if not segments:
+        return prompts.offer(question, [], note=f"{empty_reason}{note}")
+
+    displayed = list(segments)
+    if not narrowed:
+        displayed[-1] = f"{displayed[-1]} {_hull_qualifier(hull_class)}"
+    if none:
+        displayed.append(_NONE)
+    return prompts.offer(question, displayed, note=note)
+
+
+def _read_hull_class(known: list[str], answer: str) -> HullClass:
+    """Which ruleset the ship builds under, spelled either way a referee might."""
     try:
-        return HullClass(answer.lower().replace(" ", "_"))
+        return HullClass(prompts.key(answer))
     except ValueError:
-        known = sorted(ruleset.value for ruleset in HullClass)
-        raise ValueError(f"{answer} is not a known hull class; known: {known}") from None
+        raise ValueError(
+            f"{answer} is not a known hull class; known: {', '.join(known)}"
+        ) from None
 
 
-def _read_maneuver_rating(hull_class: HullClass, hull_tons: int | None, answer: str) -> int:
+def _maneuver_values(hull_class: HullClass, hull_tons: int | None) -> tuple[int, ...]:
+    """The manoeuvre-rating accessor for this hull, as narrow as it can be.
+
+    A small craft with its tonnage pinned narrows past what the drive table
+    alone tabulates, to what a plant and a cockpit leave room for beside it
+    (FR-010). Every other state reads the drive table directly.
+    """
+    if hull_class is HullClass.SMALL_CRAFT and hull_tons is not None:
+        return small_craft_maneuver_ratings(hull_tons)
+    return available_ratings(hull_class, hull_tons)
+
+
+def _power_values(
+    hull_class: HullClass, hull_tons: int | None, maneuver_rating: int | None
+) -> tuple[int, ...]:
+    """The power-rating accessor for this hull, as narrow as it can be.
+
+    Narrows to what this plant can run beside an *already pinned* manoeuvre
+    drive only once both the tonnage and that drive are known; a manoeuvre
+    rating still left to the dice cannot narrow anything yet (FR-010).
+    """
+    if hull_class is HullClass.SMALL_CRAFT and hull_tons is not None and maneuver_rating:
+        return small_craft_power_ratings(hull_tons, maneuver_rating)
+    return available_ratings(hull_class, hull_tons)
+
+
+def _read_maneuver_rating(
+    hull_class: HullClass, hull_tons: int | None, offered: tuple[int, ...], answer: str
+) -> int:
     """A manoeuvre rating, narrowed to what a small craft can actually carry.
 
     The drive table tabulates ratings this hull could reach in isolation, but a
     craft also needs a plant and a cockpit. Refusing here keeps the power prompt
     that follows from having no acceptable answer at all.
-    """
-    rating = _read_rating(hull_class, hull_tons, Drive.MANEUVER, None, answer)
 
-    if hull_class is HullClass.SMALL_CRAFT and hull_tons is not None:
-        carryable = small_craft_maneuver_ratings(hull_tons)
-        if rating not in carryable:
-            raise ValueError(
-                f"a {hull_tons}-ton small craft cannot carry a {rating}-G drive and a "
-                f"power plant beside it; available: {list(carryable)}"
-            )
+    `offered` is the set the prompt displayed, threaded down from the call site
+    that composed it rather than recomputed, so the refusal cannot name a set
+    the prompt did not (FR-016).
+    """
+    rating = _read_rating(hull_class, hull_tons, Drive.MANEUVER, None, offered, answer)
+
+    if hull_class is HullClass.SMALL_CRAFT and hull_tons is not None and rating not in offered:
+        raise ValueError(
+            f"a {hull_tons}-ton small craft cannot carry a {rating}-G drive and a "
+            f"power plant beside it; available: {', '.join(prompts.numbers(offered))}"
+        )
     return rating
 
 
@@ -167,6 +266,7 @@ def _read_power_rating(
     hull_tons: int | None,
     floor: int | None,
     maneuver_rating: int | None,
+    offered: tuple[int, ...],
     answer: str,
 ) -> int:
     """A power plant rating, narrowed on the small-craft path.
@@ -175,16 +275,24 @@ def _read_power_rating(
     out plants too weak to power it or too heavy to sit beside it. Offering a
     rating generation would then have to decline would be promising more than
     the hull can give.
-    """
-    rating = _read_rating(hull_class, hull_tons, Drive.POWER, floor, answer)
 
-    if hull_class is HullClass.SMALL_CRAFT and hull_tons is not None and maneuver_rating:
-        offered = small_craft_power_ratings(hull_tons, maneuver_rating)
-        if rating not in offered:
-            raise ValueError(
-                f"power rating {rating} is not available beside a {maneuver_rating}-G "
-                f"drive on a {hull_tons}-ton hull; available: {list(offered)}"
-            )
+    `offered` is the set the prompt displayed. Where it is empty, `_read_rating`
+    has already refused every typed answer with the reason the prompt gave
+    (FR-012), so this narrowing only ever reports a set it can name.
+    """
+    rating = _read_rating(hull_class, hull_tons, Drive.POWER, floor, offered, answer)
+
+    if (
+        hull_class is HullClass.SMALL_CRAFT
+        and hull_tons is not None
+        and maneuver_rating
+        and rating not in offered
+    ):
+        available = ", ".join(prompts.numbers(offered))
+        raise ValueError(
+            f"power rating {rating} is not available beside a {maneuver_rating}-G "
+            f"drive on a {hull_tons}-ton hull; available: {available}"
+        )
     return rating
 
 
@@ -193,12 +301,25 @@ def _read_hull_tons(hull_class: HullClass, answer: str) -> int:
         tons = int(answer)
     except ValueError:
         raise ValueError(f"{answer} is not a number of tons") from None
-    validate_hull_tons(hull_class, tons)  # tabulation only; build_ship owns the rules
+
+    valid = hull_tonnages(hull_class)
+    if tons not in valid:
+        available = ", ".join(prompts.numbers(valid))
+        if hull_class is HullClass.SMALL_CRAFT:
+            raise ValueError(
+                f"{tons} tons is not a tabulated small-craft hull size; valid: {available}"
+            )
+        raise ValueError(f"{tons} tons is not a tabulated hull size; valid: {available}")
     return tons
 
 
 def _read_rating(
-    hull_class: HullClass, hull_tons: int | None, drive: Drive, floor: int | None, answer: str
+    hull_class: HullClass,
+    hull_tons: int | None,
+    drive: Drive,
+    floor: int | None,
+    offered: tuple[int, ...],
+    answer: str,
 ) -> int:
     """One drive rating, checked against the hull as far as it is known.
 
@@ -206,38 +327,68 @@ def _read_rating(
     check widens to every hull of the class: a rating no hull could deliver is
     still caught, one this hull cannot is not. That narrower case surfaces at
     assembly instead.
+
+    `offered` is the set the prompt displayed, which on the small-craft path is
+    narrower than the drive table this still gates on. The tabulation check
+    keeps its own sentence, but names `offered`: a refusal naming the wider set
+    would advertise ratings the question itself refuses, and would leave the
+    prompt above and the refusal below describing different sets (FR-016).
+
+    An empty `offered` is FR-012's form, and it is answered before anything
+    else. The prompt named no value, so nothing typed can be pinned, and every
+    answer earns the reason the prompt already gave rather than a floor or a
+    tabulation sentence that would name values it withheld.
     """
     try:
         rating = int(answer)
     except ValueError:
         raise ValueError(f"{answer} is not a drive rating") from None
 
+    if not offered:
+        clause = f", at least {floor}" if floor is not None else ""
+        raise ValueError(f"a {hull_tons}-ton hull can carry none{clause}")
+
     if floor is not None and rating < floor:
         raise ValueError(f"power plant rating {rating} is below the {floor} its drives require")
-    validate_rating(hull_class, hull_tons, drive, rating)
+
+    if drive is Drive.JUMP and hull_class is HullClass.SMALL_CRAFT:
+        raise ValueError("small craft carry no jump drive, so no jump rating can be pinned")
+
+    if rating not in available_ratings(hull_class, hull_tons):
+        where = (
+            f"a {hull_tons}-ton hull" if hull_tons is not None else f"any {hull_class.value} hull"
+        )
+        raise ValueError(
+            f"{drive.value} rating {rating} is not tabulated for {where}; "
+            f"available: {', '.join(prompts.numbers(offered))}"
+        )
     return rating
 
 
-def _read_armor(answer: str) -> ArmorFit | Absent:
+def _read_armor(known: list[str], answer: str) -> ArmorFit | Absent:
     """One armour layer from `<type> <percent>`, or `ABSENT` from `none`.
 
     Any SRD type may be pinned, including ones generation would never roll. The
     multiple-of-5 rule is *not* checked here: it lives in `build_ship` and is
     deliberately not duplicated outward, so it surfaces at assembly.
+
+    The type may be more than one word (`bonded superdense`), so the **last**
+    whitespace-separated token is taken as the percent and everything before
+    it as the type, rather than requiring exactly two tokens.
     """
-    if answer.lower() == _NONE:
+    if prompts.key(answer) == _NONE:
         return ABSENT
 
     parts = answer.split()
-    if len(parts) != 2:
+    if len(parts) < 2:
         raise ValueError(f'give an armor type and a percent, like "crystaliron 10"; got {answer}')
 
-    name, percent_text = parts
+    *type_words, percent_text = parts
+    name = prompts.key(" ".join(type_words))
     try:
-        kind = ArmorType(name.lower())
+        kind = ArmorType(name)
     except ValueError:
-        known = sorted(known_type.value for known_type in ArmorType)
-        raise ValueError(f"{name} is not a known armor type; known: {known}") from None
+        raise ValueError(f"{name} is not a known armor type; known: {', '.join(known)}") from None
     try:
         percent = int(percent_text.removesuffix("%"))  # a referee may well type "10%"
     except ValueError:
@@ -246,34 +397,61 @@ def _read_armor(answer: str) -> ArmorFit | Absent:
     return ArmorFit(type=kind, percent=percent)  # rejects a non-positive percent
 
 
-def _read_configuration(answer: str) -> Configuration:
+def _read_armor_options(known: list[str], answer: str) -> tuple[str, ...]:
+    """The once-only additions to a pinned armour layer, or none of them.
+
+    The literal `none` is accepted though the prompt does not name it—the
+    `[none]` default already says it (FR-018). An option may itself be two
+    words (`self sealing`), so the answer is matched by `prompts.split_values`
+    rather than `answer.split()`, which would break it into two unknown
+    words. An unknown option and a repeated one each refuse the whole answer,
+    pinning neither (FR-018).
+    """
+    if prompts.key(answer) == _NONE:
+        return ()
     try:
-        return Configuration(answer.lower())
+        chosen = tuple(prompts.split_values(answer, armor_options()))
+    except ValueError as exc:
+        raise ValueError(f"{exc}; known: {', '.join(known)}") from None
+    if len(chosen) != len(set(chosen)):
+        spelled = ", ".join(prompts.spell(option) for option in chosen)
+        raise ValueError(f"armor options must not repeat, got {spelled}")
+    return chosen
+
+
+def _read_configuration(known: list[str], answer: str) -> Configuration:
+    try:
+        return Configuration(prompts.key(answer))
     except ValueError:
-        known = sorted(shape.value for shape in Configuration)
-        raise ValueError(f"{answer} is not a known configuration; known: {known}") from None
+        raise ValueError(
+            f"{answer} is not a known configuration; known: {', '.join(known)}"
+        ) from None
 
 
-def _read_computer(answer: str) -> ComputerFit | Absent:
+def _read_computer(known: list[str], answer: str) -> ComputerFit | Absent:
     """The computer as a bare model number; `ComputerFit` rules on the model.
 
     Software, hardening and jump control are out of scope for the wizard and
     remain reachable through hand-authored TOML (#41, Out of Scope).
     """
-    if answer.lower() == _NONE:
+    if prompts.key(answer) == _NONE:
         return ABSENT
     try:
         model = int(answer)
     except ValueError:
         raise ValueError(f"{answer} is not a computer model") from None
+    if model not in computer_models():
+        raise ValueError(f"unknown computer model {model}; known: {', '.join(known)}")
     return ComputerFit(model=model)
 
 
-def _read_electronics(answer: str) -> str | Absent:
-    if answer.lower() == _NONE:
+def _read_electronics(known: list[str], answer: str) -> str | Absent:
+    stored = prompts.key(answer)
+    if stored == _NONE:
         return ABSENT
-    validate_electronics(answer.lower())
-    return answer.lower()
+    if stored not in electronics_packages():
+        raise ValueError(f"unknown electronics package {stored!r}; known: {', '.join(known)}")
+    return stored
 
 
 def _read_staterooms(answer: str) -> int:
@@ -289,54 +467,96 @@ def _read_staterooms(answer: str) -> int:
     return count
 
 
-def _read_fitting(answer: str) -> FittingFit | Absent:
+def _read_fitting(known: list[str], answer: str) -> FittingFit | Absent:
     """A fitting kind; `FittingFit` rules on whether it is one.
 
     Quantity and vehicle tonnage are deliberately not askable (#41, Out of
-    Scope), so a vehicle-sized fitting is refused here by the record that needs
-    them and stays reachable through hand-authored TOML.
+    Scope). A vehicle-sized fitting is a real fitting the tables recognise, so
+    it still reaches `FittingFit`'s own refusal for a missing `vehicle_tons`,
+    unchanged from today (AS 1.7). The prompt's own refusal, in the displayed
+    spelling, is reserved for a kind nothing recognises at all—found by
+    probing whether a tonnage would have let the same kind through.
     """
-    if answer.lower() == _NONE:
+    stored = prompts.key(answer)
+    if stored == _NONE:
         return ABSENT
-    return FittingFit(kind=answer.lower())
+    try:
+        return FittingFit(kind=stored)
+    except ValueError as exc:
+        try:
+            FittingFit(kind=stored, vehicle_tons=1)
+        except ValueError:
+            raise ValueError(f"unknown fitting {stored!r}; known: {', '.join(known)}") from None
+        raise exc
 
 
-def _read_bay(answer: str) -> BayFit | Absent:
-    return ABSENT if answer.lower() == _NONE else BayFit(kind=answer.lower())
+def _read_bay(known: list[str], answer: str) -> BayFit | Absent:
+    stored = prompts.key(answer)
+    if stored == _NONE:
+        return ABSENT
+    if stored not in bay_kinds():
+        raise ValueError(f"unknown bay kind {stored!r}; known: {', '.join(known)}")
+    return BayFit(kind=stored)
 
 
-def _read_screen(answer: str) -> ScreenFit | Absent:
-    return ABSENT if answer.lower() == _NONE else ScreenFit(kind=answer.lower())
+def _read_screen(known: list[str], answer: str) -> ScreenFit | Absent:
+    stored = prompts.key(answer)
+    if stored == _NONE:
+        return ABSENT
+    if stored not in screen_kinds():
+        raise ValueError(f"unknown screen kind {stored!r}; known: {', '.join(known)}")
+    return ScreenFit(kind=stored)
 
 
-def _read_turret_mount(answer: str) -> str:
-    validate_turret_mount(answer.lower())
-    return answer.lower()
+def _read_turret_mount(known: list[str], answer: str) -> str:
+    stored = prompts.key(answer)
+    if stored not in turret_mounts():
+        raise ValueError(f"unknown turret mount {stored!r}; known: {', '.join(known)}")
+    return stored
 
 
-def _read_turret_weapon(answer: str) -> str:
-    validate_turret_weapon(answer.lower())
-    return answer.lower()
+def _read_turret_weapon(known: list[str], answer: str) -> str:
+    stored = prompts.key(answer)
+    if stored not in turret_weapons():
+        raise ValueError(f"unknown turret weapon {stored!r}; known: {', '.join(known)}")
+    return stored
 
 
 def _read_small_craft_weapon(
-    hull_tons: int, power_rating: int, mount: str | None, answer: str
+    known: list[str], hull_tons: int, power_rating: int, mount: str | None, answer: str
 ) -> str:
     """A small craft's weapon, checked against the plant that has to run it.
 
     The mount is known by now—it is asked first—and it decides how many of the
     weapon the turret carries, which is what the plant's allowance is counted
     against.
+
+    A weapon the plant cannot run keeps the engine's own reason, which already
+    names the mount and the allowance (FR-016 needs no help there). A weapon
+    that is not a turret weapon at all is refused in the displayed spelling of
+    the *narrowed* set this prompt showed, rather than `validate_turret_weapon`'s
+    bare, unnarrowed list for library callers.
     """
-    validate_small_craft_weapon(hull_tons, power_rating, answer.lower(), mount)
-    return answer.lower()
+    stored = prompts.key(answer)
+    try:
+        validate_small_craft_weapon(hull_tons, power_rating, stored, mount)
+    except ValueError:
+        if stored not in turret_weapons():
+            raise ValueError(
+                f"unknown turret weapon {stored!r}; known: {', '.join(known)}"
+            ) from None
+        raise
+    return stored
 
 
 def _read_turret_count(hull_class: HullClass, hull_tons: int | None, answer: str) -> int:
     """How many turrets to fit, where `none` is the deliberate unarmed ship.
 
-    A count above the hull's hardpoints is refused here when the hull is
-    settled, which it is by this point unless the referee left it to the dice.
+    A count above the hull's hardpoints is refused whether or not the tonnage
+    is pinned: with the hull left to the dice the cap is the ruleset's own
+    widest hull (`hardpoints`'s widening for a `None` tonnage), so a count no
+    hull of this ruleset could ever mount is caught here rather than at
+    assembly.
     """
     if answer.lower() == _NONE:
         return 0
@@ -346,8 +566,22 @@ def _read_turret_count(hull_class: HullClass, hull_tons: int | None, answer: str
         raise ValueError(f"{answer} is not a number of turrets") from None
     if count < 0:
         raise ValueError(f"turrets cannot be negative, got {count}")
-    if hull_tons is not None:
-        validate_turret_count(hull_class, hull_tons, count)
+
+    maximum = hardpoints(hull_class, hull_tons)
+    if count > maximum:
+        available = ", ".join(prompts.numbers(range(1, maximum + 1)) + [_NONE])
+        ruleset = hull_class.value.replace("_", " ")
+        if hull_tons is not None:
+            reason = (
+                f"a {hull_tons}-ton {ruleset} has {maximum} hardpoint(s), so it cannot mount "
+                f"{count}"
+            )
+        else:
+            reason = (
+                f"any {ruleset} hull has at most {maximum} hardpoint(s), so it cannot mount "
+                f"{count}"
+            )
+        raise ValueError(f"{reason}; available: {available}")
     return count
 
 
@@ -364,7 +598,13 @@ def _ask_turrets(
     rating is needed here. It is only known if the referee pinned it; otherwise
     the cap is applied when the weapon is drawn, as it always has been.
     """
-    count = _ask_until_understood("Turrets", partial(_read_turret_count, hull_class, hull_tons))
+    maximum = hardpoints(hull_class, hull_tons)
+    turret_question = _narrowed_numbers(
+        "Turrets", range(1, maximum + 1), hull_class, hull_tons is not None, none=True
+    )
+    count = _ask_until_understood(
+        turret_question, partial(_read_turret_count, hull_class, hull_tons)
+    )
     if count is None:
         return None
 
@@ -374,13 +614,25 @@ def _ask_turrets(
 
     pins = []
     for ordinal in range(1, count + 1):
-        mount = _ask_until_understood(f"Turret {ordinal} mount", _read_turret_mount)
-        read_weapon = (
-            partial(_read_small_craft_weapon, hull_tons, power_rating, mount)
-            if capped
-            else _read_turret_weapon
-        )
-        weapon = _ask_until_understood(f"Turret {ordinal} weapon", read_weapon)
+        mount_question, mount_known = _closed_set(f"Turret {ordinal} mount", turret_mounts())
+        mount = _ask_until_understood(mount_question, partial(_read_turret_mount, mount_known))
+
+        if capped:
+            weapon_question, weapon_known = _closed_set(
+                f"Turret {ordinal} weapon",
+                small_craft_weapons(hull_tons, power_rating, mount),
+            )
+            weapon = _ask_until_understood(
+                weapon_question,
+                partial(_read_small_craft_weapon, weapon_known, hull_tons, power_rating, mount),
+            )
+        else:
+            weapon_question, weapon_known = _closed_set(
+                f"Turret {ordinal} weapon", turret_weapons()
+            )
+            weapon = _ask_until_understood(
+                weapon_question, partial(_read_turret_weapon, weapon_known)
+            )
         pins.append(TurretPin(mount=mount, weapon=weapon))
     return tuple(pins)
 
@@ -429,6 +681,20 @@ def _ask_constraints(
             return getattr(keep, field)
         return ask()
 
+    def ask_closed[T](
+        question: str,
+        values: Iterable,
+        read: Callable[[list[str], str], T],
+        *,
+        render: Callable[[Iterable], Iterable[str]] = _spelled,
+        none: bool = False,
+        note: str = "",
+        default_label: str = _ROLL,
+    ) -> T | None:
+        """Compose a closed-set question with `_closed_set` and ask it."""
+        text, known = _closed_set(question, values, render, none=none, note=note)
+        return _ask_until_understood(text, partial(read, known), default_label=default_label)
+
     # Tonnage is tabulated per ruleset, so a revised hull class takes the
     # tonnage with it however the referee answered it: carrying a 200-ton
     # starship hull into a small-craft session buys a certain refusal, and
@@ -439,8 +705,11 @@ def _ask_constraints(
 
     if hull_class is None:
         hull_class = (
-            _ask_until_understood(
-                "Hull class", _read_hull_class, default_label=HullClass.STARSHIP.value
+            ask_closed(
+                "Hull class",
+                [ruleset.value for ruleset in HullClass],
+                _read_hull_class,
+                default_label=HullClass.STARSHIP.value,
             )
             or HullClass.STARSHIP
         )
@@ -458,7 +727,13 @@ def _ask_constraints(
     else:
         if hull is not None:
             try:
-                validate_hull_tons(hull_class, hull)
+                # Checked by the same reader the question below uses, rather
+                # than by the engine directly: the flag and the prompt are then
+                # one refusal in one notation by construction, where echoing
+                # the engine's message would print its bare list—which library
+                # callers need and a referee reading `100-1000 by 100` does
+                # not (FR-016, research.md Decision 3).
+                hull = _read_hull_tons(hull_class, str(hull))
             except ValueError as exc:
                 # `--hull` pre-answers the question, but only with an answer this
                 # ruleset accepts. The referee chose the class a moment ago, so
@@ -466,72 +741,141 @@ def _ask_constraints(
                 typer.echo(str(exc), err=True)
                 hull = None
 
+        hull_tonnage_question, _ = _closed_set(
+            "Hull tonnage", hull_tonnages(hull_class), render=prompts.numbers
+        )
         hull_tons = (
             hull
             if hull is not None
-            else _ask_until_understood("Hull tonnage", partial(_read_hull_tons, hull_class))
+            else _ask_until_understood(hull_tonnage_question, partial(_read_hull_tons, hull_class))
         )
 
-    def ask_rating(question: str, drive: Drive, floor: int | None = None) -> int | None:
-        return _ask_until_understood(
-            question, partial(_read_rating, hull_class, hull_tons, drive, floor)
+    narrowed = hull_tons is not None
+    empty_reason = f"a {hull_tons}-ton hull can carry none" if narrowed else ""
+
+    def ask_rating(
+        question: str,
+        values: Iterable[int],
+        read: Callable[[tuple[int, ...], str], int],
+        floor: int | None = None,
+    ) -> int | None:
+        """Compose a hull-dependent numeric question and ask it, binding the
+        set it displayed into the reader that checks the answer—so the prompt
+        and its refusal are one set by construction rather than by two edits
+        staying in step (FR-016)."""
+        offered = tuple(values)
+        note = f", at least {floor}" if floor is not None else ""
+        text = _narrowed_numbers(
+            question, offered, hull_class, narrowed, empty_reason=empty_reason, note=note
         )
+        return _ask_until_understood(text, partial(read, offered))
 
     configuration = answered(
-        "configuration", lambda: _ask_until_understood("Configuration", _read_configuration)
+        "configuration",
+        lambda: ask_closed(
+            "Configuration", [shape.value for shape in Configuration], _read_configuration
+        ),
     )
 
     jump_rating = (
         None
         if small_craft
-        else answered("jump_rating", lambda: ask_rating("Jump rating", Drive.JUMP))
+        else answered(
+            "jump_rating",
+            lambda: ask_rating(
+                "Jump rating",
+                available_ratings(hull_class, hull_tons),
+                partial(_read_rating, hull_class, hull_tons, Drive.JUMP, None),
+            ),
+        )
     )
     maneuver_rating = answered(
         "maneuver_rating",
-        lambda: _ask_until_understood(
-            "Maneuver rating", partial(_read_maneuver_rating, hull_class, hull_tons)
+        lambda: ask_rating(
+            "Maneuver rating",
+            _maneuver_values(hull_class, hull_tons),
+            partial(_read_maneuver_rating, hull_class, hull_tons),
         ),
     )
 
     floor = power_floor(hull_class, jump_rating, maneuver_rating)
-    power_question = (
-        "Power plant rating" if floor is None else f"Power plant rating (at least {floor})"
-    )
     power_rating = answered(
         "power_rating",
-        lambda: _ask_until_understood(
-            power_question,
+        lambda: ask_rating(
+            "Power plant rating",
+            _power_values(hull_class, hull_tons, maneuver_rating),
             partial(_read_power_rating, hull_class, hull_tons, floor, maneuver_rating),
+            floor,
         ),
     )
 
-    armor = answered("armor", lambda: _ask_until_understood("Armor", _read_armor))
+    def ask_armor() -> ArmorFit | Absent | None:
+        """The armour layer, then—only when it is a real `ArmorFit`—its
+        once-only options, folded into the same field so revising `armor`
+        carries its options with it and `DesignConstraints` gains no field
+        (FR-021, research.md Decision 7).
+        """
+        fit = ask_closed(
+            "Armor",
+            [kind.value for kind in ArmorType],
+            _read_armor,
+            note=", each with a percent, or none",
+        )
+        if not isinstance(fit, ArmorFit):
+            return fit
+        options = ask_closed(
+            "Armor options",
+            armor_options(),
+            _read_armor_options,
+            default_label=_NONE,
+        )
+        return ArmorFit(type=fit.type, percent=fit.percent, options=options or ())
+
+    armor = answered("armor", ask_armor)
     computer = answered(
-        "computer", lambda: _ask_until_understood("Computer model", _read_computer)
+        "computer",
+        lambda: ask_closed(
+            "Computer model", computer_models(), _read_computer, render=prompts.numbers, none=True
+        ),
     )
     electronics = answered(
-        "electronics", lambda: _ask_until_understood("Electronics", _read_electronics)
+        "electronics",
+        lambda: ask_closed("Electronics", electronics_packages(), _read_electronics, none=True),
     )
     staterooms = answered(
-        "staterooms", lambda: _ask_until_understood("Staterooms", _read_staterooms)
+        "staterooms",
+        lambda: _ask_until_understood(
+            prompts.offer("Staterooms", [], note="a count, or none"), _read_staterooms
+        ),
     )
-    fitting = answered("fitting", lambda: _ask_until_understood("Fitting", _read_fitting))
+    fitting = answered(
+        "fitting", lambda: ask_closed("Fitting", fitting_kinds(), _read_fitting, none=True)
+    )
     turrets = answered("turrets", lambda: _ask_turrets(hull_class, hull_tons, power_rating))
     bay = (
         None
         if small_craft
-        else answered("bay", lambda: _ask_until_understood("Weapon bay", _read_bay))
+        else answered("bay", lambda: ask_closed("Weapon bay", bay_kinds(), _read_bay, none=True))
     )
     screen = answered(
         "screen",
         # A screen is never rolled onto a small craft, so Enter there pins
         # absence. Labelling it `[roll]` would promise a draw generation does
         # not make—the one field whose default did something other than it said.
-        lambda: _ask_until_understood(
-            "Screen", _read_screen, default_label=_NONE if small_craft else _ROLL
+        lambda: ask_closed(
+            "Screen",
+            screen_kinds(),
+            _read_screen,
+            none=True,
+            default_label=_NONE if small_craft else _ROLL,
         ),
     )
-    name = answered("name", lambda: _ask_until_understood("Name", _read_name))
+    name = answered(
+        "name",
+        lambda: _ask_until_understood(
+            prompts.offer("Name", [], note="any text, or none"), _read_name
+        ),
+    )
     purpose = answered(
         "purpose",
         lambda: _ask_until_understood("Purpose", _read_purpose, default_label=_NONE),
@@ -569,11 +913,20 @@ _REVISABLE = tuple(field.name for field in fields(DesignConstraints))
 
 
 def _read_fields(answer: str) -> frozenset[str]:
-    """The answers a referee named, space-separated, checked against the record."""
-    named = answer.replace(",", " ").split()
-    unknown = [field for field in named if field not in _REVISABLE]
-    if unknown:
-        raise ValueError(f"no such answer: {' '.join(unknown)}; known: {list(_REVISABLE)}")
+    """The answers a referee named, checked against the record.
+
+    Five of the sixteen names are two words (`hull class`, `hull tons`, …), so
+    the answer is matched by the same greedy longest-match scan the armour-
+    options question uses, over `_REVISABLE` in its displayed spelling
+    (research.md Decision 4)—which is also what still accepts today's
+    underscored form, since `split_values` matches a whole answer against a
+    single-word value too.
+    """
+    try:
+        named = prompts.split_values(answer, _REVISABLE)
+    except ValueError:
+        known = ", ".join(prompts.spell(field) for field in _REVISABLE)
+        raise ValueError(f"no such answer: {answer}; known: {known}") from None
     return frozenset(named)
 
 
@@ -587,9 +940,8 @@ def _ask_which_to_revise() -> frozenset[str]:
     mount fuel scoops" is about the configuration and the fitting, and mentions
     neither by name. So the referee is asked, having just been told the reason.
     """
-    return _ask_until_understood(
-        "Revise which answers", _read_fields, default_label="all"
-    ) or frozenset(_REVISABLE)
+    text, _ = _closed_set("Revise which answers", _REVISABLE)
+    return _ask_until_understood(text, _read_fields, default_label="all") or frozenset(_REVISABLE)
 
 
 def _read_verdict(answer: str) -> bool:

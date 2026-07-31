@@ -1605,6 +1605,26 @@ def test_the_drive_letter_jump_rating_and_jump_count_agree():
         assert "one Jump-" in fuel
 
 
+# --- T053 (Polish): FR-014's scoping stops at the CLI (research.md Decision 10) ---
+
+
+def test_srd_hyphenation_survives_the_prompts_spacing():
+    """FR-014 spaces a stored key for display at the interactive prompt
+    (`pop up`, `self sealing`); the SRD's own hyphenated wording must not
+    follow that rule out of the CLI and into the rules text this renders
+    (Constitution I)—this is the guard against a global rename."""
+    design = _simple_design(
+        turrets=(TurretFit(mount="pop_up", weapons=("pulse_laser",)),),
+        armor=(ArmorFit(type=ArmorType.CRYSTALIRON, percent=5, options=("self_sealing",)),),
+    )
+    paragraph = _paragraph(build_ship(design))
+
+    assert "pop-up turret" in paragraph
+    assert "pop up turret" not in paragraph
+    assert "a self-sealing hull" in paragraph
+    assert "self sealing" not in paragraph
+
+
 def test_entries_of_one_kind_still_share_that_kind_s_noun():
     # The multi-entry form of contract section 10 is unchanged for the single
     # kind every SRD design fits today.

@@ -312,7 +312,14 @@ uv run cetools ship generate --hull 10 --small-craft --seed 7
 uv run cetools ship generate --interactive --seed 42
 ```
 
-`--interactive` (`-i`) asks what to pin and rolls the rest. Every question shows its default and pressing Enter takes it, so answering nothing produces exactly the ship the same seed produces without the flag. Typing `none` at an optional component's question pins its *absence*, which is a different answer from pressing Enter: `none` at the armour question guarantees an unarmoured ship, where Enter rolls for one. An answer the tables do not recognise is rejected and asked again with the reason, so a typo costs a line rather than the session. `--hull` and `--small-craft` pre-answer their questions, which are then not asked. Questions and their answers go to stderr, so `--interactive` composes with `--toml` and `--out`.
+`--interactive` (`-i`) asks what to pin and rolls the rest. Every closed-set question names its acceptable values right in the prompt—spelled the way they may be typed back (spaces, not underscores), narrowed to the hull already pinned where the rules narrow them, and `none` last in every list that names it—so a referee never has to open the SRD tables to answer one:
+
+```text
+Fitting (armory, detention cell, fuel scoops, fuel processor, laboratory, library, luxuries, vault, none) [roll]:
+Turrets (1-2, none) [roll]:
+```
+
+Every question shows its default and pressing Enter takes it, so answering nothing produces exactly the ship the same seed produces without the flag. Typing `none` at an optional component's question pins its *absence*, which is a different answer from pressing Enter: `none` at the armour question guarantees an unarmoured ship, where Enter rolls for one. An answer outside the named values is refused with that same list, in that same spelling, and the question is asked again, so a typo costs a line rather than the session. `--hull` and `--small-craft` pre-answer their questions, which are then not asked. Questions and their answers go to stderr, so `--interactive` composes with `--toml` and `--out`.
 
 Drives are answered as *ratings* (Jump-2, 2-G) rather than as drive code letters, because the letter that delivers a rating depends on the hull and a referee does not think in letters. A pinned rating installs the lightest code delivering it on the chosen hull, so the tonnage a lighter drive saves flows on to fuel and fittings. The power plant is asked for too rather than derived, since a referee may want surplus power for energy weapons; its prompt states the floor the drives *it was given* set, and rejects an answer below it. A drive left to the dice needs no such floor, because the dice are capped at the pinned plant instead: a pin is a promise and a roll only a preference, so the roll gives way. When the hull was left to the dice a rating can only be checked against the ratings some hull of that class can deliver, so one this particular hull cannot reach surfaces when the ship is assembled.
 
@@ -320,7 +327,7 @@ The wizard asks for the hull class first, because it governs everything after it
 
 Turrets are the one repeating question. Answering a count opens a mount and a weapon question for each turret in turn, both defaulting to random, so pinning the count and pressing Enter through the rest gives a ship with that many turrets and nothing else decided. A count above the hull's hardpoints is refused at the prompt, since hardpoints follow from a hull tonnage settled earlier in the session; with the hull left to the dice the count is taken on trust and ruled on by the hull it lands on.
 
-Armour is answered as a type and a percent of the hull, like `crystaliron 10`. Any type in the SRD table may be pinned, including ones generation would never roll for itself. Rules that live in `build_ship`, such as armour arriving in 5% increments, are not duplicated into the prompts: an answer that breaks one is accepted where it is typed and reported when the ship is assembled.
+Armour is answered as a type and a percent of the hull, like `crystaliron 10`. Any type in the SRD table may be pinned, including ones generation would never roll for itself. Rules that live in `build_ship`, such as armour arriving in 5% increments, are not duplicated into the prompts: an answer that breaks one is accepted where it is typed and reported when the ship is assembled. Pinning a real type is followed by an armour-options question—reflec, self sealing and stealth, any number of them in one answer, such as `reflec stealth`—so those once-only SRD additions are now askable rather than reachable only by hand-authoring TOML. Enter or `none` pins the layer with none of them.
 
 A randomly generated ship arrives already named, drawn from `generate_ship_name`'s curated catalogue of mythology and folklore, written science fiction, and screen science fiction sources; a hand-authored design's own `name` is never overwritten.
 

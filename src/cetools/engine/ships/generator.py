@@ -49,9 +49,11 @@ from cetools.engine.ships.models import (
 )
 from cetools.engine.ships.names import generate_ship_name
 from cetools.engine.ships.tables import (
+    ARMOR_OPTIONS,
     BAYS,
     BRIDGE_SIZES,
     COCKPITS,
+    COMPUTERS,
     DRIVE_COSTS,
     DRIVE_PERFORMANCE,
     ELECTRONICS,
@@ -251,7 +253,27 @@ _COMPUTER_PROFILES: tuple[ComputerFit | None, ...] = (
     ComputerFit(model=3, software=(SoftwareFit(name="fire_control", level=1),)),
 )
 
+
+def armor_options() -> tuple[str, ...]:
+    """Every armour option a layer may carry, in table order. Pairs with
+    `ArmorFit`'s option validation in `models.py`."""
+    return tuple(ARMOR_OPTIONS)
+
+
+def computer_models() -> tuple[int, ...]:
+    """Every tabulated computer model number, ascending. Pairs with
+    `ComputerFit`'s model validation in `models.py`."""
+    return tuple(sorted(COMPUTERS))
+
+
 _ELECTRONICS_CHOICES: tuple[str, ...] = tuple(ELECTRONICS)
+
+
+def electronics_packages() -> tuple[str, ...]:
+    """Every tabulated electronics package, `standard` first as tabulated.
+    Pairs with `validate_electronics`."""
+    return _ELECTRONICS_CHOICES
+
 
 _FITTING_CHOICES: tuple[str | None, ...] = (
     None,
@@ -262,6 +284,18 @@ _FITTING_CHOICES: tuple[str | None, ...] = (
     "fuel_processor",
     "detention_cell",
 )
+
+
+def fitting_kinds() -> tuple[str, ...]:
+    """Every fitting installable from a bare kind, in table order.
+
+    Excludes the vehicle-sized fittings (`tons` is `None`, sized instead from
+    `FittingFit.vehicle_tons`)—derived from the table row rather than a
+    hard-coded name, so a second vehicle-sized fitting drops out with no edit
+    (FR-024). Pairs with `FittingFit`'s kind validation in `models.py`.
+    """
+    return tuple(kind for kind, row in FITTINGS.items() if row.tons is not None)
+
 
 _TURRET_MOUNTS: tuple[str, ...] = tuple(sorted(TURRET_MOUNTS))
 _TURRET_WEAPONS: tuple[str, ...] = tuple(sorted(TURRET_WEAPONS))
@@ -294,6 +328,13 @@ def validate_hull_tons(hull_class: HullClass, tons: int) -> None:
         raise ValueError(f"{tons} tons is not a tabulated hull size; valid: {sorted(HULLS)}")
 
 
+def hull_tonnages(hull_class: HullClass) -> tuple[int, ...]:
+    """Every tabulated hull size for `hull_class`, ascending. Pairs with
+    `validate_hull_tons`."""
+    table = SMALL_CRAFT_HULLS if hull_class is HullClass.SMALL_CRAFT else HULLS
+    return tuple(sorted(table))
+
+
 def _validate_key(name: str, table: Mapping[str, object], what: str) -> None:
     """Raise `ValueError` unless `name` is a key of `table`.
 
@@ -316,9 +357,21 @@ def validate_turret_mount(name: str) -> None:
     _validate_key(name, TURRET_MOUNTS, "turret mount")
 
 
+def turret_mounts() -> tuple[str, ...]:
+    """Every tabulated turret mount, in table order. Pairs with
+    `validate_turret_mount`."""
+    return tuple(TURRET_MOUNTS)
+
+
 def validate_turret_weapon(name: str) -> None:
     """Raise `ValueError` unless `name` is a tabulated turret weapon."""
     _validate_key(name, TURRET_WEAPONS, "turret weapon")
+
+
+def turret_weapons() -> tuple[str, ...]:
+    """Every tabulated turret weapon, in table order. Pairs with
+    `validate_turret_weapon`."""
+    return tuple(TURRET_WEAPONS)
 
 
 def _hardpoints_for(hull_class: HullClass, hull_tons: int) -> int:
@@ -331,6 +384,20 @@ def _hardpoints_for(hull_class: HullClass, hull_tons: int) -> int:
     if hull_class is HullClass.SMALL_CRAFT:
         return 1
     return hull_tons // 100
+
+
+def hardpoints(hull_class: HullClass, hull_tons: int | None) -> int:
+    """How many turrets this hull can mount, or—`hull_tons` being `None`—the
+    most any hull of `hull_class`'s ruleset can, both derived from the tables
+    rather than written down. Pairs with `validate_turret_count`, which keeps
+    its own `hull_tons: int` and is not widened: an unpinned count is refused
+    by the caller against this function's own widened result.
+    """
+    if hull_tons is not None:
+        return _hardpoints_for(hull_class, hull_tons)
+    if hull_class is HullClass.SMALL_CRAFT:
+        return 1
+    return max(HULLS) // 100
 
 
 def validate_turret_count(hull_class: HullClass, hull_tons: int, count: int) -> None:
@@ -836,6 +903,12 @@ def _select_turrets(
     return tuple(turrets)
 
 
+def bay_kinds() -> tuple[str, ...]:
+    """Every tabulated weapon-bay kind, in table order. Pairs with `BayFit`'s
+    kind validation in `models.py`."""
+    return tuple(BAYS)
+
+
 def _select_bay(
     rolls: Rolls,
     hardpoints_remaining: int,
@@ -873,6 +946,12 @@ def _select_bay(
         return None, hardpoints_remaining
     ledger.spend(BAYS[kind].tons + BAY_FIRE_CONTROL_TONS)
     return BayFit(kind=kind), hardpoints_remaining - 1
+
+
+def screen_kinds() -> tuple[str, ...]:
+    """Every tabulated defensive-screen kind, in table order. Pairs with
+    `ScreenFit`'s kind validation in `models.py`."""
+    return tuple(SCREENS)
 
 
 def _select_screen(
@@ -1023,6 +1102,19 @@ def validate_small_craft_weapon(
             f"a small craft's power plant at rating {power_rating} runs "
             f"{allowance} energy weapon(s), so it cannot mount {mounted}"
         )
+
+
+def small_craft_weapons(
+    hull_tons: int, power_rating: int, mount: str | None = None
+) -> tuple[str, ...]:
+    """Every turret weapon this plant can run in `mount`, in `turret_weapons()`
+    order. Pairs with `validate_small_craft_weapon`."""
+    allowance = _energy_allowance(hull_tons, power_rating)
+    return tuple(
+        weapon
+        for weapon in turret_weapons()
+        if not _exceeds_energy_allowance(allowance, weapon, mount)
+    )
 
 
 def _pin_small_craft_drive(
