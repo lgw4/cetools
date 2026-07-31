@@ -46,7 +46,8 @@ Environment variables:
   GIT_BRANCH_NAME     Use this exact branch name, bypassing all prefix/suffix generation
 
 Configuration:
-  branch_template     Optional git-config.yml template with {{author}}, {{app}}, {{number}}, {{slug}}
+  branch_template     Optional git-config.yml template
+                      with {{author}}, {{app}}, {{number}}, {{slug}}
   branch_prefix       Optional shorthand namespace expanded before {{number}}-{{slug}}
 
 Examples:
