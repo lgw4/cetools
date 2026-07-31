@@ -368,38 +368,63 @@ description's naming, and design.py's load and dump. This phase adds a reader an
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T042 [P] [US4] Add tests in `tests/test_cli.py` for the question itself: it appears directly
+- [X] T042 [P] [US4] Add tests in `tests/test_cli.py` for the question itself: it appears directly
       after a pinned armour type as `Armor options (reflec, self sealing, stealth) [none]: `
       (AS 4.1); Enter pins the layer with no options (AS 4.3); `none` does the same though the prompt
       does not name it (FR-018); `reflec stealth` and `reflec, stealth` both pin both (FR-018); and
       the case trap 1 breaks—`self sealing` typed exactly as displayed is **one** option, and
       `reflec self sealing` is two options rather than three unknown words; run and observe them fail
-- [ ] T043 [P] [US4] Add refusal and skip tests in `tests/test_cli.py`: `reflec reflec` is refused
+- [X] T043 [P] [US4] Add refusal and skip tests in `tests/test_cli.py`: `reflec reflec` is refused
       with the reason and asked again (AS 4.6); `reflec bogus` is refused **whole**, pinning neither
       (FR-018); the question is not asked at all when armour was answered `none` (AS 4.4) or with
       Enter (AS 4.5, FR-019); run and observe them fail
-- [ ] T044 [P] [US4] Add revise tests in `tests/test_cli.py` (FR-021): revising `armor` re-asks the
+- [X] T044 [P] [US4] Add revise tests in `tests/test_cli.py` (FR-021): revising `armor` re-asks the
       options question under the same rules (AS 4.7); revising `configuration` alone leaves pinned
       options untouched; revising `armor` and answering `none` drops the options with the layer they
       belonged to; run and observe them fail
-- [ ] T045 [P] [US4] Add the armour-options round-trip test in `tests/test_ship_design.py` (FR-020):
+- [X] T045 [P] [US4] Add the armour-options round-trip test in `tests/test_ship_design.py` (FR-020):
       a design carrying `options` dumps and reloads identically. This may already hold—`design.py`
       loads `options` at line 174 and dumps it at line 417—so observe it red by temporarily dropping
       `options` from the dump at design.py:417 before restoring it
 
+      Confirmed already held: the test passed immediately. Verified rather than assumed by
+      temporarily gating the dump line with `and False`, observing the round trip fail, and
+      restoring it.
+
 ### Implementation for User Story 4
 
-- [ ] T046 [US4] Implement `_read_armor_options` in `src/cetools/cli/ship.py` against
+- [X] T046 [US4] Implement `_read_armor_options` in `src/cetools/cli/ship.py` against
       `armor_options()`: split the answer with `prompts.split_values`—**not** with
       `answer.split()`, which would break `self sealing` into two unknown words—accept the literal
       `none` and the empty answer, and refuse an unknown or repeated option whole with the values
       named in displayed spelling
-- [ ] T047 [US4] Ask the options question in `_ask_constraints` in `src/cetools/cli/ship.py` directly
+- [X] T047 [US4] Ask the options question in `_ask_constraints` in `src/cetools/cli/ship.py` directly
       after the armour question, only when it produced an `ArmorFit`, and rebuild that fit as
       `ArmorFit(type=…, percent=…, options=…)`. The options live inside the `armor` field, so
       `DesignConstraints` gains no field and `_REVISABLE` stays at sixteen names (research.md
       Decision 7)
-- [ ] T048 [US4] Run `uv run pytest --no-cov` green, then `uv run black . && uv run flake8 src tests`
+
+      Wiring this in required threading the new question through the existing `answered()` wrapper
+      (a nested `ask_armor()` closure), so a revise round that does not name `armor` carries the
+      whole fit—options included—unchanged, and one that does re-asks both questions together.
+
+      Unplanned but required: the new question sits after `armor` in every session that pins a real
+      type, so the seventeen pre-existing tests in `test_cli.py` that pin one via `_answers()` or a
+      raw continuation string needed a slot for it. Added an `armor_options` keyword to `_answers()`
+      that inserts the extra line automatically when the armour answer is real (default `""`,
+      preserving every prior test's intent unchanged), and added one blank line to the five raw
+      continuation strings that revise `armor` to a real type outside that helper. Also added the
+      `_read_armor_options` row `test_acceptable_values_table_covers_every_closed_set_reader_in_ship_py`
+      (Phase 5, Decision 5) requires of every closed-set reader, which the new function tripped
+      immediately.
+- [X] T048 [US4] Run `uv run pytest --no-cov` green, then `uv run black . && uv run flake8 src tests`
+
+      Full gate run instead: `uv run isort . && uv run black . && uv run flake8 src tests &&
+      uv run pytest && uv run python scripts/check_docs.py`—all five green, 3205 passed, 99.22%
+      coverage on `src/cetools`. Manually confirmed end to end: an interactive session pinning
+      `crystaliron 10` then `reflec stealth` shows `Armor options (reflec, self sealing, stealth)
+      [none]: ` directly after the armour prompt and emits `options = ["reflec", "stealth"]` under
+      `[[armor]]` in the TOML.
 
 **Checkpoint**: all four user stories independently functional. SC-004 satisfied—all three armour
 options reachable from the session where none was.

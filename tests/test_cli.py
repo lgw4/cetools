@@ -18,6 +18,7 @@ from cetools.engine.ships import (
     Configuration,
     Drive,
     HullClass,
+    armor_options,
     available_ratings,
     bay_kinds,
     computer_models,
@@ -1032,7 +1033,18 @@ def _small_craft_answers(*, skip: tuple[str, ...] = (), **given: str) -> str:
     return _answers(skip=("hull_class",) + _SMALL_CRAFT_SKIPS + skip, **given)
 
 
-def _answers(*, skip: tuple[str, ...] = (), pad: bool = True, **given: str) -> str:
+def _pins_an_armor_fit(armor_answer: str) -> bool:
+    """Whether an `armor` answer produces a real `ArmorFit`—Enter (no answer
+    at all) and `none` do not, so the wizard asks no follow-up there; any
+    other answer, including one reached after a malformed retry, pins a layer
+    and the new Armor options question follows it (T047, FR-019)."""
+    last_line = armor_answer.strip().splitlines()[-1].strip().lower() if armor_answer else ""
+    return last_line not in ("", "none")
+
+
+def _answers(
+    *, skip: tuple[str, ...] = (), pad: bool = True, armor_options: str = "", **given: str
+) -> str:
     """Piped input answering the named questions and pressing Enter through the rest.
 
     `skip` names questions this invocation never asks, because a flag already
@@ -1043,11 +1055,22 @@ def _answers(*, skip: tuple[str, ...] = (), pad: bool = True, **given: str) -> s
     about, such as a turret's mount and weapon. Turn it off when the test has
     something to say *after* the session ends, since the spare Enters would
     otherwise be swallowed by the accept-or-revise question.
+
+    `armor_options` answers the Armor options question that follows a pinned
+    armor answer (T047)—not one of `_QUESTIONS`, since it is asked only
+    conditionally, so a caller who does not care about it need not know it
+    exists.
     """
     unknown = (set(given) | set(skip)) - set(_QUESTIONS)
     assert not unknown, f"no such question: {sorted(unknown)}"
     asked = (question for question in _QUESTIONS if question not in skip)
-    answered = "".join(f"{given.get(question, '')}\n" for question in asked)
+    parts = []
+    for question in asked:
+        value = given.get(question, "")
+        parts.append(f"{value}\n")
+        if question == "armor" and _pins_an_armor_fit(value):
+            parts.append(f"{armor_options}\n")
+    answered = "".join(parts)
     return answered + _ENTER_THROUGH if pad else answered
 
 
@@ -1499,7 +1522,7 @@ def test_ship_generate_interactive_a_design_the_builder_rejects_re_enters_the_lo
         app,
         ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11", "--toml"],
         input=_answers(skip=("hull",), pad=False, armor="crystaliron 7")
-        + "armor\ncrystaliron 5\n",
+        + "armor\ncrystaliron 5\n\n",  # revised armor pins a layer, so options is asked again
     )
     assert result.exit_code == 0, result.stderr
     assert "armor must be added in 5% increments" in result.stderr
@@ -1547,7 +1570,7 @@ def test_ship_generate_interactive_an_unknown_answer_name_is_reasked():
         app,
         ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11", "--toml"],
         input=_answers(skip=("hull",), pad=False, armor="crystaliron 7")
-        + "armour\narmor\ncrystaliron 5\n",
+        + "armour\narmor\ncrystaliron 5\n\n",  # revised armor pins a layer, options asked again
     )
 
     assert result.exit_code == 0, result.stderr
@@ -1568,7 +1591,7 @@ def test_ship_generate_interactive_revise_prompt_names_all_sixteen_answers():
         app,
         ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11", "--toml"],
         input=_answers(skip=("hull",), pad=False, armor="crystaliron 7")
-        + "armor\ncrystaliron 5\n",
+        + "armor\ncrystaliron 5\n\n",  # revised armor pins a layer, options asked again
     )
     assert result.exit_code == 0, result.stderr
     assert _REVISE_PROMPT in result.stderr
@@ -1626,7 +1649,8 @@ def test_ship_generate_interactive_gives_up_and_exits_1_when_every_round_is_refu
         app,
         ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11"],
         input=_answers(skip=("hull",), pad=False, armor="crystaliron 7")
-        + "armor\ncrystaliron 7\n" * 4,
+        # Each revised armor answer pins a layer, so options is asked again too.
+        + "armor\ncrystaliron 7\n\n" * 4,
     )
 
     assert result.exit_code == 1
@@ -2258,7 +2282,8 @@ def test_ship_generate_interactive_armor_percent_rule_surfaces_at_assembly_not_t
     result = runner.invoke(
         app,
         ["ship", "generate", "--interactive", "--seed", "7"],
-        input=_answers(pad=False, armor="crystaliron 7") + "armor\ncrystaliron 5\n",
+        input=_answers(pad=False, armor="crystaliron 7")
+        + "armor\ncrystaliron 5\n\n",  # revised armor pins a layer, options asked again
     )
     assert result.exit_code == 0, result.stderr
     assert "armor must be added in 5% increments" in result.stderr
@@ -2274,6 +2299,187 @@ def test_ship_generate_interactive_unknown_armor_type_is_reasked_with_the_reason
     assert result.exit_code == 0
     assert "adamantium is not a known armor type" in result.stderr
     assert result.stderr.count(_ARMOR_PROMPT) == 2
+
+
+# --- T042-T044 (US4): armour options can be pinned (FR-017 to FR-021) ---
+
+
+_ARMOR_OPTIONS_PROMPT = "Armor options (reflec, self sealing, stealth) [none]:"
+
+
+def test_ship_generate_interactive_armor_options_asked_directly_after_a_pinned_type():
+    """AS 4.1: the question follows the armour question with nothing between
+    them, and does not name `none`—the `[none]` default already says it."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7"],
+        input=_answers(armor="crystaliron 10"),
+    )
+    assert result.exit_code == 0, result.stderr
+    after_armor = result.stderr.split(_ARMOR_PROMPT, 1)[1]
+    assert after_armor.startswith(f" {_ARMOR_OPTIONS_PROMPT}")
+
+
+def test_ship_generate_interactive_enter_at_armor_options_pins_no_options():
+    """AS 4.3."""
+    from cetools.engine.ships import loads_design
+
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7", "--toml"],
+        input=_answers(armor="crystaliron 10"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert loads_design(result.stdout).armor[0].options == ()
+
+
+def test_ship_generate_interactive_armor_options_literal_none_pins_no_options():
+    """FR-018: `none` is accepted though the prompt does not name it."""
+    from cetools.engine.ships import loads_design
+
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7", "--toml"],
+        input=_answers(armor="crystaliron 10", armor_options="none"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert loads_design(result.stdout).armor[0].options == ()
+
+
+@pytest.mark.parametrize("answer", ["reflec stealth", "reflec, stealth"])
+def test_ship_generate_interactive_armor_options_space_or_comma_separates(answer):
+    """FR-018: spaces or commas separate several options in one answer."""
+    from cetools.engine.ships import loads_design
+
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7", "--toml"],
+        input=_answers(armor="crystaliron 10", armor_options=answer),
+    )
+    assert result.exit_code == 0, answer
+    assert loads_design(result.stdout).armor[0].options == ("reflec", "stealth")
+
+
+def test_ship_generate_interactive_armor_options_self_sealing_typed_as_shown_is_one_option():
+    """The case trap: `self sealing` typed exactly as displayed is one option,
+    not two unknown words."""
+    from cetools.engine.ships import loads_design
+
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7", "--toml"],
+        input=_answers(armor="crystaliron 10", armor_options="self sealing"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert loads_design(result.stdout).armor[0].options == ("self_sealing",)
+
+
+def test_ship_generate_interactive_armor_options_reflec_self_sealing_is_two_options():
+    """FR-015: the greedy scan takes the longest run that names a value, so a
+    three-word answer here is two options rather than three unknown words."""
+    from cetools.engine.ships import loads_design
+
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7", "--toml"],
+        input=_answers(armor="crystaliron 10", armor_options="reflec self sealing"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert loads_design(result.stdout).armor[0].options == ("reflec", "self_sealing")
+
+
+def test_ship_generate_interactive_repeated_armor_option_is_reasked_with_the_reason():
+    """AS 4.6."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7"],
+        input=_answers(armor="crystaliron 10", armor_options="reflec reflec\nreflec"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "armor options must not repeat" in result.stderr
+    assert result.stderr.count(_ARMOR_OPTIONS_PROMPT) == 2
+
+
+def test_ship_generate_interactive_armor_options_mixed_valid_and_unknown_is_refused_whole():
+    """FR-018, spec Edge Cases: `reflec bogus` pins neither option."""
+    from cetools.engine.ships import loads_design
+
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7", "--toml"],
+        input=_answers(armor="crystaliron 10", armor_options="reflec bogus\nreflec"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "bogus" in result.stderr
+    assert loads_design(result.stdout).armor[0].options == ("reflec",)
+
+
+def test_ship_generate_interactive_armor_options_not_asked_when_armor_answered_none():
+    """AS 4.4, FR-019."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "0"],
+        input=_answers(armor="none"),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert _ARMOR_OPTIONS_PROMPT not in result.stderr
+
+
+def test_ship_generate_interactive_armor_options_not_asked_when_armor_is_rolled():
+    """AS 4.5, FR-019: Enter at armour leaves it to the dice, and no `ArmorFit`
+    exists yet for the options question to attach to."""
+    result = runner.invoke(
+        app, ["ship", "generate", "--interactive", "--seed", "42"], input=_ENTER_THROUGH
+    )
+    assert result.exit_code == 0, result.stderr
+    assert _ARMOR_OPTIONS_PROMPT not in result.stderr
+
+
+def test_ship_generate_interactive_revising_armor_re_asks_the_options_question():
+    """AS 4.7: the options question follows a revised armour answer too, and
+    the new answer replaces rather than merges with the old one."""
+    from cetools.engine.ships import loads_design
+
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7", "--toml"],
+        input=_answers(pad=False, armor="crystaliron 7", armor_options="reflec")
+        + "armor\ncrystaliron 5\nstealth\n",
+    )
+    assert result.exit_code == 0, result.stderr
+    assert result.stderr.count(_ARMOR_OPTIONS_PROMPT) == 2  # asked, revised, asked again
+    assert loads_design(result.stdout).armor[0].options == ("stealth",)
+
+
+def test_ship_generate_interactive_revising_another_field_leaves_armor_options_untouched():
+    """FR-021: an answer nothing implicated keeps its options too."""
+    from cetools.engine.ships import loads_design
+
+    result = runner.invoke(
+        app,
+        _OVERLOADED + ["--toml"],
+        input=_answers(pad=False, armor_options="reflec", **_OVERLOADED_ANSWERS)
+        + "revise\n4\nnone\n",
+    )
+    assert result.exit_code == 0, result.stderr
+
+    after_revise = result.stderr.split("Accept this ship or revise")[1]
+    assert _ARMOR_OPTIONS_PROMPT not in after_revise
+    assert loads_design(result.stdout).armor[0].options == ("reflec",)
+
+
+def test_ship_generate_interactive_revising_armor_to_none_drops_its_options():
+    """FR-021: options go with the layer they belonged to, since revising
+    armour to `none` leaves nothing for them to attach to."""
+    from cetools.engine.ships import loads_design
+
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7", "--toml"],
+        input=_answers(pad=False, armor="crystaliron 7", armor_options="reflec") + "armor\nnone\n",
+    )
+    assert result.exit_code == 0, result.stderr
+    assert loads_design(result.stdout).armor == ()
 
 
 def test_ship_generate_interactive_asks_for_the_hull_tonnage_showing_its_default():
@@ -2627,6 +2833,15 @@ _ACCEPTABLE_VALUES_TABLE = [
         "refuse_answer": "adamantium",
         "reader_name": "_read_armor",
     },
+    _closed_row(
+        "armor_options",
+        armor_options(),
+        ship._read_armor_options,
+        "_read_armor_options",
+        kind="word",
+        takes_known=True,
+        refuse="bogus",
+    ),
     _closed_row(
         "computer",
         computer_models(),

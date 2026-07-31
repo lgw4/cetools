@@ -27,6 +27,7 @@ from cetools.engine.ships import (
     Ship,
     TurretPin,
     UnmetConstraint,
+    armor_options,
     available_ratings,
     bay_kinds,
     build_ship,
@@ -368,6 +369,28 @@ def _read_armor(known: list[str], answer: str) -> ArmorFit | Absent:
         raise ValueError(f"{percent_text} is not a percent of the hull") from None
 
     return ArmorFit(type=kind, percent=percent)  # rejects a non-positive percent
+
+
+def _read_armor_options(known: list[str], answer: str) -> tuple[str, ...]:
+    """The once-only additions to a pinned armour layer, or none of them.
+
+    The literal `none` is accepted though the prompt does not name it—the
+    `[none]` default already says it (FR-018). An option may itself be two
+    words (`self sealing`), so the answer is matched by `prompts.split_values`
+    rather than `answer.split()`, which would break it into two unknown
+    words. An unknown option and a repeated one each refuse the whole answer,
+    pinning neither (FR-018).
+    """
+    if prompts.key(answer) == _NONE:
+        return ()
+    try:
+        chosen = tuple(prompts.split_values(answer, armor_options()))
+    except ValueError as exc:
+        raise ValueError(f"{exc}; known: {', '.join(known)}") from None
+    if len(chosen) != len(set(chosen)):
+        spelled = ", ".join(prompts.spell(option) for option in chosen)
+        raise ValueError(f"armor options must not repeat, got {spelled}")
+    return chosen
 
 
 def _read_configuration(known: list[str], answer: str) -> Configuration:
@@ -749,15 +772,29 @@ def _ask_constraints(
         ),
     )
 
-    armor = answered(
-        "armor",
-        lambda: ask_closed(
+    def ask_armor() -> ArmorFit | Absent | None:
+        """The armour layer, then—only when it is a real `ArmorFit`—its
+        once-only options, folded into the same field so revising `armor`
+        carries its options with it and `DesignConstraints` gains no field
+        (FR-021, research.md Decision 7).
+        """
+        fit = ask_closed(
             "Armor",
             [kind.value for kind in ArmorType],
             _read_armor,
             note=", each with a percent, or none",
-        ),
-    )
+        )
+        if not isinstance(fit, ArmorFit):
+            return fit
+        options = ask_closed(
+            "Armor options",
+            armor_options(),
+            _read_armor_options,
+            default_label=_NONE,
+        )
+        return ArmorFit(type=fit.type, percent=fit.percent, options=options or ())
+
+    armor = answered("armor", ask_armor)
     computer = answered(
         "computer",
         lambda: ask_closed(

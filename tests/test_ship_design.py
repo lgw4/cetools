@@ -133,6 +133,16 @@ def test_loads_design_accepts_a_7_percent_armor_layer():
         build_ship(design)
 
 
+def test_armor_options_round_trip_through_toml():
+    """FR-020: a layer's once-only options load and dump identically."""
+    design = loads_design(
+        'hull_tons = 200\n\n[[armor]]\ntype = "crystaliron"\npercent = 10\n'
+        'options = ["reflec", "stealth"]'
+    )
+    assert design.armor[0].options == ("reflec", "stealth")
+    assert loads_design(dump_design(design)) == design
+
+
 def test_loads_design_accepts_power_weeks_1_on_a_starship():
     # The >= 2 (starship) / >= 1 (small craft) floor is build_ship's job, not
     # loads_design's (FR-015): the loader checks shape, never SRD rules.
