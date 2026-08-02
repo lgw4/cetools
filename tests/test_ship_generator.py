@@ -1972,6 +1972,97 @@ def test_fr014_a_starved_hull_design_still_builds_within_its_hull():
             assert ship.jump_fuel == pytest.approx(0.1 * hull_tons * distance)
 
 
+# --- the tonnage ledger agrees with the builder's allocation ---
+
+
+def _assert_ledger_matches_cargo(monkeypatch, constraints, seeds):
+    """Every generation's final `remaining` equals the ship's `cargo_tons`.
+
+    `generate_ship` decides what a hull can afford against a ledger it keeps to
+    itself, then hands the design to `build_ship`, which allocates the tonnage
+    for real. The two arithmetics are written out separately—bridge, armour,
+    small-craft fuel, power fuel, jump fuel, hardpoints, fittings and bays are
+    each spelled once in `generator.py` and once in `builder.py`—and nothing
+    compared them. `cargo_tons >= 0`, asserted in several tests above, is far
+    too weak: a ledger that under-counts still satisfies it and merely stops
+    fitting components the hull could hold, silently.
+
+    The ledger is not on `GenerationResult`, so the only way to read it is to
+    watch it being built. The probe subclasses the real ledger rather than
+    faking one, so what is asserted is the arithmetic generation actually ran.
+    """
+    captured: list[TonnageLedger] = []
+
+    class _ProbedLedger(TonnageLedger):
+        def __init__(self, tons: float) -> None:
+            super().__init__(tons)
+            captured.append(self)
+
+    monkeypatch.setattr("cetools.engine.ships.generator.TonnageLedger", _ProbedLedger)
+
+    for seed in range(seeds):
+        captured.clear()
+        result = generate_ship(RandomRolls.seeded(seed), constraints=constraints)
+
+        assert len(captured) == 1, f"seed {seed}: expected one ledger, got {len(captured)}"
+        # Approximate, and the tolerance is doing real work. The starship path
+        # agrees to the bit; the small-craft path does not, because its power
+        # fuel is `math.floor(power_tons / 3 * 10) / 10`—tenths like 5.3, which
+        # no binary float holds exactly. The ledger subtracts them one component
+        # at a time while the builder sums and subtracts once, so the two land up
+        # to 4e-15 apart on about one seed in six. Real drift is at least 0.1t,
+        # the granularity every tonnage formula rounds to, so 1e-9 sits far above
+        # the noise and far below anything worth catching.
+        assert captured[0].remaining == pytest.approx(result.ship.cargo_tons, abs=1e-9), (
+            f"seed {seed}: ledger left {captured[0].remaining}t, "
+            f"builder left {result.ship.cargo_tons}t"
+        )
+
+
+@pytest.mark.parametrize(
+    "hull_class",
+    [HullClass.STARSHIP, HullClass.SMALL_CRAFT],
+    ids=["starship", "small_craft"],
+)
+def test_the_ledger_matches_the_builder_across_seeds(monkeypatch, hull_class):
+    _assert_ledger_matches_cargo(monkeypatch, DesignConstraints(hull_class=hull_class), seeds=200)
+
+
+# Pinned shapes the dice reach rarely or never: the tonnage extremes, the
+# dearest armour, more staterooms than most hulls can hold, and one of each
+# component that is drawn against the budget. `jump_rating` is deliberately
+# absent—pinning it escapes as a ValueError on some seeds, which is a separate
+# defect, and folding it in here would make that regression and a ledger drift
+# fail the same test.
+_LEDGER_PINS = [
+    ("hull_tons=100", DesignConstraints(hull_tons=100)),
+    ("hull_tons=2000", DesignConstraints(hull_tons=2000)),
+    (
+        "armor=crystaliron_10",
+        DesignConstraints(armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=10)),
+    ),
+    ("staterooms=20", DesignConstraints(staterooms=20)),
+    ("fitting=laboratory", DesignConstraints(fitting=FittingFit(kind="laboratory"))),
+    ("bay=meson", DesignConstraints(bay=BayFit(kind="meson"))),
+    ("screen=nuclear_damper", DesignConstraints(screen=ScreenFit(kind="nuclear_damper"))),
+    (
+        "small_craft hull_tons=40",
+        DesignConstraints(hull_class=HullClass.SMALL_CRAFT, hull_tons=40),
+    ),
+    (
+        "small_craft staterooms=2",
+        DesignConstraints(hull_class=HullClass.SMALL_CRAFT, staterooms=2),
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "label, constraints", _LEDGER_PINS, ids=[label for label, _ in _LEDGER_PINS]
+)
+def test_the_ledger_matches_the_builder_when_a_field_is_pinned(monkeypatch, label, constraints):
+    _assert_ledger_matches_cargo(monkeypatch, constraints, seeds=100)
+
+
 # --- a single build or generation is effectively instant ---
 
 
