@@ -1972,6 +1972,179 @@ def test_fr014_a_starved_hull_design_still_builds_within_its_hull():
             assert ship.jump_fuel == pytest.approx(0.1 * hull_tons * distance)
 
 
+# --- the dice never cost the referee a ship over an answer they never gave ---
+
+
+_RESTRICTED_FITTINGS = tuple(
+    kind for kind, row in FITTINGS.items() if row.forbidden_on_distributed
+)
+
+
+def _honoured_or_declared(result, field: str, honoured: bool) -> bool:
+    """The protocol in one line: the pin is honoured, or its absence is declared.
+
+    Generation is allowed to fall short of a pin the hull cannot pay for—that is
+    what `unmet` is for—but it is never allowed to fall short silently, and never
+    allowed to refuse the ship outright.
+    """
+    return honoured or any(entry.field == field for entry in result.unmet)
+
+
+@pytest.mark.parametrize("kind", _RESTRICTED_FITTINGS)
+@pytest.mark.parametrize(
+    "hull_class", [HullClass.STARSHIP, HullClass.SMALL_CRAFT], ids=["starship", "small_craft"]
+)
+def test_a_pinned_fitting_survives_a_rolled_configuration(hull_class, kind):
+    """A fitting the referee pinned is not lost to a configuration they left to chance.
+
+    `fuel_scoops` cannot go on a distributed hull. The configuration was rolled,
+    not asked for, so before this the dice could pick distributed and `build_ship`
+    would refuse the design—costing the session a ship over an answer the referee
+    never gave. The draw now skips the configurations that would forbid the pin.
+    """
+    constraints = DesignConstraints(hull_class=hull_class, fitting=FittingFit(kind=kind))
+    for seed in range(150):
+        result = generate_ship(RandomRolls.seeded(seed), constraints=constraints)
+        fitted = any(fit.kind == kind for fit in result.ship.design.fittings)
+        assert _honoured_or_declared(result, "fitting", fitted), seed
+
+
+@pytest.mark.parametrize("rating", available_ratings(HullClass.STARSHIP, None))
+def test_a_pinned_jump_rating_survives_a_rolled_hull(rating):
+    """A rating the referee pinned is not lost to a hull they left to chance.
+
+    Not every tonnage tabulates every rating, so drawing from all of them let the
+    dice pick a hull the pin could not be delivered on. The hull is now drawn from
+    the tonnages that can deliver it.
+    """
+    constraints = DesignConstraints(jump_rating=rating)
+    for seed in range(60):
+        result = generate_ship(RandomRolls.seeded(seed), constraints=constraints)
+        assert _honoured_or_declared(
+            result, "jump_rating", result.ship.jump_rating == rating
+        ), seed
+
+
+@pytest.mark.parametrize("drive", ["maneuver_rating", "power_rating"])
+@pytest.mark.parametrize("rating", available_ratings(HullClass.SMALL_CRAFT, None))
+def test_a_pinned_small_craft_rating_survives_a_rolled_hull(rating, drive):
+    """The small-craft path narrows its hull draw by the same rule.
+
+    Small hulls tabulate ratings just as unevenly as large ones, so this path had
+    the same defect and needed the same fix; only the table it draws from differs.
+    """
+    constraints = DesignConstraints(hull_class=HullClass.SMALL_CRAFT, **{drive: rating})
+    for seed in range(60):
+        result = generate_ship(RandomRolls.seeded(seed), constraints=constraints)
+        delivered = getattr(result.ship, drive.removesuffix("_rating") + "_rating")
+        assert _honoured_or_declared(result, drive, delivered == rating), seed
+
+
+def test_a_pin_no_hull_can_honour_does_not_take_the_other_pins_down_with_it():
+    """Narrowing is per pin, so an impossible one costs only its own filter.
+
+    Two turrets fit no small craft, and narrowing on all the pins at once emptied
+    the pool and fell back to every hull—dropping the *rating* narrowing too. The
+    dice then drew a hull the pinned rating was not tabulated for, and the refusal
+    blamed the rating, which the referee could have had, instead of the turret
+    count, which they could not.
+    """
+    constraints = DesignConstraints(
+        hull_class=HullClass.SMALL_CRAFT, power_rating=3, turrets=(TurretPin(),) * 3
+    )
+    for seed in range(60):
+        with pytest.raises(ValueError, match="hardpoint") as refusal:
+            generate_ship(RandomRolls.seeded(seed), constraints=constraints)
+        assert "power rating" not in str(refusal.value), seed
+
+
+def test_a_pin_no_hull_of_the_class_can_honour_is_still_refused():
+    """Narrowing cannot invent a hull. A small craft has one hardpoint however
+    large it is, so a second pinned turret is refused on every hull rather than
+    unluckily on this one—an empty pool is a different answer from a bad roll,
+    and belongs to the validator that can say which."""
+    for seed in range(20):
+        with pytest.raises(ValueError, match="hardpoint"):
+            generate_ship(
+                RandomRolls.seeded(seed),
+                constraints=DesignConstraints(
+                    hull_class=HullClass.SMALL_CRAFT, turrets=(TurretPin(),) * 2
+                ),
+            )
+
+
+@pytest.mark.parametrize("count", [1, 2, 3, 5])
+def test_a_pinned_turret_count_survives_a_rolled_hull(count):
+    """Hardpoints come from tonnage, so a turret count pins the hull it needs."""
+    constraints = DesignConstraints(turrets=(TurretPin(),) * count)
+    for seed in range(60):
+        result = generate_ship(RandomRolls.seeded(seed), constraints=constraints)
+        met = len(result.ship.design.turrets) == count
+        assert _honoured_or_declared(result, "turrets", met), seed
+
+
+# Narrowing the pool must never empty it, or the dice would have nothing to draw
+# from and the fix would trade one refusal for another.
+@pytest.mark.parametrize("rating", available_ratings(HullClass.STARSHIP, None))
+def test_every_tabulated_rating_leaves_the_dice_a_hull_to_draw(rating):
+    honouring = [
+        tons for tons in sorted(HULLS) if rating in available_ratings(HullClass.STARSHIP, tons)
+    ]
+    assert honouring, f"rating {rating} is tabulated for no hull at all"
+
+
+def test_every_reachable_turret_count_leaves_the_dice_a_hull_to_draw():
+    most = max(hardpoints(HullClass.STARSHIP, tons) for tons in sorted(HULLS))
+    for count in range(1, most + 1):
+        honouring = [
+            tons for tons in sorted(HULLS) if hardpoints(HullClass.STARSHIP, tons) >= count
+        ]
+        assert honouring, f"{count} turrets fit no hull at all"
+
+
+# --- but two pins that contradict each other are still the referee's mistake ---
+
+
+_CONTRADICTORY_PINS = [
+    (
+        "hull too small for the turret count",
+        DesignConstraints(hull_tons=100, turrets=(TurretPin(),) * 3),
+        "hardpoint",
+    ),
+    (
+        "hull does not tabulate the rating",
+        DesignConstraints(hull_tons=4000, jump_rating=3),
+        "not tabulated",
+    ),
+    (
+        "configuration forbids the fitting",
+        DesignConstraints(
+            configuration=Configuration.DISTRIBUTED, fitting=FittingFit(kind="fuel_scoops")
+        ),
+        "distributed hull cannot mount",
+    ),
+    (
+        "plant rated below the drive it powers",
+        DesignConstraints(hull_tons=400, jump_rating=4, power_rating=1),
+        "below required",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "label, constraints, message", _CONTRADICTORY_PINS, ids=[c[0] for c in _CONTRADICTORY_PINS]
+)
+def test_two_pins_that_contradict_each_other_still_refuse(label, constraints, message):
+    """Narrowing applies to the dice, never to the referee.
+
+    A roll is only a preference and yields to a pin, but a pin is a promise and
+    two promises that cannot both be kept are a mistake worth a sentence rather
+    than a ship that quietly honours whichever was easier.
+    """
+    with pytest.raises(ValueError, match=message):
+        generate_ship(RandomRolls.seeded(3), constraints=constraints)
+
+
 # --- the tonnage ledger agrees with the builder's allocation ---
 
 

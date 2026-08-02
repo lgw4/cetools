@@ -414,11 +414,63 @@ def validate_turret_count(hull_class: HullClass, hull_tons: int, count: int) -> 
         )
 
 
-def _select_hull_tons(rolls: Rolls, pinned_tons: int | None) -> int:
-    if pinned_tons is not None:
-        validate_hull_tons(HullClass.STARSHIP, pinned_tons)
-        return pinned_tons
-    return rolls.choose(sorted(HULLS), RollName.SHIP_HULL_SIZE)
+def _hull_demands(
+    hull_class: HullClass, constraints: DesignConstraints
+) -> Iterable[Callable[[int], bool]]:
+    """One predicate per pinned answer that depends on the hull.
+
+    Separate rather than combined, so that a pin no hull can honour costs only
+    its own narrowing. A pinned jump rating is only asked of a starship: on a
+    small craft `validate_rating` refuses it outright, and filtering here would
+    be filtering on a rating the ruleset does not have.
+    """
+    ratings = [constraints.maneuver_rating, constraints.power_rating]
+    if hull_class is HullClass.STARSHIP:
+        ratings.append(constraints.jump_rating)
+    for rating in ratings:
+        if rating is not None:
+            yield lambda tons, wanted=rating: wanted in available_ratings(hull_class, tons)
+    if constraints.turrets is not None:
+        wanted_turrets = len(constraints.turrets)
+        yield lambda tons: wanted_turrets <= _hardpoints_for(hull_class, tons)
+
+
+def _draw_hull_tons(
+    rolls: Rolls, hull_class: HullClass, tabulated: list[int], constraints: DesignConstraints
+) -> int:
+    """The hull, drawn only from tonnages that can honour the hull-dependent pins.
+
+    A pin is a promise and a roll is only a preference, so where the referee
+    pinned a rating or a turret count and left the hull to chance, the dice draw
+    from the hulls that can deliver it rather than from every hull in the table.
+    Drawing from all of them let the dice hand `build_ship` a design it had to
+    refuse—the referee lost the ship over the tonnage, an answer they never
+    gave—which is the same reasoning that caps the drawn drive codes at a pinned
+    plant in `_select_drive_codes`.
+
+    Narrowing is applied one pin at a time and kept only where it leaves the dice
+    something to draw. A pin no hull of the class can honour—a small craft has one
+    hardpoint however large it is, so a second turret fits none of them—is a
+    refusal rather than an unlucky roll, and belongs to the validator that can say
+    which. Dropping only that pin's own filter keeps it from taking the others
+    down with it, so the refusal still names the answer that caused it.
+    """
+    pool = tabulated
+    for honours in _hull_demands(hull_class, constraints):
+        narrowed = [tons for tons in pool if honours(tons)]
+        if narrowed:
+            pool = narrowed
+    return rolls.choose(pool, RollName.SHIP_HULL_SIZE)
+
+
+def _select_hull_tons(rolls: Rolls, constraints: DesignConstraints) -> int:
+    """The starship hull. Two pins that contradict each other are still the
+    referee's mistake: a pinned hull is returned as given and `validate_rating`
+    refuses the pair with its own sentence. Narrowing only applies to the dice."""
+    if constraints.hull_tons is not None:
+        validate_hull_tons(HullClass.STARSHIP, constraints.hull_tons)
+        return constraints.hull_tons
+    return _draw_hull_tons(rolls, HullClass.STARSHIP, sorted(HULLS), constraints)
 
 
 def _select_name(rolls: Rolls, pinned: str | Absent | None) -> str:
@@ -435,10 +487,32 @@ def _select_name(rolls: Rolls, pinned: str | Absent | None) -> str:
     return generate_ship_name(rolls)
 
 
-def _select_configuration(rolls: Rolls, pinned: Configuration | None) -> Configuration:
+def _select_configuration(
+    rolls: Rolls,
+    pinned: Configuration | None,
+    pinned_fitting: FittingFit | Absent | None = None,
+) -> Configuration:
+    """The hull configuration, drawn clear of any pinned fitting it would forbid.
+
+    A distributed hull cannot mount fuel scoops. Where the referee pinned such a
+    fitting and left the configuration to chance, drawing distributed would cost
+    them the ship over an answer they never gave, so the draw skips it. Read from
+    the table row rather than named here, so a second fitting that carries the
+    same restriction is honoured with no edit.
+
+    A pinned configuration is returned as given: two pins that contradict each
+    other are the referee's to resolve, and `build_ship` owns that sentence.
+    """
     if pinned is not None:
         return pinned
-    return rolls.choose(list(Configuration), RollName.SHIP_CONFIGURATION)
+    tabulated = list(Configuration)
+    pool = tabulated
+    if (
+        isinstance(pinned_fitting, FittingFit)
+        and FITTINGS[pinned_fitting.kind].forbidden_on_distributed
+    ):
+        pool = [option for option in tabulated if option is not Configuration.DISTRIBUTED]
+    return rolls.choose(pool or tabulated, RollName.SHIP_CONFIGURATION)
 
 
 def _codes_valid_for_hull(hull_tons: int) -> list[str]:
@@ -976,11 +1050,14 @@ def _select_screen(
     )
 
 
-def _select_small_craft_hull_tons(rolls: Rolls, pinned_tons: int | None) -> int:
-    if pinned_tons is not None:
-        validate_hull_tons(HullClass.SMALL_CRAFT, pinned_tons)
-        return pinned_tons
-    return rolls.choose(sorted(SMALL_CRAFT_HULLS), RollName.SHIP_HULL_SIZE)
+def _select_small_craft_hull_tons(rolls: Rolls, constraints: DesignConstraints) -> int:
+    """The small-craft hull, narrowed by the same rule as the starship path: a
+    pinned manoeuvre or power rating is not tabulated for every small hull, and
+    the dice must not pick one that cannot deliver it."""
+    if constraints.hull_tons is not None:
+        validate_hull_tons(HullClass.SMALL_CRAFT, constraints.hull_tons)
+        return constraints.hull_tons
+    return _draw_hull_tons(rolls, HullClass.SMALL_CRAFT, sorted(SMALL_CRAFT_HULLS), constraints)
 
 
 def _small_craft_power_fuel(power_tons: float) -> float:
@@ -1284,12 +1361,12 @@ def _select_small_craft_turret(
 
 
 def _generate_small_craft(rolls: Rolls, constraints: DesignConstraints) -> GenerationResult:
-    hull_tons = _select_small_craft_hull_tons(rolls, constraints.hull_tons)
+    hull_tons = _select_small_craft_hull_tons(rolls, constraints)
     if constraints.jump_rating is not None:
         validate_rating(HullClass.SMALL_CRAFT, hull_tons, Drive.JUMP, constraints.jump_rating)
     if isinstance(constraints.bay, BayFit):
         raise ValueError("small craft carry no weapon bays, so no bay can be pinned")
-    configuration = _select_configuration(rolls, constraints.configuration)
+    configuration = _select_configuration(rolls, constraints.configuration, constraints.fitting)
     ledger = TonnageLedger(hull_tons)
     maneuver_code, power_code = _select_small_craft_drives(rolls, hull_tons, constraints, ledger)
     maneuver_letter, power_letter = maneuver_code[1:], power_code[1:]
@@ -1377,8 +1454,8 @@ def generate_ship(
     if constraints.hull_class is HullClass.SMALL_CRAFT:
         return _generate_small_craft(rolls, constraints)
 
-    hull_tons = _select_hull_tons(rolls, constraints.hull_tons)
-    configuration = _select_configuration(rolls, constraints.configuration)
+    hull_tons = _select_hull_tons(rolls, constraints)
+    configuration = _select_configuration(rolls, constraints.configuration, constraints.fitting)
     jump_code, maneuver_code, power_code = _select_drive_codes(rolls, hull_tons, constraints)
 
     maneuver_tons = DRIVE_COSTS[maneuver_code].maneuver_tons
