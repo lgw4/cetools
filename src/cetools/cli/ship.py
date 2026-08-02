@@ -39,15 +39,17 @@ from cetools.engine.ships import (
     hardpoints,
     hull_tonnages,
     load_design,
+    offerable_ratings,
     power_floor,
     render_description,
     screen_kinds,
-    small_craft_maneuver_ratings,
-    small_craft_power_ratings,
     small_craft_weapons,
     turret_mounts,
     turret_weapons,
+    validate_hull_tons,
     validate_small_craft_weapon,
+    validate_turret_mount,
+    validate_turret_weapon,
 )
 
 app = typer.Typer()
@@ -212,32 +214,6 @@ def _read_hull_class(known: list[str], answer: str) -> HullClass:
         ) from None
 
 
-def _maneuver_values(hull_class: HullClass, hull_tons: int | None) -> tuple[int, ...]:
-    """The manoeuvre-rating accessor for this hull, as narrow as it can be.
-
-    A small craft with its tonnage pinned narrows past what the drive table
-    alone tabulates, to what a plant and a cockpit leave room for beside it.
-    Every other state reads the drive table directly.
-    """
-    if hull_class is HullClass.SMALL_CRAFT and hull_tons is not None:
-        return small_craft_maneuver_ratings(hull_tons)
-    return available_ratings(hull_class, hull_tons)
-
-
-def _power_values(
-    hull_class: HullClass, hull_tons: int | None, maneuver_rating: int | None
-) -> tuple[int, ...]:
-    """The power-rating accessor for this hull, as narrow as it can be.
-
-    Narrows to what this plant can run beside an *already pinned* manoeuvre
-    drive only once both the tonnage and that drive are known; a manoeuvre
-    rating still left to the dice cannot narrow anything yet.
-    """
-    if hull_class is HullClass.SMALL_CRAFT and hull_tons is not None and maneuver_rating:
-        return small_craft_power_ratings(hull_tons, maneuver_rating)
-    return available_ratings(hull_class, hull_tons)
-
-
 def _read_maneuver_rating(
     hull_class: HullClass, hull_tons: int | None, offered: tuple[int, ...], answer: str
 ) -> int:
@@ -302,14 +278,7 @@ def _read_hull_tons(hull_class: HullClass, answer: str) -> int:
     except ValueError:
         raise ValueError(f"{answer} is not a number of tons") from None
 
-    valid = hull_tonnages(hull_class)
-    if tons not in valid:
-        available = ", ".join(prompts.numbers(valid))
-        if hull_class is HullClass.SMALL_CRAFT:
-            raise ValueError(
-                f"{tons} tons is not a tabulated small-craft hull size; valid: {available}"
-            )
-        raise ValueError(f"{tons} tons is not a tabulated hull size; valid: {available}")
+    validate_hull_tons(hull_class, tons)
     return tons
 
 
@@ -350,9 +319,6 @@ def _read_rating(
 
     if floor is not None and rating < floor:
         raise ValueError(f"power plant rating {rating} is below the {floor} its drives require")
-
-    if drive is Drive.JUMP and hull_class is HullClass.SMALL_CRAFT:
-        raise ValueError("small craft carry no jump drive, so no jump rating can be pinned")
 
     if rating not in available_ratings(hull_class, hull_tons):
         where = (
@@ -450,6 +416,9 @@ def _read_electronics(known: list[str], answer: str) -> str | Absent:
     if stored == _NONE:
         return ABSENT
     if stored not in electronics_packages():
+        # Not `validate_electronics`: the prompt offers `none` as well as the
+        # packages, and the refusal has to name the set the question named. The
+        # engine rules on a package name; this rules on an answer.
         raise ValueError(f"unknown electronics package {stored!r}; known: {', '.join(known)}")
     return stored
 
@@ -510,15 +479,13 @@ def _read_screen(known: list[str], answer: str) -> ScreenFit | Absent:
 
 def _read_turret_mount(known: list[str], answer: str) -> str:
     stored = prompts.key(answer)
-    if stored not in turret_mounts():
-        raise ValueError(f"unknown turret mount {stored!r}; known: {', '.join(known)}")
+    validate_turret_mount(stored)
     return stored
 
 
 def _read_turret_weapon(known: list[str], answer: str) -> str:
     stored = prompts.key(answer)
-    if stored not in turret_weapons():
-        raise ValueError(f"unknown turret weapon {stored!r}; known: {', '.join(known)}")
+    validate_turret_weapon(stored)
     return stored
 
 
@@ -793,7 +760,7 @@ def _ask_constraints(
         "maneuver_rating",
         lambda: ask_rating(
             "Maneuver rating",
-            _maneuver_values(hull_class, hull_tons),
+            offerable_ratings(hull_class, hull_tons, Drive.MANEUVER),
             partial(_read_maneuver_rating, hull_class, hull_tons),
         ),
     )
@@ -803,7 +770,7 @@ def _ask_constraints(
         "power_rating",
         lambda: ask_rating(
             "Power plant rating",
-            _power_values(hull_class, hull_tons, maneuver_rating),
+            offerable_ratings(hull_class, hull_tons, Drive.POWER, maneuver_rating),
             partial(_read_power_rating, hull_class, hull_tons, floor, maneuver_rating),
             floor,
         ),

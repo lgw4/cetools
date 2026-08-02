@@ -5,7 +5,7 @@ from dataclasses import fields
 
 import pytest
 
-from cetools.engine.rolls import RandomRolls, RollName, Rolls, ScriptedRolls
+from cetools.engine.rolls import RandomRolls, RecordingRolls, RollName, ScriptedRolls
 from cetools.engine.ships import (
     ABSENT,
     SHIP_NAMES,
@@ -37,6 +37,7 @@ from cetools.engine.ships import (
 from cetools.engine.ships.generator import (
     _ARMOR_CHOICES,
     _FITTING_CHOICES,
+    Drive,
     TonnageLedger,
     _energy_allowance,
     _exceeds_energy_allowance,
@@ -49,6 +50,7 @@ from cetools.engine.ships.generator import (
     generate_ship,
     hardpoints,
     hull_tonnages,
+    offerable_ratings,
     screen_kinds,
     small_craft_maneuver_ratings,
     small_craft_power_ratings,
@@ -79,6 +81,15 @@ _PRE_CHANGE_SWEEP_PATH = "tests/data/baseline/pre_change_sweep.json"
 _POST_CHANGE_BASELINE_PATH = "tests/data/baseline/designs.json"
 
 # --- Engine accessors: the published value sets ---
+
+
+def _names(recorder: RecordingRolls) -> list[RollName]:
+    """Every roll name the recorder saw, in order.
+
+    `RecordingRolls` keeps whole `Draw` records; these tests only ever ask which
+    names were drawn and in what order, so they flatten to that here.
+    """
+    return [draw.name for draw in recorder.draws]
 
 
 def test_accessor_hull_tonnages_starship_matches_validate_hull_tons():
@@ -400,7 +411,7 @@ def test_pinned_armor_draws_no_dice():
     for pinned in (ArmorFit(type=ArmorType.CRYSTALIRON, percent=10), ABSENT):
         recorder = RecordingRolls(RandomRolls.seeded(_ROLLS_NO_ARMOR))
         generate_ship(recorder, constraints=DesignConstraints(armor=pinned))
-        assert RollName.SHIP_ARMOR not in recorder.drawn
+        assert RollName.SHIP_ARMOR not in _names(recorder)
 
 
 def test_pinned_armor_that_will_not_fit_leaves_the_ship_unarmored():
@@ -465,9 +476,9 @@ def test_pinned_ratings_draw_no_dice():
         ),
     )
 
-    assert RollName.SHIP_JUMP_CODE not in recorder.drawn
-    assert RollName.SHIP_MANEUVER_CODE not in recorder.drawn
-    assert RollName.SHIP_POWER_CODE not in recorder.drawn
+    assert RollName.SHIP_JUMP_CODE not in _names(recorder)
+    assert RollName.SHIP_MANEUVER_CODE not in _names(recorder)
+    assert RollName.SHIP_POWER_CODE not in _names(recorder)
 
 
 def test_a_pinned_power_plant_caps_the_drives_left_to_chance():
@@ -612,8 +623,8 @@ def test_small_craft_pinned_ratings_draw_no_dice():
         ),
     )
 
-    assert RollName.SHIP_MANEUVER_CODE not in recorder.drawn
-    assert RollName.SHIP_POWER_CODE not in recorder.drawn
+    assert RollName.SHIP_MANEUVER_CODE not in _names(recorder)
+    assert RollName.SHIP_POWER_CODE not in _names(recorder)
 
 
 # --- The rest of the scalar surface: every field pins, rolls or is left absent ---
@@ -642,7 +653,7 @@ def test_a_pinned_field_is_honoured_and_draws_no_dice(field, pinned, roll):
         constraints=DesignConstraints(hull_tons=2000, **{field: pinned}),
     )
 
-    assert roll not in recorder.drawn
+    assert roll not in _names(recorder)
     assert _installed(result.ship, field) == pinned
 
 
@@ -672,7 +683,7 @@ def test_an_unset_field_is_still_rolled(field, pinned, roll):
     recorder = RecordingRolls(RandomRolls.seeded(11))
     generate_ship(recorder, constraints=DesignConstraints(hull_tons=2000, **{field: None}))
 
-    assert roll in recorder.drawn
+    assert roll in _names(recorder)
 
 
 @pytest.mark.parametrize("field", ["computer", "electronics", "fitting", "bay", "screen"])
@@ -748,7 +759,7 @@ def test_an_unset_screen_is_never_rolled_onto_a_small_craft():
         recorder = RecordingRolls(RandomRolls.seeded(seed))
         result = generate_ship(recorder, constraints=_SMALL_CRAFT)
 
-        assert RollName.SHIP_SCREEN not in recorder.drawn
+        assert RollName.SHIP_SCREEN not in _names(recorder)
         assert result.ship.design.screens == ()
 
 
@@ -846,9 +857,9 @@ def test_a_pinned_count_alone_fits_that_many_turrets_and_rolls_their_details():
     )
 
     assert len(result.ship.design.turrets) == 2
-    assert RollName.SHIP_TURRET_COUNT not in recorder.drawn
-    assert recorder.drawn.count(RollName.SHIP_TURRET_MOUNT) == 2
-    assert recorder.drawn.count(RollName.SHIP_WEAPON) == 2
+    assert RollName.SHIP_TURRET_COUNT not in _names(recorder)
+    assert _names(recorder).count(RollName.SHIP_TURRET_MOUNT) == 2
+    assert _names(recorder).count(RollName.SHIP_WEAPON) == 2
 
 
 def test_a_pinned_mount_and_weapon_are_fitted_and_draw_no_dice():
@@ -864,8 +875,8 @@ def test_a_pinned_mount_and_weapon_are_fitted_and_draw_no_dice():
     (turret,) = result.ship.design.turrets
     assert turret.mount == "triple"
     assert turret.weapons == ("pulse_laser",) * 3
-    assert RollName.SHIP_TURRET_MOUNT not in recorder.drawn
-    assert RollName.SHIP_WEAPON not in recorder.drawn
+    assert RollName.SHIP_TURRET_MOUNT not in _names(recorder)
+    assert RollName.SHIP_WEAPON not in _names(recorder)
 
 
 def test_a_pinned_weapon_may_ride_a_rolled_mount_and_the_reverse():
@@ -1756,40 +1767,13 @@ def test_sc009_hull_size_is_always_honoured():
             assert ship.hull_tons == hull_tons
 
 
-class RecordingRolls:
-    """Wraps another `Rolls` and records every `RollName` drawn, in order.
-
-    Serves one test (the draw-order guard) and no production caller, so
-    it lives here rather than in `engine/rolls.py`."""
-
-    def __init__(self, wrapped: Rolls) -> None:
-        self._wrapped = wrapped
-        self.drawn: list[RollName] = []
-
-    def check(self, dm: int, target: int, name: RollName) -> bool:
-        self.drawn.append(name)
-        return self._wrapped.check(dm, target, name)
-
-    def two_d6(self, name: RollName) -> int:
-        self.drawn.append(name)
-        return self._wrapped.two_d6(name)
-
-    def d6(self, name: RollName) -> int:
-        self.drawn.append(name)
-        return self._wrapped.d6(name)
-
-    def choose(self, items, name: RollName):
-        self.drawn.append(name)
-        return self._wrapped.choose(items, name)
-
-
 def test_sc008_ship_name_is_the_final_draw_and_is_drawn_exactly_once_on_both_paths():
     for seed in range(50):
         for hull_class in HullClass:
             recorder = RecordingRolls(RandomRolls.seeded(seed))
             generate_ship(recorder, constraints=DesignConstraints(hull_class=hull_class))
-            assert recorder.drawn[-1] == RollName.SHIP_NAME
-            assert recorder.drawn.count(RollName.SHIP_NAME) == 1
+            assert _names(recorder)[-1] == RollName.SHIP_NAME
+            assert _names(recorder).count(RollName.SHIP_NAME) == 1
 
 
 def test_a_pinned_hull_tonnage_draws_no_dice_on_either_path():
@@ -1802,14 +1786,14 @@ def test_a_pinned_hull_tonnage_draws_no_dice_on_either_path():
     for seed in range(20):
         recorder = RecordingRolls(RandomRolls.seeded(seed))
         generate_ship(recorder, constraints=DesignConstraints(hull_tons=400))
-        assert RollName.SHIP_HULL_SIZE not in recorder.drawn
+        assert RollName.SHIP_HULL_SIZE not in _names(recorder)
 
         recorder = RecordingRolls(RandomRolls.seeded(seed))
         generate_ship(
             recorder,
             constraints=DesignConstraints(hull_class=HullClass.SMALL_CRAFT, hull_tons=40),
         )
-        assert RollName.SHIP_HULL_SIZE not in recorder.drawn
+        assert RollName.SHIP_HULL_SIZE not in _names(recorder)
 
 
 def test_an_unpinned_hull_tonnage_is_drawn_exactly_once_on_either_path():
@@ -1818,24 +1802,24 @@ def test_an_unpinned_hull_tonnage_is_drawn_exactly_once_on_either_path():
     for hull_class in HullClass:
         recorder = RecordingRolls(RandomRolls.seeded(3))
         generate_ship(recorder, constraints=DesignConstraints(hull_class=hull_class))
-        assert recorder.drawn.count(RollName.SHIP_HULL_SIZE) == 1
+        assert _names(recorder).count(RollName.SHIP_HULL_SIZE) == 1
 
 
 def test_sc008_drive_codes_are_drawn_jump_then_maneuver_then_power():
     for seed in range(50):
         recorder = RecordingRolls(RandomRolls.seeded(seed))
         generate_ship(recorder)
-        jump_at = recorder.drawn.index(RollName.SHIP_JUMP_CODE)
-        maneuver_at = recorder.drawn.index(RollName.SHIP_MANEUVER_CODE)
-        power_at = recorder.drawn.index(RollName.SHIP_POWER_CODE)
+        jump_at = _names(recorder).index(RollName.SHIP_JUMP_CODE)
+        maneuver_at = _names(recorder).index(RollName.SHIP_MANEUVER_CODE)
+        power_at = _names(recorder).index(RollName.SHIP_POWER_CODE)
         assert jump_at < maneuver_at < power_at
 
     for seed in range(50):
         recorder = RecordingRolls(RandomRolls.seeded(seed))
         generate_ship(recorder, constraints=_SMALL_CRAFT)
-        assert RollName.SHIP_JUMP_CODE not in recorder.drawn
-        maneuver_at = recorder.drawn.index(RollName.SHIP_MANEUVER_CODE)
-        power_at = recorder.drawn.index(RollName.SHIP_POWER_CODE)
+        assert RollName.SHIP_JUMP_CODE not in _names(recorder)
+        maneuver_at = _names(recorder).index(RollName.SHIP_MANEUVER_CODE)
+        power_at = _names(recorder).index(RollName.SHIP_POWER_CODE)
         assert maneuver_at < power_at
 
 
@@ -1970,6 +1954,319 @@ def test_fr014_a_starved_hull_design_still_builds_within_its_hull():
             assert ship.cargo_tons >= 0
             assert ship.assumed_jump_distance == distance  # never silently corrected
             assert ship.jump_fuel == pytest.approx(0.1 * hull_tons * distance)
+
+
+# --- what may be offered for a drive, as narrow as what is known allows ---
+
+
+def test_offerable_ratings_narrows_a_small_craft_maneuver_once_the_hull_is_known():
+    """The drive table tabulates ratings a 40-ton hull could reach in isolation;
+    a craft also needs a plant and a cockpit. The narrower answer is the true one
+    and is what both the prompt and generation have to work from."""
+    tabulated = available_ratings(HullClass.SMALL_CRAFT, 40)
+    offerable = offerable_ratings(HullClass.SMALL_CRAFT, 40, Drive.MANEUVER)
+    assert offerable == small_craft_maneuver_ratings(40)
+    assert set(offerable) < set(tabulated), "the small-craft path should narrow"
+
+
+def test_offerable_ratings_cannot_narrow_before_the_hull_is_known():
+    """With the tonnage left to the dice there is nothing to narrow against, so
+    the tabulated answer stands rather than a guess at one."""
+    for drive in Drive:
+        assert offerable_ratings(HullClass.SMALL_CRAFT, None, drive) == available_ratings(
+            HullClass.SMALL_CRAFT, None
+        )
+
+
+def test_offerable_ratings_narrows_a_small_craft_plant_only_once_its_drive_is_pinned():
+    """The pair is chosen jointly on this path: a manoeuvre drive still left to
+    the dice rules nothing out, but one already pinned rules out plants too weak
+    to power it or too heavy to sit beside it."""
+    unpinned = offerable_ratings(HullClass.SMALL_CRAFT, 15, Drive.POWER)
+    assert unpinned == available_ratings(HullClass.SMALL_CRAFT, 15)
+
+    pinned = offerable_ratings(HullClass.SMALL_CRAFT, 15, Drive.POWER, 1)
+    assert pinned == small_craft_power_ratings(15, 1)
+    assert set(pinned) <= set(unpinned)
+
+
+@pytest.mark.parametrize("drive", list(Drive), ids=[drive.value for drive in Drive])
+def test_offerable_ratings_never_widens_past_what_the_tables_tabulate(drive):
+    """Narrowing may only ever remove. A rating offered but not tabulated would
+    promise the referee something no drive can deliver."""
+    for hull_class, tonnages in (
+        (HullClass.STARSHIP, sorted(HULLS)),
+        (HullClass.SMALL_CRAFT, sorted(SMALL_CRAFT_HULLS)),
+    ):
+        for hull_tons in (None, *tonnages):
+            tabulated = set(available_ratings(hull_class, hull_tons))
+            for maneuver_rating in (None, *range(1, 7)):
+                offerable = offerable_ratings(hull_class, hull_tons, drive, maneuver_rating)
+                assert set(offerable) <= tabulated, (hull_class, hull_tons, maneuver_rating)
+
+
+# --- the dice never cost the referee a ship over an answer they never gave ---
+
+
+_RESTRICTED_FITTINGS = tuple(
+    kind for kind, row in FITTINGS.items() if row.forbidden_on_distributed
+)
+
+
+def _honoured_or_declared(result, field: str, honoured: bool) -> bool:
+    """The protocol in one line: the pin is honoured, or its absence is declared.
+
+    Generation is allowed to fall short of a pin the hull cannot pay for—that is
+    what `unmet` is for—but it is never allowed to fall short silently, and never
+    allowed to refuse the ship outright.
+    """
+    return honoured or any(entry.field == field for entry in result.unmet)
+
+
+@pytest.mark.parametrize("kind", _RESTRICTED_FITTINGS)
+@pytest.mark.parametrize(
+    "hull_class", [HullClass.STARSHIP, HullClass.SMALL_CRAFT], ids=["starship", "small_craft"]
+)
+def test_a_pinned_fitting_survives_a_rolled_configuration(hull_class, kind):
+    """A fitting the referee pinned is not lost to a configuration they left to chance.
+
+    `fuel_scoops` cannot go on a distributed hull. The configuration was rolled,
+    not asked for, so before this the dice could pick distributed and `build_ship`
+    would refuse the design—costing the session a ship over an answer the referee
+    never gave. The draw now skips the configurations that would forbid the pin.
+    """
+    constraints = DesignConstraints(hull_class=hull_class, fitting=FittingFit(kind=kind))
+    for seed in range(150):
+        result = generate_ship(RandomRolls.seeded(seed), constraints=constraints)
+        fitted = any(fit.kind == kind for fit in result.ship.design.fittings)
+        assert _honoured_or_declared(result, "fitting", fitted), seed
+
+
+@pytest.mark.parametrize("rating", available_ratings(HullClass.STARSHIP, None))
+def test_a_pinned_jump_rating_survives_a_rolled_hull(rating):
+    """A rating the referee pinned is not lost to a hull they left to chance.
+
+    Not every tonnage tabulates every rating, so drawing from all of them let the
+    dice pick a hull the pin could not be delivered on. The hull is now drawn from
+    the tonnages that can deliver it.
+    """
+    constraints = DesignConstraints(jump_rating=rating)
+    for seed in range(60):
+        result = generate_ship(RandomRolls.seeded(seed), constraints=constraints)
+        assert _honoured_or_declared(
+            result, "jump_rating", result.ship.jump_rating == rating
+        ), seed
+
+
+@pytest.mark.parametrize("drive", ["maneuver_rating", "power_rating"])
+@pytest.mark.parametrize("rating", available_ratings(HullClass.SMALL_CRAFT, None))
+def test_a_pinned_small_craft_rating_survives_a_rolled_hull(rating, drive):
+    """The small-craft path narrows its hull draw by the same rule.
+
+    Small hulls tabulate ratings just as unevenly as large ones, so this path had
+    the same defect and needed the same fix; only the table it draws from differs.
+    """
+    constraints = DesignConstraints(hull_class=HullClass.SMALL_CRAFT, **{drive: rating})
+    for seed in range(60):
+        result = generate_ship(RandomRolls.seeded(seed), constraints=constraints)
+        delivered = getattr(result.ship, drive.removesuffix("_rating") + "_rating")
+        assert _honoured_or_declared(result, drive, delivered == rating), seed
+
+
+def test_a_pin_no_hull_can_honour_does_not_take_the_other_pins_down_with_it():
+    """Narrowing is per pin, so an impossible one costs only its own filter.
+
+    Two turrets fit no small craft, and narrowing on all the pins at once emptied
+    the pool and fell back to every hull—dropping the *rating* narrowing too. The
+    dice then drew a hull the pinned rating was not tabulated for, and the refusal
+    blamed the rating, which the referee could have had, instead of the turret
+    count, which they could not.
+    """
+    constraints = DesignConstraints(
+        hull_class=HullClass.SMALL_CRAFT, power_rating=3, turrets=(TurretPin(),) * 3
+    )
+    for seed in range(60):
+        with pytest.raises(ValueError, match="hardpoint") as refusal:
+            generate_ship(RandomRolls.seeded(seed), constraints=constraints)
+        assert "power rating" not in str(refusal.value), seed
+
+
+def test_a_pin_no_hull_of_the_class_can_honour_is_still_refused():
+    """Narrowing cannot invent a hull. A small craft has one hardpoint however
+    large it is, so a second pinned turret is refused on every hull rather than
+    unluckily on this one—an empty pool is a different answer from a bad roll,
+    and belongs to the validator that can say which."""
+    for seed in range(20):
+        with pytest.raises(ValueError, match="hardpoint"):
+            generate_ship(
+                RandomRolls.seeded(seed),
+                constraints=DesignConstraints(
+                    hull_class=HullClass.SMALL_CRAFT, turrets=(TurretPin(),) * 2
+                ),
+            )
+
+
+@pytest.mark.parametrize("count", [1, 2, 3, 5])
+def test_a_pinned_turret_count_survives_a_rolled_hull(count):
+    """Hardpoints come from tonnage, so a turret count pins the hull it needs."""
+    constraints = DesignConstraints(turrets=(TurretPin(),) * count)
+    for seed in range(60):
+        result = generate_ship(RandomRolls.seeded(seed), constraints=constraints)
+        met = len(result.ship.design.turrets) == count
+        assert _honoured_or_declared(result, "turrets", met), seed
+
+
+# Narrowing the pool must never empty it, or the dice would have nothing to draw
+# from and the fix would trade one refusal for another.
+@pytest.mark.parametrize("rating", available_ratings(HullClass.STARSHIP, None))
+def test_every_tabulated_rating_leaves_the_dice_a_hull_to_draw(rating):
+    honouring = [
+        tons for tons in sorted(HULLS) if rating in available_ratings(HullClass.STARSHIP, tons)
+    ]
+    assert honouring, f"rating {rating} is tabulated for no hull at all"
+
+
+def test_every_reachable_turret_count_leaves_the_dice_a_hull_to_draw():
+    most = max(hardpoints(HullClass.STARSHIP, tons) for tons in sorted(HULLS))
+    for count in range(1, most + 1):
+        honouring = [
+            tons for tons in sorted(HULLS) if hardpoints(HullClass.STARSHIP, tons) >= count
+        ]
+        assert honouring, f"{count} turrets fit no hull at all"
+
+
+# --- but two pins that contradict each other are still the referee's mistake ---
+
+
+_CONTRADICTORY_PINS = [
+    (
+        "hull too small for the turret count",
+        DesignConstraints(hull_tons=100, turrets=(TurretPin(),) * 3),
+        "hardpoint",
+    ),
+    (
+        "hull does not tabulate the rating",
+        DesignConstraints(hull_tons=4000, jump_rating=3),
+        "not tabulated",
+    ),
+    (
+        "configuration forbids the fitting",
+        DesignConstraints(
+            configuration=Configuration.DISTRIBUTED, fitting=FittingFit(kind="fuel_scoops")
+        ),
+        "distributed hull cannot mount",
+    ),
+    (
+        "plant rated below the drive it powers",
+        DesignConstraints(hull_tons=400, jump_rating=4, power_rating=1),
+        "below required",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "label, constraints, message", _CONTRADICTORY_PINS, ids=[c[0] for c in _CONTRADICTORY_PINS]
+)
+def test_two_pins_that_contradict_each_other_still_refuse(label, constraints, message):
+    """Narrowing applies to the dice, never to the referee.
+
+    A roll is only a preference and yields to a pin, but a pin is a promise and
+    two promises that cannot both be kept are a mistake worth a sentence rather
+    than a ship that quietly honours whichever was easier.
+    """
+    with pytest.raises(ValueError, match=message):
+        generate_ship(RandomRolls.seeded(3), constraints=constraints)
+
+
+# --- the tonnage ledger agrees with the builder's allocation ---
+
+
+def _assert_ledger_matches_cargo(monkeypatch, constraints, seeds):
+    """Every generation's final `remaining` equals the ship's `cargo_tons`.
+
+    `generate_ship` decides what a hull can afford against a ledger it keeps to
+    itself, then hands the design to `build_ship`, which allocates the tonnage
+    for real. The two arithmetics are written out separately—bridge, armour,
+    small-craft fuel, power fuel, jump fuel, hardpoints, fittings and bays are
+    each spelled once in `generator.py` and once in `builder.py`—and nothing
+    compared them. `cargo_tons >= 0`, asserted in several tests above, is far
+    too weak: a ledger that under-counts still satisfies it and merely stops
+    fitting components the hull could hold, silently.
+
+    The ledger is not on `GenerationResult`, so the only way to read it is to
+    watch it being built. The probe subclasses the real ledger rather than
+    faking one, so what is asserted is the arithmetic generation actually ran.
+    """
+    captured: list[TonnageLedger] = []
+
+    class _ProbedLedger(TonnageLedger):
+        def __init__(self, tons: float) -> None:
+            super().__init__(tons)
+            captured.append(self)
+
+    monkeypatch.setattr("cetools.engine.ships.generator.TonnageLedger", _ProbedLedger)
+
+    for seed in range(seeds):
+        captured.clear()
+        result = generate_ship(RandomRolls.seeded(seed), constraints=constraints)
+
+        assert len(captured) == 1, f"seed {seed}: expected one ledger, got {len(captured)}"
+        # Approximate, and the tolerance is doing real work. The starship path
+        # agrees to the bit; the small-craft path does not, because its power
+        # fuel is `math.floor(power_tons / 3 * 10) / 10`—tenths like 5.3, which
+        # no binary float holds exactly. The ledger subtracts them one component
+        # at a time while the builder sums and subtracts once, so the two land up
+        # to 4e-15 apart on about one seed in six. Real drift is at least 0.1t,
+        # the granularity every tonnage formula rounds to, so 1e-9 sits far above
+        # the noise and far below anything worth catching.
+        assert captured[0].remaining == pytest.approx(result.ship.cargo_tons, abs=1e-9), (
+            f"seed {seed}: ledger left {captured[0].remaining}t, "
+            f"builder left {result.ship.cargo_tons}t"
+        )
+
+
+@pytest.mark.parametrize(
+    "hull_class",
+    [HullClass.STARSHIP, HullClass.SMALL_CRAFT],
+    ids=["starship", "small_craft"],
+)
+def test_the_ledger_matches_the_builder_across_seeds(monkeypatch, hull_class):
+    _assert_ledger_matches_cargo(monkeypatch, DesignConstraints(hull_class=hull_class), seeds=200)
+
+
+# Pinned shapes the dice reach rarely or never: the tonnage extremes, the
+# dearest armour, more staterooms than most hulls can hold, and one of each
+# component that is drawn against the budget. `jump_rating` is deliberately
+# absent—pinning it escapes as a ValueError on some seeds, which is a separate
+# defect, and folding it in here would make that regression and a ledger drift
+# fail the same test.
+_LEDGER_PINS = [
+    ("hull_tons=100", DesignConstraints(hull_tons=100)),
+    ("hull_tons=2000", DesignConstraints(hull_tons=2000)),
+    (
+        "armor=crystaliron_10",
+        DesignConstraints(armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=10)),
+    ),
+    ("staterooms=20", DesignConstraints(staterooms=20)),
+    ("fitting=laboratory", DesignConstraints(fitting=FittingFit(kind="laboratory"))),
+    ("bay=meson", DesignConstraints(bay=BayFit(kind="meson"))),
+    ("screen=nuclear_damper", DesignConstraints(screen=ScreenFit(kind="nuclear_damper"))),
+    (
+        "small_craft hull_tons=40",
+        DesignConstraints(hull_class=HullClass.SMALL_CRAFT, hull_tons=40),
+    ),
+    (
+        "small_craft staterooms=2",
+        DesignConstraints(hull_class=HullClass.SMALL_CRAFT, staterooms=2),
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "label, constraints", _LEDGER_PINS, ids=[label for label, _ in _LEDGER_PINS]
+)
+def test_the_ledger_matches_the_builder_when_a_field_is_pinned(monkeypatch, label, constraints):
+    _assert_ledger_matches_cargo(monkeypatch, constraints, seeds=100)
 
 
 # --- a single build or generation is effectively instant ---

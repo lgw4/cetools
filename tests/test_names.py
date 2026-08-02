@@ -1,22 +1,5 @@
-from collections.abc import Sequence
-from typing import TypeVar
-
 from cetools.engine.names import FIRST_NAMES, LAST_NAMES, generate_name
-from cetools.engine.rolls import RollName, ScriptedRolls
-
-T = TypeVar("T")
-
-
-class _RecordingRolls(ScriptedRolls):
-    """Records the size and name of every `choose` the engine asks for."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.calls: list[tuple[int, RollName]] = []
-
-    def choose(self, items: Sequence[T], name: RollName) -> T:
-        self.calls.append((len(items), name))
-        return super().choose(items, name)
+from cetools.engine.rolls import RecordingRolls, RollName, ScriptedRolls
 
 
 def test_first_names_is_tuple_with_at_least_ten_entries() -> None:
@@ -48,8 +31,14 @@ def test_generate_name_combines_independently_drawn_first_and_last_names() -> No
 
 
 def test_generate_name_makes_two_independent_rolls_sized_to_each_table() -> None:
-    rolls = _RecordingRolls()
+    rolls = RecordingRolls(ScriptedRolls())
     generate_name(rolls)
-    assert len(rolls.calls) == 2
-    assert rolls.calls[0][0] == len(FIRST_NAMES)
-    assert rolls.calls[1][0] == len(LAST_NAMES)
+    chosen = [draw for draw in rolls.draws if draw.verb == "choose"]
+    assert len(chosen) == 2
+    # The whole table is asserted, not just its length: the recorder keeps what
+    # was offered, so "drawn from the first names" is now a statement about the
+    # list itself rather than about a number that two tables could share.
+    assert chosen[0].offered == FIRST_NAMES
+    assert chosen[0].name is RollName.FIRST_NAME
+    assert chosen[1].offered == LAST_NAMES
+    assert chosen[1].name is RollName.LAST_NAME

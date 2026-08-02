@@ -1,10 +1,18 @@
 import dataclasses
 import os
 
+import pytest
+
 from cetools.engine.careers.navy import NAVY_CAREER
 from cetools.engine.generator import generate
-from cetools.engine.models import Character, GenerationFailure
-from cetools.engine.rolls import RollName, ScriptedRolls
+from cetools.engine.models import (
+    STAT_NAMES,
+    Character,
+    GenerationFailure,
+    characteristic_modifier,
+)
+from cetools.engine.ranks import progress
+from cetools.engine.rolls import RecordingRolls, RollName, ScriptedRolls
 from cetools.engine.rules import SRD
 
 
@@ -625,3 +633,107 @@ def test_careers_holds_all_24_in_name_order() -> None:
     assert len(CAREERS) == 24
     names = [career.name for career in CAREERS]
     assert names == sorted(names)
+
+
+# --- every career feeds its checks the stat and target it declares ---
+
+
+# One value per characteristic, chosen so the six DMs are -2, -1, 0, 1, 2, 3:
+# all distinct, so the `dm` a check was given names the characteristic it came
+# from and nothing else. Without that, a career surviving on the wrong stat is
+# invisible whenever the two stats happen to share a modifier.
+_CHECK_ARITHMETIC_VALUES = (2, 5, 8, 11, 14, 17)
+_CHECK_ARITHMETIC_CHARACTERISTICS = dict(zip(STAT_NAMES, _CHECK_ARITHMETIC_VALUES))
+
+
+def _first_check(rolls: RecordingRolls, name: RollName):
+    """The first draw made under `name`, or None if the engine never asked."""
+    drawn = [draw for draw in rolls.named(name) if draw.verb == "check"]
+    return drawn[0] if drawn else None
+
+
+def _assert_check_arithmetic(draw, stat: str, target: int, label: str) -> None:
+    """A check was handed this characteristic's DM and this target.
+
+    `ScriptedRolls.check` answers with an outcome and reads neither argument, so
+    until something asserted them a career could qualify on the wrong
+    characteristic against the wrong number and every test still passed.
+    """
+    assert draw is not None, f"{label}: the engine never made the check"
+    expected = characteristic_modifier(_CHECK_ARITHMETIC_CHARACTERISTICS[stat])
+    assert draw.dm == expected, f"{label}: DM {draw.dm} is not {stat}'s ({expected})"
+    assert draw.target == target, f"{label}: target {draw.target} is not {target}"
+
+
+@pytest.mark.parametrize("career", CAREERS, ids=[career.name for career in CAREERS])
+def test_a_career_commissions_and_advances_on_the_stat_and_target_it_declares(career):
+    """Commission and advancement, driven through `progress` with fixed
+    characteristics so no mid-term boost can move a DM under the assertion."""
+    if career.commission_stat is not None:
+        rolls = RecordingRolls(ScriptedRolls())
+        progress(career, 0, dict(_CHECK_ARITHMETIC_CHARACTERISTICS), {}, rolls)
+        _assert_check_arithmetic(
+            _first_check(rolls, RollName.COMMISSION),
+            career.commission_stat,
+            career.commission_target,
+            f"{career.name} commission",
+        )
+
+    if career.advancement_stat is not None:
+        rolls = RecordingRolls(ScriptedRolls())
+        progress(career, 1, dict(_CHECK_ARITHMETIC_CHARACTERISTICS), {}, rolls)
+        _assert_check_arithmetic(
+            _first_check(rolls, RollName.ADVANCEMENT),
+            career.advancement_stat,
+            career.advancement_target,
+            f"{career.name} advancement",
+        )
+
+
+@pytest.mark.parametrize("career", CAREERS, ids=[career.name for career in CAREERS])
+def test_a_career_qualifies_and_survives_on_the_stat_and_target_it_declares(career):
+    """Qualification and survival, driven through `generate` under SRD rules.
+
+    SRD rolls the characteristics once rather than rerolling until they qualify,
+    so the scripted values reach the checks intact. Both are asserted on their
+    first draw, which is the one made before any skill table can grant a boost.
+    """
+    rolls = RecordingRolls(
+        ScriptedRolls(two_d6={RollName.CHARACTERISTIC: list(_CHECK_ARITHMETIC_VALUES)})
+    )
+    generate(career, rolls, rules=SRD)
+
+    if career.qualification_stat is not None:
+        _assert_check_arithmetic(
+            _first_check(rolls, RollName.QUALIFICATION),
+            career.qualification_stat,
+            career.qualification_target,
+            f"{career.name} qualification",
+        )
+    _assert_check_arithmetic(
+        _first_check(rolls, RollName.SURVIVAL),
+        career.survival_stat,
+        career.survival_target,
+        f"{career.name} survival",
+    )
+
+
+def test_the_seven_careers_without_a_commission_never_check_for_one():
+    """The rule behind two skill rolls a term, asserted as a set rather than
+    restated once per career file: a career with neither a commission nor an
+    advancement makes neither check, however many terms it serves."""
+    without = [c for c in CAREERS if c.commission_stat is None and c.advancement_stat is None]
+    assert [c.name for c in without] == [
+        "Athlete",
+        "Barbarian",
+        "Belter",
+        "Drifter",
+        "Entertainer",
+        "Hunter",
+        "Scout",
+    ]
+    for career in without:
+        rolls = RecordingRolls(ScriptedRolls())
+        generate(career, rolls, rules=SRD)
+        assert _first_check(rolls, RollName.COMMISSION) is None, career.name
+        assert _first_check(rolls, RollName.ADVANCEMENT) is None, career.name

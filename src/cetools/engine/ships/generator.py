@@ -31,6 +31,7 @@ from dataclasses import dataclass
 from enum import Enum
 from operator import attrgetter
 
+from cetools.engine.notation import numeric_values, spelled_values
 from cetools.engine.rolls import RandomRolls, RollName, Rolls
 from cetools.engine.ships.builder import BAY_FIRE_CONTROL_TONS, build_ship
 from cetools.engine.ships.models import (
@@ -318,14 +319,14 @@ def validate_hull_tons(hull_class: HullClass, tons: int) -> None:
     who is told two different things about one mistake is being told one of them
     wrongly.
     """
+    valid = numeric_values(hull_tonnages(hull_class))
     if hull_class is HullClass.SMALL_CRAFT:
         if tons not in SMALL_CRAFT_HULLS:
             raise ValueError(
-                f"{tons} tons is not a tabulated small-craft hull size; "
-                f"valid: {sorted(SMALL_CRAFT_HULLS)}"
+                f"{tons} tons is not a tabulated small-craft hull size; valid: {valid}"
             )
     elif tons not in HULLS:
-        raise ValueError(f"{tons} tons is not a tabulated hull size; valid: {sorted(HULLS)}")
+        raise ValueError(f"{tons} tons is not a tabulated hull size; valid: {valid}")
 
 
 def hull_tonnages(hull_class: HullClass) -> tuple[int, ...]:
@@ -344,7 +345,7 @@ def _validate_key(name: str, table: Mapping[str, object], what: str) -> None:
     bare table keys with no record to rule on them.
     """
     if name not in table:
-        raise ValueError(f"unknown {what} {name!r}; known: {sorted(table)}")
+        raise ValueError(f"unknown {what} {name!r}; known: {spelled_values(table)}")
 
 
 def validate_electronics(name: str) -> None:
@@ -414,11 +415,63 @@ def validate_turret_count(hull_class: HullClass, hull_tons: int, count: int) -> 
         )
 
 
-def _select_hull_tons(rolls: Rolls, pinned_tons: int | None) -> int:
-    if pinned_tons is not None:
-        validate_hull_tons(HullClass.STARSHIP, pinned_tons)
-        return pinned_tons
-    return rolls.choose(sorted(HULLS), RollName.SHIP_HULL_SIZE)
+def _hull_demands(
+    hull_class: HullClass, constraints: DesignConstraints
+) -> Iterable[Callable[[int], bool]]:
+    """One predicate per pinned answer that depends on the hull.
+
+    Separate rather than combined, so that a pin no hull can honour costs only
+    its own narrowing. A pinned jump rating is only asked of a starship: on a
+    small craft `validate_rating` refuses it outright, and filtering here would
+    be filtering on a rating the ruleset does not have.
+    """
+    ratings = [constraints.maneuver_rating, constraints.power_rating]
+    if hull_class is HullClass.STARSHIP:
+        ratings.append(constraints.jump_rating)
+    for rating in ratings:
+        if rating is not None:
+            yield lambda tons, wanted=rating: wanted in available_ratings(hull_class, tons)
+    if constraints.turrets is not None:
+        wanted_turrets = len(constraints.turrets)
+        yield lambda tons: wanted_turrets <= _hardpoints_for(hull_class, tons)
+
+
+def _draw_hull_tons(
+    rolls: Rolls, hull_class: HullClass, tabulated: list[int], constraints: DesignConstraints
+) -> int:
+    """The hull, drawn only from tonnages that can honour the hull-dependent pins.
+
+    A pin is a promise and a roll is only a preference, so where the referee
+    pinned a rating or a turret count and left the hull to chance, the dice draw
+    from the hulls that can deliver it rather than from every hull in the table.
+    Drawing from all of them let the dice hand `build_ship` a design it had to
+    refuse—the referee lost the ship over the tonnage, an answer they never
+    gave—which is the same reasoning that caps the drawn drive codes at a pinned
+    plant in `_select_drive_codes`.
+
+    Narrowing is applied one pin at a time and kept only where it leaves the dice
+    something to draw. A pin no hull of the class can honour—a small craft has one
+    hardpoint however large it is, so a second turret fits none of them—is a
+    refusal rather than an unlucky roll, and belongs to the validator that can say
+    which. Dropping only that pin's own filter keeps it from taking the others
+    down with it, so the refusal still names the answer that caused it.
+    """
+    pool = tabulated
+    for honours in _hull_demands(hull_class, constraints):
+        narrowed = [tons for tons in pool if honours(tons)]
+        if narrowed:
+            pool = narrowed
+    return rolls.choose(pool, RollName.SHIP_HULL_SIZE)
+
+
+def _select_hull_tons(rolls: Rolls, constraints: DesignConstraints) -> int:
+    """The starship hull. Two pins that contradict each other are still the
+    referee's mistake: a pinned hull is returned as given and `validate_rating`
+    refuses the pair with its own sentence. Narrowing only applies to the dice."""
+    if constraints.hull_tons is not None:
+        validate_hull_tons(HullClass.STARSHIP, constraints.hull_tons)
+        return constraints.hull_tons
+    return _draw_hull_tons(rolls, HullClass.STARSHIP, sorted(HULLS), constraints)
 
 
 def _select_name(rolls: Rolls, pinned: str | Absent | None) -> str:
@@ -435,10 +488,32 @@ def _select_name(rolls: Rolls, pinned: str | Absent | None) -> str:
     return generate_ship_name(rolls)
 
 
-def _select_configuration(rolls: Rolls, pinned: Configuration | None) -> Configuration:
+def _select_configuration(
+    rolls: Rolls,
+    pinned: Configuration | None,
+    pinned_fitting: FittingFit | Absent | None = None,
+) -> Configuration:
+    """The hull configuration, drawn clear of any pinned fitting it would forbid.
+
+    A distributed hull cannot mount fuel scoops. Where the referee pinned such a
+    fitting and left the configuration to chance, drawing distributed would cost
+    them the ship over an answer they never gave, so the draw skips it. Read from
+    the table row rather than named here, so a second fitting that carries the
+    same restriction is honoured with no edit.
+
+    A pinned configuration is returned as given: two pins that contradict each
+    other are the referee's to resolve, and `build_ship` owns that sentence.
+    """
     if pinned is not None:
         return pinned
-    return rolls.choose(list(Configuration), RollName.SHIP_CONFIGURATION)
+    tabulated = list(Configuration)
+    pool = tabulated
+    if (
+        isinstance(pinned_fitting, FittingFit)
+        and FITTINGS[pinned_fitting.kind].forbidden_on_distributed
+    ):
+        pool = [option for option in tabulated if option is not Configuration.DISTRIBUTED]
+    return rolls.choose(pool or tabulated, RollName.SHIP_CONFIGURATION)
 
 
 def _codes_valid_for_hull(hull_tons: int) -> list[str]:
@@ -507,7 +582,7 @@ def validate_rating(
         )
         raise ValueError(
             f"{drive.value} rating {rating} is not tabulated for {where}; "
-            f"available: {list(available)}"
+            f"available: {numeric_values(available)}"
         )
 
 
@@ -976,11 +1051,14 @@ def _select_screen(
     )
 
 
-def _select_small_craft_hull_tons(rolls: Rolls, pinned_tons: int | None) -> int:
-    if pinned_tons is not None:
-        validate_hull_tons(HullClass.SMALL_CRAFT, pinned_tons)
-        return pinned_tons
-    return rolls.choose(sorted(SMALL_CRAFT_HULLS), RollName.SHIP_HULL_SIZE)
+def _select_small_craft_hull_tons(rolls: Rolls, constraints: DesignConstraints) -> int:
+    """The small-craft hull, narrowed by the same rule as the starship path: a
+    pinned manoeuvre or power rating is not tabulated for every small hull, and
+    the dice must not pick one that cannot deliver it."""
+    if constraints.hull_tons is not None:
+        validate_hull_tons(HullClass.SMALL_CRAFT, constraints.hull_tons)
+        return constraints.hull_tons
+    return _draw_hull_tons(rolls, HullClass.SMALL_CRAFT, sorted(SMALL_CRAFT_HULLS), constraints)
 
 
 def _small_craft_power_fuel(power_tons: float) -> float:
@@ -1051,6 +1129,36 @@ def small_craft_power_ratings(hull_tons: int, maneuver_rating: int) -> tuple[int
         for power_letter in _small_craft_power_codes(hull_tons, maneuver_letter):
             ratings.add(SMALL_CRAFT_DRIVE_PERFORMANCE[power_letter][hull_tons])
     return tuple(sorted(ratings))
+
+
+def offerable_ratings(
+    hull_class: HullClass,
+    hull_tons: int | None,
+    drive: Drive,
+    maneuver_rating: int | None = None,
+) -> tuple[int, ...]:
+    """Every rating for `drive` that may be offered, as narrow as what is known.
+
+    `available_ratings` answers what the drive table tabulates for a hull. That
+    is the widest honest answer, and on the small-craft path it is wider than the
+    truth: a rating whose every drive leaves no room for a plant and a cockpit
+    beside it is tabulated but not carryable, and a plant is narrower still once
+    the manoeuvre drive it has to sit beside is settled.
+
+    Which of the three accessors applies is a rule about the rulesets, not about
+    prompting, so it lives here rather than beside the question that asks it.
+    The wizard held it privately, which left a library caller no way to ask what
+    a hull can actually carry without reimplementing the same dispatch.
+
+    Narrowing needs the tonnage; with the hull still left to the dice there is
+    nothing to narrow against and the tabulated answer stands.
+    """
+    if hull_class is HullClass.SMALL_CRAFT and hull_tons is not None:
+        if drive is Drive.MANEUVER:
+            return small_craft_maneuver_ratings(hull_tons)
+        if drive is Drive.POWER and maneuver_rating:
+            return small_craft_power_ratings(hull_tons, maneuver_rating)
+    return available_ratings(hull_class, hull_tons)
 
 
 def _energy_allowance(hull_tons: int, power_rating: int) -> int:
@@ -1284,12 +1392,12 @@ def _select_small_craft_turret(
 
 
 def _generate_small_craft(rolls: Rolls, constraints: DesignConstraints) -> GenerationResult:
-    hull_tons = _select_small_craft_hull_tons(rolls, constraints.hull_tons)
+    hull_tons = _select_small_craft_hull_tons(rolls, constraints)
     if constraints.jump_rating is not None:
         validate_rating(HullClass.SMALL_CRAFT, hull_tons, Drive.JUMP, constraints.jump_rating)
     if isinstance(constraints.bay, BayFit):
         raise ValueError("small craft carry no weapon bays, so no bay can be pinned")
-    configuration = _select_configuration(rolls, constraints.configuration)
+    configuration = _select_configuration(rolls, constraints.configuration, constraints.fitting)
     ledger = TonnageLedger(hull_tons)
     maneuver_code, power_code = _select_small_craft_drives(rolls, hull_tons, constraints, ledger)
     maneuver_letter, power_letter = maneuver_code[1:], power_code[1:]
@@ -1377,8 +1485,8 @@ def generate_ship(
     if constraints.hull_class is HullClass.SMALL_CRAFT:
         return _generate_small_craft(rolls, constraints)
 
-    hull_tons = _select_hull_tons(rolls, constraints.hull_tons)
-    configuration = _select_configuration(rolls, constraints.configuration)
+    hull_tons = _select_hull_tons(rolls, constraints)
+    configuration = _select_configuration(rolls, constraints.configuration, constraints.fitting)
     jump_code, maneuver_code, power_code = _select_drive_codes(rolls, hull_tons, constraints)
 
     maneuver_tons = DRIVE_COSTS[maneuver_code].maneuver_tons
