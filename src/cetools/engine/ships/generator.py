@@ -1131,6 +1131,36 @@ def small_craft_power_ratings(hull_tons: int, maneuver_rating: int) -> tuple[int
     return tuple(sorted(ratings))
 
 
+def offerable_ratings(
+    hull_class: HullClass,
+    hull_tons: int | None,
+    drive: Drive,
+    maneuver_rating: int | None = None,
+) -> tuple[int, ...]:
+    """Every rating for `drive` that may be offered, as narrow as what is known.
+
+    `available_ratings` answers what the drive table tabulates for a hull. That
+    is the widest honest answer, and on the small-craft path it is wider than the
+    truth: a rating whose every drive leaves no room for a plant and a cockpit
+    beside it is tabulated but not carryable, and a plant is narrower still once
+    the manoeuvre drive it has to sit beside is settled.
+
+    Which of the three accessors applies is a rule about the rulesets, not about
+    prompting, so it lives here rather than beside the question that asks it.
+    The wizard held it privately, which left a library caller no way to ask what
+    a hull can actually carry without reimplementing the same dispatch.
+
+    Narrowing needs the tonnage; with the hull still left to the dice there is
+    nothing to narrow against and the tabulated answer stands.
+    """
+    if hull_class is HullClass.SMALL_CRAFT and hull_tons is not None:
+        if drive is Drive.MANEUVER:
+            return small_craft_maneuver_ratings(hull_tons)
+        if drive is Drive.POWER and maneuver_rating:
+            return small_craft_power_ratings(hull_tons, maneuver_rating)
+    return available_ratings(hull_class, hull_tons)
+
+
 def _energy_allowance(hull_tons: int, power_rating: int) -> int:
     """How many energy weapons the lightest plant at this rating can run."""
     code = _lightest_code_at(

@@ -39,11 +39,10 @@ from cetools.engine.ships import (
     hardpoints,
     hull_tonnages,
     load_design,
+    offerable_ratings,
     power_floor,
     render_description,
     screen_kinds,
-    small_craft_maneuver_ratings,
-    small_craft_power_ratings,
     small_craft_weapons,
     turret_mounts,
     turret_weapons,
@@ -213,32 +212,6 @@ def _read_hull_class(known: list[str], answer: str) -> HullClass:
         raise ValueError(
             f"{answer} is not a known hull class; known: {', '.join(known)}"
         ) from None
-
-
-def _maneuver_values(hull_class: HullClass, hull_tons: int | None) -> tuple[int, ...]:
-    """The manoeuvre-rating accessor for this hull, as narrow as it can be.
-
-    A small craft with its tonnage pinned narrows past what the drive table
-    alone tabulates, to what a plant and a cockpit leave room for beside it.
-    Every other state reads the drive table directly.
-    """
-    if hull_class is HullClass.SMALL_CRAFT and hull_tons is not None:
-        return small_craft_maneuver_ratings(hull_tons)
-    return available_ratings(hull_class, hull_tons)
-
-
-def _power_values(
-    hull_class: HullClass, hull_tons: int | None, maneuver_rating: int | None
-) -> tuple[int, ...]:
-    """The power-rating accessor for this hull, as narrow as it can be.
-
-    Narrows to what this plant can run beside an *already pinned* manoeuvre
-    drive only once both the tonnage and that drive are known; a manoeuvre
-    rating still left to the dice cannot narrow anything yet.
-    """
-    if hull_class is HullClass.SMALL_CRAFT and hull_tons is not None and maneuver_rating:
-        return small_craft_power_ratings(hull_tons, maneuver_rating)
-    return available_ratings(hull_class, hull_tons)
 
 
 def _read_maneuver_rating(
@@ -787,7 +760,7 @@ def _ask_constraints(
         "maneuver_rating",
         lambda: ask_rating(
             "Maneuver rating",
-            _maneuver_values(hull_class, hull_tons),
+            offerable_ratings(hull_class, hull_tons, Drive.MANEUVER),
             partial(_read_maneuver_rating, hull_class, hull_tons),
         ),
     )
@@ -797,7 +770,7 @@ def _ask_constraints(
         "power_rating",
         lambda: ask_rating(
             "Power plant rating",
-            _power_values(hull_class, hull_tons, maneuver_rating),
+            offerable_ratings(hull_class, hull_tons, Drive.POWER, maneuver_rating),
             partial(_read_power_rating, hull_class, hull_tons, floor, maneuver_rating),
             floor,
         ),

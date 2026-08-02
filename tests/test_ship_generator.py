@@ -37,6 +37,7 @@ from cetools.engine.ships import (
 from cetools.engine.ships.generator import (
     _ARMOR_CHOICES,
     _FITTING_CHOICES,
+    Drive,
     TonnageLedger,
     _energy_allowance,
     _exceeds_energy_allowance,
@@ -49,6 +50,7 @@ from cetools.engine.ships.generator import (
     generate_ship,
     hardpoints,
     hull_tonnages,
+    offerable_ratings,
     screen_kinds,
     small_craft_maneuver_ratings,
     small_craft_power_ratings,
@@ -1952,6 +1954,55 @@ def test_fr014_a_starved_hull_design_still_builds_within_its_hull():
             assert ship.cargo_tons >= 0
             assert ship.assumed_jump_distance == distance  # never silently corrected
             assert ship.jump_fuel == pytest.approx(0.1 * hull_tons * distance)
+
+
+# --- what may be offered for a drive, as narrow as what is known allows ---
+
+
+def test_offerable_ratings_narrows_a_small_craft_maneuver_once_the_hull_is_known():
+    """The drive table tabulates ratings a 40-ton hull could reach in isolation;
+    a craft also needs a plant and a cockpit. The narrower answer is the true one
+    and is what both the prompt and generation have to work from."""
+    tabulated = available_ratings(HullClass.SMALL_CRAFT, 40)
+    offerable = offerable_ratings(HullClass.SMALL_CRAFT, 40, Drive.MANEUVER)
+    assert offerable == small_craft_maneuver_ratings(40)
+    assert set(offerable) < set(tabulated), "the small-craft path should narrow"
+
+
+def test_offerable_ratings_cannot_narrow_before_the_hull_is_known():
+    """With the tonnage left to the dice there is nothing to narrow against, so
+    the tabulated answer stands rather than a guess at one."""
+    for drive in Drive:
+        assert offerable_ratings(HullClass.SMALL_CRAFT, None, drive) == available_ratings(
+            HullClass.SMALL_CRAFT, None
+        )
+
+
+def test_offerable_ratings_narrows_a_small_craft_plant_only_once_its_drive_is_pinned():
+    """The pair is chosen jointly on this path: a manoeuvre drive still left to
+    the dice rules nothing out, but one already pinned rules out plants too weak
+    to power it or too heavy to sit beside it."""
+    unpinned = offerable_ratings(HullClass.SMALL_CRAFT, 15, Drive.POWER)
+    assert unpinned == available_ratings(HullClass.SMALL_CRAFT, 15)
+
+    pinned = offerable_ratings(HullClass.SMALL_CRAFT, 15, Drive.POWER, 1)
+    assert pinned == small_craft_power_ratings(15, 1)
+    assert set(pinned) <= set(unpinned)
+
+
+@pytest.mark.parametrize("drive", list(Drive), ids=[drive.value for drive in Drive])
+def test_offerable_ratings_never_widens_past_what_the_tables_tabulate(drive):
+    """Narrowing may only ever remove. A rating offered but not tabulated would
+    promise the referee something no drive can deliver."""
+    for hull_class, tonnages in (
+        (HullClass.STARSHIP, sorted(HULLS)),
+        (HullClass.SMALL_CRAFT, sorted(SMALL_CRAFT_HULLS)),
+    ):
+        for hull_tons in (None, *tonnages):
+            tabulated = set(available_ratings(hull_class, hull_tons))
+            for maneuver_rating in (None, *range(1, 7)):
+                offerable = offerable_ratings(hull_class, hull_tons, drive, maneuver_rating)
+                assert set(offerable) <= tabulated, (hull_class, hull_tons, maneuver_rating)
 
 
 # --- the dice never cost the referee a ship over an answer they never gave ---
