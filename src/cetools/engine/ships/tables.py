@@ -42,8 +42,8 @@ class ArmorRow:
     """One row of the Ship Armor by Type table.
 
     ``name`` is the SRD's prose spelling, printed by the description's
-    configuration sentence (FR-030); ``tl`` is the table's own TL column, read
-    by the tech-level derivation (FR-028a).
+    configuration sentence; ``tl`` is the table's own TL column, read
+    by the tech-level derivation.
     """
 
     name: str
@@ -72,7 +72,7 @@ class ComputerRow:
 
     The description names a computer by its model *number* ("a computer Model
     3/fib"), so this row needs no display name; ``tl`` feeds the ship's derived
-    tech level (FR-028a).
+    tech level.
     """
 
     tl: int
@@ -99,8 +99,7 @@ class ElectronicsRow:
     """One row of the Ship Electronics table.
 
     ``dm`` is the package's sensor dice modifier, printed with an explicit sign
-    by the sensors sentence -- including ``DM+0`` for Basic Military (FR-009,
-    FR-030a).
+    by the sensors sentence -- including ``DM+0`` for Basic Military.
     """
 
     name: str
@@ -128,7 +127,7 @@ class FittingRow:
     ``tons_per_vehicle_ton``/``cost_per_vehicle_ton``, and those two columns are
     what mark it vehicle-sized: `models.py` requires a ``vehicle_tons`` for any
     row that sets them, and the builder's fitting step multiplies through them,
-    so a second SRD vehicle-sized fitting stays a data-only edit (SC-006).
+    so a second SRD vehicle-sized fitting stays a data-only edit.
 
     ``name`` carries its indefinite article ("an armory", "fuel scoops") and
     ``plural`` does not, because the special-features sentence mixes countable
@@ -136,7 +135,7 @@ class FittingRow:
     SRD measures rather than counts ("two tons of luxuries"), and
     ``unrefined_fuel_per_ton`` its daily throughput, set only on the fuel
     processor: two data columns driving two generic renderer branches rather
-    than a per-kind branch (FR-017, FR-031). The SRD tabulates no TL for any of
+    than a per-kind branch. The SRD tabulates no TL for any of
     these components, so there is no ``tl`` column.
     """
 
@@ -158,7 +157,7 @@ class MountRow:
 
     ``tl`` is ``None`` for the fixed mounting alone, whose TL cell the SRD
     prints as "-": it contributes nothing to a ship's derived tech level, the
-    same treatment as an untabulated category, expressed per row (FR-028a).
+    same treatment as an untabulated category, expressed per row.
     """
 
     name: str
@@ -192,12 +191,12 @@ class AmmoRow:
 
     ``kind`` and ``type`` mirror `AmmoFit`'s two selectors, so `models.py`
     derives the legal ammo kinds—and the types legal for each kind—from this
-    table rather than from a hardcoded duplicate of its keys (SC-006).
+    table rather than from a hardcoded duplicate of its keys.
     ``type`` is ``None`` for a kind the SRD prices as a single item.
 
     ``weapon`` is the ``TURRET_WEAPONS`` key this ammunition feeds, so the
     ammunition sentence can name its weapon from data rather than from the
-    renderer knowing that missiles go in missile racks (FR-031).
+    renderer knowing that missiles go in missile racks.
     """
 
     name: str
@@ -268,13 +267,13 @@ class CockpitRow:
     """One row of the Small Craft Cockpit table: tonnage only.
 
     Cost is not fixed per cockpit: it scales with the ship, MCr 0.1 per 20 tons
-    of hull (research Part K), the same way bridge cost scales with hull tons.
+    of hull, the same way bridge cost scales with hull tons.
 
     Seating is deliberately **not** a column. The SRD names its cockpits "1-man"
-    and "2-man", but its minimum-crew rules (research Part I) are a separate,
+    and "2-man", but its minimum-crew rules are a separate,
     ship-wide calculation the source page never reconciles with cockpit
     capacity, so no builder step caps crew against seats—doing so would invent
-    a rule the SRD does not state (FR-002). A `1_man`-cockpit fighter reporting
+    a rule the SRD does not state. A `1_man`-cockpit fighter reporting
     a multi-person minimum crew is expected, not a defect.
     """
 
@@ -321,7 +320,7 @@ CREW_POSITIONS: tuple[CrewPositionRow, ...] = (
     CrewPositionRow(field="medic", name="medic", plural="medics"),
     CrewPositionRow(field="stewards", name="steward", plural="stewards"),
 )
-"""The crew positions cetools derives, in the order FR-018's breakdown prints
+"""The crew positions cetools derives, in the order the breakdown prints
 them. The single source of both the spelling and the order; a position whose
 count is zero is omitted from the sentence.
 
@@ -770,7 +769,7 @@ ARMOR_OPTIONS: dict[str, ArmorOptionRow] = {
 (research Parts D and F). The single source for which options exist (`ArmorFit`
 validates against these keys), what they cost (the builder's armor step reads
 ``cost_per_ton``) and how they are spelled, so adding an SRD option stays a
-data-only edit (SC-006)."""
+data-only edit."""
 
 BRIDGE_SIZES: tuple[tuple[int | None, int], ...] = (
     (200, 10),
@@ -809,7 +808,7 @@ ELECTRONICS: dict[str, ElectronicsRow] = {
 }
 """Electronics package -> (display name, tons, cost MCr, TL, sensor DM).
 ``standard`` is included in the bridge or cockpit, so every ship carries it and
-the derived tech level has a floor of 8 (research Part D)."""
+the derived tech level has a floor of 8."""
 
 QUARTERS: dict[str, QuartersRow] = {
     "stateroom": QuartersRow(tons=4, cost=0.5),
@@ -854,7 +853,7 @@ FITTINGS: dict[str, FittingRow] = {
 ``vehicle_hangar``'s tons/cost are ``None`` because it is vehicle-sized: its
 figures come from ``FittingFit.vehicle_tons`` scaled by the row's
 ``tons_per_vehicle_ton``/``cost_per_vehicle_ton`` (hangar tons = vehicle tons
-x1.3, cost = MCr0.2/ton, research Part G)."""
+x1.3, cost = MCr0.2/ton)."""
 
 TURRET_MOUNTS: dict[str, MountRow] = {
     "single": MountRow(
@@ -877,7 +876,7 @@ TURRET_MOUNTS: dict[str, MountRow] = {
 
 The SRD presents pop-up and fixed as *qualities* layered on a single/double/triple
 mount (+2 t and +MCr1 for pop-up; half cost for fixed), but ``TurretFit.mount`` is
-one flat choice among five (design-schema.md), so each is modelled here as its own
+one flat choice among five, so each is modelled here as its own
 single-weapon-slot mount: pop-up at its literal SRD tons/cost, fixed at 0 t (the
 SRD's fixed mounting occupies no separate tonnage) and half of a single turret's
 cost."""
@@ -940,7 +939,7 @@ AMMO: dict[str, AmmoRow] = {
 }
 """Ammunition entry -> (display name, kind, type, rounds per ton, MCr cost per
 round, TL, the turret weapon it feeds). Sand barrels: 20/ton, Cr10,000 per ton
-(Cr500/barrel), called "canisters" in Chapter 9 (research Part E). Missiles:
+(Cr500/barrel), called "canisters" in Chapter 9. Missiles:
 12/ton regardless of type, priced per missile (standard Cr1,250, smart Cr2,500,
 nuclear Cr3,750). The dict key is descriptive only—`models.py` and `builder.py`
 both match an `AmmoFit` on the row's ``kind``/``type`` columns, never on the
@@ -994,8 +993,8 @@ COCKPITS: dict[str, CockpitRow] = {
     "1_man": CockpitRow(tons=1.5),
     "2_man": CockpitRow(tons=3.0),
 }
-"""Small-craft cockpit name -> tonnage (research Part K). The SRD's two cockpits
-only; the larger "control cabin" variants are out of this feature's scope."""
+"""Small-craft cockpit name -> tonnage. The SRD's two cockpits
+only; the larger "control cabin" variants are out of scope."""
 
 SMALL_CRAFT_ENERGY_CAPS: dict[str, int] = {
     **{code: 0 for code in "ABCDEF"},
@@ -1004,7 +1003,7 @@ SMALL_CRAFT_ENERGY_CAPS: dict[str, int] = {
     **{code: 3 for code in "STUVWXYZ"},
 }
 """Drive-code letter (unprefixed) -> max lasers/particle weapons a small craft's
-power plant allows (research Part K: sA-sF 0, sG-sK 1, sL-sR 2, sS-sZ 3)."""
+power plant allows (sA-sF 0, sG-sK 1, sL-sR 2, sS-sZ 3)."""
 
 SMALL_CRAFT_DRIVE_PERFORMANCE: dict[str, dict[int, int]] = {
     "A": {10: 2, 15: 1, 20: 1},
@@ -1156,7 +1155,7 @@ SMALL_CRAFT_DRIVE_PERFORMANCE: dict[str, dict[int, int]] = {
     "W": {95: 6},
 }
 """Small-craft "Drive Performance by Hull Volume" table, keyed by the drive-code
-letter without its "s" prefix (research Part K). A separate matrix from
+letter without its "s" prefix. A separate matrix from
 ``DRIVE_PERFORMANCE``: small-craft hull tons (10-95) never appear in the starship
 matrix, and the same code letter performs differently at small-craft scale. Codes
 sX-sZ price and cap energy weapons (``SMALL_CRAFT_ENERGY_CAPS``) but have no

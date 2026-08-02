@@ -120,7 +120,7 @@ def generate_world(
     """A whole world: the classic UWP, generated in SRD order.
 
     `rolls` defaults to `RandomRolls()`; pass `RandomRolls(random.Random(seed))` for
-    reproducibility (FR-022). `name` defaults to a generated one via
+    reproducibility. `name` defaults to a generated one via
     `generate_world_name`; the caller may override it verbatim. `travel_zone_red` is
     a caller override (referee discretion); Amber is still assigned by rule when
     applicable but is superseded by an explicit RED.

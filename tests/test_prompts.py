@@ -14,7 +14,7 @@ from cetools.engine.ships import (
     turret_weapons,
 )
 
-# --- spell / key: the display <-> stored spelling round trip (FR-014, FR-015) ---
+# --- spell / key: the display <-> stored spelling round trip ---
 
 
 def test_spell_turns_underscore_into_space():
@@ -53,7 +53,7 @@ def test_key_of_spell_round_trips(stored):
     assert key(spell(stored)) == stored
 
 
-# --- numbers: evenly-spaced run collapsing (FR-005) ---
+# --- numbers: evenly-spaced run collapsing ---
 
 
 def test_numbers_collapses_a_run_of_three_or_more():
@@ -91,7 +91,7 @@ def test_numbers_of_empty_is_empty():
     assert numbers([]) == []
 
 
-# --- split_values: the greedy longest-match scan (FR-015, FR-018) ---
+# --- split_values: the greedy longest-match scan ---
 
 _ARMOR_OPTION_KEYS = ("reflec", "self_sealing", "stealth")
 
@@ -122,7 +122,7 @@ def test_split_values_span_limit_is_derived_from_known_not_hard_coded():
     assert split_values("warp core stabilizer", known) == ["warp_core_stabilizer"]
 
 
-# --- offer: the "question (values) [default]:" composition (FR-012) ---
+# --- offer: the "question (values) [default]:" composition ---
 
 
 def test_offer_composes_question_and_values():
@@ -147,7 +147,7 @@ def test_offer_appends_the_note_after_the_joined_values():
     )
 
 
-# --- T040 (US3): key(spell(k)) == k over every published word value (FR-014, FR-015) ---
+# --- key(spell(k)) == k over every published word value ---
 
 _PUBLISHED_WORD_VALUES = (
     armor_options()
@@ -162,7 +162,7 @@ _PUBLISHED_WORD_VALUES = (
     + tuple(member.value for member in HullClass)
 )
 """The 31 table keys the eight word accessors publish, plus the 8 members of
-`ArmorType`, `Configuration` and `HullClass`—39 in all, per data-model.md."""
+`ArmorType`, `Configuration` and `HullClass`—39 in all."""
 
 
 def test_thirty_nine_published_word_values_are_accounted_for():

@@ -1,14 +1,14 @@
 """render_description(ship) -> the ship's Universal Ship Description Format text.
 
 A heading line, a blank line, and one unwrapped paragraph, exactly as the SRD's
-worked ship examples set it out (FR-001). A pure function of the `Ship` alone:
+worked ship examples set it out. A pure function of the `Ship` alone:
 it reads no clock, no seed, no environment and no locale, and every grouping
 walks an ordered tuple in first-appearance order, so two equal ships render
-byte-identically (FR-003, SC-003).
+byte-identically.
 
 The paragraph is assembled from `_SLOTS`, a fixed sixteen-entry tuple of
-sentence builders in the FR-004 order. Each returns `str | None`, and `None`
-drops that slot from the paragraph entirely (FR-021). Omission is the only
+sentence builders in a fixed order. Each returns `str | None`, and `None`
+drops that slot from the paragraph entirely. Omission is the only
 control flow between slots -- no builder reads another's output -- so the
 paragraph stays grammatical however many drop out. `_weapons` is the sole
 builder whose return value carries more than one sentence: its ammunition
@@ -17,7 +17,7 @@ sixteen *slots* but can run past sixteen sentences.
 
 Imports only `models`, `tables` and `prose`: every SRD spelling, plural and
 tech level comes from a table column rather than from a branch keyed on a
-component's name (FR-030, FR-031, SC-007).
+component's name.
 """
 
 from __future__ import annotations
@@ -51,11 +51,11 @@ from cetools.engine.ships.tables import (
 )
 
 _UNNAMED = "Unnamed Ship"
-"""The heading and first sentence's stand-in for a design with no name (FR-029b)."""
+"""The heading and first sentence's stand-in for a design with no name."""
 
 _DEFAULT_ELECTRONICS = "standard"
 """Every ship carries the Standard suite included in its bridge or cockpit, so
-the sensors sentence is never omitted (FR-009a, FR-030a)."""
+the sensors sentence is never omitted."""
 
 _ARTICLES = ("a ", "an ")
 """`FittingRow.name` carries its indefinite article; the hangar sentence counts
@@ -63,7 +63,7 @@ its noun ("one small craft hangar") and so needs the bare form."""
 
 
 def _ship_name(ship: Ship) -> str:
-    # A blank name is no name (FR-029b): `loads_design` accepts `name = ""`, and
+    # A blank name is no name: `loads_design` accepts `name = ""`, and
     # the heading's `TL<n> <name>` shape has no room for a name that is not there.
     name = ship.design.name
     return name if name is not None and name.strip() else _UNNAMED
@@ -86,7 +86,7 @@ def _grouped(items: Iterable, key: Callable) -> list[tuple]:
 
     First-appearance order over the design's ordered tuples—never a `set` or a
     dict keyed on unordered input—is what makes the paragraph byte-identical
-    for equal ships (SC-003).
+    for equal ships.
     """
     order: list = []
     counts: dict = {}
@@ -101,12 +101,12 @@ def _grouped(items: Iterable, key: Callable) -> list[tuple]:
 
 def _ammo_row(kind: str, type_: str | None):
     """The `AMMO` row for one `AmmoFit`, matched on the row's ``kind``/``type``
-    columns rather than on a key spelling (SC-006). `AmmoFit`'s own validation
+    columns rather than on a key spelling. `AmmoFit`'s own validation
     guarantees a match."""
     return next(row for row in AMMO.values() if row.kind == kind and row.type == type_)
 
 
-# --- 1. Hull and purpose (FR-005, FR-029, FR-029a, FR-029b) ---------------
+# --- 1. Hull and purpose ---------------
 
 
 def _hull(ship: Ship) -> str:
@@ -121,7 +121,7 @@ def _hull(ship: Ship) -> str:
     )
 
 
-# --- 2. Drives and performance (FR-006, FR-006a, FR-026) ------------------
+# --- 2. Drives and performance ------------------
 
 
 def _drives(ship: Ship) -> str:
@@ -147,7 +147,7 @@ def _drives(ship: Ship) -> str:
     return f"{text}."
 
 
-# --- 3. Fuel and endurance (FR-007, FR-007a, FR-026) ----------------------
+# --- 3. Fuel and endurance ----------------------
 
 
 def _fuel(ship: Ship) -> str:
@@ -160,7 +160,7 @@ def _fuel(ship: Ship) -> str:
     if _is_small_craft(ship):
         return f"{text}."
     # The jumps the tankage supports at the rated distance. Kept even at zero,
-    # which is what a design buying no jump fuel states (FR-007a).
+    # which is what a design buying no jump fuel states.
     jumps = ship.assumed_jump_distance // ship.jump_rating if ship.jump_rating else 0
     return (
         f"{text} and {count(jumps)} Jump-{number(ship.jump_rating)} "
@@ -168,7 +168,7 @@ def _fuel(ship: Ship) -> str:
     )
 
 
-# --- 4. Computer (FR-008, FR-027) -----------------------------------------
+# --- 4. Computer -----------------------------------------
 
 
 def _computer(ship: Ship) -> str | None:
@@ -184,7 +184,7 @@ def _computer(ship: Ship) -> str | None:
     return f"Adjacent to the {station} is a computer Model {number(fit.model)}{suffix}."
 
 
-# --- 5. Sensors (FR-009, FR-009a, FR-030a) --------------------------------
+# --- 5. Sensors --------------------------------
 
 
 def _sensors(ship: Ship) -> str:
@@ -192,7 +192,7 @@ def _sensors(ship: Ship) -> str:
     return f"The ship is equipped with {row.name} sensors (DM{signed(row.dm)})."
 
 
-# --- 6. Quarters (FR-010, FR-010a, FR-023) --------------------------------
+# --- 6. Quarters --------------------------------
 
 _QUARTERS = (
     ("staterooms", "stateroom", "staterooms"),
@@ -216,7 +216,7 @@ def _quarters(ship: Ship) -> str | None:
     return f"There {verb} {join(clauses)}."
 
 
-# --- 7. Hardpoints and fire control (FR-011, FR-011a) ---------------------
+# --- 7. Hardpoints and fire control ---------------------
 
 
 def _hardpoints(ship: Ship) -> str:
@@ -232,7 +232,7 @@ def _hardpoints(ship: Ship) -> str:
     return f"{text}."
 
 
-# --- 8. Installed weapons and ammunition (FR-012, FR-012a) ----------------
+# --- 8. Installed weapons and ammunition ----------------
 
 
 def _turret_armament(weapons: Sequence[str]) -> str:
@@ -250,10 +250,10 @@ def _opens_a_sentence(text: str) -> str:
     """`text` with its first character capitalised.
 
     The ammunition sentence is the one slot whose first word is a count, and
-    FR-022 spells a count of ten or fewer as a word -- so "three smart missiles
+    counts of ten or fewer are spelled as a word -- so "three smart missiles
     ..." needs the capital every other sentence gets from a fixed opening word.
     `str.capitalize` is wrong here: it lower-cases the rest, which would ruin a
-    display name (FR-030).
+    display name.
     """
     return text[:1].upper() + text[1:]
 
@@ -292,7 +292,7 @@ def _weapons(ship: Ship) -> str | None:
     if not design.turrets and not design.bays:
         return None
 
-    # Bays before turrets, each group in first-appearance order (research Part B).
+    # Bays before turrets, each group in first-appearance order.
     groups = []
     for kind, fitted in _grouped(design.bays, lambda bay: bay.kind):
         row = BAYS[kind]
@@ -314,7 +314,7 @@ def _weapons(ship: Ship) -> str | None:
     return " ".join([sentence, *_ammunition(design)])
 
 
-# --- 9. Screens (FR-013) --------------------------------------------------
+# --- 9. Screens --------------------------------------------------
 
 
 def _screens(ship: Ship) -> str | None:
@@ -332,12 +332,12 @@ def _screens(ship: Ship) -> str | None:
     return f"This ship has {count(total)} {plural(total, 'screen', 'screens')}: {join(groups)}."
 
 
-# --- 10. Small craft hangars (FR-014, FR-031) -----------------------------
+# --- 10. Small craft hangars -----------------------------
 
 
 def _hangar_fittings(design) -> list:
     """Every vehicle-sized fitting, identified by its row's per-vehicle-ton
-    column and never by a key comparison (FR-031)."""
+    column and never by a key comparison."""
     return [fit for fit in design.fittings if FITTINGS[fit.kind].tons_per_vehicle_ton is not None]
 
 
@@ -349,7 +349,7 @@ def _hangar_phrase(kind: str, fittings: Sequence) -> str:
     """One kind of hangar: its count, its own row's noun, and its capacities.
 
     The noun comes from this kind's row and never from another's, so a design
-    fitting two vehicle-sized rows names each of them correctly (SC-007).
+    fitting two vehicle-sized rows names each of them correctly.
     """
     row = FITTINGS[kind]
     fitted = sum(fit.quantity for fit in fittings)
@@ -377,7 +377,7 @@ def _hangars(ship: Ship) -> str | None:
     return f"There {plural(leading, 'is', 'are')} {join(phrases)}."
 
 
-# --- 11. Cargo (FR-015) ---------------------------------------------------
+# --- 11. Cargo ---------------------------------------------------
 
 
 def _cargo(ship: Ship) -> str:
@@ -385,7 +385,7 @@ def _cargo(ship: Ship) -> str:
     return f"Cargo capacity is {tons(capacity)} {plural(capacity, 'ton', 'tons')}."
 
 
-# --- 12. Hull configuration and armour (FR-016, FR-016a, FR-016b) ---------
+# --- 12. Hull configuration and armour ---------
 
 
 def _distinct(names: Iterable[str]) -> list[str]:
@@ -403,7 +403,7 @@ def _configuration(ship: Ship) -> str:
     if not layers:
         return f"The hull is {hull}, and no additional armor has been installed."
 
-    # Two layers yield one armour clause and one total protection rating (FR-016a).
+    # Two layers yield one armour clause and one total protection rating.
     types = _distinct(ARMOR[fit.type.value].name for fit in layers)
     options = _distinct(ARMOR_OPTIONS[opt].name for fit in layers for opt in fit.options)
     armored = f"{join(types)} ({number(ship.armor_protection)} points)"
@@ -412,12 +412,12 @@ def _configuration(ship: Ship) -> str:
     return f"The hull is {hull}, and is armored with {armored}."
 
 
-# --- 13. Special features (FR-017) ----------------------------------------
+# --- 13. Special features ----------------------------------------
 
 
 def _feature(fit) -> str:
     """One fitting's clause, driven by the row's ``counted_in_tons`` and
-    ``unrefined_fuel_per_ton`` columns rather than by its key (FR-031)."""
+    ``unrefined_fuel_per_ton`` columns rather than by its key."""
     row = FITTINGS[fit.kind]
     quantity = fit.quantity
     if row.counted_in_tons:
@@ -446,7 +446,7 @@ def _special_features(ship: Ship) -> str | None:
     return f"Special features include {join(clauses)}."
 
 
-# --- 14. Crew (FR-018) ----------------------------------------------------
+# --- 14. Crew ----------------------------------------------------
 
 
 def _crew(ship: Ship) -> str:
@@ -460,7 +460,7 @@ def _crew(ship: Ship) -> str:
     return f"The ship requires a crew of {count(total)}: {join(clauses)}."
 
 
-# --- 15. Passengers (FR-019, FR-019a, FR-019b) ----------------------------
+# --- 15. Passengers ----------------------------
 
 
 def _passengers(ship: Ship) -> str:
@@ -481,7 +481,7 @@ def _passengers(ship: Ship) -> str:
     return f"The ship can carry up to {join(clauses)}."
 
 
-# --- 16. Cost and build time (FR-020, FR-025) -----------------------------
+# --- 16. Cost and build time -----------------------------
 
 
 def _cost(ship: Ship) -> str:
@@ -510,13 +510,13 @@ _SLOTS: tuple[Callable[[Ship], str | None], ...] = (
     _passengers,
     _cost,
 )
-"""The sixteen sentence slots, in the FR-004 order. The order lives here, as one
+"""The sixteen sentence slots, in a fixed order. The order lives here, as one
 literal tuple, and nowhere else."""
 
 
 def render_description(ship: Ship) -> str:
     """The ship's USDF heading and paragraph. Total: raises for no `Ship` that
-    `build_ship` can return (SC-001)."""
+    `build_ship` can return."""
     heading = f"TL{number(ship.tech_level)} {_ship_name(ship)}"
     sentences = [slot(ship) for slot in _SLOTS]
     return f"{heading}\n\n" + " ".join(text for text in sentences if text is not None)

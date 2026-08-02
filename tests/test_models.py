@@ -94,7 +94,7 @@ def test_generation_failure_stores_reason() -> None:
     assert failure.reason == "Navy enlistment failed"
 
 
-# T002—Character.drafted field
+# Character.drafted field
 def test_character_drafted_defaults_to_false() -> None:
     char = Character(
         characteristics={},
@@ -131,7 +131,7 @@ def test_character_drafted_can_be_set_true() -> None:
     assert char.drafted is True
 
 
-# T002—Character.name field
+# Character.name field
 def test_character_name_field_is_stored() -> None:
     char = Character(
         characteristics={},
@@ -163,7 +163,7 @@ def test_item_carries_a_name() -> None:
     assert Item(name="Blade").name == "Blade"
 
 
-# T002—MishapOutcome dataclass
+# MishapOutcome dataclass
 def test_mishap_outcome_stores_all_fields() -> None:
     outcome = MishapOutcome(
         roll=1,
@@ -179,7 +179,7 @@ def test_mishap_outcome_stores_all_fields() -> None:
     assert outcome.injury_crisis is False
 
 
-# T002—Character.mishap / Character.debt fields
+# Character.mishap / Character.debt fields
 def test_character_mishap_and_debt_default() -> None:
     char = Character(
         characteristics={},

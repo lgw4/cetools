@@ -128,7 +128,7 @@ def test_tech_level_at_the_mandated_minimum_is_valid():
 
 
 def test_tech_level_minimum_does_not_apply_to_an_uninhabited_world():
-    # Population 0 forces TL to 0, overriding any mandated minimum (FR-009).
+    # Population 0 forces TL to 0, overriding any mandated minimum.
     _world(
         population=0,
         atmosphere=2,
@@ -139,7 +139,7 @@ def test_tech_level_minimum_does_not_apply_to_an_uninhabited_world():
     )
 
 
-# --- System (Phase 4 / US2) ---
+# --- System (Phase 4) ---
 
 
 def _system(**overrides):
@@ -245,7 +245,7 @@ def test_pirate_base_allowed_without_naval_base_or_starport_a():
     _system(world=_world(starport="C"), pirate_base=True)
 
 
-# --- Subsector (Phase 5 / US3) ---
+# --- Subsector (Phase 5) ---
 
 
 def test_density_dms():

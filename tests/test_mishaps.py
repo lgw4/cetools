@@ -9,7 +9,7 @@ from cetools.engine.mishaps import (
 )
 from cetools.engine.rolls import RandomRolls, RollName, ScriptedRolls
 
-# --- T004: table shape ---
+# --- table shape ---
 
 
 def test_survival_mishaps_table_has_six_entries() -> None:
@@ -56,7 +56,7 @@ def test_injury_table_rows_match_data_model() -> None:
         assert entry.secondary_amount == secondary_amount
 
 
-# --- T005: non-injury outcomes ---
+# --- non-injury outcomes ---
 
 
 def test_mishap_roll_2_is_honorable_discharge_no_debt() -> None:
@@ -111,7 +111,7 @@ def test_mishap_roll_5_is_dishonorable_discharge_imprisoned() -> None:
     assert debt == 0
 
 
-# --- T005: injury outcomes (single injury roll, mishap roll 6) ---
+# --- injury outcomes (single injury roll, mishap roll 6) ---
 
 
 def test_mishap_roll_6_injury_row_2_reduces_one_physical_stat_only() -> None:
@@ -169,7 +169,7 @@ def test_mishap_roll_6_injury_row_3_candidate_pick_excludes_endurance() -> None:
     assert result.characteristics["Endurance"] == 8
 
 
-# --- T006(a): roll twice, take the lower (more severe) result ---
+# --- (a) roll twice, take the lower (more severe) result ---
 
 
 def test_mishap_roll_1_applies_lower_of_two_injury_rolls() -> None:
@@ -190,7 +190,7 @@ def test_mishap_roll_1_applies_lower_of_two_injury_rolls() -> None:
     assert result.characteristics["Endurance"] == 8
 
 
-# --- T006(b): injury crisis charges debt and restores the stat to 1 ---
+# --- (b) injury crisis charges debt and restores the stat to 1 ---
 
 
 def test_injury_crisis_restores_zeroed_stat_to_one_and_charges_debt() -> None:
@@ -214,7 +214,7 @@ def test_injury_crisis_restores_zeroed_stat_to_one_and_charges_debt() -> None:
     assert debt == 30_000
 
 
-# --- T006(c): a single mishap zeroing two stats charges only one crisis debt ---
+# --- (c) a single mishap zeroing two stats charges only one crisis debt ---
 
 
 def test_injury_crisis_zeroing_two_stats_charges_only_one_debt() -> None:
@@ -262,7 +262,7 @@ def test_injury_on_already_zero_stat_does_not_trigger_crisis() -> None:
     assert debt == 0
 
 
-# --- T006(d): mutates characteristics in place ---
+# --- (d) mutates characteristics in place ---
 
 
 def test_resolve_survival_mishap_returns_the_injured_character_without_mutating() -> None:
@@ -280,7 +280,7 @@ def test_resolve_survival_mishap_returns_the_injured_character_without_mutating(
     assert characteristics == {"Strength": 8, "Dexterity": 8, "Endurance": 8}
 
 
-# --- T007: SC-004 statistical distribution ---
+# --- statistical distribution ---
 
 
 def test_mishap_roll_distribution_within_ten_percent_of_uniform() -> None:

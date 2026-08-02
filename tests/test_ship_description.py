@@ -140,7 +140,7 @@ def _slot(ship, name: str) -> str | None:
     return {builder.__name__: builder for builder in _SLOTS}[name](ship)
 
 
-# --- T014: overall shape (FR-001, FR-001a) --------------------------------
+# --- overall shape --------------------------------------------------------
 
 
 def test_description_is_a_heading_a_blank_line_and_one_paragraph():
@@ -175,7 +175,7 @@ def test_sentences_are_separated_by_exactly_one_space():
     assert paragraph.endswith(".")
 
 
-# --- T015: slot order (FR-004, SC-004) ------------------------------------
+# --- slot order -----------------------------------------------------------
 
 _SLOT_ORDER = (
     "_hull",
@@ -224,10 +224,10 @@ def test_a_slot_may_carry_more_than_one_sentence():
     assert len(sentences) > len(_SLOT_ORDER)
 
 
-# --- T016: sentences 1-3 (FR-005, FR-006, FR-007, FR-007a) ----------------
+# --- sentences 1-3 --------------------------------------------------------
 
 
-def test_hull_sentence_states_tonnage_hull_and_structure():  # FR-005
+def test_hull_sentence_states_tonnage_hull_and_structure():
     ship = _equipped_ship()
 
     assert (
@@ -242,14 +242,14 @@ def test_hull_sentence_uses_an_before_an_eight_hundred_ton_hull():
     assert "Using an 800-ton hull" in _paragraph(build_ship(design))
 
 
-def test_drives_sentence_names_every_fitted_drive_and_the_performance():  # FR-006
+def test_drives_sentence_names_every_fitted_drive_and_the_performance():
     assert (
         "It mounts jump drive E, maneuver drive E and power plant E, "
         "giving a performance of Jump-1 and 1-G acceleration."
     ) in _paragraph(_equipped_ship())
 
 
-def test_fuel_sentence_states_tankage_weeks_and_jumps():  # FR-007
+def test_fuel_sentence_states_tankage_weeks_and_jumps():
     ship = _equipped_ship()
     tankage = ship.jump_fuel + ship.power_fuel
 
@@ -259,13 +259,13 @@ def test_fuel_sentence_states_tankage_weeks_and_jumps():  # FR-007
     ) in _paragraph(ship)
 
 
-def test_fuel_sentence_keeps_a_zero_jump_clause():  # FR-007a
+def test_fuel_sentence_keeps_a_zero_jump_clause():
     ship = build_ship(_simple_design(jump_distance=0))
 
     assert "and zero Jump-1 jumps." in _paragraph(ship)
 
 
-# --- T017: sentences 4-6 (FR-008, FR-009, FR-009a, FR-010, FR-030a) -------
+# --- sentences 4-6 --------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -277,7 +277,7 @@ def test_fuel_sentence_keeps_a_zero_jump_clause():  # FR-007a
         (True, True, "/bis/fib"),
     ],
 )
-def test_computer_sentence_carries_the_option_suffixes(jump_control, hardened, suffix):  # FR-008
+def test_computer_sentence_carries_the_option_suffixes(jump_control, hardened, suffix):
     design = _simple_design(
         computer=ComputerFit(model=2, jump_control=jump_control, hardened=hardened)
     )
@@ -297,26 +297,26 @@ def test_computer_sentence_carries_the_option_suffixes(jump_control, hardened, s
         ("very_advanced", "Very Advanced", "+2"),
     ],
 )
-def test_sensors_sentence_names_the_package_and_signs_the_dm(package, name, dm):  # FR-009
+def test_sensors_sentence_names_the_package_and_signs_the_dm(package, name, dm):
     ship = build_ship(_simple_design(electronics=package))
 
     assert f"The ship is equipped with {name} sensors (DM{dm})." in _paragraph(ship)
 
 
-def test_sensors_sentence_falls_back_to_standard():  # FR-009a, FR-030a
+def test_sensors_sentence_falls_back_to_standard():
     ship = build_ship(_simple_design())
 
     assert ship.design.electronics is None
     assert "The ship is equipped with Standard sensors (DM-4)." in _paragraph(ship)
 
 
-def test_quarters_sentence_distinguishes_the_three_kinds():  # FR-010
+def test_quarters_sentence_distinguishes_the_three_kinds():
     assert (
         "There are 20 staterooms, four low berths and two emergency low berths."
     ) in _paragraph(_equipped_ship())
 
 
-def test_quarters_sentence_agrees_in_number_for_a_single_berth():  # FR-023
+def test_quarters_sentence_agrees_in_number_for_a_single_berth():
     assert "There is one stateroom." in _paragraph(build_ship(_simple_design(staterooms=1)))
 
 
@@ -330,10 +330,10 @@ def test_quarters_sentence_uses_are_for_two_clauses_of_one():
     assert "There are one stateroom and one emergency low berth." in _paragraph(build_ship(design))
 
 
-# --- T018: sentences 7-10 (FR-011, FR-012, FR-012a, FR-013, FR-014) -------
+# --- sentences 7-10 -------------------------------------------------------
 
 
-def test_hardpoint_sentence_reports_fire_control_tons_as_the_hardpoint_count():  # FR-011
+def test_hardpoint_sentence_reports_fire_control_tons_as_the_hardpoint_count():
     ship = _equipped_ship()
 
     assert ship.hardpoints == 10
@@ -342,7 +342,7 @@ def test_hardpoint_sentence_reports_fire_control_tons_as_the_hardpoint_count(): 
     )
 
 
-def test_weapons_sentence_puts_bays_before_turrets_and_groups_repeats():  # FR-012
+def test_weapons_sentence_puts_bays_before_turrets_and_groups_repeats():
     paragraph = _paragraph(_equipped_ship())
 
     assert (
@@ -353,15 +353,15 @@ def test_weapons_sentence_puts_bays_before_turrets_and_groups_repeats():  # FR-0
     assert paragraph.index("missile bay") < paragraph.index("triple turrets")
 
 
-def test_ammunition_sentences_aggregate_by_kind_and_type_and_name_the_weapon():  # FR-012a
+def test_ammunition_sentences_aggregate_by_kind_and_type_and_name_the_weapon():
     paragraph = _paragraph(_equipped_ship())
 
     assert "120 smart missiles are carried as ammunition for the missile turrets." in paragraph
     assert "20 canisters are carried as ammunition for the sandcaster turret." in paragraph
 
 
-def test_ammunition_sentence_capitalises_a_spelled_count():  # FR-021a, FR-022, SC-001
-    # FR-022 spells a count of ten or fewer as a word, and this is the one slot
+def test_ammunition_sentence_capitalises_a_spelled_count():
+    # The renderer spells a count of ten or fewer as a word, and this is the one slot
     # that puts a count sentence-initially, so the word carries the capital the
     # sentence needs -- "three ...", never "three ..." mid-paragraph.
     design = _simple_design(
@@ -379,7 +379,7 @@ def test_ammunition_sentence_capitalises_a_spelled_count():  # FR-021a, FR-022, 
     assert "three smart missiles" not in paragraph
 
 
-def test_ammunition_sentence_capitalises_a_single_round():  # FR-021a, FR-022, FR-023
+def test_ammunition_sentence_capitalises_a_single_round():
     design = _simple_design(
         turrets=(
             TurretFit(
@@ -395,7 +395,7 @@ def test_ammunition_sentence_capitalises_a_single_round():  # FR-021a, FR-022, F
     )
 
 
-def test_every_ammunition_sentence_opens_with_a_capital_or_a_digit():  # FR-021a, SC-001
+def test_every_ammunition_sentence_opens_with_a_capital_or_a_digit():
     # The count is the only data-dependent first character in the paragraph, so
     # sweep the whole zero-to-eleven boundary rather than one side of it.
     for loaded in range(1, 12):
@@ -424,13 +424,13 @@ def test_weapons_sentence_agrees_in_number_for_a_lone_system():
     ) in _paragraph(build_ship(design))
 
 
-def test_screens_sentence_states_the_total_then_the_groups():  # FR-013
+def test_screens_sentence_states_the_total_then_the_groups():
     assert ("This ship has three screens: a meson screen and two nuclear dampers.") in _paragraph(
         _equipped_ship()
     )
 
 
-def test_hangar_sentence_states_count_and_capacity_without_naming_the_craft():  # FR-014
+def test_hangar_sentence_states_count_and_capacity_without_naming_the_craft():
     paragraph = _paragraph(_equipped_ship())
 
     assert "There is one small craft hangar holding 30 tons of small craft." in paragraph
@@ -461,16 +461,16 @@ def test_hangar_sentence_lists_entries_when_more_than_one_fitting():
     ) in _paragraph(build_ship(design))
 
 
-# --- T019: sentences 11-13 (FR-015, FR-016, FR-016a, FR-016b, FR-017) -----
+# --- sentences 11-13 ------------------------------------------------------
 
 
-def test_cargo_sentence_states_the_capacity():  # FR-015
+def test_cargo_sentence_states_the_capacity():
     ship = _equipped_ship()
 
     assert f"Cargo capacity is {tons(ship.cargo_tons)} tons." in _paragraph(ship)
 
 
-def test_configuration_sentence_renders_two_layers_as_one_clause_and_one_rating():  # FR-016a
+def test_configuration_sentence_renders_two_layers_as_one_clause_and_one_rating():
     paragraph = _paragraph(_equipped_ship())
 
     assert (
@@ -481,7 +481,7 @@ def test_configuration_sentence_renders_two_layers_as_one_clause_and_one_rating(
     assert paragraph.count("armored with") == 1
 
 
-def test_configuration_sentence_without_options():  # FR-016
+def test_configuration_sentence_without_options():
     design = _simple_design(armor=(ArmorFit(type=ArmorType.CRYSTALIRON, percent=5),))
 
     assert "The hull is standard, and is armored with Crystaliron (4 points)." in _paragraph(
@@ -489,30 +489,30 @@ def test_configuration_sentence_without_options():  # FR-016
     )
 
 
-def test_configuration_sentence_names_the_configuration():  # FR-016b
+def test_configuration_sentence_names_the_configuration():
     design = _simple_design(configuration=Configuration.STREAMLINED)
 
     assert "The hull is streamlined," in _paragraph(build_ship(design))
 
 
-def test_special_features_renders_the_fuel_processor_throughput():  # FR-017
+def test_special_features_renders_the_fuel_processor_throughput():
     assert (
         "two tons of fuel processors (processes 40 tons of unrefined fuel "
         "into refined fuel per day)"
     ) in _paragraph(_equipped_ship())
 
 
-def test_special_features_measures_a_counted_in_tons_fitting():  # FR-017
+def test_special_features_measures_a_counted_in_tons_fitting():
     assert "two tons of luxuries" in _paragraph(_equipped_ship())
 
 
-def test_special_features_names_a_single_fitting_without_a_count():  # FR-017
+def test_special_features_names_a_single_fitting_without_a_count():
     design = _simple_design(fittings=(FittingFit(kind="fuel_scoops"),))
 
     assert "Special features include fuel scoops." in _paragraph(build_ship(design))
 
 
-def test_special_features_counts_a_repeated_fitting():  # FR-017
+def test_special_features_counts_a_repeated_fitting():
     assert "four detention cells" in _paragraph(_equipped_ship())
 
 
@@ -522,17 +522,17 @@ def test_special_features_excludes_the_hangar():
     assert "hangar" not in features
 
 
-# --- T020: sentences 14-16 (FR-018, FR-019, FR-019a, FR-020, FR-025) ------
+# --- sentences 14-16 ------------------------------------------------------
 
 
-def test_crew_sentence_breaks_down_in_table_order_omitting_zeroes():  # FR-018
+def test_crew_sentence_breaks_down_in_table_order_omitting_zeroes():
     assert (
         "The ship requires a crew of 14: one pilot, one navigator, two engineers, "
         "five gunners, three screen operators, one medic and one steward."
     ) in _paragraph(_equipped_ship())
 
 
-def test_crew_sentence_omits_a_zero_count_position():  # FR-018
+def test_crew_sentence_omits_a_zero_count_position():
     crew = _clause(_paragraph(build_ship(_simple_design())), "The ship requires a crew of")
 
     assert "gunner" not in crew
@@ -540,20 +540,20 @@ def test_crew_sentence_omits_a_zero_count_position():  # FR-018
     assert "one pilot" in crew
 
 
-def test_passenger_sentence_doubles_up_the_spare_staterooms():  # FR-019
+def test_passenger_sentence_doubles_up_the_spare_staterooms():
     assert (
         "The ship can carry up to 12 additional passengers at double occupancy "
         "and four low passengers."
     ) in _paragraph(_equipped_ship())
 
 
-def test_passenger_sentence_excludes_emergency_low_berths():  # FR-019a
+def test_passenger_sentence_excludes_emergency_low_berths():
     carry = _clause(_paragraph(_equipped_ship()), "The ship can carry up to")
 
     assert "emergency" not in carry
 
 
-def test_cost_sentence_states_the_cost_and_the_build_time():  # FR-020, FR-025
+def test_cost_sentence_states_the_cost_and_the_build_time():
     ship = _equipped_ship()
 
     assert (
@@ -562,7 +562,7 @@ def test_cost_sentence_states_the_cost_and_the_build_time():  # FR-020, FR-025
     ) in _paragraph(ship)
 
 
-# --- T020a: every numeric slot is classified (FR-022c) --------------------
+# --- every numeric slot is classified -------------------------------------
 
 # The complete inventory of numbers the sixteen sentences can print. A numeric
 # slot added to `description.py` without an entry in `_SLOT_HELPERS` below
@@ -607,7 +607,7 @@ _NUMERIC_SLOTS = frozenset(
 # Each slot paired with the single `prose.py` helper that renders it, and with
 # the value the equipped fixture puts in that slot. `signed` joins
 # `count`/`tons`/`number`/`money` here because the sensor DM is the one numeric
-# slot the SRD always prints with an explicit sign (FR-009).
+# slot the SRD always prints with an explicit sign.
 _SLOT_HELPERS = {
     "hull displacement": (number, lambda s: s.hull_tons),
     "hull points": (number, lambda s: s.hull_points),
@@ -657,7 +657,7 @@ def test_each_numeric_slot_renders_through_its_classified_helper(slot):
     assert helper(value(ship)) in render_description(ship)
 
 
-# --- T021: determinism (FR-003, SC-003) -----------------------------------
+# --- determinism ----------------------------------------------------------
 
 
 def test_equal_ships_render_byte_identically():
@@ -672,7 +672,7 @@ def test_description_never_mentions_a_seed():
     assert "seed" not in render_description(_equipped_ship()).lower()
 
 
-# --- T033: purpose, name fallback and authored tech level ------------------
+# --- purpose, name fallback and authored tech level ------------------------
 
 
 def _small_craft_design(**overrides) -> ShipDesign:
@@ -689,47 +689,47 @@ def _small_craft_design(**overrides) -> ShipDesign:
     return ShipDesign(**fields)
 
 
-def test_an_authored_purpose_completes_the_first_sentence():  # FR-029
+def test_an_authored_purpose_completes_the_first_sentence():
     purpose = "a subsidized merchant plying routes the mail contracts do not reach"
     ship = build_ship(_simple_design(purpose=purpose))
 
     assert f"the Testbed is {purpose}." in _paragraph(ship)
 
 
-def test_the_renderer_supplies_the_first_sentence_period():  # FR-029
+def test_the_renderer_supplies_the_first_sentence_period():
     ship = build_ship(_simple_design(purpose="a fast courier"))
 
     assert "the Testbed is a fast courier." in _paragraph(ship)
     assert "courier.." not in _paragraph(ship)
 
 
-def test_a_starship_without_a_purpose_falls_back_to_its_hull_class():  # FR-029a
+def test_a_starship_without_a_purpose_falls_back_to_its_hull_class():
     ship = build_ship(_simple_design())
 
     assert ship.design.purpose is None
     assert "the Testbed is a starship." in _paragraph(ship)
 
 
-def test_a_small_craft_without_a_purpose_falls_back_to_its_hull_class():  # FR-029a
+def test_a_small_craft_without_a_purpose_falls_back_to_its_hull_class():
     ship = build_ship(_small_craft_design())
 
     assert "the Gig is a small craft." in _paragraph(ship)
 
 
-def test_a_small_craft_purpose_is_used_when_authored():  # FR-029
+def test_a_small_craft_purpose_is_used_when_authored():
     ship = build_ship(_small_craft_design(purpose="a ship's boat"))
 
     assert "the Gig is a ship's boat." in _paragraph(ship)
 
 
-def test_a_nameless_design_is_unnamed_ship_in_both_places():  # FR-029b
+def test_a_nameless_design_is_unnamed_ship_in_both_places():
     heading, paragraph = _split(render_description(build_ship(_simple_design(name=None))))
 
     assert heading.endswith(" Unnamed Ship")
     assert "the Unnamed Ship is a starship." in paragraph
 
 
-def test_an_authored_tech_level_above_the_derived_one_appears_unchanged():  # FR-028b
+def test_an_authored_tech_level_above_the_derived_one_appears_unchanged():
     derived = build_ship(_simple_design()).tech_level
     ship = build_ship(_simple_design(tech_level=derived + 7))
 
@@ -737,13 +737,13 @@ def test_an_authored_tech_level_above_the_derived_one_appears_unchanged():  # FR
     assert _split(render_description(ship))[0] == f"TL{derived + 7} Testbed"
 
 
-def test_an_authored_tech_level_below_the_derived_one_appears_unchanged():  # FR-028b
+def test_an_authored_tech_level_below_the_derived_one_appears_unchanged():
     ship = build_ship(_simple_design(tech_level=3))
 
     assert _split(render_description(ship))[0] == "TL3 Testbed"
 
 
-# --- T037: the checked-in fixture carrying both new keys -------------------
+# --- the checked-in fixture carrying both new keys -------------------------
 
 _SUBSIDIZED_MERCHANT = "tests/data/ships/subsidized-merchant.toml"
 
@@ -759,7 +759,7 @@ def test_the_subsidized_merchant_renders_its_authored_purpose_and_tech_level():
     ) in paragraph
 
 
-def test_the_subsidized_merchant_changes_no_computed_value():  # FR-032
+def test_the_subsidized_merchant_changes_no_computed_value():
     merchant = build_ship(load_design(_SUBSIDIZED_MERCHANT))
     free_trader = build_ship(load_design("tests/data/ships/free-trader.toml"))
 
@@ -770,7 +770,7 @@ def test_the_subsidized_merchant_changes_no_computed_value():  # FR-032
     assert merchant.build_weeks == free_trader.build_weeks
 
 
-# --- T038: whole-sentence omission (FR-021) -------------------------------
+# --- whole-sentence omission ----------------------------------------------
 #
 # `_simple_design()` carries no computer, no quarters, no weapon system, no
 # screen and no fitting, so it exercises every omittable slot at once.
@@ -790,7 +790,7 @@ def test_a_fitted_computer_restores_the_sentence():
     assert _slot(ship, "_computer") is not None
 
 
-def test_no_berths_of_any_kind_drops_the_quarters_sentence():  # FR-010a
+def test_no_berths_of_any_kind_drops_the_quarters_sentence():
     ship = build_ship(_simple_design())
 
     assert ship.design.staterooms == 0
@@ -802,13 +802,13 @@ def test_no_berths_of_any_kind_drops_the_quarters_sentence():  # FR-010a
 
 
 @pytest.mark.parametrize("field_name", ["staterooms", "low_berths", "emergency_low_berths"])
-def test_any_one_kind_of_berth_restores_the_quarters_sentence(field_name):  # FR-010a
+def test_any_one_kind_of_berth_restores_the_quarters_sentence(field_name):
     ship = build_ship(_simple_design(**{field_name: 1}))
 
     assert _slot(ship, "_quarters") is not None
 
 
-def test_no_turrets_and_no_bays_drops_the_weapons_sentence():  # FR-011a
+def test_no_turrets_and_no_bays_drops_the_weapons_sentence():
     ship = build_ship(_simple_design())
     paragraph = _paragraph(ship)
 
@@ -820,7 +820,7 @@ def test_no_turrets_and_no_bays_drops_the_weapons_sentence():  # FR-011a
     ) in paragraph
 
 
-def test_the_hardpoint_sentence_drops_its_no_weapons_clause_once_armed():  # FR-011a
+def test_the_hardpoint_sentence_drops_its_no_weapons_clause_once_armed():
     design = _simple_design(turrets=(TurretFit(mount="single", weapons=("sandcaster",)),))
     paragraph = _paragraph(build_ship(design))
 
@@ -842,7 +842,7 @@ def test_no_vehicle_sized_fitting_drops_the_hangar_sentence():
     assert "hangar" not in _paragraph(ship)
 
 
-def test_no_non_hangar_fitting_drops_the_special_features_sentence():  # FR-021
+def test_no_non_hangar_fitting_drops_the_special_features_sentence():
     design = _simple_design(fittings=(FittingFit(kind="vehicle_hangar", vehicle_tons=20),))
     paragraph = _paragraph(build_ship(design))
 
@@ -851,7 +851,7 @@ def test_no_non_hangar_fitting_drops_the_special_features_sentence():  # FR-021
     assert "There is one small craft hangar holding 20 tons of small craft." in paragraph
 
 
-def test_a_stripped_ship_omits_exactly_the_six_omittable_slots():  # FR-021
+def test_a_stripped_ship_omits_exactly_the_six_omittable_slots():
     ship = build_ship(_simple_design())
 
     omitted = [slot.__name__ for slot in _SLOTS if slot(ship) is None]
@@ -866,10 +866,10 @@ def test_a_stripped_ship_omits_exactly_the_six_omittable_slots():  # FR-021
     ]
 
 
-# --- T039: clause-level omission (FR-006a, FR-007a, FR-016, FR-019b) ------
+# --- clause-level omission ------------------------------------------------
 
 
-def test_no_maneuver_drive_drops_both_the_drive_and_performance_clauses():  # FR-006a
+def test_no_maneuver_drive_drops_both_the_drive_and_performance_clauses():
     ship = build_ship(_simple_design(maneuver_code=None))
     paragraph = _paragraph(ship)
 
@@ -880,7 +880,7 @@ def test_no_maneuver_drive_drops_both_the_drive_and_performance_clauses():  # FR
     assert " and ." not in paragraph
 
 
-def test_no_jump_fuel_keeps_the_jump_clause_at_zero():  # FR-007a
+def test_no_jump_fuel_keeps_the_jump_clause_at_zero():
     ship = build_ship(_simple_design(jump_distance=0))
 
     assert ship.jump_fuel == 0
@@ -889,7 +889,7 @@ def test_no_jump_fuel_keeps_the_jump_clause_at_zero():  # FR-007a
     ) in _paragraph(ship)
 
 
-def test_no_armor_states_so_rather_than_rendering_a_zero_rating():  # FR-016
+def test_no_armor_states_so_rather_than_rendering_a_zero_rating():
     ship = build_ship(_simple_design())
     paragraph = _paragraph(ship)
 
@@ -899,36 +899,36 @@ def test_no_armor_states_so_rather_than_rendering_a_zero_rating():  # FR-016
     assert "0 points" not in paragraph
 
 
-def test_neither_spare_staterooms_nor_low_berths_states_no_capacity():  # FR-019b
+def test_neither_spare_staterooms_nor_low_berths_states_no_capacity():
     ship = build_ship(_simple_design())
 
     assert _slot(ship, "_passengers") == "The ship cannot carry any additional passengers."
 
 
-def test_staterooms_the_crew_fills_offer_no_passenger_capacity():  # FR-019, FR-019b
+def test_staterooms_the_crew_fills_offer_no_passenger_capacity():
     ship = build_ship(_simple_design(staterooms=3))
 
     assert ship.crew.total == 3
     assert "The ship cannot carry any additional passengers." in _paragraph(ship)
 
 
-def test_low_berths_alone_still_offer_passenger_capacity():  # FR-019
+def test_low_berths_alone_still_offer_passenger_capacity():
     ship = build_ship(_simple_design(low_berths=2))
 
     assert "The ship can carry up to two low passengers." in _paragraph(ship)
 
 
-# --- T040: the remaining spec edge cases ----------------------------------
+# --- the remaining spec edge cases ----------------------------------------
 
 
-def test_zero_cargo_renders_as_a_word():  # SC-001, FR-021a
+def test_zero_cargo_renders_as_a_word():
     ship = build_ship(_simple_design(staterooms=38))
 
     assert ship.cargo_tons == 0
     assert "Cargo capacity is zero tons." in _paragraph(ship)
 
 
-def test_fractional_cargo_renders_in_digits():  # FR-022b
+def test_fractional_cargo_renders_in_digits():
     ship = build_ship(load_design("tests/data/ships/fighter.toml"))
 
     # The accumulated float is 6.200000000000003; the sentence states 6.2.
@@ -936,7 +936,7 @@ def test_fractional_cargo_renders_in_digits():  # FR-022b
     assert "Cargo capacity is 6.2 tons." in _paragraph(ship)
 
 
-def test_a_crew_of_one_agrees_in_number():  # FR-022, FR-023
+def test_a_crew_of_one_agrees_in_number():
     # `build_ship` never derives a crew this small -- every powered hull needs
     # an engineer -- so the agreement is asserted against the renderer directly.
     lone = Crew(
@@ -947,7 +947,7 @@ def test_a_crew_of_one_agrees_in_number():  # FR-022, FR-023
     assert _slot(ship, "_crew") == "The ship requires a crew of one: one pilot."
 
 
-def test_a_fractional_cost_renders_at_full_precision():  # FR-025, FR-025a
+def test_a_fractional_cost_renders_at_full_precision():
     design = _simple_design(
         standard_design=True, staterooms=4, fittings=(FittingFit(kind="fuel_processor"),)
     )
@@ -958,14 +958,14 @@ def test_a_fractional_cost_renders_at_full_precision():  # FR-025, FR-025a
     assert "The ship costs MCr29.745 (including discounts and fees)" in _paragraph(ship)
 
 
-def test_a_cost_carrying_a_float_artefact_is_not_rendered_verbatim():  # FR-025a
+def test_a_cost_carrying_a_float_artefact_is_not_rendered_verbatim():
     ship = build_ship(_simple_design(standard_design=True))
 
     assert repr(ship.total_cost) == "27.900000000000002"
     assert "The ship costs MCr27.9 (including discounts and fees)" in _paragraph(ship)
 
 
-def test_no_cost_is_rendered_in_scientific_notation_or_left_dangling():  # FR-025
+def test_no_cost_is_rendered_in_scientific_notation_or_left_dangling():
     for design in (_equipped_design(), _simple_design(standard_design=True)):
         # `_clause` cuts at the first period, which a fractional cost carries,
         # so the closing sentence is matched whole instead.
@@ -978,7 +978,7 @@ def test_no_cost_is_rendered_in_scientific_notation_or_left_dangling():  # FR-02
         assert ". " not in cost.group()
 
 
-# --- T041: the grammar sweep (FR-021a, SC-001) -----------------------------
+# --- the grammar sweep -----------------------------------------------------
 
 _EXAMPLES = sorted(Path("tests/data/ships").glob("*.toml"))
 
@@ -1005,7 +1005,7 @@ _SWEPT = _swept_descriptions()
 
 # `count(0)` and `tons(0)` render "zero", so scanning for the word finds every
 # clause stating a quantity of zero -- and only those, since measured values
-# render in digits (FR-022a) and a "0 Hull" rating is not a quantity.
+# render in digits and a "0 Hull" rating is not a quantity.
 _ZERO_IS_REQUIRED = ("Jump-", "Cargo capacity is zero tons.")
 
 
@@ -1031,7 +1031,7 @@ def test_every_rendered_ship_is_one_heading_and_one_paragraph(label, text):
 
 
 @pytest.mark.parametrize("label,text", _SWEPT, ids=[label for label, _ in _SWEPT])
-def test_every_paragraph_survives_its_omissions_grammatically(label, text):  # FR-021a
+def test_every_paragraph_survives_its_omissions_grammatically(label, text):
     paragraph = text.split("\n", 2)[2]
 
     assert "  " not in paragraph
@@ -1046,7 +1046,7 @@ def test_every_paragraph_survives_its_omissions_grammatically(label, text):  # F
 
 
 @pytest.mark.parametrize("label,text", _SWEPT, ids=[label for label, _ in _SWEPT])
-def test_every_sentence_opens_and_closes_like_a_sentence(label, text):  # FR-021a
+def test_every_sentence_opens_and_closes_like_a_sentence(label, text):
     for sentence in _sentences(text.split("\n", 2)[2]):
         assert sentence.endswith(".")
         # An ammunition sentence opens with its count, which is digits above ten
@@ -1056,14 +1056,14 @@ def test_every_sentence_opens_and_closes_like_a_sentence(label, text):  # FR-021
 
 
 @pytest.mark.parametrize("label,text", _SWEPT, ids=[label for label, _ in _SWEPT])
-def test_no_clause_states_a_quantity_of_zero_unbidden(label, text):  # FR-021a
+def test_no_clause_states_a_quantity_of_zero_unbidden(label, text):
     for sentence in _sentences(text.split("\n", 2)[2]):
         if "zero" not in sentence:
             continue
         assert any(required in sentence for required in _ZERO_IS_REQUIRED), sentence
 
 
-# --- T044: small craft (FR-026, FR-027) ------------------------------------
+# --- small craft -----------------------------------------------------------
 #
 # A small craft is a non-jump-capable vessel with a cockpit in place of a
 # bridge, so the drives and fuel sentences lose their jump clauses whole and the
@@ -1072,7 +1072,7 @@ def test_no_clause_states_a_quantity_of_zero_unbidden(label, text):  # FR-021a
 _FIGHTER = "tests/data/ships/fighter.toml"
 
 
-def test_a_small_craft_drives_sentence_states_no_jump_rating():  # FR-026
+def test_a_small_craft_drives_sentence_states_no_jump_rating():
     ship = build_ship(_small_craft_design())
 
     assert _slot(ship, "_drives") == (
@@ -1081,7 +1081,7 @@ def test_a_small_craft_drives_sentence_states_no_jump_rating():  # FR-026
     )
 
 
-def test_a_small_craft_fuel_sentence_makes_no_claim_about_jumps():  # FR-026
+def test_a_small_craft_fuel_sentence_makes_no_claim_about_jumps():
     ship = build_ship(_small_craft_design())
 
     assert _slot(ship, "_fuel") == (
@@ -1089,13 +1089,13 @@ def test_a_small_craft_fuel_sentence_makes_no_claim_about_jumps():  # FR-026
     )
 
 
-def test_a_small_craft_computer_sentence_names_the_cockpit():  # FR-027
+def test_a_small_craft_computer_sentence_names_the_cockpit():
     ship = build_ship(_small_craft_design(computer=ComputerFit(model=1)))
 
     assert _slot(ship, "_computer") == "Adjacent to the cockpit is a computer Model 1."
 
 
-def test_a_starship_computer_sentence_still_names_the_bridge():  # FR-027
+def test_a_starship_computer_sentence_still_names_the_bridge():
     ship = build_ship(_simple_design(computer=ComputerFit(model=1)))
 
     assert _slot(ship, "_computer") == "Adjacent to the bridge is a computer Model 1."
@@ -1122,7 +1122,7 @@ _SMALL_CRAFT = _small_craft_paragraphs()
 
 
 @pytest.mark.parametrize("label,paragraph", _SMALL_CRAFT, ids=[label for label, _ in _SMALL_CRAFT])
-def test_no_jump_wording_reaches_a_small_craft_paragraph(label, paragraph):  # FR-026
+def test_no_jump_wording_reaches_a_small_craft_paragraph(label, paragraph):
     assert "jump" not in paragraph
     assert "Jump" not in paragraph
     assert "bridge" not in paragraph
@@ -1135,7 +1135,7 @@ def test_every_small_craft_states_its_acceleration_and_power_endurance(label, pa
     assert re.search(r"supports the power plant for \w+ weeks?\.", paragraph)
 
 
-# --- T051: a new table row needs no renderer change (SC-007) ---------------
+# --- a new table row needs no renderer change ------------------------------
 #
 # These tests keep this property from regressing: each injects a row the SRD
 # does not contain,
@@ -1206,15 +1206,14 @@ def test_a_new_counted_in_tons_fitting_row_reaches_the_special_features_sentence
     assert "Special features include three tons of hydroponics." in paragraph
 
 
-# --- T054: every joined list follows the design's order (FR-024a) -----------
+# --- every joined list follows the design's order ---------------------------
 #
 # `_distinct` and `_grouped` walk the design's own tuples, so each list renders
 # in the order its components were fitted. A `set`, a `sorted()` or a walk over
-# the table would each impose some other order, and T021's determinism test
+# the table would each impose some other order, and the determinism test above
 # cannot tell the difference: a `set` iterates identically for equal contents
 # within one process, so an unordered implementation renders byte-identically
-# twice over and still ships the wrong order under the next interpreter
-# (FR-003, SC-003).
+# twice over and still ships the wrong order under the next interpreter.
 #
 # Each test below therefore renders the same components twice, fitted in
 # opposite orders, and pins both results. The two expectations differ, so an
@@ -1247,7 +1246,7 @@ _CRYSTALIRON = ArmorFit(type=ArmorType.CRYSTALIRON, percent=5)
 _TITANIUM_STEEL = ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5)
 
 
-def test_the_armor_clause_names_the_layers_in_the_designs_order():  # FR-024a
+def test_the_armor_clause_names_the_layers_in_the_designs_order():
     assert _ordered_slot("_configuration", armor=(_CRYSTALIRON, _TITANIUM_STEEL)) == (
         "The hull is standard, and is armored with Crystaliron and Titanium Steel (6 points)."
     )
@@ -1256,7 +1255,7 @@ def test_the_armor_clause_names_the_layers_in_the_designs_order():  # FR-024a
     )
 
 
-def test_the_armor_options_clause_follows_the_designs_option_order():  # FR-024a
+def test_the_armor_options_clause_follows_the_designs_option_order():
     stealth_first = replace(_CRYSTALIRON, options=("stealth", "reflec"))
     reflec_first = replace(_CRYSTALIRON, options=("reflec", "stealth"))
 
@@ -1270,7 +1269,7 @@ def test_the_armor_options_clause_follows_the_designs_option_order():  # FR-024a
     )
 
 
-def test_the_bay_groups_follow_the_designs_bay_order():  # FR-024a
+def test_the_bay_groups_follow_the_designs_bay_order():
     meson = BayFit(kind="meson")
     missile = BayFit(kind="missile_bank")
 
@@ -1282,7 +1281,7 @@ def test_the_bay_groups_follow_the_designs_bay_order():  # FR-024a
     )
 
 
-def test_the_turret_groups_follow_the_designs_turret_order():  # FR-024a
+def test_the_turret_groups_follow_the_designs_turret_order():
     particle = TurretFit(mount="double", weapons=("particle_beam", "particle_beam"))
     laser = TurretFit(mount="single", weapons=("pulse_laser",))
 
@@ -1296,7 +1295,7 @@ def test_the_turret_groups_follow_the_designs_turret_order():  # FR-024a
     )
 
 
-def test_the_weapon_slots_follow_the_turrets_own_slot_order():  # FR-024a
+def test_the_weapon_slots_follow_the_turrets_own_slot_order():
     sand_first = TurretFit(mount="double", weapons=("sandcaster", "pulse_laser"))
     laser_first = TurretFit(mount="double", weapons=("pulse_laser", "sandcaster"))
 
@@ -1310,7 +1309,7 @@ def test_the_weapon_slots_follow_the_turrets_own_slot_order():  # FR-024a
     )
 
 
-def test_the_ammunition_sentences_follow_the_designs_ammunition_order():  # FR-024a
+def test_the_ammunition_sentences_follow_the_designs_ammunition_order():
     missiles = AmmoFit(kind="missile", count=12, type="smart")
     canisters = AmmoFit(kind="sand_barrels", count=20)
     armament = "Installed on the hardpoint is one triple turret armed with a missile and a "
@@ -1329,7 +1328,7 @@ def test_the_ammunition_sentences_follow_the_designs_ammunition_order():  # FR-0
     )
 
 
-def test_the_screen_groups_follow_the_designs_screen_order():  # FR-024a
+def test_the_screen_groups_follow_the_designs_screen_order():
     damper = ScreenFit(kind="nuclear_damper")
     meson = ScreenFit(kind="meson_screen")
 
@@ -1401,7 +1400,7 @@ def test_the_out_of_order_fixture_is_fitted_against_every_table_order():
     assert screens != _table_order(screens, SCREENS)
 
 
-def test_every_clause_of_the_out_of_order_fixture_follows_the_design():  # FR-024a
+def test_every_clause_of_the_out_of_order_fixture_follows_the_design():
     ship = build_ship(_OUT_OF_ORDER)
 
     assert _slot(ship, "_weapons") == (
@@ -1420,7 +1419,7 @@ def test_every_clause_of_the_out_of_order_fixture_follows_the_design():  # FR-02
     )
 
 
-# --- T055/T056: author prose reaches the paragraph intact ------------------
+# --- author prose reaches the paragraph intact -----------------------------
 #
 # `_hull` interpolates `design.purpose` and `_ship_name` the design's name, both
 # verbatim. The shapes that would break the paragraph are rejected at the design
@@ -1431,9 +1430,9 @@ def test_every_clause_of_the_out_of_order_fixture_follows_the_design():  # FR-02
 @pytest.mark.parametrize(
     "bad",
     [
-        "a fast trader.",  # would render "... is a fast trader.." (SC-001)
-        "a trader ",  # would render "... is a trader ." (FR-021a)
-        "a trader\nof repute",  # would put a line break in the paragraph (FR-001a)
+        "a fast trader.",  # would render "... is a fast trader.."
+        "a trader ",  # would render "... is a trader ."
+        "a trader\nof repute",  # would put a line break in the paragraph
     ],
 )
 def test_a_purpose_the_paragraph_cannot_carry_never_reaches_the_renderer(bad):
@@ -1441,7 +1440,7 @@ def test_a_purpose_the_paragraph_cannot_carry_never_reaches_the_renderer(bad):
         _simple_design(purpose=bad)
 
 
-def test_an_authored_purpose_keeps_the_paragraph_grammatical():  # FR-021a, SC-001
+def test_an_authored_purpose_keeps_the_paragraph_grammatical():
     purpose = "a courier (fast, well-armed) hauling the Duke's mail"
     paragraph = _paragraph(build_ship(_simple_design(purpose=purpose)))
 
@@ -1452,7 +1451,7 @@ def test_an_authored_purpose_keeps_the_paragraph_grammatical():  # FR-021a, SC-0
 
 
 @pytest.mark.parametrize("blank", ["", "   "])
-def test_a_blank_name_reads_as_no_name_in_both_places(blank):  # FR-029b
+def test_a_blank_name_reads_as_no_name_in_both_places(blank):
     heading, paragraph = _split(render_description(build_ship(_simple_design(name=blank))))
 
     assert heading == f"TL{build_ship(_simple_design()).tech_level} Unnamed Ship"
@@ -1461,7 +1460,7 @@ def test_a_blank_name_reads_as_no_name_in_both_places(blank):  # FR-029b
     assert "  " not in paragraph
 
 
-# --- T021 (US2): an author-supplied name is never overwritten (ship-names FR-014, SC-006) ---
+# --- an author-supplied name is never overwritten ---
 
 
 def test_an_author_supplied_name_always_wins():
@@ -1472,7 +1471,7 @@ def test_an_author_supplied_name_always_wins():
     assert "the Star of India is a starship." in paragraph
 
 
-# --- T010 (US1): a generated ship's description is always named (FR-012, SC-001) --
+# --- a generated ship's description is always named -----------------------
 
 
 def test_a_generated_starship_description_carries_its_name_never_unnamed():
@@ -1493,7 +1492,7 @@ def test_a_generated_small_craft_description_carries_its_name_never_unnamed():
     assert "Unnamed Ship" not in text
 
 
-# --- T057: every hangar entry is named by its own row (SC-007, FR-031) -----
+# --- every hangar entry is named by its own row ----------------------------
 
 
 def _drone_bay() -> FittingRow:
@@ -1526,7 +1525,7 @@ def test_two_vehicle_sized_rows_are_each_named_by_their_own_row():
     )
 
 
-def test_hangar_kinds_follow_the_design_order():  # FR-024a
+def test_hangar_kinds_follow_the_design_order():
     with pytest.MonkeyPatch.context() as patch:
         patch.setitem(FITTINGS, "drone_bay", _drone_bay())
         design = _simple_design(
@@ -1543,15 +1542,15 @@ def test_hangar_kinds_follow_the_design_order():  # FR-024a
     )
 
 
-# --- T017/T018 (US2): the prose reports an honest, non-zero jump range -----
-# (FR-007, SC-004). `description.py` itself is untouched by the fuel-limited
+# --- the prose reports an honest, non-zero jump range -----------------------
+# `description.py` itself is untouched by the fuel-limited
 # jump-drive fix; these tests assert the behaviour that fix delivers, not a
 # code change here.
 
 
 def _fr014_budget_tons(ship) -> float:
     """Recompute the mandatory-systems tonnage budget from a *finished* ship's
-    own hull, maneuver drive and power plant (FR-014), so the FR-014
+    own hull, maneuver drive and power plant, so the starved-hull
     classification below depends on nothing internal to the generator."""
     from cetools.engine.ships.generator import _bridge_tons
 
@@ -1563,10 +1562,10 @@ def _fr014_budget_tons(ship) -> float:
 
 
 def _is_fr014_starved_hull_ship(ship) -> bool:
-    """A ship is an FR-014 ship exactly when its jump fuel falls short of one
-    complete jump at its installed rating *and* no drive legal for its hull
-    could have been fuelled for one complete jump within its own tonnage
-    budget (FR-014) — both halves recomputable from the finished
+    """A ship is a starved-hull ship exactly when its jump fuel falls short of
+    one complete jump at its installed rating *and* no drive legal for its
+    hull could have been fuelled for one complete jump within its own tonnage
+    budget — both halves recomputable from the finished
     ship rather than from generator internals."""
     if ship.jump_fuel >= 0.1 * ship.hull_tons * ship.jump_rating:
         return False
@@ -1605,14 +1604,14 @@ def test_the_drive_letter_jump_rating_and_jump_count_agree():
         assert "one Jump-" in fuel
 
 
-# --- T053 (Polish): FR-014's scoping stops at the CLI (research.md Decision 10) ---
+# --- scoping stops at the CLI ---
 
 
 def test_srd_hyphenation_survives_the_prompts_spacing():
-    """FR-014 spaces a stored key for display at the interactive prompt
+    """The interactive prompt spaces a stored key for display
     (`pop up`, `self sealing`); the SRD's own hyphenated wording must not
     follow that rule out of the CLI and into the rules text this renders
-    (Constitution I)—this is the guard against a global rename."""
+    —this is the guard against a global rename."""
     design = _simple_design(
         turrets=(TurretFit(mount="pop_up", weapons=("pulse_laser",)),),
         armor=(ArmorFit(type=ArmorType.CRYSTALIRON, percent=5, options=("self_sealing",)),),

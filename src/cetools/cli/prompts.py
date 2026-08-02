@@ -1,9 +1,9 @@
 """Text composition for interactive ship-design prompts.
 
 Five pure functions, consulting no rule: `spell`/`key` are the display/stored
-spelling round trip (FR-014, FR-015), `numbers` collapses an ascending run of
-integers for display (FR-005), `split_values` splits an answer naming several
-values by greedy longest-match (FR-015, FR-018), and `offer` composes the
+spelling round trip, `numbers` collapses an ascending run of
+integers for display, `split_values` splits an answer naming several
+values by greedy longest-match, and `offer` composes the
 `question (values{note})` text every closed-set prompt shares.
 """
 
@@ -100,7 +100,7 @@ def offer(question: str, values: Iterable[str], *, note: str = "") -> str:
 
     Returns `question` unchanged when `values` is empty and no `note` is
     given, and emits `note` alone, still parenthesised, when `values` is empty
-    (FR-012's phrasing for an empty narrowed set).
+    (the phrasing for an empty narrowed set).
     """
     values = list(values)
     if not values and not note:

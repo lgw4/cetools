@@ -1,8 +1,8 @@
 # Warship "Ironclad" -- an 800-ton turret-armed cruiser: titanium steel
 # armor, a hardened computer, two double turrets and a missile turret, with
-# sand barrels and missiles loaded (research Part H).
+# sand barrels and missiles loaded.
 #
-# Hand-worked SRD reference figures (SC-002):
+# Hand-worked SRD reference figures:
 #   jump_rating = 1, maneuver_rating = 1, power_rating = 1
 #   jump_fuel = 80.0 (assumed_jump_distance = 1), power_fuel = 8.0
 #   tonnage_used = 268.0, cargo_tons = 532.0

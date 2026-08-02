@@ -4,7 +4,7 @@ Selects rules-legal components through the `Rolls` seam, reading the same
 `tables.py` data `build_ship` validates against, and assembles a `ShipDesign`
 that is legal by construction: tonnage is tracked against a running budget so
 no candidate is ever chosen that would over-allocate the hull. Ends by calling
-`build_ship`, so a generated ship can never be rules-illegal (FR-016, SC-003).
+`build_ship`, so a generated ship can never be rules-illegal.
 
 Everything a referee pins arrives on one `DesignConstraints` value rather than
 as a keyword per field, so the interactive wizard in `cli/ship.py` is a thin
@@ -17,7 +17,7 @@ power drive codes are chosen together, since a small hull's tight tonnage budget
 means the choice must be filtered for affordability up front rather than
 corrected after the fact (unlike the starship path's looser margins).
 
-Bays and screens (SRD "Bays" and "Screens", FR-020) are only ever offered on the
+Bays and screens (SRD "Bays" and "Screens") are only ever offered on the
 standard-hull path, and only among kinds that fit the hardpoints and tonnage
 still free after turrets are chosen—never on small craft, which forbid bays
 outright.
@@ -291,8 +291,8 @@ def fitting_kinds() -> tuple[str, ...]:
 
     Excludes the vehicle-sized fittings (`tons` is `None`, sized instead from
     `FittingFit.vehicle_tons`)—derived from the table row rather than a
-    hard-coded name, so a second vehicle-sized fitting drops out with no edit
-    (FR-024). Pairs with `FittingFit`'s kind validation in `models.py`.
+    hard-coded name, so a second vehicle-sized fitting drops out with no edit.
+    Pairs with `FittingFit`'s kind validation in `models.py`.
     """
     return tuple(kind for kind, row in FITTINGS.items() if row.tons is not None)
 
@@ -534,8 +534,7 @@ def _lightest_code_at(
     """The lightest of `candidates` delivering `rating` on this hull, or `None`.
 
     The same rule `_fit_jump_drive` already applies to a drawn drive, applied to
-    a pinned one: tonnage not spent on the drive flows on to fuel and fittings
-    (FR-004).
+    a pinned one: tonnage not spent on the drive flows on to fuel and fittings.
     """
     table = _ratings_table(hull_class)
     tons_of = _DRIVE_TONS[drive]
@@ -660,7 +659,7 @@ def _pin_or_draw[T](
 
     A pinned value's tonnage is the only thing checked here. Whether it is
     *legal* was settled when the referee's answer became a component-fit record,
-    which validates its own kind against the SRD tables (FR-015).
+    which validates its own kind against the SRD tables.
     """
     if pinned is ABSENT:
         return None
@@ -1353,16 +1352,16 @@ def generate_ship(
     be honoured. Reach for `.ship` when you do not care.
 
     `rolls` defaults to `RandomRolls()`; pass `RandomRolls.seeded(seed)` for
-    reproducibility (FR-017). `constraints` carries what the referee pinned:
+    reproducibility. `constraints` carries what the referee pinned:
     `hull_tons` constrains generation to a tabulated hull size while staying
-    legal (FR-018), and `hull_class` selects the 10-95 ton small-craft ruleset
-    (FR-019). Left at its default, nothing is pinned and every value is rolled.
+    legal, and `hull_class` selects the 10-95 ton small-craft ruleset.
+    Left at its default, nothing is pinned and every value is rolled.
 
     A pinned value consumes no dice, so the unconstrained draw sequence is
     byte-identical to the one `tests/data/baseline/designs.json` pins.
 
     `generate_ship_name` is drawn last on both paths, after every component
-    decision (FR-010a). `RandomRolls` wraps one `random.Random` stream, so a
+    decision. `RandomRolls` wraps one `random.Random` stream, so a
     draw inserted anywhere else would shift every later draw and change the
     hull, drives and armament a seed produces—naming would stop being purely
     additive.

@@ -62,7 +62,7 @@ def test_render_profile_round_trips_via_pseudohex():
     assert from_pseudohex(tech_level_char) == world.tech_level
 
 
-# --- Full world-data line (Phase 4 / US2) ---
+# --- Full world-data line (Phase 4) ---
 
 
 def _line_world(**overrides):
@@ -129,7 +129,6 @@ def test_data_line_no_bases_renders_blank_base_code():
 
 
 def test_unspecified_allegiance_defaults_to_and_renders_na():
-    # FR-017
     system = _system()
     assert system.allegiance == "Na"
     assert render_data_line(system).endswith("Na")

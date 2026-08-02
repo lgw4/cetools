@@ -47,7 +47,7 @@ def _small_craft(**overrides):
     return ShipDesign(**kwargs)
 
 
-# --- SC-002: golden SRD reference designs ---
+# --- golden SRD reference designs ---
 
 
 def test_free_trader_golden_figures():
@@ -196,8 +196,8 @@ def test_warship_golden_figures():
 
 
 def test_warship_loaded_ammunition_is_allocated_and_never_discounted():
-    # The fixture's ammunition (FR-010) rides a standard_design hull, so it
-    # also pins FR-013's rule that the 10% discount never touches ammunition.
+    # The fixture's ammunition rides a standard_design hull, so it
+    # also pins the rule that the 10% discount never touches ammunition.
     ship = build_ship(load_design(f"{_EXAMPLES}/warship.toml"))
 
     sand = next(item for item in ship.line_items if item.name == "sand_barrels ammo")
@@ -211,7 +211,7 @@ def test_warship_loaded_ammunition_is_allocated_and_never_discounted():
     assert missiles.discountable is False
 
 
-# --- FR-015 / SC-005: rejections, one per builder-enforced constraint ---
+# --- rejections, one per builder-enforced constraint ---
 
 
 def test_rejects_an_untabulated_hull_size():
@@ -340,7 +340,7 @@ def test_one_half_ton_past_an_exact_fill_is_rejected():
         build_ship(design)
 
 
-# --- FR-009: every quarters type the SRD tabulates (research Part G) ---
+# --- every quarters type the SRD tabulates ---
 
 
 def test_low_berths_allocate_their_srd_tonnage_and_cost():
@@ -384,7 +384,7 @@ def test_all_three_quarters_types_are_allocated_together():
     }
 
 
-# --- FR-008 / T022: the vault's +4 hull and structure points ---
+# --- the vault's +4 hull and structure points ---
 
 
 def _hull_and_structure(**overrides):
@@ -424,7 +424,7 @@ def test_a_small_craft_still_carries_a_navigator():
     # The SRD's navigator minimum has exactly one exception
     # (Jump-Control software) and the small-craft section never touches crew, so
     # a jump-incapable small craft still shows a navigator. Inventing a
-    # small-craft carve-out the source page does not state would violate FR-002.
+    # small-craft carve-out the source page does not state would be incorrect.
     ship = build_ship(load_design(f"{_EXAMPLES}/fighter.toml"))
 
     assert ship.jump_rating == 0
@@ -440,7 +440,7 @@ def test_a_small_craft_navigator_still_yields_to_jump_control_software():
 
 
 def test_vehicle_hangar_is_sized_and_costed_from_its_vehicle_tons():
-    # FR-009 names the vehicle hangar; it is the one fitting whose figures come
+    # The vehicle hangar is the one fitting whose figures come
     # from the design (vehicle tons x1.3 tons, MCr0.2/ton) rather than a fixed
     # table row, via FittingRow's per-vehicle-ton columns.
     design = ShipDesign(
@@ -471,7 +471,7 @@ def test_vehicle_hangar_quantity_multiplies_tonnage_and_cost():
 
 
 def test_a_new_vehicle_sized_fitting_needs_no_builder_change(monkeypatch):
-    # T090/SC-006: the builder branches on FittingRow's per-vehicle-ton columns,
+    # The builder branches on FittingRow's per-vehicle-ton columns,
     # not on the literal key "vehicle_hangar", so a second SRD vehicle-sized
     # fitting is a data-only edit.
     monkeypatch.setitem(
@@ -516,7 +516,7 @@ def test_a_new_vehicle_sized_fitting_requires_vehicle_tons(monkeypatch):
         FittingFit(kind="synthetic_bay_deck")
 
 
-# --- FR-015: first violation in SRD build order wins ---
+# --- first violation in SRD build order wins ---
 
 
 def test_first_violation_in_build_order_is_reported():
@@ -536,7 +536,7 @@ def test_hull_size_violation_precedes_a_drive_violation():
 def test_hull_size_violation_precedes_a_power_weeks_violation():
     # Hull (build order 1) precedes fuel (build order after power); a design
     # broken in both places must report the hull error, not the power_weeks
-    # error (this is the same defect T068 fixed for the 5%-armor rule).
+    # error (this is the same defect fixed for the 5%-armor rule).
     design = ShipDesign(hull_tons=150, jump_code="A", power_code="A", power_weeks=1)
     with pytest.raises(ValueError, match="not a tabulated hull size"):
         build_ship(design)
@@ -555,7 +555,7 @@ def test_hull_size_violation_precedes_an_armor_increment_violation():
         build_ship(design)
 
 
-# --- FR-007: jump-control's "+5 jump rating" (SRD "Ship Computer Options") ---
+# --- jump-control's "+5 jump rating" (SRD "Ship Computer Options") ---
 
 
 def test_jump_control_option_raises_the_effective_software_rating_by_5():
@@ -668,7 +668,7 @@ def test_armor_options_add_a_per_ton_cost():
     assert with_reflec.total_cost > bare.total_cost
 
 
-# --- FR-010 / FR-013: turret ammunition tonnage, cost, and the discount ---
+# --- turret ammunition tonnage, cost, and the discount ---
 
 
 def test_120_missiles_add_10_tons():
@@ -740,9 +740,9 @@ def test_standard_design_discount_leaves_ammunition_untouched():
 
 
 def test_a_fitting_whose_name_ends_in_fuel_is_still_discounted(monkeypatch):
-    # T081: the discount exemption is `LineItem.discountable`, not a
+    # The discount exemption is `LineItem.discountable`, not a
     # `name.endswith("fuel"/"ammo")` check, so a fitting that happens to be
-    # named like fuel is not silently exempted (SC-006).
+    # named like fuel is not silently exempted.
     monkeypatch.setitem(
         FITTINGS,
         "backup_fuel",
@@ -779,7 +779,7 @@ def test_small_craft_armor_floors_at_1_ton_per_5_percent_rather_than_rejecting()
     assert armor_item.tons == pytest.approx(1.0)
 
 
-# --- T078: bridge/cockpit must pair with the hull's HullClass (FR-019 / FR-007) ---
+# --- bridge/cockpit must pair with the hull's HullClass ---
 
 
 def test_rejects_a_small_craft_built_with_a_bridge():
@@ -800,7 +800,7 @@ def test_rejects_a_starship_built_with_a_cockpit():
         build_ship(design)
 
 
-# --- US3: small craft (SRD "Small Craft Design") ---
+# --- small craft (SRD "Small Craft Design") ---
 
 
 def test_small_craft_has_a_cockpit_line_not_a_bridge():
@@ -860,7 +860,7 @@ def test_non_energy_weapons_are_never_capped_on_small_craft():
     build_ship(design)  # does not raise: sandcaster is not an energy weapon
 
 
-# --- US4: bays and screens (SRD "Bays", "Screens") ---
+# --- bays and screens (SRD "Bays", "Screens") ---
 
 
 def test_bay_consumes_50_tons_plus_1_ton_fire_control_and_one_hardpoint():
@@ -935,7 +935,7 @@ def test_bay_on_a_small_craft_is_rejected():
         build_ship(design)
 
 
-# --- FR-028: the derived tech level ---
+# --- the derived tech level ---
 
 
 def _tl(**overrides):
@@ -946,7 +946,7 @@ def _tl(**overrides):
 
 
 def test_a_design_with_no_purchased_electronics_still_derives_at_least_eight():
-    # FR-028c: every ship carries the Standard package included in its bridge
+    # Every ship carries the Standard package included in its bridge
     # or cockpit, so the derived value has a floor of ELECTRONICS["standard"].tl.
     assert _tl() == ELECTRONICS["standard"].tl == 8
 
@@ -1061,7 +1061,7 @@ def test_a_fixed_mount_contributes_no_tech_level():
 def test_untabulated_categories_contribute_nothing(overrides):
     # Hulls, drives, configurations, cockpits, quarters,
     # fittings and software carry no SRD tech level. This is a finding, not an
-    # omission -- inventing one would violate FR-028a.
+    # omission -- inventing one would not be supported by the SRD.
     assert _tl(**overrides) == ELECTRONICS["standard"].tl
 
 
@@ -1070,7 +1070,7 @@ def test_an_explicit_tech_level_above_the_derived_value_is_used_as_given():
 
 
 def test_an_explicit_tech_level_below_the_derived_value_is_used_as_given():
-    # FR-028b: never clamped, never warned about. A TL 3 hull yard building a
+    # Never clamped, never warned about. A TL 3 hull yard building a
     # TL 12 sensor suite is the designer's statement, not cetools' to correct.
     assert _tl(electronics="very_advanced", tech_level=3) == 3
 
@@ -1080,7 +1080,7 @@ def test_an_explicit_tech_level_of_zero_is_used_as_given():
 
 
 def test_the_derived_tech_level_changes_no_other_computed_value():
-    # FR-032: supplying design.tech_level is presentation only.
+    # Supplying design.tech_level is presentation only.
     plain = build_ship(ShipDesign(hull_tons=200, jump_code="A", power_code="A"))
     overridden = build_ship(
         ShipDesign(hull_tons=200, jump_code="A", power_code="A", tech_level=15)
@@ -1090,7 +1090,7 @@ def test_the_derived_tech_level_changes_no_other_computed_value():
     assert dataclasses.replace(plain, design=overridden.design, tech_level=15) == overridden
 
 
-# --- T020 (US2): build_ship never assigns a name (ship-names FR-015) --------
+# --- build_ship never assigns a name --------------------------------------
 
 
 def test_build_ship_assigns_no_name():
@@ -1111,7 +1111,7 @@ def test_build_ship_consumes_no_randomness(monkeypatch):
     build_ship(design)  # does not raise
 
 
-# --- FR-012 / SC-010: authored designs are unaffected by fuel-limited fitting ---
+# --- authored designs are unaffected by fuel-limited fitting ---
 
 _AUTHORED_DESIGNS_PATH = "tests/data/baseline/authored_designs.json"
 _AUTHORED_EXAMPLES = (
@@ -1155,7 +1155,7 @@ def test_sc010_authored_example_designs_build_unchanged_from_before_the_change(p
 
 
 def test_a_new_row_with_a_tech_level_widens_the_derivation_with_no_code_change(monkeypatch):
-    # SC-007: the walk is over the fitted components' rows, not over a
+    # The walk is over the fitted components' rows, not over a
     # per-category list of "things that have a TL".
     monkeypatch.setitem(
         SCREENS,

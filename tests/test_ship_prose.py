@@ -18,7 +18,7 @@ from cetools.engine.ships.prose import (
     tons,
 )
 
-# --- count: words zero-ten, digits above ten (FR-022) ---
+# --- count: words zero-ten, digits above ten ---
 
 COUNT_CASES = [
     (0, "zero"),
@@ -52,7 +52,7 @@ def test_count_never_emits_a_thousands_separator():
     assert count(12345) == "12345"
 
 
-# --- tons: the count rule when whole, digits when fractional (FR-022b) ---
+# --- tons: the count rule when whole, digits when fractional ---
 
 TONS_CASES = [
     (0, "zero"),
@@ -85,7 +85,7 @@ def test_tons_never_emits_a_dangling_decimal_point():
         assert not tons(value).endswith(".")
 
 
-# --- number: digits always (FR-022a, FR-025) ---
+# --- number: digits always ---
 
 NUMBER_CASES = [
     (0, "0"),
@@ -131,7 +131,7 @@ def test_number_strips_the_float_accumulation_artefact():
     assert number(29.771999999999998) == "29.772"
 
 
-# --- money: number plus thousands separators (FR-020, FR-025, FR-025a) ---
+# --- money: number plus thousands separators ---
 
 MONEY_CASES = [
     (0, "0"),
@@ -164,7 +164,7 @@ def test_money_never_emits_a_dangling_decimal_point():
         assert not money(value).endswith(".")
 
 
-# --- signed: an explicit sign at every magnitude (FR-009) ---
+# --- signed: an explicit sign at every magnitude ---
 
 SIGNED_CASES = [(-4, "-4"), (-2, "-2"), (0, "+0"), (1, "+1"), (2, "+2"), (12, "+12")]
 
@@ -178,7 +178,7 @@ def test_signed_zero_is_plus_zero_never_bare_zero():
     assert signed(0) == "+0"
 
 
-# --- plural: the caller supplies both spellings (FR-023) ---
+# --- plural: the caller supplies both spellings ---
 
 
 @pytest.mark.parametrize("n", [0, 2, 3, 11, 120])
@@ -199,7 +199,7 @@ def test_plural_never_derives_a_spelling_by_suffix():
 # The description agrees a noun with a *tonnage* in three places -- fuel tankage,
 # cargo capacity and hangar capacity -- and `Ship.jump_fuel`, `Ship.power_fuel`
 # and `Ship.cargo_tons` are all floats, so `plural` is called with a float there
-# as often as with an int. Both domains are pinned here (FR-023, FR-022b).
+# as often as with an int. Both domains are pinned here.
 @pytest.mark.parametrize("value", [0.0, 0.5, 1.3, 2.0, 6.2, 22.0])
 def test_plural_uses_the_plural_form_for_a_tonnage_that_is_not_one(value):
     assert plural(value, "ton", "tons") == "tons"
@@ -209,7 +209,7 @@ def test_plural_uses_the_singular_form_for_a_tonnage_of_exactly_one():
     assert plural(1.0, "ton", "tons") == "ton"
 
 
-# --- join: commas and a final "and", no serial comma (FR-024) ---
+# --- join: commas and a final "and", no serial comma ---
 
 JOIN_CASES = [
     ([], ""),
@@ -239,7 +239,7 @@ def test_join_accepts_a_tuple_as_well_as_a_list():
     assert join(("a", "b")) == "a and b"
 
 
-# --- article: "an" before a vowel letter (FR-023a) ---
+# --- article: "an" before a vowel letter ---
 
 ARTICLE_CASES = [
     ("armory", "an"),
@@ -294,7 +294,7 @@ def test_tonnage_article_covers_every_tabulated_hull_size():
         assert tonnage_article(hull_tons) in ("a", "an")
 
 
-# --- FR-022c: the three numeric helpers occupy disjoint domains ---
+# --- the three numeric helpers occupy disjoint domains ---
 
 
 @pytest.mark.parametrize("value", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
@@ -302,7 +302,7 @@ def test_count_and_tons_agree_and_both_disagree_with_number_on_a_whole_value(val
     # A slot rendered by the wrong helper must be detectable: `count` and `tons`
     # spell a small whole value as a word, `number` always as digits. Rendering
     # "2 tons allocated to fire control" instead of "two tons" is therefore a
-    # visible difference, not a silent one (FR-022c).
+    # visible difference, not a silent one.
     assert count(value) == tons(value)
     assert count(value).isalpha()
     assert number(value).isdigit()

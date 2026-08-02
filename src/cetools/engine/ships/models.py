@@ -4,7 +4,7 @@ Two record families: `ShipDesign` (declarative input, mirrors the TOML schema) a
 `Ship` (computed output, carries its originating `ShipDesign`). Every validator
 below checks *shape*, never SRD *rules*: a design that is well-formed but
 rules-illegal (e.g. a small craft with a jump drive) constructs cleanly here and is
-rejected only by `build_ship` (FR-015).
+rejected only by `build_ship`.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ from cetools.engine.ships.tables import (
 
 def _ammo_kinds() -> set[str]:
     """Every ammunition kind `AMMO` prices. Derived, never restated: a new SRD
-    ammunition row must be a data-only edit (SC-006)."""
+    ammunition row must be a data-only edit."""
     return {row.kind for row in AMMO.values()}
 
 
@@ -84,8 +84,7 @@ class HullClass(Enum):
 
 def _validate_armor_fit(fit: ArmorFit) -> None:
     """Shape only: `percent` must be a positive integer. Whether it is a multiple
-    of 5 is an SRD *rule*, checked by `build_ship`'s armor step, not here
-    (FR-015)."""
+    of 5 is an SRD *rule*, checked by `build_ship`'s armor step, not here."""
     if fit.percent <= 0:
         raise ValueError(f"armor percent must be positive, got {fit.percent}")
     unknown = set(fit.options) - set(ARMOR_OPTIONS)
@@ -232,7 +231,7 @@ def _validate_bay_fit(fit: BayFit) -> None:
 
 @dataclass(frozen=True)
 class BayFit:
-    """One 50-ton weapon bay (starship only; FR-020)."""
+    """One 50-ton weapon bay (starship only)."""
 
     kind: str
 
@@ -260,8 +259,8 @@ class ScreenFit:
 
 _TRAILING_PUNCTUATION = ".!?…,;:"
 """Punctuation an authored `purpose` must not end with. The renderer closes the
-first sentence itself (FR-029), so an authored period orphans one ("... is a
-fast trader..") and an authored comma dangles one, which FR-021a forbids."""
+first sentence itself, so an authored period orphans one ("... is a
+fast trader..") and an authored comma dangles one, which is disallowed."""
 
 
 def _validate_author_prose(value: str, field: str) -> None:
@@ -269,8 +268,8 @@ def _validate_author_prose(value: str, field: str) -> None:
 
     `name` and `purpose` are interpolated verbatim into the heading and the
     first sentence, so a line break inside either would split the paragraph in
-    two (FR-001a), and stray or doubled whitespace would render as the space
-    before a period, or the doubled space, that FR-021a rules out. Validation
+    two, and stray or doubled whitespace would render as the space
+    before a period, or the doubled space, which is disallowed. Validation
     rather than normalisation: the value is author prose that appears in the
     output as written, and every other check here reports rather than rewrites.
     """
@@ -315,7 +314,7 @@ def _validate_ship_design(design: ShipDesign) -> None:
         if not isinstance(design.name, str):
             raise ValueError(f"name must be a string, got {type(design.name).__name__}")
         # A blank name is *no* name: the description falls back to its
-        # placeholder rather than rendering a heading that trails off (FR-029b).
+        # placeholder rather than rendering a heading that trails off.
         if design.name.strip():
             _validate_author_prose(design.name, "name")
 
@@ -331,7 +330,7 @@ def _validate_ship_design(design: ShipDesign) -> None:
                 f"sentence's own: {design.purpose!r}"
             )
 
-    # FR-028b: shape only. An explicit tech level is a statement about the yard
+    # Shape only. An explicit tech level is a statement about the yard
     # that built the ship, never compared against the value `build_ship`
     # derives from the fitted components, and never clamped to it.
     if design.tech_level is not None:
@@ -389,10 +388,10 @@ class ShipDesign:
     name: str | None = None
     purpose: str | None = None
     """The clause completing "the <name> is ..." in the description's first
-    sentence (FR-029). Author-supplied prose, rendered verbatim and carrying no
+    sentence. Author-supplied prose, rendered verbatim and carrying no
     trailing period; cetools never generates one."""
     tech_level: int | None = None
-    """The designer's override for the heading's tech level (FR-028, FR-028b).
+    """The designer's override for the heading's tech level.
     `build_ship` uses it as given; when it is `None` the tech level is derived
     from the fitted components."""
 
@@ -467,10 +466,10 @@ class LineItem:
     """One costed, tonnage-consuming component of a built ship.
 
     `discountable` defaults to `True`; the builder sets it `False` on jump
-    fuel, power-plant fuel, and ammunition, which the SRD never discounts
-    (FR-013). This is an explicit flag rather than a name-suffix check, so a
+    fuel, power-plant fuel, and ammunition, which the SRD never discounts.
+    This is an explicit flag rather than a name-suffix check, so a
     future SRD entry whose name happens to end in "fuel" or "ammo" is not
-    silently exempted from the 10% standard-design discount (SC-006).
+    silently exempted from the 10% standard-design discount.
     """
 
     name: str
@@ -513,7 +512,7 @@ def _validate_ship(ship: Ship) -> None:
 class Ship:
     """The computed ship: produced by `build_ship(design)` and `generate_ship(...)`.
 
-    Carries its originating `design` so a ship round-trips losslessly (SC-008).
+    Carries its originating `design` so a ship round-trips losslessly.
     Carries no rendering method: `ships/description.py`'s
     `render_description(ship)` is the sole reader, so `models.py` never imports
     `description.py`.
@@ -522,7 +521,7 @@ class Ship:
     design: ShipDesign
     tech_level: int
     """`design.tech_level` when the designer supplied one, otherwise the highest
-    tech level among the fitted components (FR-028). Always an `int`, never
+    tech level among the fitted components. Always an `int`, never
     `None`: every ship carries the Standard electronics package included in its
     bridge or cockpit, so the derived value floors at `ELECTRONICS["standard"].tl`."""
     hull_tons: int

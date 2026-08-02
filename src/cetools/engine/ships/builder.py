@@ -4,7 +4,7 @@ Follows the SRD build order ("Ship Design Checklist") exactly: hull, armor, mane
 drive, jump drive, power plant, fuel, bridge, computer/software, electronics,
 quarters, fittings, turrets, bays, screens, cargo, crew, cost, build time.
 Every SRD rule check lives here, in that order, so a design that violates
-several reports the first violation in build order (FR-015, SC-005).
+several reports the first violation in build order.
 `ShipDesign.__post_init__` already guarantees the record is well-formed; this
 module only ever rejects *rules* violations.
 
@@ -45,7 +45,7 @@ from cetools.engine.ships.tables import (
 
 _COCKPIT_COST_PER_20_TONS = 0.1
 BAY_FIRE_CONTROL_TONS = 1.0
-"""Fire control a weapon bay needs beyond its own 50 t (research Part H). Not
+"""Fire control a weapon bay needs beyond its own 50 t. Not
 tabulated data—applied uniformly to every bay kind—so it lives here rather
 than in `tables.BAYS`, and `generator.py` imports it for the same allocation."""
 
@@ -59,8 +59,8 @@ than being one), so it lives here rather than in `tables.py`."""
 
 def _drive_letter(code: str) -> str:
     """The bare A-Z drive letter a small-craft "s"-prefixed code shares with
-    ``DRIVE_COSTS`` (research Part K: component tonnage/cost is unified across
-    both rulesets; only performance is looked up from a separate table)."""
+    ``DRIVE_COSTS`` (component tonnage/cost is unified across both rulesets;
+    only performance is looked up from a separate table)."""
     return code[1:] if code.startswith("s") else code
 
 
@@ -247,7 +247,7 @@ def _build_fittings(design: ShipDesign, items: list[LineItem]) -> int:
 def _ammo_row(ammo):
     """The `AMMO` row for one `AmmoFit`, matched on the row's ``kind``/``type``
     columns rather than on a key spelling, so a new SRD ammunition entry is a
-    data-only edit (SC-006). `AmmoFit`'s own validation guarantees a match."""
+    data-only edit. `AmmoFit`'s own validation guarantees a match."""
     return next(row for row in AMMO.values() if row.kind == ammo.kind and row.type == ammo.type)
 
 
@@ -320,7 +320,7 @@ def _fitted_rows(design: ShipDesign):
     """Every table row the design actually fits, in build order.
 
     Ship *software* is the one deliberate omission: the SRD's TL column for it
-    is a per-level floor ("9+", "10+"), not a value for the row, so FR-028a's
+    is a per-level floor ("9+", "10+"), not a value for the row, so this
     enumeration does not name it.
     """
     # `_build_hull` has already rejected an untabulated hull size by the time
@@ -346,7 +346,7 @@ def _fitted_rows(design: ShipDesign):
 
     # A design that buys no package still carries the Standard suite included
     # in its bridge or cockpit, which is why the derived value has a floor of 8
-    # and `Ship.tech_level` is never absent (FR-028c).
+    # and `Ship.tech_level` is never absent.
     yield ELECTRONICS[design.electronics or "standard"]
 
     for field_name, kind in (
@@ -375,11 +375,11 @@ def _fitted_rows(design: ShipDesign):
 
 
 def _derive_tech_level(design: ShipDesign) -> int:
-    """The highest tech level among the fitted components' rows (FR-028).
+    """The highest tech level among the fitted components' rows.
 
     Reads ``tl`` off whatever row is fitted rather than consulting a list of
     "categories that have a tech level", so adding a ``tl`` to an SRD row
-    widens the derivation with no change here (SC-007). A row carrying no
+    widens the derivation with no change here. A row carrying no
     ``tl`` column contributes nothing—the SRD tabulates none for hulls,
     configurations, drives, cockpits, quarters or fittings—and so does an
     individual ``tl`` of ``None``, which is the fixed mounting's "-" cell.
@@ -390,7 +390,7 @@ def _derive_tech_level(design: ShipDesign) -> int:
 
 def _total_cost(items: list[LineItem], *, discount: bool) -> float:
     """Sum every `LineItem`'s cost, applying the 10% standard-design discount
-    (research Part J) to every discountable item; fuel and ammunition are
+    to every discountable item; fuel and ammunition are
     marked `discountable=False` and are never discounted."""
     exempt = sum(item.cost for item in items if not item.discountable)
     discountable = sum(item.cost for item in items if item.discountable)
@@ -400,7 +400,7 @@ def _total_cost(items: list[LineItem], *, discount: bool) -> float:
 
 
 def build_ship(design: ShipDesign) -> Ship:
-    """The single validation authority for SRD ship-design rules (FR-015).
+    """The single validation authority for SRD ship-design rules.
 
     Pure and deterministic: the same `design` always yields an equal `Ship`.
     Raises `ValueError` naming the first violated rule in SRD build order.

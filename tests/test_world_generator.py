@@ -354,7 +354,7 @@ def test_generate_world_defaults_to_random_rolls():
     assert world.name
 
 
-# --- Statistical bounds (SC-001, SC-002) ---
+# --- Statistical bounds ---
 
 
 def test_statistical_bounds_over_many_unseeded_worlds():
@@ -383,7 +383,7 @@ def test_statistical_bounds_over_many_unseeded_worlds():
             assert 1 <= world.population_modifier <= 10
 
 
-# --- Determinism (FR-022, SC-005) ---
+# --- Determinism ---
 
 
 def test_generate_world_is_deterministic_given_the_same_seed():
@@ -392,7 +392,7 @@ def test_generate_world_is_deterministic_given_the_same_seed():
     assert world_a == world_b
 
 
-# --- Trade codes (Appendix C3, SC-003) ---
+# --- Trade codes (Appendix C3) ---
 
 
 def test_generate_world_assigns_multiple_matching_trade_codes():
@@ -478,8 +478,8 @@ def _scripted_trade_code_world(
 ):
     """Build a `World` via `generate_world`/`ScriptedRolls` landing on the exact given
     UWP values, by inverting each per-characteristic formula in generator.py. Used to
-    hand-verify trade-code assignment against Appendix C3 at specific, chosen values
-    (SC-003), rather than relying only on random sampling.
+    hand-verify trade-code assignment against Appendix C3 at specific, chosen values,
+    rather than relying only on random sampling.
     """
     from cetools.engine.worlds.tables import (
         HYDRO_DM_BY_ATMOSPHERE,
@@ -533,7 +533,7 @@ def _recompute_trade_codes(world) -> tuple[str, ...]:
     )
 
 
-# One hand-worked world per SC-003 classification (Ag, As, Ba, De, Fl, Ga, Hi, Ht, Ic,
+# One hand-worked world per trade-code classification (Ag, As, Ba, De, Fl, Ga, Hi, Ht, Ic,
 # In, Lo, Lt, Na, Ni, Po, Ri, Wa, Va), each built with values chosen inside that code's
 # Appendix C3 range. Some incidentally also satisfy a neighboring code (e.g. a Rich
 # world is often also Agricultural)-that is a correct multi-code result, not a bug.
@@ -595,7 +595,7 @@ def test_trade_code_reference_fixture_covers_every_classification():
     assert covered == {rule["code"] for rule in TRADE_CODES}
 
 
-# --- Travel zone (Amber rule, FR-016) ---
+# --- Travel zone (Amber rule) ---
 
 
 def test_travel_zone_amber_for_high_atmosphere():
@@ -876,7 +876,7 @@ def test_pirate_base_absent_when_naval_base_present():
     assert system.pirate_base is False
 
 
-# --- Statistical bounds (SC-004) ---
+# --- Statistical bounds ---
 
 
 def test_statistical_bounds_over_many_unseeded_systems():
@@ -912,7 +912,7 @@ def test_statistical_bounds_over_many_unseeded_systems():
     assert abs(naval_present_given_ab / ab_starports * 100 - 42) <= 2
 
 
-# --- Determinism (FR-022, SC-005) ---
+# --- Determinism ---
 
 
 def test_generate_system_is_deterministic_given_the_same_seed():
@@ -926,7 +926,7 @@ def test_generate_system_defaults_to_random_rolls():
     assert system.world.name
 
 
-# --- generate_subsector (Phase 5 / US3) ---
+# --- generate_subsector (Phase 5) ---
 
 
 def test_subsector_defaults_to_standard_density():
@@ -998,7 +998,7 @@ def test_statistical_occupancy_by_density():
         assert abs(occupied / total * 100 - expected) <= 2
 
 
-# --- Determinism (FR-022, SC-005) ---
+# --- Determinism ---
 
 
 def test_generate_subsector_is_deterministic_given_the_same_seed():

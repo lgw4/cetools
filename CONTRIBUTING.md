@@ -95,6 +95,43 @@ To run a single test file without coverage enforcement:
 uv run pytest tests/test_foo.py --no-cov
 ```
 
+## Engineering principles
+
+**SRD fidelity.** The [Cepheus Engine SRD](https://evolvedexperiment.github.io/cepheus-srd/index.html)
+is the authority on game rules. Tables are transcribed as data, separate from the code
+that reads them, and verified against the SRD text rather than against memory or another
+implementation. Any deliberate departure from the SRD must be a named, selectable policy
+rather than a silent default—house rules live behind `rules.py`'s `HOUSE` versus `SRD`
+value, and every departure must be documented in user-facing prose where a referee will
+see it. An undocumented divergence from the SRD is a defect.
+
+**Test-first.** Strict red-green TDD: write a test that specifies the desired behavior,
+run it and observe it fail for the expected reason, write the minimum implementation
+that makes it pass, then run the suite green and refactor with the suite still green.
+Skipping the observed-failure step is a violation even when the implementation is
+obvious—a test that passes before the implementation exists is not evidence. Tests
+mirror the source layout (`src/cetools/engine/foo.py` → `tests/test_foo.py`).
+
+**Determinism.** Every random decision the rules make passes through the single `Rolls`
+seam in `src/cetools/engine/rolls.py` and is named in `RollName`; direct use of the
+`random` module outside that seam is prohibited in engine code. Given the same seed and
+inputs, generation produces identical output—this is a correctness property rather than
+a testing convenience, since it is what makes `--seed` meaningful. Tests script rolls
+with `ScriptedRolls` rather than seeding `RandomRolls` and asserting on whatever emerges.
+
+**Simplicity.** YAGNI applies at every level: three similar lines are preferable to a
+premature abstraction, and a concrete function is preferable to a configurable one.
+Design for the requirement in hand, not a hypothetical successor.
+
+**Versioning.** The package version in `pyproject.toml` and release tags use CalVer in
+YYYY.0M.INC1 format (YYYY the year, 0M the zero-padded month, INC1 an increment
+resetting to 1 each month)—e.g. `2026.07.1`, `2026.07.2`, `2026.08.1`. Version numbers
+carry no compatibility semantics; breaking changes are communicated in the changelog and
+commit history. PEP 440 normalization strips the month's leading zero, so `2026.07.1`
+and `2026.7.1` are the same version and both appear correctly—`2026.07.1` in
+`pyproject.toml`, `2026.7.1` in `uv.lock` and from Python's package metadata. This is
+expected and must not be "corrected" by unpadding the authored form.
+
 ## Adding a new career
 
 All 24 SRD careers are implemented, so this is mostly a recipe for house careers

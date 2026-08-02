@@ -83,7 +83,7 @@ def test_v6_name_survives_ship_design_construction(entry):
     ShipDesign(hull_tons=100, name=entry.name)
 
 
-# --- T008: selection (FR-003, FR-011; contracts §generate_ship_name) -------
+# --- selection (contracts §generate_ship_name) ------------------------------
 
 
 def test_generate_ship_name_returns_the_scripted_catalogue_entry():
@@ -103,7 +103,7 @@ def test_generate_ship_name_always_returns_a_catalogue_name():
         assert generate_ship_name(rolls) in catalogue_names
 
 
-# --- T024 (US3): catalogue composition floors and caps (FR-008, FR-009, SC-005) ---
+# --- catalogue composition floors and caps ---
 # Assert floors and caps only, never exact counts, so adding a name is never a test edit.
 
 

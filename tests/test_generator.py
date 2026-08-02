@@ -47,7 +47,7 @@ def test_character_upp_is_six_pseudohex_chars() -> None:
     assert "O" not in result.upp
 
 
-# --- Name generation (US2) ---
+# --- Name generation ---
 
 
 def test_generated_character_has_non_empty_two_word_name() -> None:
@@ -109,7 +109,7 @@ def test_gate_failure_yields_non_psionic_character() -> None:
     assert result.talents == {}
 
 
-# --- T010: one integration test per SURVIVAL_MISHAPS_TABLE roll ---
+# --- one integration test per SURVIVAL_MISHAPS_TABLE roll ---
 
 
 def _mishap_character(mishap: int, injury: int | None = None) -> Character:
@@ -186,7 +186,7 @@ def test_mishap_roll_6_medical_discharge_with_injury() -> None:
 
 
 def test_draft_character_survival_failure_returns_character_not_failure() -> None:
-    # Proves FR-011: draft_character funnels through the same mishap-resolution
+    # draft_character funnels through the same mishap-resolution
     # path as generate_character/generate_career_character, never GenerationFailure.
     result = generate(
         DRAFT,
@@ -415,7 +415,7 @@ def test_rank_bonus_skills_granted_at_level_1() -> None:
     assert result.skills.get("Tactics") == 1, "rank-3 bonus should grant Tactics-1"
 
 
-# --- Extensibility (US3 preview) ---
+# --- Extensibility (preview) ---
 
 
 def test_generate_character_accepts_any_career_without_navy_hardcoding() -> None:
@@ -540,7 +540,7 @@ def test_drafted_defaults_to_false_for_a_chosen_career() -> None:
     assert result.drafted is False
 
 
-# --- T010: generate_career_character with Scout ---
+# --- generate_career_character with Scout ---
 
 
 def test_generate_career_character_returns_character() -> None:
@@ -570,7 +570,7 @@ def test_generate_career_character_two_skill_rolls_per_term() -> None:
         assert len(non_bt) == 2, f"Term {i + 1} expected 2 skill rolls, got {len(non_bt)}"
 
 
-# --- T010a: Education < 8 restricts Scout skill rolls to 3 tables ---
+# --- Education < 8 restricts Scout skill rolls to 3 tables ---
 
 
 def test_education_below_8_excludes_advanced_education_skills() -> None:
@@ -599,7 +599,7 @@ def test_education_8_or_above_can_access_advanced_education() -> None:
     assert "Medicine" in result.skills
 
 
-# --- T010b: single-term Scout muster out ---
+# --- single-term Scout muster out ---
 
 
 def test_single_term_scout_muster_out() -> None:
@@ -618,7 +618,7 @@ def test_single_term_scout_muster_out() -> None:
     assert len(result.benefits) == 1
 
 
-# --- T015: draft_character ---
+# --- draft_character ---
 
 
 def test_draft_character_roll_5_gives_scout() -> None:
@@ -664,7 +664,7 @@ def test_every_draft_roll_yields_a_character() -> None:
         assert result.drafted is True
 
 
-# --- T017: benefits/pension/debt matrix after 5+ completed terms (US3) ---
+# --- benefits/pension/debt matrix after 5+ completed terms ---
 
 _SCOUT_PRESET = {
     "Strength": 10,
@@ -737,7 +737,7 @@ def test_mishap_outcome_6_preserves_benefits_and_pension_after_five_terms() -> N
     assert result.debt == 0
 
 
-# --- T019: mishap during a character's very first term (edge case) ---
+# --- mishap during a character's very first term (edge case) ---
 
 
 def _generate_scout_first_term_mishap(mishap: int, injury: int | None = None) -> Character:
@@ -764,7 +764,7 @@ def test_first_term_mishap_yields_no_benefits_or_pension(mishap: int, injury: in
     assert result.pension is None
 
 
-# --- T011: two skill rolls per term recorded in term history ---
+# --- two skill rolls per term recorded in term history ---
 
 
 def test_two_skill_rolls_per_term_in_term_history() -> None:
@@ -844,7 +844,7 @@ def test_generated_character_has_psionics() -> None:
     assert result.psi_strength == max(0, 11 - result.terms_served)
 
 
-# --- T018: random_career_character ---
+# --- random_career_character ---
 
 
 def test_random_career_character_selects_career_by_first_roll() -> None:

@@ -117,7 +117,7 @@ def test_loads_design_rejects_an_unknown_armor_type():
 
 def test_a_well_formed_but_rules_illegal_design_loads_cleanly():
     # 150 tons is not a tabulated hull size, but that is build_ship's problem,
-    # not loads_design's (FR-015).
+    # not loads_design's.
     design = loads_design('hull_tons = 150\n\n[drives]\njump = "A"\npower = "A"')
     assert design.hull_tons == 150
     with pytest.raises(ValueError, match="not a tabulated hull size"):
@@ -125,7 +125,7 @@ def test_a_well_formed_but_rules_illegal_design_loads_cleanly():
 
 
 def test_loads_design_accepts_a_7_percent_armor_layer():
-    # The 5%-increment rule is build_ship's job, not loads_design's (FR-015):
+    # The 5%-increment rule is build_ship's job, not loads_design's:
     # the loader checks shape, never SRD rules.
     design = loads_design('hull_tons = 200\n\n[[armor]]\ntype = "titanium_steel"\npercent = 7')
     assert design.armor[0].percent == 7
@@ -134,7 +134,7 @@ def test_loads_design_accepts_a_7_percent_armor_layer():
 
 
 def test_armor_options_round_trip_through_toml():
-    """FR-020: a layer's once-only options load and dump identically."""
+    """A layer's once-only options load and dump identically."""
     design = loads_design(
         'hull_tons = 200\n\n[[armor]]\ntype = "crystaliron"\npercent = 10\n'
         'options = ["reflec", "stealth"]'
@@ -145,14 +145,14 @@ def test_armor_options_round_trip_through_toml():
 
 def test_loads_design_accepts_power_weeks_1_on_a_starship():
     # The >= 2 (starship) / >= 1 (small craft) floor is build_ship's job, not
-    # loads_design's (FR-015): the loader checks shape, never SRD rules.
+    # loads_design's: the loader checks shape, never SRD rules.
     design = loads_design('hull_tons = 200\n\n[drives]\njump = "A"\npower = "A"\npower_weeks = 1')
     assert design.power_weeks == 1
     with pytest.raises(ValueError, match="power_weeks must be >= 2 for a starship"):
         build_ship(design)
 
 
-# --- US3: small craft cockpit I/O (SRD "Small Craft Design") ---
+# --- small craft cockpit I/O (SRD "Small Craft Design") ---
 
 
 @pytest.mark.parametrize("cockpit", ["1_man", "2_man"])
@@ -180,8 +180,8 @@ def test_loads_design_rejects_a_bridge_and_cockpit_conflict():
 
 
 def test_a_small_craft_carrying_a_jump_drive_loads_cleanly():
-    # The jump drive is a small-craft rules violation, not a shape error
-    # (FR-015): loads_design accepts it and build_ship rejects it.
+    # The jump drive is a small-craft rules violation, not a shape error:
+    # loads_design accepts it and build_ship rejects it.
     design = loads_design(
         'hull_tons = 40\n\n[drives]\njump = "sB"\nmaneuver = "sB"\npower = "sG"\n\n'
         '[bridge]\ncockpit = "1_man"'
@@ -191,7 +191,7 @@ def test_a_small_craft_carrying_a_jump_drive_loads_cleanly():
         build_ship(design)
 
 
-# --- US4: bays and screens I/O (SRD "Bays", "Screens") ---
+# --- bays and screens I/O (SRD "Bays", "Screens") ---
 
 
 def test_bays_and_screens_round_trip():
@@ -217,7 +217,7 @@ def test_loads_design_rejects_an_unknown_screen_kind():
 
 
 def test_a_bay_on_a_small_craft_hull_loads_cleanly():
-    # A bay on a small craft is a rules violation (FR-020), not a shape error:
+    # A bay on a small craft is a rules violation, not a shape error:
     # loads_design accepts it and build_ship rejects it.
     design = loads_design(
         'hull_tons = 40\n\n[drives]\nmaneuver = "sB"\npower = "sG"\n\n'
@@ -228,7 +228,7 @@ def test_a_bay_on_a_small_craft_hull_loads_cleanly():
         build_ship(design)
 
 
-# --- T093: schema sections no golden fixture exercised (FR-010, FR-023, SC-008) ---
+# --- schema sections no golden fixture exercised ----------------------------------
 
 
 def test_loads_design_parses_both_ammunition_forms():
@@ -329,7 +329,7 @@ def test_a_single_quantity_fitting_omits_the_quantity_key():
     assert "quantity" not in dump_design(design)
 
 
-# --- T032: `purpose` and `tech_level` -------------------------------------
+# --- `purpose` and `tech_level` -------------------------------------------
 
 
 def _describable(**overrides) -> ShipDesign:
@@ -348,7 +348,7 @@ def _describable(**overrides) -> ShipDesign:
     ],
     ids=["neither", "purpose", "tech_level", "both"],
 )
-def test_the_new_design_keys_round_trip_losslessly(overrides):  # FR-033
+def test_the_new_design_keys_round_trip_losslessly(overrides):
     design = _describable(**overrides)
     assert loads_design(dump_design(design)) == design
 
@@ -385,12 +385,12 @@ def test_loads_design_rejects_a_boolean_tech_level():
         loads_design("hull_tons = 200\ntech_level = true\n")
 
 
-def test_a_misspelled_new_key_still_fails_as_an_unknown_key():  # FR-033
+def test_a_misspelled_new_key_still_fails_as_an_unknown_key():
     with pytest.raises(ValueError, match="unknown key\\(s\\) in design"):
         loads_design('hull_tons = 200\npurspose = "a fast courier"\n')
 
 
-# --- T055: the same rejection reached through a hand-authored file ---------
+# --- the same rejection reached through a hand-authored file ---------------
 
 
 @pytest.mark.parametrize(
@@ -408,17 +408,17 @@ def test_loads_design_rejects_a_name_the_heading_cannot_carry():
         loads_design('hull_tons = 200\nname = "Beowulf "\n')
 
 
-def test_a_blank_name_round_trips_and_still_means_no_name():  # FR-029b
+def test_a_blank_name_round_trips_and_still_means_no_name():
     design = _describable(name="")
     assert loads_design(dump_design(design)) == design
 
 
-# --- T011 (US1): a generated ship's name survives a dump/load round trip -----
+# --- a generated ship's name survives a dump/load round trip -----------------
 
 
 def test_a_generated_ships_name_survives_dump_load_and_build():
     # Asserted through `loads_design`, not against the emitted TOML text: the
-    # guarantee FR-013 makes is that the name round trips, and matching a
+    # guarantee here is that the name round trips, and matching a
     # `name = "..."` substring would additionally pin dump_design's quoting and
     # break on the first catalogue name needing an escape. That the key reaches
     # the file at all is the CLI contract's concern, pinned in test_cli.py.
@@ -429,7 +429,7 @@ def test_a_generated_ships_name_survives_dump_load_and_build():
     assert ship.design.name in render_description(build_ship(reloaded))
 
 
-# --- T094: FR-021 schema-invalid load errors (design-schema.md "Rules enforced at load") ---
+# --- schema-invalid load errors ---
 
 
 def test_loads_design_rejects_a_section_that_is_not_a_table():

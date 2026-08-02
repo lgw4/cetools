@@ -1,7 +1,7 @@
 # Heavy Cruiser "Dreadnought" -- a 1,000-ton bay-and-screen-equipped warship:
 # a 50-ton particle bay and a meson screen alongside modest drives and quarters.
 #
-# Hand-worked SRD reference figures (SC-002):
+# Hand-worked SRD reference figures:
 #   jump_rating = 1, maneuver_rating = 1, power_rating = 1
 #   jump_fuel = 100.0 (assumed_jump_distance = 1), power_fuel = 10.0
 #   tonnage_used = 302.0, cargo_tons = 698.0

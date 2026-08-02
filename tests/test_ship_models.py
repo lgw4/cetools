@@ -46,7 +46,7 @@ def test_armor_fit_accepts_a_valid_layer():
 
 
 def test_armor_fit_accepts_a_non_5_percent_increment_shape_only():
-    # The 5% rule is an SRD rule, not a shape constraint (FR-015): only
+    # The 5% rule is an SRD rule, not a shape constraint: only
     # `build_ship`'s armor step rejects it, so construction here succeeds.
     fit = ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=7)
     assert fit.percent == 7
@@ -234,7 +234,7 @@ def test_ship_design_rejects_a_negative_jump_distance():
 
 def test_ship_design_accepts_power_weeks_below_the_starship_minimum_shape_only():
     # The >= 2 (starship) / >= 1 (small craft) floor is an SRD rule, not a shape
-    # constraint (FR-015): only `build_ship`'s fuel step rejects it, so
+    # constraint: only `build_ship`'s fuel step rejects it, so
     # construction here succeeds.
     design = ShipDesign(hull_tons=200, jump_code="A", power_code="A", power_weeks=1)
     assert design.power_weeks == 1
@@ -274,7 +274,7 @@ def test_ship_design_rejects_negative_counts(field):
 def test_shape_only_validation_allows_a_rules_illegal_but_well_formed_design():
     # A small craft carrying a jump drive is SRD-illegal, but it is a
     # structurally well-formed ShipDesign: shape validation must not reject it,
-    # so build_ship (Phase 3) is the sole authority that does (FR-015).
+    # so build_ship is the sole authority that does.
     design = ShipDesign(
         hull_tons=50,
         bridge=False,
@@ -510,43 +510,43 @@ def test_ship_design_rejects_a_non_integer_tech_level(bad):
 
 
 def test_ship_design_does_not_check_tech_level_against_any_derived_value():
-    # FR-028b: an explicit tech level is a statement about the yard that built
+    # An explicit tech level is a statement about the yard that built
     # the ship, not a constraint. A TL far below any fitted component's is
     # accepted as given.
     design = ShipDesign(hull_tons=200, jump_code="A", power_code="A", tech_level=1)
     assert design.tech_level == 1
 
 
-# --- T055/T056: author prose the paragraph cannot carry -------------------
+# --- author prose the paragraph cannot carry ------------------------------
 #
 # `name` and `purpose` are interpolated verbatim into the heading and the first
 # sentence, so a shape the one-paragraph output cannot hold is rejected at the
-# design rather than rendered: an authored period orphans the renderer's own
-# (FR-029), trailing whitespace puts a space before it, and a line break splits
-# the paragraph in two (FR-001a, FR-021a, SC-001). Each shape below is
-# reachable from a hand-authored TOML file.
+# design rather than rendered: an authored period orphans the renderer's own,
+# trailing whitespace puts a space before it, and a line break splits the
+# paragraph in two. Each shape below is reachable from a hand-authored TOML
+# file.
 
 
 @pytest.mark.parametrize("bad", ["a fast trader.", "a fast trader!", "a fast trader?"])
-def test_ship_design_rejects_a_purpose_ending_in_sentence_punctuation(bad):  # FR-029
+def test_ship_design_rejects_a_purpose_ending_in_sentence_punctuation(bad):
     with pytest.raises(ValueError, match="purpose must not end with punctuation"):
         ShipDesign(hull_tons=200, jump_code="A", power_code="A", purpose=bad)
 
 
 @pytest.mark.parametrize("bad", ["a fast trader,", "a fast trader;", "a fast trader:"])
-def test_ship_design_rejects_a_purpose_ending_in_a_dangling_mark(bad):  # FR-021a
+def test_ship_design_rejects_a_purpose_ending_in_a_dangling_mark(bad):
     with pytest.raises(ValueError, match="purpose must not end with punctuation"):
         ShipDesign(hull_tons=200, jump_code="A", power_code="A", purpose=bad)
 
 
 @pytest.mark.parametrize("bad", ["a trader ", " a trader", "\ta trader"])
-def test_ship_design_rejects_a_purpose_with_surrounding_whitespace(bad):  # FR-021a
+def test_ship_design_rejects_a_purpose_with_surrounding_whitespace(bad):
     with pytest.raises(ValueError, match="purpose must not have leading or trailing whitespace"):
         ShipDesign(hull_tons=200, jump_code="A", power_code="A", purpose=bad)
 
 
 @pytest.mark.parametrize("bad", ["a trader\nof repute", "a trader\tof repute", "a  trader"])
-def test_ship_design_rejects_a_multiline_or_doubly_spaced_purpose(bad):  # FR-001a
+def test_ship_design_rejects_a_multiline_or_doubly_spaced_purpose(bad):
     with pytest.raises(ValueError, match="purpose must be one line"):
         ShipDesign(hull_tons=200, jump_code="A", power_code="A", purpose=bad)
 
@@ -560,13 +560,13 @@ def test_ship_design_accepts_punctuation_inside_a_purpose():
 
 
 @pytest.mark.parametrize("blank", ["", "   "])
-def test_ship_design_accepts_a_blank_name_as_no_name(blank):  # FR-029b
+def test_ship_design_accepts_a_blank_name_as_no_name(blank):
     # The description renders `Unnamed Ship`; see test_ship_description.py.
     assert ShipDesign(hull_tons=200, jump_code="A", power_code="A", name=blank).name == blank
 
 
 @pytest.mark.parametrize("bad", ["Beowulf ", " Beowulf", "Beo\nwulf", "Beo  wulf"])
-def test_ship_design_rejects_a_name_the_heading_cannot_carry(bad):  # FR-001, FR-001a
+def test_ship_design_rejects_a_name_the_heading_cannot_carry(bad):
     with pytest.raises(ValueError, match="name must"):
         ShipDesign(hull_tons=200, jump_code="A", power_code="A", name=bad)
 

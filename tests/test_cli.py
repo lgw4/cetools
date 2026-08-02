@@ -167,7 +167,7 @@ def test_failure_exit_code_propagated_from_generation_failure() -> None:
     assert result.exit_code == 2
 
 
-# --- T018: CLI draft default ---
+# --- CLI draft default ---
 
 
 def test_cli_no_career_generates_character_successfully() -> None:
@@ -188,7 +188,7 @@ def test_cli_no_career_career_line_omits_drafted() -> None:
     assert "(Drafted)" not in career_line
 
 
-# --- T022: Named --career paths ---
+# --- Named --career paths ---
 
 
 def test_career_scout_exits_0() -> None:
@@ -221,7 +221,7 @@ def test_career_navy_no_drafted_marker() -> None:
     assert "(Drafted)" not in result.stdout
 
 
-# --- T023: Unrecognized career ---
+# --- Unrecognized career ---
 
 
 def test_career_unknown_exits_1() -> None:
@@ -230,7 +230,7 @@ def test_career_unknown_exits_1() -> None:
 
 
 def test_career_unknown_stderr_message_exact() -> None:
-    # T018: updated to match the "no close match" format (canonical names, no suggestion)
+    # Updated to match the "no close match" format (canonical names, no suggestion)
     result = runner.invoke(app, ["character", "generate", "--career", "smuggler"])
     expected = (
         "Unknown career 'smuggler'. Valid careers: Aerospace System Defense, "
@@ -247,7 +247,7 @@ def test_career_unknown_original_value_in_message() -> None:
     assert "Smuggler" in result.stderr
 
 
-# --- T024: Input normalization ---
+# --- Input normalization ---
 
 
 def test_career_title_case_exits_0() -> None:
@@ -271,7 +271,7 @@ def test_career_with_whitespace_exits_0() -> None:
     assert result.exit_code == 0
 
 
-# --- T006: Aerospace System Defense CLI generation ---
+# --- Aerospace System Defense CLI generation ---
 
 _AEROSPACE_RANK_TITLES = {
     "Airman",
@@ -346,7 +346,7 @@ def test_aerospace_career_output_contains_valid_rank_title() -> None:
     assert any(title in result.stdout for title in _AEROSPACE_RANK_TITLES)
 
 
-# --- T007: Case-insensitive and hyphenated input ---
+# --- Case-insensitive and hyphenated input ---
 
 
 def test_aerospace_career_lowercase_exits_0() -> None:
@@ -397,7 +397,7 @@ def test_aerospace_career_hyphenated_mixed_case_exits_0() -> None:
     assert result.exit_code == 0
 
 
-# --- T016: "Did you mean" suggestion for near-miss input ---
+# --- "Did you mean" suggestion for near-miss input ---
 
 
 def test_career_near_miss_did_you_mean_exits_1() -> None:
@@ -424,7 +424,7 @@ def test_career_partial_prefix_no_did_you_mean() -> None:
     assert "Valid careers:" in result.stderr
 
 
-# --- T017: "No close match" lists all canonical career names ---
+# --- "No close match" lists all canonical career names ---
 
 
 def test_career_no_match_lists_canonical_names() -> None:
@@ -452,7 +452,7 @@ def test_career_no_match_no_did_you_mean() -> None:
     assert "Did you mean" not in result.stderr
 
 
-# --- T017b: --help text enumerates canonical career names ---
+# --- --help text enumerates canonical career names ---
 
 
 def test_career_help_lists_canonical_names() -> None:
@@ -466,7 +466,7 @@ def test_career_help_lists_canonical_names() -> None:
     assert "Scout" in result.output
 
 
-# --- T006: Marine CLI generation ---
+# --- Marine CLI generation ---
 
 _MARINE_RANK_TITLES = {
     "Trooper",
@@ -543,7 +543,7 @@ def test_career_marine_no_drafted_marker() -> None:
     assert "(Drafted)" not in result.stdout
 
 
-# --- T007: Marine case-insensitive input ---
+# --- Marine case-insensitive input ---
 
 
 def test_career_marine_lowercase_exits_0() -> None:
@@ -566,7 +566,7 @@ def test_career_marine_uppercase_exits_0() -> None:
     assert result.exit_code == 0
 
 
-# --- T009A: "Marines" (plural, near-miss) suggests Marine ---
+# --- "Marines" (plural, near-miss) suggests Marine ---
 
 
 def test_career_marines_plural_did_you_mean_marine() -> None:
@@ -652,7 +652,7 @@ def test_batch_all_failures_exits_1_with_empty_stdout():
     assert "all fail" in result.stderr
 
 
-# --- T018: `cetools world generate` ---
+# --- `cetools world generate` ---
 
 
 def test_world_generate_seed_prints_one_line_and_exits_0():
@@ -714,7 +714,7 @@ def test_world_generate_without_seed_still_succeeds():
     assert result.stdout.strip()
 
 
-# --- T028: `cetools world subsector` ---
+# --- `cetools world subsector` ---
 
 
 def test_world_subsector_seed_prints_hex_prefixed_lines_and_exits_0():
@@ -776,7 +776,7 @@ def test_character_seed_with_count_fixes_the_whole_sequence():
     assert len(set(blocks)) > 1
 
 
-# --- `cetools ship build` (T018) ---
+# --- `cetools ship build` ---
 
 _FREE_TRADER_TOML = "tests/data/ships/free-trader.toml"
 
@@ -808,7 +808,7 @@ def test_ship_build_prints_a_heading_and_one_paragraph_and_exits_0():
     assert lines[2].endswith(".")
 
 
-# This doubles as T022 (US2): `ship build` on a hand-authored design is
+# This also confirms that `ship build` on a hand-authored design is
 # unchanged by ship naming. It asserts the whole rendering, heading included,
 # so a separate "still renders TL8 Beowulf" case would add no coverage.
 def test_ship_build_free_trader_matches_the_worked_example():
@@ -876,7 +876,7 @@ def test_ship_build_rules_illegal_design_exits_1(tmp_path):
     assert "not a tabulated hull size" in result.stderr
 
 
-# --- `cetools ship generate` (T031, T022) ---
+# --- `cetools ship generate` ---
 
 
 def _description_lines(stdout: str) -> list[str]:
@@ -950,7 +950,7 @@ def test_ship_generate_invalid_hull_exits_1():
     assert result.stderr.strip()
 
 
-# --- `cetools ship generate --small-craft` (T042) ---
+# --- `cetools ship generate --small-craft` ---
 
 
 def test_ship_generate_small_craft_without_hull():
@@ -1038,7 +1038,7 @@ def _pins_an_armor_fit(armor_answer: str) -> bool:
     """Whether an `armor` answer produces a real `ArmorFit`—Enter (no answer
     at all) and `none` do not, so the wizard asks no follow-up there; any
     other answer, including one reached after a malformed retry, pins a layer
-    and the new Armor options question follows it (T047, FR-019)."""
+    and the new Armor options question follows it."""
     last_line = armor_answer.strip().splitlines()[-1].strip().lower() if armor_answer else ""
     return last_line not in ("", "none")
 
@@ -1058,7 +1058,7 @@ def _answers(
     otherwise be swallowed by the accept-or-revise question.
 
     `armor_options` answers the Armor options question that follows a pinned
-    armor answer (T047)—not one of `_QUESTIONS`, since it is asked only
+    armor answer—not one of `_QUESTIONS`, since it is asked only
     conditionally, so a caller who does not care about it need not know it
     exists.
     """
@@ -1111,7 +1111,7 @@ def test_ship_generate_interactive_asks_for_each_scalar_field(question, prompt, 
 
 
 def test_ship_generate_interactive_fitting_prompt_does_not_name_the_vehicle_hangar():
-    """AS 1.4, FR-024: the question cannot supply a vehicle's tonnage, so the
+    """AS 1.4: the question cannot supply a vehicle's tonnage, so the
     one fitting that needs one is not offered."""
     result = runner.invoke(
         app,
@@ -1124,7 +1124,7 @@ def test_ship_generate_interactive_fitting_prompt_does_not_name_the_vehicle_hang
 
 
 def test_ship_generate_interactive_computer_prompt_shows_a_range_not_every_model():
-    """AS 1.5, FR-005: seven tabulated models collapse to one run."""
+    """AS 1.5: seven tabulated models collapse to one run."""
     result = runner.invoke(
         app,
         ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11"],
@@ -1179,7 +1179,7 @@ def test_ship_generate_interactive_purpose_defaults_to_none_not_to_a_roll():
     )
     assert result.exit_code == 0
     assert "Purpose [none]:" in result.stderr
-    assert "Purpose (" not in result.stderr  # FR-006: the [none] default already says it
+    assert "Purpose (" not in result.stderr  # The [none] default already says it
 
     from cetools.engine.ships import loads_design
 
@@ -1188,7 +1188,7 @@ def test_ship_generate_interactive_purpose_defaults_to_none_not_to_a_roll():
 
 def test_ship_generate_interactive_staterooms_and_name_carry_fr006_notes():
     """Neither has a closed set, but both must say `none` pins a value Enter
-    does not (FR-006)."""
+    does not."""
     result = runner.invoke(
         app,
         ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11"],
@@ -1215,7 +1215,7 @@ def test_ship_generate_interactive_none_pins_zero_staterooms():
 
 
 def test_ship_generate_interactive_zero_is_an_alternate_spelling_of_none_at_staterooms():
-    """FR-002: `0` pins the same deliberate zero as `none`, and is not itself
+    """`0` pins the same deliberate zero as `none`, and is not itself
     named at the prompt—`none` already says it."""
     result = runner.invoke(
         app,
@@ -1274,7 +1274,7 @@ def test_ship_generate_interactive_unknown_scalar_answers_are_reasked(question, 
 def test_ship_generate_interactive_refusal_names_values_in_displayed_spelling_and_order(
     question, answer, known
 ):
-    """FR-016: the refusal names the same set the prompt named, in the same
+    """The refusal names the same set the prompt named, in the same
     order, `none` included where the prompt accepted it (AS 1.7, AS 3.5)."""
     result = runner.invoke(
         app,
@@ -1298,7 +1298,7 @@ def test_ship_generate_interactive_turret_mount_refusal_names_values_in_displaye
     )
 
 
-# --- T036 (US3): every accepted form of a displayed value is one answer (FR-015) ---
+# --- every accepted form of a displayed value is one answer ---
 
 
 @pytest.mark.parametrize(
@@ -1586,7 +1586,7 @@ _REVISE_PROMPT = (
 
 
 def test_ship_generate_interactive_revise_prompt_names_all_sixteen_answers():
-    """FR-007: the revise question is the one prompt exempt from the two-line
+    """The revise question is the one prompt exempt from the two-line
     budget, and names every `DesignConstraints` field in spaced spelling."""
     result = runner.invoke(
         app,
@@ -1609,7 +1609,7 @@ def test_ship_generate_interactive_revise_prompt_names_all_sixteen_answers():
     ids=["spaced-comma", "spaced", "underscored", "mixed-case"],
 )
 def test_ship_generate_interactive_revise_accepts_every_form_of_a_two_word_name(answer):
-    """FR-015: `hull class` and `hull tons` are one value each, not two unknown
+    """`hull class` and `hull tons` are one value each, not two unknown
     words—`split_values` matches the whole answer before it is split."""
     result = runner.invoke(
         app,
@@ -1826,7 +1826,7 @@ def test_ship_generate_interactive_small_craft_power_prompt_offers_what_the_mane
 
 
 def test_ship_generate_interactive_power_prompt_names_no_value_when_the_hull_can_carry_none():
-    """Decision 9's one reachable path to FR-012's empty form: Enter at hull
+    """One reachable path to the prompt's empty form: Enter at hull
     tonnage lets a 6-G manoeuvre rating pass the broad, unnarrowed check;
     revising the tonnage down to 10 then finds no plant fits beside it.
 
@@ -1857,19 +1857,18 @@ def test_ship_generate_interactive_power_prompt_names_no_value_when_the_hull_can
     )
 
 
-# --- T058/T059 (Convergence): a refusal names the set its prompt named ---
+# --- Convergence: a refusal names the set its prompt named ---
 #
 # The two readers whose prompt is narrower than `available_ratings` are the
 # small craft's manoeuvre and power questions. An answer outside the *wider*
 # set used to be refused by `_read_rating` naming that wider set, so the prompt
-# above and the refusal below described different sets—the failure FR-016
+# above and the refusal below described different sets—the failure this
 # exists to prevent, and one that also named ratings the question then refused.
 
 
 def test_ship_generate_interactive_small_craft_maneuver_refusal_names_the_offered_ratings():
     """A 15-ton craft is offered `1-2`; the drive table tabulates `1-2, 4-6`
-    for it. A `3` misses both, and the refusal must name what the prompt did
-    (FR-016)."""
+    for it. A `3` misses both, and the refusal must name what the prompt did."""
     result = runner.invoke(
         app,
         ["ship", "generate", "--interactive", "--small-craft", "--hull", "15", "--seed", "7"],
@@ -1900,7 +1899,7 @@ _EMPTY_POWER_PROMPT = "Power plant rating (a 10-ton hull can carry none, at leas
 
 
 def test_ship_generate_interactive_empty_power_set_refuses_every_answer_with_its_own_reason():
-    """FR-012: the prompt named no value, so nothing typed can be pinned and
+    """The prompt named no value, so nothing typed can be pinned and
     every answer earns the reason the prompt already gave.
 
     Three answers, one per path the reader used to take: `8` is untabulated for
@@ -1993,8 +1992,8 @@ def test_ship_generate_interactive_hull_flag_that_the_chosen_class_forbids_is_re
         input=_answers(hull_class="small craft", hull="40", skip=_SMALL_CRAFT_SKIPS),
     )
     assert result.exit_code == 0, result.stderr
-    # T062: in the notation the question below it uses, not the engine's bare
-    # list for library callers (FR-016).
+    # In the notation the question below it uses, not the engine's bare
+    # list for library callers.
     assert "200 tons is not a tabulated small-craft hull size; valid: 10-95 by 5" in result.stderr
     assert "[10," not in result.stderr
 
@@ -2006,7 +2005,7 @@ def test_ship_generate_interactive_hull_flag_that_the_chosen_class_forbids_is_re
 def test_ship_generate_interactive_hull_flag_refusal_is_collapsed_like_the_prompt_below_it():
     """The one refusal a session shows that no reader raises. Trap 2's own
     example: a bare `[100, 200, …]` directly above a prompt reading
-    `100-1000 by 100, …` is the two-different-sets failure FR-016 exists to
+    `100-1000 by 100, …` is the two-different-sets failure this exists to
     prevent, and the sentence is the very one `_read_hull_tons` already
     collapses when the same tonnage is typed rather than flagged.
     """
@@ -2106,7 +2105,7 @@ def test_ship_generate_interactive_none_turrets_leaves_the_ship_unarmed():
 
 
 def test_ship_generate_interactive_zero_is_an_alternate_spelling_of_none_at_turrets():
-    """FR-002: `0` pins the same deliberate zero as `none` at the turret count
+    """`0` pins the same deliberate zero as `none` at the turret count
     too, and is not itself named—`none` already says it."""
     result = runner.invoke(
         app,
@@ -2152,7 +2151,7 @@ def test_ship_generate_interactive_a_count_above_the_hardpoints_is_reasked():
 
 
 def test_ship_generate_interactive_unnarrowed_turrets_name_the_ruleset_maximum():
-    """Trap 3 (FR-011): with no tonnage pinned the prompt cannot narrow to a
+    """Trap 3: with no tonnage pinned the prompt cannot narrow to a
     hull, so it names the ruleset's own widest hull instead of staying silent."""
     result = runner.invoke(
         app, ["ship", "generate", "--interactive", "--seed", "11"], input=_answers()
@@ -2172,7 +2171,7 @@ def test_ship_generate_interactive_small_craft_unnarrowed_turrets_name_one():
 
 
 def test_ship_generate_interactive_an_unnarrowed_count_above_the_maximum_is_reasked():
-    """Trap 3 (FR-002): today an unpinned tonnage means no count is refused at
+    """Trap 3: today an unpinned tonnage means no count is refused at
     all; a count above the ruleset's own maximum must now be caught here too."""
     result = runner.invoke(
         app,
@@ -2400,12 +2399,12 @@ def test_ship_generate_interactive_armor_percent_rule_surfaces_at_assembly_not_t
     assert result.stderr.count(_ARMOR_PROMPT) == 2  # asked, refused, asked again
 
 
-# --- T052 (Polish): FR-023's boundary between the prompt and the rules ---
+# --- Polish: the boundary between the prompt and the rules ---
 
 
 def test_ship_generate_interactive_fitting_still_accepts_fuel_scoops_on_a_distributed_hull():
     """The prompt's list is a statement about what the *question* accepts, not
-    a promise the ship will build (Constitution I). A distributed hull cannot
+    a promise the ship will build. A distributed hull cannot
     mount fuel scoops, but that is `build_ship`'s rule to enforce, not the
     fitting question's to pre-empt by shortening its list—so `fuel_scoops` is
     still named and still accepted at the prompt, and the refusal reaches the
@@ -2435,7 +2434,7 @@ def test_ship_generate_interactive_unknown_armor_type_is_reasked_with_the_reason
     assert result.stderr.count(_ARMOR_PROMPT) == 2
 
 
-# --- T042-T044 (US4): armour options can be pinned (FR-017 to FR-021) ---
+# --- Armour options can be pinned ---
 
 
 _ARMOR_OPTIONS_PROMPT = "Armor options (reflec, self sealing, stealth) [none]:"
@@ -2468,7 +2467,7 @@ def test_ship_generate_interactive_enter_at_armor_options_pins_no_options():
 
 
 def test_ship_generate_interactive_armor_options_literal_none_pins_no_options():
-    """FR-018: `none` is accepted though the prompt does not name it."""
+    """`none` is accepted though the prompt does not name it."""
     from cetools.engine.ships import loads_design
 
     result = runner.invoke(
@@ -2482,7 +2481,7 @@ def test_ship_generate_interactive_armor_options_literal_none_pins_no_options():
 
 @pytest.mark.parametrize("answer", ["reflec stealth", "reflec, stealth"])
 def test_ship_generate_interactive_armor_options_space_or_comma_separates(answer):
-    """FR-018: spaces or commas separate several options in one answer."""
+    """Spaces or commas separate several options in one answer."""
     from cetools.engine.ships import loads_design
 
     result = runner.invoke(
@@ -2509,7 +2508,7 @@ def test_ship_generate_interactive_armor_options_self_sealing_typed_as_shown_is_
 
 
 def test_ship_generate_interactive_armor_options_reflec_self_sealing_is_two_options():
-    """FR-015: the greedy scan takes the longest run that names a value, so a
+    """The greedy scan takes the longest run that names a value, so a
     three-word answer here is two options rather than three unknown words."""
     from cetools.engine.ships import loads_design
 
@@ -2535,7 +2534,7 @@ def test_ship_generate_interactive_repeated_armor_option_is_reasked_with_the_rea
 
 
 def test_ship_generate_interactive_armor_options_mixed_valid_and_unknown_is_refused_whole():
-    """FR-018, spec Edge Cases: `reflec bogus` pins neither option."""
+    """Edge case: `reflec bogus` pins neither option."""
     from cetools.engine.ships import loads_design
 
     result = runner.invoke(
@@ -2549,7 +2548,7 @@ def test_ship_generate_interactive_armor_options_mixed_valid_and_unknown_is_refu
 
 
 def test_ship_generate_interactive_armor_options_not_asked_when_armor_answered_none():
-    """AS 4.4, FR-019."""
+    """AS 4.4."""
     result = runner.invoke(
         app,
         ["ship", "generate", "--interactive", "--seed", "0"],
@@ -2560,7 +2559,7 @@ def test_ship_generate_interactive_armor_options_not_asked_when_armor_answered_n
 
 
 def test_ship_generate_interactive_armor_options_not_asked_when_armor_is_rolled():
-    """AS 4.5, FR-019: Enter at armour leaves it to the dice, and no `ArmorFit`
+    """AS 4.5: Enter at armour leaves it to the dice, and no `ArmorFit`
     exists yet for the options question to attach to."""
     result = runner.invoke(
         app, ["ship", "generate", "--interactive", "--seed", "42"], input=_ENTER_THROUGH
@@ -2586,7 +2585,7 @@ def test_ship_generate_interactive_revising_armor_re_asks_the_options_question()
 
 
 def test_ship_generate_interactive_revising_another_field_leaves_armor_options_untouched():
-    """FR-021: an answer nothing implicated keeps its options too."""
+    """An answer nothing implicated keeps its options too."""
     from cetools.engine.ships import loads_design
 
     result = runner.invoke(
@@ -2603,7 +2602,7 @@ def test_ship_generate_interactive_revising_another_field_leaves_armor_options_u
 
 
 def test_ship_generate_interactive_revising_armor_to_none_drops_its_options():
-    """FR-021: options go with the layer they belonged to, since revising
+    """Options go with the layer they belonged to, since revising
     armour to `none` leaves nothing for them to attach to."""
     from cetools.engine.ships import loads_design
 
@@ -2737,7 +2736,7 @@ def test_ship_generate_interactive_small_craft_hull_flag_pre_answers_the_prompt(
     assert "40-ton hull" in result.stdout
 
 
-# --- small craft descriptions (T045, FR-026, FR-027) ---
+# --- small craft descriptions ---
 
 _FIGHTER_TOML = "tests/data/ships/fighter.toml"
 
@@ -2758,7 +2757,7 @@ def test_ship_generate_small_craft_prints_a_jump_free_description():
     assert "jump" not in lines[2].lower()
 
 
-# --- T012 (US1): `cetools ship generate` names the ship (FR-012, SC-004) ---
+# --- `cetools ship generate` names the ship ---
 
 
 def test_ship_generate_names_the_ship_no_unnamed_ship():
@@ -2785,7 +2784,7 @@ def test_ship_generate_toml_carries_a_name_key():
     assert 'name = "' in result.stdout
 
 
-# --- T038, T039 (US3): the displayed == accepted invariant (contract §7) ---
+# --- the displayed == accepted invariant (contract §7) ---
 #
 # One table of (accessor, reader) rows, driven directly against the private
 # readers in `cetools.cli.ship` rather than through a scripted session: the
@@ -2811,7 +2810,7 @@ def _closed_row(
     bound to the reader that checks them—so the same call answers "is this
     value accepted" for every clause of the invariant.
 
-    `refuse` is a value outside the set, or several of them (T060). Several are
+    `refuse` is a value outside the set, or several of them. Several are
     what a numeric row needs: a reader may reach its refusal by more than one
     route—one check against the set the prompt displayed, another against the
     wider set the engine tabulates—and a single probe proves only the route it
@@ -2858,8 +2857,8 @@ _ARMOR_TYPE_KNOWN = [prompts.spell(kind.value) for kind in ArmorType]
 
 
 def _accept_armor(answer: str) -> None:
-    """The armour type alone, typed back; the percent is the free part FR-002
-    excludes from the count, so a fixed one is appended for the reader."""
+    """The armour type alone, typed back; the percent is a free part excluded
+    from the count, so a fixed one is appended for the reader."""
     ship._read_armor(_ARMOR_TYPE_KNOWN, f"{answer} 15")
 
 
@@ -3170,8 +3169,8 @@ def test_acceptable_values_invariant(row):
 
     # 4. A value outside the set is refused, naming the set in the displayed
     #    spelling and the displayed notation—on every route the reader can
-    #    reach a refusal by, not merely the one a single probe happens to take
-    #    (T060). Compared exactly rather than by substring: `1-2` reads as
+    #    reach a refusal by, not merely the one a single probe happens to take.
+    #    Compared exactly rather than by substring: `1-2` reads as
     #    present inside `1-2, 4-6`, which is how a refusal naming a wider set
     #    than its prompt passed this clause before.
     for refused in row["refuse_answers"]:
@@ -3182,9 +3181,9 @@ def test_acceptable_values_invariant(row):
 
 _OPEN_OR_OUTSIDE_SEC7_READERS = frozenset(
     {
-        "_read_staterooms",  # FR-006: open answer, §2 not §1
-        "_read_name",  # FR-006: open answer, §2 not §1
-        "_read_purpose",  # FR-006: open answer, §2 not §1
+        "_read_staterooms",  # open answer, §2 not §1
+        "_read_name",  # open answer, §2 not §1
+        "_read_purpose",  # open answer, §2 not §1
         "_read_fields",  # §3's revise prompt, outside §7's closed-set scope
         "_read_verdict",  # §3's accept-or-revise prompt, outside §7's scope
     }
@@ -3204,11 +3203,11 @@ def test_acceptable_values_table_covers_every_closed_set_reader_in_ship_py():
     assert all_readers == accounted_for
 
 
-# --- T049 (Polish): SC-005's two-line budget, 160 characters at 80 columns ---
+# --- Polish: the two-line budget, 160 characters at 80 columns ---
 #
 # Composed the same way `_ask_constraints` composes them, rather than a
 # retyped table, so the budget is checked against real composition and not a
-# second copy of research.md's measurements. The revise question (FR-007) is
+# second, hand-maintained copy of the same measurements. The revise question is
 # the one prompt exempt from the budget and is not in this list.
 
 
@@ -3334,8 +3333,8 @@ def _budgeted_prompts() -> list[tuple[str, str]]:
 
 
 _PROMPT_LENGTH_BUDGET = 160
-"""SC-005: no prompt over two lines at 80 columns, save the revise question
-(FR-007), which is not among `_budgeted_prompts`."""
+"""No prompt over two lines at 80 columns, save the revise question,
+which is not among `_budgeted_prompts`."""
 
 
 @pytest.mark.parametrize(
@@ -3345,11 +3344,11 @@ def test_prompt_length_budget(prompt_id, text):
     assert len(text) <= _PROMPT_LENGTH_BUDGET, f"{prompt_id} is {len(text)} chars: {text!r}"
 
 
-# --- T050 (Polish): SC-007 seed parity ---
+# --- Polish: seed parity ---
 
 
 def test_ship_generate_interactive_seed_parity_with_toml_output():
-    """SC-007: an all-Enter session pins nothing, so it must draw exactly what
+    """An all-Enter session pins nothing, so it must draw exactly what
     generation without --interactive draws at the same seed—no roll added and
     no draw order moved by asking. Checked through --toml, which round-trips
     every field the description prose could otherwise mask a divergence in."""
@@ -3376,11 +3375,11 @@ def test_ship_generate_interactive_small_craft_seed_parity_with_toml_output():
     assert interactive.stdout == direct.stdout
 
 
-# --- T051 (Polish): FR-008 stream discipline ---
+# --- Polish: stream discipline ---
 
 
 def test_ship_generate_interactive_toml_stdout_carries_no_prompt_or_refusal_text_after_a_refusal():
-    """FR-008: `--interactive` composes with `--toml`. A refusal mid-session
+    """`--interactive` composes with `--toml`. A refusal mid-session
     still costs only a line on stderr—stdout stays valid TOML from its first
     line, with no question text and no refusal text leaked onto the pipe a
     --toml caller reads."""
@@ -3416,5 +3415,5 @@ def test_ship_build_fighter_prints_a_jump_free_description():
     ) in lines[2]
     assert "Fuel tankage of 7.3 tons supports the power plant for one week." in lines[2]
     assert "jump" not in lines[2].lower()
-    # A fractional capacity renders in digits, never as a word (FR-022b).
+    # A fractional capacity renders in digits, never as a word.
     assert "Cargo capacity is 6.2 tons." in lines[2]

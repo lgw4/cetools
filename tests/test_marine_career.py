@@ -14,7 +14,7 @@ _MARINE_RANK_TITLES = {
 }
 
 
-# --- T002: qualification, survival, commission, advancement, reenlistment, name ---
+# --- qualification, survival, commission, advancement, reenlistment, name ---
 
 
 def test_marine_name() -> None:
@@ -45,7 +45,7 @@ def test_marine_reenlistment_target() -> None:
     assert MARINE_CAREER.reenlistment_target == 6
 
 
-# --- T003: skill tables (24 positions across 4 tables) ---
+# --- skill tables (24 positions across 4 tables) ---
 
 
 def test_marine_personal_development_table() -> None:
@@ -99,7 +99,7 @@ def test_marine_skill_tables_have_six_entries() -> None:
     assert len(MARINE_CAREER.advanced_education) == 6
 
 
-# --- T004: seven rank entries (rank 0 Trooper through rank 6 Brigadier) ---
+# --- seven rank entries (rank 0 Trooper through rank 6 Brigadier) ---
 
 
 def test_marine_rank_titles_match_srd() -> None:
@@ -134,7 +134,7 @@ def test_marine_ranks_without_bonus_skills() -> None:
         ), f"Rank {rank_idx} should have no bonus skills"
 
 
-# --- T005: mustering-out tables—7 cash entries, 7 material entries ---
+# --- mustering-out tables—7 cash entries, 7 material entries ---
 
 
 def test_marine_cash_benefits_values() -> None:
@@ -162,7 +162,7 @@ def test_marine_benefit_tables_have_seven_entries() -> None:
     assert len(MARINE_CAREER.material_benefits) == 7
 
 
-# --- T007A: statistical stability over 100 runs with real dice ---
+# --- statistical stability over 100 runs with real dice ---
 
 
 def test_generate_career_character_marine_100_runs_no_unhandled_exceptions() -> None:
@@ -174,7 +174,7 @@ def test_generate_career_character_marine_100_runs_no_unhandled_exceptions() -> 
 
 
 # ---------------------------------------------------------------------------
-# US2 (Phase 4): commission, advancement, rank cap, bonus-skill retention,
+# Phase 4: commission, advancement, rank cap, bonus-skill retention,
 # rank-based mustering-out bonus rolls
 # ---------------------------------------------------------------------------
 
@@ -185,7 +185,7 @@ def test_generate_career_character_marine_100_runs_no_unhandled_exceptions() -> 
 _FLAT_CHARACTERISTICS = 7
 
 
-# --- T013: commission roll success/failure at rank 0 ---
+# --- commission roll success/failure at rank 0 ---
 
 
 def test_marine_commission_success_advances_rank_0_to_1() -> None:
@@ -231,7 +231,7 @@ def test_marine_commission_failure_stays_rank_0() -> None:
     assert result.rank_title == "Trooper"
 
 
-# --- T014: advancement roll increments a commissioned officer's rank ---
+# --- advancement roll increments a commissioned officer's rank ---
 
 
 def test_marine_advancement_increments_commissioned_officer_rank() -> None:
@@ -257,7 +257,7 @@ def test_marine_advancement_increments_commissioned_officer_rank() -> None:
     assert result.terms[1].promoted is True
 
 
-# --- T015: rank cap at 6 (Brigadier) ---
+# --- rank cap at 6 (Brigadier) ---
 
 
 def _maximal_career_rolls() -> ScriptedRolls:
@@ -288,7 +288,7 @@ def test_marine_rank_capped_at_6() -> None:
     assert result.rank_title == "Brigadier"
 
 
-# --- T016: rank-0 and rank-3 bonus skills applied and retained ---
+# --- rank-0 and rank-3 bonus skills applied and retained ---
 
 
 def test_marine_rank_0_zero_g_applied_at_enlistment() -> None:
@@ -325,7 +325,7 @@ def test_marine_commissioned_officer_retains_rank_0_zero_g_bonus() -> None:
     assert result.skills.get("Zero-G") == 1
 
 
-# --- T017: rank-based bonus mustering-out rolls (FR-011) ---
+# --- rank-based bonus mustering-out rolls ---
 
 
 def test_marine_rank_6_bonus_muster_rolls_applied() -> None:

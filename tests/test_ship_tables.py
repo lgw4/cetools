@@ -327,7 +327,7 @@ def test_energy_weapons_are_flagged_for_the_small_craft_cap():
     assert TURRET_WEAPONS["sandcaster"].energy is False
 
 
-# --- Bays / screens (US4, SRD "Bays", "Screens") ---
+# --- Bays / screens (SRD "Bays", "Screens") ---
 
 
 def test_bays_cover_the_four_srd_kinds_at_50_tons_each():
@@ -366,7 +366,7 @@ def test_screens_match_srd_costs():
     )
 
 
-# --- Small craft (US3) ---
+# --- Small craft ---
 
 
 def test_small_craft_hulls_cover_10_to_95_tons_in_5_ton_steps():
@@ -463,7 +463,7 @@ def test_every_row_dataclass_field_is_typed(row_type):
         assert field.type not in (None, "")
 
 
-# --- SC-006: a new SRD entry is a data-only edit, no builder/generator change ---
+# --- a new SRD entry is a data-only edit, no builder/generator change ---
 
 
 def test_a_new_fitting_row_costs_and_allocates_correctly_with_no_code_change(monkeypatch):
@@ -492,9 +492,9 @@ def test_a_new_fitting_row_costs_and_allocates_correctly_with_no_code_change(mon
 def test_a_new_distributed_forbidden_fitting_rejects_on_a_distributed_hull_with_no_code_change(
     monkeypatch,
 ):
-    # T079: builder.py reads `FittingRow.forbidden_on_distributed`, not a
+    # builder.py reads `FittingRow.forbidden_on_distributed`, not a
     # hardcoded `fit.kind == "fuel_scoops"` comparison, so a second SRD fitting
-    # forbidden on a distributed hull is a data-only edit (SC-006).
+    # forbidden on a distributed hull is a data-only edit.
     monkeypatch.setitem(
         FITTINGS,
         "synthetic_shield",
@@ -518,8 +518,8 @@ def test_a_new_distributed_forbidden_fitting_rejects_on_a_distributed_hull_with_
 
 
 def test_a_new_bay_row_is_accepted_and_allocated_with_no_code_change(monkeypatch):
-    # T087: BayFit validates against BAYS itself, not a hardcoded copy of its
-    # keys, so a new SRD bay is a data-only edit (SC-006).
+    # BayFit validates against BAYS itself, not a hardcoded copy of its
+    # keys, so a new SRD bay is a data-only edit.
     monkeypatch.setitem(
         BAYS,
         "synthetic_bay",
@@ -558,7 +558,7 @@ def test_a_new_screen_row_is_accepted_and_allocated_with_no_code_change(monkeypa
 
 def test_a_new_ammo_row_is_accepted_and_costed_with_no_code_change(monkeypatch):
     # The AMMO key is descriptive only: models.py and builder.py both match an
-    # AmmoFit on the row's kind/type columns (SC-006).
+    # AmmoFit on the row's kind/type columns.
     monkeypatch.setitem(
         AMMO,
         "missile_decoy",
@@ -595,7 +595,7 @@ def test_a_new_ammo_row_is_accepted_and_costed_with_no_code_change(monkeypatch):
 
 
 def test_a_new_armor_option_row_is_accepted_and_costed_with_no_code_change(monkeypatch):
-    # T087: the armor-option surcharge is table data read by builder.py, not a
+    # The armor-option surcharge is table data read by builder.py, not a
     # dict living in the builder, so a new SRD option is a data-only edit.
     monkeypatch.setitem(
         ARMOR_OPTIONS,
@@ -622,7 +622,7 @@ def test_a_new_armor_option_row_is_accepted_and_costed_with_no_code_change(monke
 
 
 def test_a_new_hull_row_costs_and_allocates_correctly_with_no_code_change(monkeypatch):
-    # T091/SC-006: a new hull size is a data edit to HULLS plus the drive
+    # A new hull size is a data edit to HULLS plus the drive
     # performance the SRD tabulates for it -- no builder or generator change.
     monkeypatch.setitem(HULLS, 250, HullRow(code="X", cost=10, build_weeks=50))
     monkeypatch.setitem(DRIVE_PERFORMANCE, "A", {**DRIVE_PERFORMANCE["A"], 250: 1})
@@ -665,7 +665,7 @@ COUNTABLE_TABLES = {
 
 @pytest.mark.parametrize("table_name", sorted(NAMEABLE_TABLES))
 def test_every_nameable_row_carries_a_non_empty_srd_name(table_name):
-    # FR-030: the renderer never spells a component; every name it can print
+    # The renderer never spells a component; every name it can print
     # lives on the component's own data row.
     for key, row in NAMEABLE_TABLES[table_name].items():
         assert hasattr(row, "name"), f"{table_name}[{key!r}] has no name column"
@@ -684,7 +684,7 @@ def test_every_countable_row_carries_a_non_empty_explicit_plural(table_name):
 
 
 def test_every_ammo_row_names_the_turret_weapon_it_feeds():
-    # FR-031: the ammunition sentence names its weapon through data, not
+    # The ammunition sentence names its weapon through data, not
     # through the renderer knowing that missiles go in missile racks.
     for key, row in AMMO.items():
         assert row.weapon in TURRET_WEAPONS, f"AMMO[{key!r}].weapon is not a TURRET_WEAPONS key"

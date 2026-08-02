@@ -1,11 +1,11 @@
-"""Number, list and article primitives for the ship description (FR-022-FR-025).
+"""Number, list and article primitives for the ship description.
 
 Pure functions over numbers and strings. This module imports nothing from
 ``models.py``, ``tables.py`` or any other ships module, and knows nothing about
 ships: that is the seam that makes the SRD's number and grammar rules testable
 without building one.
 
-Three numeric helpers occupy deliberately disjoint domains (FR-022c):
+Three numeric helpers occupy deliberately disjoint domains:
 
 ``count``
     counts of *things* -- crew, staterooms, hardpoints, turrets, jumps, weeks.
@@ -40,20 +40,20 @@ _WORDS: tuple[str, ...] = (
     "nine",
     "ten",
 )
-"""The SRD's spelled counts. Above ten it prints digits (FR-022)."""
+"""The SRD's spelled counts. Above ten it prints digits."""
 
 _DECIMAL_PLACES = 6
 """Fixed precision for `number` and `money`, stripped of trailing zeros
 afterwards -- never `:g`, which caps at six *significant* figures (rendering
 MCr2,768.145 as 2768.14) and switches to scientific notation above 1e6. Six
 places sits below the smallest figure the SRD prices (a standard missile at
-MCr0.00125) and above any float-accumulation artefact (FR-025, FR-025a)."""
+MCr0.00125) and above any float-accumulation artefact."""
 
 _VOWELS = frozenset("aeiouAEIOU")
 
 
 def count(n: int) -> str:
-    """A count of things: a word up to ten, digits above (FR-022)."""
+    """A count of things: a word up to ten, digits above."""
     if 0 <= n < len(_WORDS):
         return _WORDS[n]
     return str(n)
@@ -61,7 +61,7 @@ def count(n: int) -> str:
 
 def tons(value: float) -> str:
     """Tonnage in running prose: the `count` rule when whole, digits when
-    fractional (FR-022b)."""
+    fractional."""
     if float(value).is_integer():
         return count(int(value))
     return number(value)
@@ -77,26 +77,26 @@ def _split(value: float) -> tuple[str, str]:
 def number(value: float) -> str:
     """A measured or rated value: digits at every magnitude, trailing zeros
     stripped, no dangling decimal point, no scientific notation, no thousands
-    separator (FR-022a, FR-025)."""
+    separator."""
     integer, fraction = _split(value)
     return f"{integer}.{fraction}" if fraction else integer
 
 
 def money(value: float) -> str:
-    """An MCr figure: `number` plus thousands separators on the integer part
-    (FR-020, FR-025). "MCr2,768.145", "MCr29.772", "MCr597.87"."""
+    """An MCr figure: `number` plus thousands separators on the integer part.
+    "MCr2,768.145", "MCr29.772", "MCr597.87"."""
     integer, fraction = _split(value)
     grouped = f"{int(integer):,}"
     return f"{grouped}.{fraction}" if fraction else grouped
 
 
 def signed(n: int) -> str:
-    """A dice modifier, always with an explicit sign: "+1", "-2", "+0" (FR-009)."""
+    """A dice modifier, always with an explicit sign: "+1", "-2", "+0"."""
     return f"{n:+d}"
 
 
 def plural(n: float, singular: str, plural: str) -> str:  # noqa: A002 - matches the data column
-    """`singular` at exactly one, `plural` otherwise (FR-023).
+    """`singular` at exactly one, `plural` otherwise.
 
     Both spellings come from the caller -- in practice a data row's ``name`` and
     ``plural`` columns -- never from a suffix rule, because the SRD's own
@@ -112,7 +112,7 @@ def plural(n: float, singular: str, plural: str) -> str:  # noqa: A002 - matches
 
 def join(items: Sequence[str]) -> str:
     """ "a", "a and b", "a, b and c" -- commas and a final "and", no serial
-    comma (FR-024)."""
+    comma."""
     items = list(items)
     if not items:
         return ""
@@ -122,7 +122,7 @@ def join(items: Sequence[str]) -> str:
 
 
 def article(word: str) -> str:
-    """ "an" before a leading vowel letter, else "a" (FR-023a)."""
+    """ "an" before a leading vowel letter, else "a"."""
     return "an" if word[:1] in _VOWELS else "a"
 
 

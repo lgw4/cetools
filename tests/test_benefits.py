@@ -49,7 +49,7 @@ def test_muster_out_grants_explorers_society_once_and_rerolls_repeat() -> None:
         characteristics={},
         rolls=scripted(d6={RollName.MATERIAL_BENEFIT: [6, 6, 2]}),
     )
-    assert len(result.benefits) == 5  # reroll must not add an extra roll (FR-008)
+    assert len(result.benefits) == 5  # reroll must not add an extra roll
     material = [b.name for b in result.benefits if isinstance(b, Item)]
     assert material == ["Explorers' Society", "Weapon"]
 

@@ -157,8 +157,8 @@ def check_readme_ship_console_examples() -> None:
 
     `check_readme_examples` runs the Python blocks; a `console` block has no such
     check, so the drives line (`Jump-1 Maneuver-1 Power-1`) drifted silently after
-    T080 changed it until someone ran the command by hand. This closes that gap
-    for `cetools ship` invocations specifically.
+    the drives-line format changed until someone ran the command by hand. This
+    closes that gap for `cetools ship` invocations specifically.
 
     Only the exact `$ uv run cetools ship ` prefix is run. This check executes what
     the README says, so a looser match would let any future README edit run any

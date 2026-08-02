@@ -1,13 +1,13 @@
-# Beowulf -- the free trader of specs/010-starship-generator/examples/free-trader.toml,
+# Beowulf -- the free trader of tests/data/ships/free-trader.toml,
 # carrying the two design fields this feature adds.
 #
-# Exercises (quickstart.md scenario 4):
-#   purpose     -> completes the description's first sentence (FR-029)
-#   tech_level  -> overrides the derived value in the heading (FR-028b). The derived
+# Exercises:
+#   purpose     -> completes the description's first sentence
+#   tech_level  -> overrides the derived value in the heading. The derived
 #                  value is 8 (Model 1 computer TL7, Standard sensors TL8); 11 is
 #                  higher and is used as given, never re-checked.
 #
-# Every computed figure matches free-trader.toml exactly (FR-032):
+# Every computed figure matches free-trader.toml exactly:
 #   tonnage_used = 65.0, cargo_tons = 135.0, crew total = 5,
 #   total_cost = 29.772 MCr, build_weeks = 44
 

@@ -14,13 +14,13 @@ in `tests/test_ship_generator.py` pins this directly, and
 features, failing loudly, naming the seed, if a future change ever moves the
 name draw off the end of a path.
 
-Second, **two different mappings, two different stability guarantees**
-(FR-010b). The seed-to-*ship* mapping, every field but `name`, is a
+Second, **two different mappings, two different stability guarantees**.
+The seed-to-*ship* mapping, every field but `name`, is a
 compatibility surface, protected by that same baseline test. The
 seed-to-*name* mapping is not: `SHIP_NAMES` is an ordered tuple and selection
 is an index into it, so adding, removing or reordering an entry changes which
 name a given seed draws. That is expected and permitted. A contributor
-withdrawing a mis-sourced entry (FR-016c) needs no baseline update and no
+withdrawing a mis-sourced entry needs no baseline update and no
 test edit, only a data-only change to this file.
 """
 
@@ -33,10 +33,10 @@ from cetools.engine.rolls import RandomRolls, RollName, Rolls
 
 
 class Tradition(StrEnum):
-    """Where a catalogue name comes from (FR-004, FR-005, FR-006).
+    """Where a catalogue name comes from.
 
     A name is assigned to the *earliest* tradition it belongs to and
-    catalogued exactly once (FR-007a): a mythological name later claimed by a
+    catalogued exactly once: a mythological name later claimed by a
     written- or screen-SF vessel stays under `MYTHOLOGY_FOLKLORE`.
     """
 
@@ -46,10 +46,12 @@ class Tradition(StrEnum):
 
 
 class BasisKind(StrEnum):
-    """The FR-016 test a fiction-tradition name passes, recorded on its entry.
+    """Why a fiction-tradition name is safe to catalogue, recorded on its entry:
+    it belongs to a real vessel, is an ordinary word, or is a public-domain
+    borrowing.
 
     Exactly one kind is recorded per entry, even when a name would qualify
-    under more than one (FR-016a): the field is evidence the constraint
+    under more than one: the field is evidence the constraint
     holds, not an exhaustive provenance record.
     """
 
@@ -167,13 +169,13 @@ SHIP_NAMES: tuple[ShipName, ...] = (
     ShipName(name="Xolotl", tradition=Tradition.MYTHOLOGY_FOLKLORE),
     ShipName(name="Itzamna", tradition=Tradition.MYTHOLOGY_FOLKLORE),
     ShipName(name="Ixchel", tradition=Tradition.MYTHOLOGY_FOLKLORE),
-    # -- Written science fiction (FR-016): every entry earns
+    # -- Written science fiction: every entry earns
     # -- its place on a real vessel, an ordinary word or a public-domain
-    # -- borrowing (FR-016a), reviewed for truth in T029. A name mythology
+    # -- borrowing, each checked for accuracy. A name mythology
     # -- already claims (Pegasus, Prometheus, Erebus, ...) stays there
-    # -- (FR-007a) even where a written-SF vessel later bore it.
+    # -- even where a written-SF vessel later bore it.
     # --
-    # -- `basis_*` records why a name is safe to catalogue (FR-016a), not
+    # -- `basis_*` records why a name is safe to catalogue, not
     # -- where it comes from. Where an entry's *tradition* was queried and
     # -- confirmed, a comment above it names the source
     # -- vessel, since no field carries that and no test can check it.
@@ -428,7 +430,7 @@ SHIP_NAMES: tuple[ShipName, ...] = (
     ),
     # Vanguard, Robert A. Heinlein, "Universe" (1941), collected as Orphans of
     # the Sky (1963) -- one of the earliest generation ships in written SF, and
-    # so the earliest tradition the name belongs to (FR-007a), screen use of it
+    # so the earliest tradition the name belongs to, screen use of it
     # notwithstanding.
     ShipName(
         name="Vanguard",
@@ -436,11 +438,11 @@ SHIP_NAMES: tuple[ShipName, ...] = (
         basis_kind=BasisKind.ORDINARY_WORD,
         basis_reference="vanguard: the foremost part of an advancing group",
     ),
-    # -- Science fiction film and television (FR-016): the
+    # -- Science fiction film and television: the
     # -- pool leans on real-vessel and ordinary-word names for the same
     # -- reason as written SF; coined franchise names (Millennium Falcon,
-    # -- Tantive IV, Executor) are excluded (FR-016). Mythological names stay
-    # -- under MYTHOLOGY_FOLKLORE (FR-007a) however famous the ship that
+    # -- Tantive IV, Executor) are excluded. Mythological names stay
+    # -- under MYTHOLOGY_FOLKLORE however famous the ship that
     # -- later bore them.
     ShipName(
         name="Serenity",
@@ -704,7 +706,7 @@ SHIP_NAMES: tuple[ShipName, ...] = (
 
 
 def generate_ship_name(rolls: Rolls | None = None) -> str:
-    """A random catalogue name, drawn through the `Rolls` seam (FR-011).
+    """A random catalogue name, drawn through the `Rolls` seam.
 
     Must stay the last `Rolls` draw on every `generate_ship` path (module
     docstring, above)."""

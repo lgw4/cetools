@@ -2,7 +2,7 @@
 
 `loads_design`/`load_design` parse *shape* only: malformed TOML, unknown keys,
 wrong types, and unknown enum strings raise `ValueError`. They never check SRD
-*rules* (FR-015)—that is `build_ship`'s job. `dump_design` is the matching
+*rules*—that is `build_ship`'s job. `dump_design` is the matching
 writer: `loads_design(dump_design(d)) == d` for every well-formed `d`.
 """
 
@@ -256,7 +256,7 @@ def _parse_passengers(data: dict, kwargs: dict) -> None:
 
 
 def loads_design(text: str) -> ShipDesign:
-    """Parse TOML *text* into a well-formed `ShipDesign` (shape only, FR-015)."""
+    """Parse TOML *text* into a well-formed `ShipDesign` (shape only)."""
     try:
         data = tomllib.loads(text)
     except tomllib.TOMLDecodeError as exc:
@@ -272,7 +272,7 @@ def loads_design(text: str) -> ShipDesign:
     if "name" in data:
         kwargs["name"] = _require_str(data["name"], "name")
     # Shape only: neither key is checked against SRD rules. An explicit
-    # tech_level above the derived value is used as given (FR-028b); an empty
+    # tech_level above the derived value is used as given; an empty
     # or negative value is `models.py`'s to reject.
     if "purpose" in data:
         kwargs["purpose"] = _require_str(data["purpose"], "purpose")
@@ -340,9 +340,9 @@ def _dump_ammo(ammo: tuple[AmmoFit, ...]) -> str:
 
 
 def dump_design(design: ShipDesign) -> str:
-    """Serialize `design` to builder-compatible TOML (canonical key order, FR-023).
+    """Serialize `design` to builder-compatible TOML (canonical key order).
 
-    `loads_design(dump_design(d)) == d` for any well-formed `d` (SC-008).
+    `loads_design(dump_design(d)) == d` for any well-formed `d`.
     """
     lines: list[str] = []
 

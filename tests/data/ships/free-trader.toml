@@ -1,7 +1,7 @@
 # Free Trader "Beowulf" -- a 200-ton subsidized merchant, unarmed, carrying a
 # few passengers alongside cargo.
 #
-# Hand-worked SRD reference figures (SC-002):
+# Hand-worked SRD reference figures:
 #   jump_rating = 1, maneuver_rating = 1, power_rating = 1
 #   jump_fuel = 20.0 (assumed_jump_distance = 1), power_fuel = 2.0
 #   tonnage_used = 65.0, cargo_tons = 135.0

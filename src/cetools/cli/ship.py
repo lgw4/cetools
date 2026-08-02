@@ -156,8 +156,8 @@ def _closed_set(
 
     Returns the question text with the value list composed in, and that same
     list, so a reader's own refusal can name exactly what the prompt named
-    instead of spelling its own (FR-016). `none=True` appends the literal
-    `none` last, per FR-002's ordering.
+    instead of spelling its own. `none=True` appends the literal
+    `none` last.
     """
     displayed = list(render(values))
     if none:
@@ -168,7 +168,7 @@ def _closed_set(
 def _hull_qualifier(hull_class: HullClass) -> str:
     """`"on some starship hull"` / `"on some small craft hull"`—names the
     ruleset, never a hull, so an unnarrowed prompt does not read as a claim
-    about the hull in hand (FR-011)."""
+    about the hull in hand."""
     return f"on some {prompts.spell(hull_class.value)} hull"
 
 
@@ -183,11 +183,11 @@ def _narrowed_numbers(
     note: str = "",
 ) -> str:
     """Compose a hull-dependent numeric question in its narrowed, unnarrowed or
-    empty form (FR-010, FR-011, FR-012).
+    empty form.
 
     The unnarrowed qualifier is folded into the last collapsed run for display
     only; it never reaches a refusal, which a reader renders straight from the
-    same accessor call this composition used (FR-016)—so this function hands
+    same accessor call this composition used—so this function hands
     back the composed text alone, not a value list for a reader to reuse.
     """
     segments = prompts.numbers(values)
@@ -216,8 +216,8 @@ def _maneuver_values(hull_class: HullClass, hull_tons: int | None) -> tuple[int,
     """The manoeuvre-rating accessor for this hull, as narrow as it can be.
 
     A small craft with its tonnage pinned narrows past what the drive table
-    alone tabulates, to what a plant and a cockpit leave room for beside it
-    (FR-010). Every other state reads the drive table directly.
+    alone tabulates, to what a plant and a cockpit leave room for beside it.
+    Every other state reads the drive table directly.
     """
     if hull_class is HullClass.SMALL_CRAFT and hull_tons is not None:
         return small_craft_maneuver_ratings(hull_tons)
@@ -231,7 +231,7 @@ def _power_values(
 
     Narrows to what this plant can run beside an *already pinned* manoeuvre
     drive only once both the tonnage and that drive are known; a manoeuvre
-    rating still left to the dice cannot narrow anything yet (FR-010).
+    rating still left to the dice cannot narrow anything yet.
     """
     if hull_class is HullClass.SMALL_CRAFT and hull_tons is not None and maneuver_rating:
         return small_craft_power_ratings(hull_tons, maneuver_rating)
@@ -249,7 +249,7 @@ def _read_maneuver_rating(
 
     `offered` is the set the prompt displayed, threaded down from the call site
     that composed it rather than recomputed, so the refusal cannot name a set
-    the prompt did not (FR-016).
+    the prompt did not.
     """
     rating = _read_rating(hull_class, hull_tons, Drive.MANEUVER, None, offered, answer)
 
@@ -277,8 +277,8 @@ def _read_power_rating(
     the hull can give.
 
     `offered` is the set the prompt displayed. Where it is empty, `_read_rating`
-    has already refused every typed answer with the reason the prompt gave
-    (FR-012), so this narrowing only ever reports a set it can name.
+    has already refused every typed answer with the reason the prompt gave,
+    so this narrowing only ever reports a set it can name.
     """
     rating = _read_rating(hull_class, hull_tons, Drive.POWER, floor, offered, answer)
 
@@ -332,9 +332,9 @@ def _read_rating(
     narrower than the drive table this still gates on. The tabulation check
     keeps its own sentence, but names `offered`: a refusal naming the wider set
     would advertise ratings the question itself refuses, and would leave the
-    prompt above and the refusal below describing different sets (FR-016).
+    prompt above and the refusal below describing different sets.
 
-    An empty `offered` is FR-012's form, and it is answered before anything
+    An empty `offered` is answered before anything
     else. The prompt named no value, so nothing typed can be pinned, and every
     answer earns the reason the prompt already gave rather than a floor or a
     tabulation sentence that would name values it withheld.
@@ -401,11 +401,11 @@ def _read_armor_options(known: list[str], answer: str) -> tuple[str, ...]:
     """The once-only additions to a pinned armour layer, or none of them.
 
     The literal `none` is accepted though the prompt does not name it—the
-    `[none]` default already says it (FR-018). An option may itself be two
+    `[none]` default already says it. An option may itself be two
     words (`self sealing`), so the answer is matched by `prompts.split_values`
     rather than `answer.split()`, which would break it into two unknown
     words. An unknown option and a repeated one each refuse the whole answer,
-    pinning neither (FR-018).
+    pinning neither.
     """
     if prompts.key(answer) == _NONE:
         return ()
@@ -532,10 +532,10 @@ def _read_small_craft_weapon(
     against.
 
     A weapon the plant cannot run keeps the engine's own reason, which already
-    names the mount and the allowance (FR-016 needs no help there). A weapon
-    that is not a turret weapon at all is refused in the displayed spelling of
-    the *narrowed* set this prompt showed, rather than `validate_turret_weapon`'s
-    bare, unnarrowed list for library callers.
+    names the mount and the allowance. A weapon that is not a turret weapon at
+    all is refused in the displayed spelling of the *narrowed* set this prompt
+    showed, rather than `validate_turret_weapon`'s bare, unnarrowed list for
+    library callers.
     """
     stored = prompts.key(answer)
     try:
@@ -732,7 +732,7 @@ def _ask_constraints(
                 # one refusal in one notation by construction, where echoing
                 # the engine's message would print its bare list—which library
                 # callers need and a referee reading `100-1000 by 100` does
-                # not (FR-016, research.md Decision 3).
+                # not.
                 hull = _read_hull_tons(hull_class, str(hull))
             except ValueError as exc:
                 # `--hull` pre-answers the question, but only with an answer this
@@ -762,7 +762,7 @@ def _ask_constraints(
         """Compose a hull-dependent numeric question and ask it, binding the
         set it displayed into the reader that checks the answer—so the prompt
         and its refusal are one set by construction rather than by two edits
-        staying in step (FR-016)."""
+        staying in step."""
         offered = tuple(values)
         note = f", at least {floor}" if floor is not None else ""
         text = _narrowed_numbers(
@@ -812,8 +812,7 @@ def _ask_constraints(
     def ask_armor() -> ArmorFit | Absent | None:
         """The armour layer, then—only when it is a real `ArmorFit`—its
         once-only options, folded into the same field so revising `armor`
-        carries its options with it and `DesignConstraints` gains no field
-        (FR-021, research.md Decision 7).
+        carries its options with it and `DesignConstraints` gains no field.
         """
         fit = ask_closed(
             "Armor",
@@ -917,10 +916,9 @@ def _read_fields(answer: str) -> frozenset[str]:
 
     Five of the sixteen names are two words (`hull class`, `hull tons`, …), so
     the answer is matched by the same greedy longest-match scan the armour-
-    options question uses, over `_REVISABLE` in its displayed spelling
-    (research.md Decision 4)—which is also what still accepts today's
-    underscored form, since `split_values` matches a whole answer against a
-    single-word value too.
+    options question uses, over `_REVISABLE` in its displayed spelling—which is
+    also what still accepts today's underscored form, since `split_values`
+    matches a whole answer against a single-word value too.
     """
     try:
         named = prompts.split_values(answer, _REVISABLE)
