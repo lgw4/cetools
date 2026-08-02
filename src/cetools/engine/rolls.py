@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import random
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from enum import StrEnum
-from typing import Protocol, TypeVar
+from typing import Any, Protocol, TypeVar
 
 T = TypeVar("T")
 
@@ -214,6 +215,77 @@ class ScriptedRolls:
         if not items:
             raise ValueError(f"cannot choose from an empty sequence (roll '{name}')")
         return items[self._next(self._choices, name, self._default_choice) % len(items)]
+
+
+@dataclass(frozen=True)
+class Draw:
+    """One question the engine put to the dice, and the answer it got back.
+
+    `dm` and `target` are set for a check and nothing else; `offered` is set for a
+    choose and nothing else. They are the arguments the *caller* supplied, which
+    is the whole point: what the seam does with them is its own business and is
+    tested against `RandomRolls`, but whether a caller handed over the right ones
+    was not observable at all before this record existed.
+    """
+
+    verb: str
+    name: RollName
+    result: Any
+    dm: int | None = None
+    target: int | None = None
+    offered: tuple[Any, ...] | None = None
+
+
+class RecordingRolls:
+    """A seam adapter that writes down every draw and delegates the answer.
+
+    Wraps another adapter rather than replacing one, so a test records over real
+    dice or scripted ones without changing what either would have returned::
+
+        rolls = RecordingRolls(ScriptedRolls(checks={RollName.SURVIVAL: False}))
+        generate(career, rolls)
+        assert rolls.named(RollName.SURVIVAL)[0].target == career.survival_target
+
+    Lives here rather than beside a test because three of these had already been
+    written independently—one subclassing `ScriptedRolls` to count `choose` calls,
+    one wrapping any adapter to log roll names, one spying a single `dm`—which is
+    the seam reporting that observing a draw is a capability it owes its callers
+    rather than a trick each test invents. `ScriptedRolls` answers *what the dice
+    said*; this answers *what the engine asked*, and no other adapter can.
+    """
+
+    def __init__(self, inner: Rolls) -> None:
+        self._inner = inner
+        self._draws: list[Draw] = []
+
+    @property
+    def draws(self) -> tuple[Draw, ...]:
+        """Every draw, in the order the engine made it."""
+        return tuple(self._draws)
+
+    def named(self, name: RollName) -> tuple[Draw, ...]:
+        """Just the draws made under `name`, in order."""
+        return tuple(draw for draw in self._draws if draw.name == name)
+
+    def check(self, dm: int, target: int, name: RollName) -> bool:
+        result = self._inner.check(dm, target, name)
+        self._draws.append(Draw("check", name, result, dm=dm, target=target))
+        return result
+
+    def two_d6(self, name: RollName) -> int:
+        result = self._inner.two_d6(name)
+        self._draws.append(Draw("two_d6", name, result))
+        return result
+
+    def d6(self, name: RollName) -> int:
+        result = self._inner.d6(name)
+        self._draws.append(Draw("d6", name, result))
+        return result
+
+    def choose(self, items: Sequence[T], name: RollName) -> T:
+        result = self._inner.choose(items, name)
+        self._draws.append(Draw("choose", name, result, offered=tuple(items)))
+        return result
 
 
 MAX_ROLL_ATTEMPTS = 100

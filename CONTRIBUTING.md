@@ -46,7 +46,7 @@ src/cetools/
 │   │   ├── design.py     # load_design/loads_design/dump_design: TOML round-trip
 │   │   ├── prose.py      # number, word and list formatting primitives for the description
 │   │   └── description.py # render_description(ship)
-│   ├── rolls.py        # Rolls seam: RollName, RandomRolls, ScriptedRolls
+│   ├── rolls.py        # Rolls seam: RollName, RandomRolls, ScriptedRolls, RecordingRolls
 │   ├── rules.py        # Rules policy: HOUSE (default) and SRD
 │   ├── generator.py    # generate(assignment, rolls, rules): the coordinator
 │   ├── background.py   # background_skills()
@@ -118,6 +118,13 @@ seam in `src/cetools/engine/rolls.py` and is named in `RollName`; direct use of 
 inputs, generation produces identical output—this is a correctness property rather than
 a testing convenience, since it is what makes `--seed` meaningful. Tests script rolls
 with `ScriptedRolls` rather than seeding `RandomRolls` and asserting on whatever emerges.
+
+A scripted check answers with an outcome and reads neither the DM nor the target, so
+scripting alone cannot tell whether a caller handed the seam the right ones—a career
+surviving on the wrong characteristic against the wrong number reads exactly the same.
+Where the *arguments* are the rule under test, wrap the adapter in `RecordingRolls` and
+assert on the `Draw` records it keeps: `ScriptedRolls` says what the dice said,
+`RecordingRolls` says what the engine asked.
 
 **Simplicity.** YAGNI applies at every level: three similar lines are preferable to a
 premature abstraction, and a concrete function is preferable to a configurable one.

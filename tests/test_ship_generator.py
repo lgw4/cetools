@@ -5,7 +5,7 @@ from dataclasses import fields
 
 import pytest
 
-from cetools.engine.rolls import RandomRolls, RollName, Rolls, ScriptedRolls
+from cetools.engine.rolls import RandomRolls, RecordingRolls, RollName, ScriptedRolls
 from cetools.engine.ships import (
     ABSENT,
     SHIP_NAMES,
@@ -79,6 +79,15 @@ _PRE_CHANGE_SWEEP_PATH = "tests/data/baseline/pre_change_sweep.json"
 _POST_CHANGE_BASELINE_PATH = "tests/data/baseline/designs.json"
 
 # --- Engine accessors: the published value sets ---
+
+
+def _names(recorder: RecordingRolls) -> list[RollName]:
+    """Every roll name the recorder saw, in order.
+
+    `RecordingRolls` keeps whole `Draw` records; these tests only ever ask which
+    names were drawn and in what order, so they flatten to that here.
+    """
+    return [draw.name for draw in recorder.draws]
 
 
 def test_accessor_hull_tonnages_starship_matches_validate_hull_tons():
@@ -400,7 +409,7 @@ def test_pinned_armor_draws_no_dice():
     for pinned in (ArmorFit(type=ArmorType.CRYSTALIRON, percent=10), ABSENT):
         recorder = RecordingRolls(RandomRolls.seeded(_ROLLS_NO_ARMOR))
         generate_ship(recorder, constraints=DesignConstraints(armor=pinned))
-        assert RollName.SHIP_ARMOR not in recorder.drawn
+        assert RollName.SHIP_ARMOR not in _names(recorder)
 
 
 def test_pinned_armor_that_will_not_fit_leaves_the_ship_unarmored():
@@ -465,9 +474,9 @@ def test_pinned_ratings_draw_no_dice():
         ),
     )
 
-    assert RollName.SHIP_JUMP_CODE not in recorder.drawn
-    assert RollName.SHIP_MANEUVER_CODE not in recorder.drawn
-    assert RollName.SHIP_POWER_CODE not in recorder.drawn
+    assert RollName.SHIP_JUMP_CODE not in _names(recorder)
+    assert RollName.SHIP_MANEUVER_CODE not in _names(recorder)
+    assert RollName.SHIP_POWER_CODE not in _names(recorder)
 
 
 def test_a_pinned_power_plant_caps_the_drives_left_to_chance():
@@ -612,8 +621,8 @@ def test_small_craft_pinned_ratings_draw_no_dice():
         ),
     )
 
-    assert RollName.SHIP_MANEUVER_CODE not in recorder.drawn
-    assert RollName.SHIP_POWER_CODE not in recorder.drawn
+    assert RollName.SHIP_MANEUVER_CODE not in _names(recorder)
+    assert RollName.SHIP_POWER_CODE not in _names(recorder)
 
 
 # --- The rest of the scalar surface: every field pins, rolls or is left absent ---
@@ -642,7 +651,7 @@ def test_a_pinned_field_is_honoured_and_draws_no_dice(field, pinned, roll):
         constraints=DesignConstraints(hull_tons=2000, **{field: pinned}),
     )
 
-    assert roll not in recorder.drawn
+    assert roll not in _names(recorder)
     assert _installed(result.ship, field) == pinned
 
 
@@ -672,7 +681,7 @@ def test_an_unset_field_is_still_rolled(field, pinned, roll):
     recorder = RecordingRolls(RandomRolls.seeded(11))
     generate_ship(recorder, constraints=DesignConstraints(hull_tons=2000, **{field: None}))
 
-    assert roll in recorder.drawn
+    assert roll in _names(recorder)
 
 
 @pytest.mark.parametrize("field", ["computer", "electronics", "fitting", "bay", "screen"])
@@ -748,7 +757,7 @@ def test_an_unset_screen_is_never_rolled_onto_a_small_craft():
         recorder = RecordingRolls(RandomRolls.seeded(seed))
         result = generate_ship(recorder, constraints=_SMALL_CRAFT)
 
-        assert RollName.SHIP_SCREEN not in recorder.drawn
+        assert RollName.SHIP_SCREEN not in _names(recorder)
         assert result.ship.design.screens == ()
 
 
@@ -846,9 +855,9 @@ def test_a_pinned_count_alone_fits_that_many_turrets_and_rolls_their_details():
     )
 
     assert len(result.ship.design.turrets) == 2
-    assert RollName.SHIP_TURRET_COUNT not in recorder.drawn
-    assert recorder.drawn.count(RollName.SHIP_TURRET_MOUNT) == 2
-    assert recorder.drawn.count(RollName.SHIP_WEAPON) == 2
+    assert RollName.SHIP_TURRET_COUNT not in _names(recorder)
+    assert _names(recorder).count(RollName.SHIP_TURRET_MOUNT) == 2
+    assert _names(recorder).count(RollName.SHIP_WEAPON) == 2
 
 
 def test_a_pinned_mount_and_weapon_are_fitted_and_draw_no_dice():
@@ -864,8 +873,8 @@ def test_a_pinned_mount_and_weapon_are_fitted_and_draw_no_dice():
     (turret,) = result.ship.design.turrets
     assert turret.mount == "triple"
     assert turret.weapons == ("pulse_laser",) * 3
-    assert RollName.SHIP_TURRET_MOUNT not in recorder.drawn
-    assert RollName.SHIP_WEAPON not in recorder.drawn
+    assert RollName.SHIP_TURRET_MOUNT not in _names(recorder)
+    assert RollName.SHIP_WEAPON not in _names(recorder)
 
 
 def test_a_pinned_weapon_may_ride_a_rolled_mount_and_the_reverse():
@@ -1756,40 +1765,13 @@ def test_sc009_hull_size_is_always_honoured():
             assert ship.hull_tons == hull_tons
 
 
-class RecordingRolls:
-    """Wraps another `Rolls` and records every `RollName` drawn, in order.
-
-    Serves one test (the draw-order guard) and no production caller, so
-    it lives here rather than in `engine/rolls.py`."""
-
-    def __init__(self, wrapped: Rolls) -> None:
-        self._wrapped = wrapped
-        self.drawn: list[RollName] = []
-
-    def check(self, dm: int, target: int, name: RollName) -> bool:
-        self.drawn.append(name)
-        return self._wrapped.check(dm, target, name)
-
-    def two_d6(self, name: RollName) -> int:
-        self.drawn.append(name)
-        return self._wrapped.two_d6(name)
-
-    def d6(self, name: RollName) -> int:
-        self.drawn.append(name)
-        return self._wrapped.d6(name)
-
-    def choose(self, items, name: RollName):
-        self.drawn.append(name)
-        return self._wrapped.choose(items, name)
-
-
 def test_sc008_ship_name_is_the_final_draw_and_is_drawn_exactly_once_on_both_paths():
     for seed in range(50):
         for hull_class in HullClass:
             recorder = RecordingRolls(RandomRolls.seeded(seed))
             generate_ship(recorder, constraints=DesignConstraints(hull_class=hull_class))
-            assert recorder.drawn[-1] == RollName.SHIP_NAME
-            assert recorder.drawn.count(RollName.SHIP_NAME) == 1
+            assert _names(recorder)[-1] == RollName.SHIP_NAME
+            assert _names(recorder).count(RollName.SHIP_NAME) == 1
 
 
 def test_a_pinned_hull_tonnage_draws_no_dice_on_either_path():
@@ -1802,14 +1784,14 @@ def test_a_pinned_hull_tonnage_draws_no_dice_on_either_path():
     for seed in range(20):
         recorder = RecordingRolls(RandomRolls.seeded(seed))
         generate_ship(recorder, constraints=DesignConstraints(hull_tons=400))
-        assert RollName.SHIP_HULL_SIZE not in recorder.drawn
+        assert RollName.SHIP_HULL_SIZE not in _names(recorder)
 
         recorder = RecordingRolls(RandomRolls.seeded(seed))
         generate_ship(
             recorder,
             constraints=DesignConstraints(hull_class=HullClass.SMALL_CRAFT, hull_tons=40),
         )
-        assert RollName.SHIP_HULL_SIZE not in recorder.drawn
+        assert RollName.SHIP_HULL_SIZE not in _names(recorder)
 
 
 def test_an_unpinned_hull_tonnage_is_drawn_exactly_once_on_either_path():
@@ -1818,24 +1800,24 @@ def test_an_unpinned_hull_tonnage_is_drawn_exactly_once_on_either_path():
     for hull_class in HullClass:
         recorder = RecordingRolls(RandomRolls.seeded(3))
         generate_ship(recorder, constraints=DesignConstraints(hull_class=hull_class))
-        assert recorder.drawn.count(RollName.SHIP_HULL_SIZE) == 1
+        assert _names(recorder).count(RollName.SHIP_HULL_SIZE) == 1
 
 
 def test_sc008_drive_codes_are_drawn_jump_then_maneuver_then_power():
     for seed in range(50):
         recorder = RecordingRolls(RandomRolls.seeded(seed))
         generate_ship(recorder)
-        jump_at = recorder.drawn.index(RollName.SHIP_JUMP_CODE)
-        maneuver_at = recorder.drawn.index(RollName.SHIP_MANEUVER_CODE)
-        power_at = recorder.drawn.index(RollName.SHIP_POWER_CODE)
+        jump_at = _names(recorder).index(RollName.SHIP_JUMP_CODE)
+        maneuver_at = _names(recorder).index(RollName.SHIP_MANEUVER_CODE)
+        power_at = _names(recorder).index(RollName.SHIP_POWER_CODE)
         assert jump_at < maneuver_at < power_at
 
     for seed in range(50):
         recorder = RecordingRolls(RandomRolls.seeded(seed))
         generate_ship(recorder, constraints=_SMALL_CRAFT)
-        assert RollName.SHIP_JUMP_CODE not in recorder.drawn
-        maneuver_at = recorder.drawn.index(RollName.SHIP_MANEUVER_CODE)
-        power_at = recorder.drawn.index(RollName.SHIP_POWER_CODE)
+        assert RollName.SHIP_JUMP_CODE not in _names(recorder)
+        maneuver_at = _names(recorder).index(RollName.SHIP_MANEUVER_CODE)
+        power_at = _names(recorder).index(RollName.SHIP_POWER_CODE)
         assert maneuver_at < power_at
 
 

@@ -2,7 +2,7 @@ import random
 
 import pytest
 
-from cetools.engine.rolls import RandomRolls, RollName, ScriptedRolls
+from cetools.engine.rolls import RandomRolls, RecordingRolls, RollName, ScriptedRolls
 from cetools.engine.worlds.generator import generate_subsector, generate_system, generate_world
 from cetools.engine.worlds.models import Density, TravelZone
 
@@ -791,32 +791,10 @@ def test_naval_base_absent_on_non_ab_starport_even_if_check_passes():
     assert system.naval_base is False
 
 
-class _ScoutDMSpy:
-    """Wraps a Rolls adapter, recording the dm passed to the SCOUT_BASE check."""
-
-    def __init__(self, inner):
-        self._inner = inner
-        self.scout_dm = None
-
-    def check(self, dm, target, name):
-        if name is RollName.SCOUT_BASE:
-            self.scout_dm = dm
-        return self._inner.check(dm, target, name)
-
-    def two_d6(self, name):
-        return self._inner.two_d6(name)
-
-    def d6(self, name):
-        return self._inner.d6(name)
-
-    def choose(self, items, name):
-        return self._inner.choose(items, name)
-
-
 def _scout_dm_for_starport_roll(starport_roll):
-    rolls = _ScoutDMSpy(_rolls(two_d6={RollName.WORLD_STARPORT: starport_roll}))
+    rolls = RecordingRolls(_rolls(two_d6={RollName.WORLD_STARPORT: starport_roll}))
     generate_system(rolls, name="X")
-    return rolls.scout_dm
+    return rolls.named(RollName.SCOUT_BASE)[-1].dm
 
 
 def test_scout_base_dm_is_minus_three_for_starport_a():
