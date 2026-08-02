@@ -62,6 +62,9 @@ NOT_CODE = {
     "tests",
     "docs",
     "scripts",
+    "gh",
+    # triage label vocabulary
+    "wontfix",
     # SRD notation and pseudo-hex digits
     "Psi",
     "Edu",
