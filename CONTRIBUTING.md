@@ -46,6 +46,7 @@ src/cetools/
 │   │   ├── design.py     # load_design/loads_design/dump_design: TOML round-trip
 │   │   ├── prose.py      # number, word and list formatting primitives for the description
 │   │   └── description.py # render_description(ship)
+│   ├── notation.py     # spell/numbers: how a set of acceptable values is written
 │   ├── rolls.py        # Rolls seam: RollName, RandomRolls, ScriptedRolls, RecordingRolls
 │   ├── rules.py        # Rules policy: HOUSE (default) and SRD
 │   ├── generator.py    # generate(assignment, rolls, rules): the coordinator

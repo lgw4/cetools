@@ -31,6 +31,7 @@ from dataclasses import dataclass
 from enum import Enum
 from operator import attrgetter
 
+from cetools.engine.notation import numeric_values, spelled_values
 from cetools.engine.rolls import RandomRolls, RollName, Rolls
 from cetools.engine.ships.builder import BAY_FIRE_CONTROL_TONS, build_ship
 from cetools.engine.ships.models import (
@@ -318,14 +319,14 @@ def validate_hull_tons(hull_class: HullClass, tons: int) -> None:
     who is told two different things about one mistake is being told one of them
     wrongly.
     """
+    valid = numeric_values(hull_tonnages(hull_class))
     if hull_class is HullClass.SMALL_CRAFT:
         if tons not in SMALL_CRAFT_HULLS:
             raise ValueError(
-                f"{tons} tons is not a tabulated small-craft hull size; "
-                f"valid: {sorted(SMALL_CRAFT_HULLS)}"
+                f"{tons} tons is not a tabulated small-craft hull size; valid: {valid}"
             )
     elif tons not in HULLS:
-        raise ValueError(f"{tons} tons is not a tabulated hull size; valid: {sorted(HULLS)}")
+        raise ValueError(f"{tons} tons is not a tabulated hull size; valid: {valid}")
 
 
 def hull_tonnages(hull_class: HullClass) -> tuple[int, ...]:
@@ -344,7 +345,7 @@ def _validate_key(name: str, table: Mapping[str, object], what: str) -> None:
     bare table keys with no record to rule on them.
     """
     if name not in table:
-        raise ValueError(f"unknown {what} {name!r}; known: {sorted(table)}")
+        raise ValueError(f"unknown {what} {name!r}; known: {spelled_values(table)}")
 
 
 def validate_electronics(name: str) -> None:
@@ -581,7 +582,7 @@ def validate_rating(
         )
         raise ValueError(
             f"{drive.value} rating {rating} is not tabulated for {where}; "
-            f"available: {list(available)}"
+            f"available: {numeric_values(available)}"
         )
 
 

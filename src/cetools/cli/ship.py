@@ -47,7 +47,10 @@ from cetools.engine.ships import (
     small_craft_weapons,
     turret_mounts,
     turret_weapons,
+    validate_hull_tons,
     validate_small_craft_weapon,
+    validate_turret_mount,
+    validate_turret_weapon,
 )
 
 app = typer.Typer()
@@ -302,14 +305,7 @@ def _read_hull_tons(hull_class: HullClass, answer: str) -> int:
     except ValueError:
         raise ValueError(f"{answer} is not a number of tons") from None
 
-    valid = hull_tonnages(hull_class)
-    if tons not in valid:
-        available = ", ".join(prompts.numbers(valid))
-        if hull_class is HullClass.SMALL_CRAFT:
-            raise ValueError(
-                f"{tons} tons is not a tabulated small-craft hull size; valid: {available}"
-            )
-        raise ValueError(f"{tons} tons is not a tabulated hull size; valid: {available}")
+    validate_hull_tons(hull_class, tons)
     return tons
 
 
@@ -350,9 +346,6 @@ def _read_rating(
 
     if floor is not None and rating < floor:
         raise ValueError(f"power plant rating {rating} is below the {floor} its drives require")
-
-    if drive is Drive.JUMP and hull_class is HullClass.SMALL_CRAFT:
-        raise ValueError("small craft carry no jump drive, so no jump rating can be pinned")
 
     if rating not in available_ratings(hull_class, hull_tons):
         where = (
@@ -450,6 +443,9 @@ def _read_electronics(known: list[str], answer: str) -> str | Absent:
     if stored == _NONE:
         return ABSENT
     if stored not in electronics_packages():
+        # Not `validate_electronics`: the prompt offers `none` as well as the
+        # packages, and the refusal has to name the set the question named. The
+        # engine rules on a package name; this rules on an answer.
         raise ValueError(f"unknown electronics package {stored!r}; known: {', '.join(known)}")
     return stored
 
@@ -510,15 +506,13 @@ def _read_screen(known: list[str], answer: str) -> ScreenFit | Absent:
 
 def _read_turret_mount(known: list[str], answer: str) -> str:
     stored = prompts.key(answer)
-    if stored not in turret_mounts():
-        raise ValueError(f"unknown turret mount {stored!r}; known: {', '.join(known)}")
+    validate_turret_mount(stored)
     return stored
 
 
 def _read_turret_weapon(known: list[str], answer: str) -> str:
     stored = prompts.key(answer)
-    if stored not in turret_weapons():
-        raise ValueError(f"unknown turret weapon {stored!r}; known: {', '.join(known)}")
+    validate_turret_weapon(stored)
     return stored
 
 

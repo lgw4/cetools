@@ -1,21 +1,23 @@
 """Text composition for interactive ship-design prompts.
 
-Five pure functions, consulting no rule: `spell`/`key` are the display/stored
-spelling round trip, `numbers` collapses an ascending run of
-integers for display, `split_values` splits an answer naming several
-values by greedy longest-match, and `offer` composes the
-`question (values{note})` text every closed-set prompt shares.
+Three pure functions, consulting no rule: `key` is the stored spelling of a
+typed answer, `split_values` splits an answer naming several values by greedy
+longest-match, and `offer` composes the `question (values{note})` text every
+closed-set prompt shares.
+
+`spell` and `numbers` are re-exported from `cetools.engine.notation`, which is
+where they now live: a refusal has to name the same set in the same notation as
+the question above it, and refusals are raised in the engine.
 """
 
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable
 
+from cetools.engine.notation import numbers, spell
 
-def spell(value: str | int) -> str:
-    """The displayed spelling of a stored key: each `_` becomes a space."""
-    return str(value).replace("_", " ")
+__all__ = ["key", "numbers", "offer", "spell", "split_values"]
 
 
 def key(answer: str) -> str:
@@ -26,41 +28,6 @@ def key(answer: str) -> str:
     """
     collapsed = "_".join(answer.strip().split())
     return collapsed.lower().replace("-", "_")
-
-
-def numbers(values: Sequence[int]) -> list[str]:
-    """Collapse `values` (ascending) into runs for display.
-
-    A run of three or more evenly spaced values collapses to `"first-last"`,
-    or `"first-last by step"` when the step is not 1. A run of exactly two
-    collapses only when its step is 1; otherwise both are enumerated. A value
-    in no run is enumerated in its place.
-    """
-    values = list(values)
-    segments: list[str] = []
-    i = 0
-    n = len(values)
-    while i < n:
-        j = i
-        step: int | None = None
-        while j + 1 < n:
-            candidate_step = values[j + 1] - values[j]
-            if step is None:
-                step = candidate_step
-            elif candidate_step != step:
-                break
-            j += 1
-        run_length = j - i + 1
-        if run_length >= 3 or (run_length == 2 and step == 1):
-            segment = f"{values[i]}-{values[j]}"
-            if step != 1:
-                segment += f" by {step}"
-            segments.append(segment)
-            i = j + 1
-        else:
-            segments.append(str(values[i]))
-            i += 1
-    return segments
 
 
 def split_values(answer: str, known: Iterable[str]) -> list[str]:
