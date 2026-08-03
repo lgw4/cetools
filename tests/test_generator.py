@@ -214,7 +214,7 @@ def test_seven_term_cap_voluntary_musterout() -> None:
 
 
 def test_natural_12_at_term_7_forces_term_8() -> None:
-    # SRD rules honour the natural 12; HOUSE rules hold the cap (tested above).
+    # SRD rules honor the natural 12; HOUSE rules hold the cap (tested above).
     result = generate(NAVY_CAREER, _rolls(two_d6={RollName.REENLISTMENT: 12}), rules=SRD)
     assert isinstance(result, Character)
     assert result.terms_served == 8

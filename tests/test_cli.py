@@ -1415,7 +1415,7 @@ def test_ship_generate_interactive_a_vehicle_sized_fitting_is_refused_at_the_pro
 
 def test_ship_generate_interactive_none_pins_a_ship_with_no_name():
     """`none` at the name prompt is an answer, not a skipped question: it must
-    not quietly fall through to the catalogue."""
+    not quietly fall through to the catalog."""
     result = runner.invoke(
         app,
         ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
@@ -1453,7 +1453,7 @@ def test_ship_generate_interactive_offers_accept_or_revise_when_something_went_u
     result = runner.invoke(app, _OVERLOADED, input=_answers(**_OVERLOADED_ANSWERS))
 
     assert result.exit_code == 0
-    assert "could not honour" in result.stderr
+    assert "could not honor" in result.stderr
     assert "Accept this ship or revise [accept]:" in result.stderr
 
 
@@ -1566,16 +1566,22 @@ def test_ship_generate_interactive_the_accept_prompt_re_asks_a_typo():
 
 
 def test_ship_generate_interactive_an_unknown_answer_name_is_reasked():
-    """The answers to revise are named, so a name nothing knows is a typo."""
+    """The answers to revise are named, so a name nothing knows is a typo.
+
+    `shields` is the unknown name rather than a misspelling of a real one: this
+    test used to type the British spelling of `armor`, which the American-spelling
+    sweep turned into the field name itself and so into a *valid* answer. A word
+    the SRD does not have at all cannot be rehabilitated by a future rename.
+    """
     result = runner.invoke(
         app,
         ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11", "--toml"],
         input=_answers(skip=("hull",), pad=False, armor="crystaliron 7")
-        + "armour\narmor\ncrystaliron 5\n\n",  # revised armor pins a layer, options asked again
+        + "shields\narmor\ncrystaliron 5\n\n",  # revised armor pins a layer, options asked again
     )
 
     assert result.exit_code == 0, result.stderr
-    assert "no such answer: armour" in result.stderr
+    assert "no such answer: shields" in result.stderr
 
 
 _REVISE_PROMPT = (
@@ -1678,11 +1684,11 @@ def test_ship_generate_interactive_reproduces_a_session_by_saving_and_rebuilding
 
 def test_ship_generate_reports_unmet_constraints_on_stderr_and_still_exits_0():
     """Generation never fails on tonnage: a real ship comes back, and the
-    referee is told plainly which answers it could not honour."""
+    referee is told plainly which answers it could not honor."""
     result = runner.invoke(app, _OVERLOADED, input=_answers(**_OVERLOADED_ANSWERS))
 
     assert result.exit_code == 0
-    assert "could not honour" in result.stderr
+    assert "could not honor" in result.stderr
     assert "staterooms" in result.stderr
     assert "turrets" in result.stderr
 
@@ -1699,18 +1705,18 @@ def test_ship_generate_unmet_constraints_never_reach_stdout():
     result = runner.invoke(app, _OVERLOADED + ["--toml"], input=_answers(**_OVERLOADED_ANSWERS))
 
     assert result.exit_code == 0
-    assert "could not honour" not in result.stdout
+    assert "could not honor" not in result.stdout
 
     from cetools.engine.ships import build_ship, loads_design
 
     build_ship(loads_design(result.stdout))
 
 
-def test_ship_generate_says_nothing_when_every_constraint_is_honoured():
+def test_ship_generate_says_nothing_when_every_constraint_is_honored():
     result = runner.invoke(app, ["ship", "generate", "--seed", "42"])
 
     assert result.exit_code == 0
-    assert "could not honour" not in result.stderr
+    assert "could not honor" not in result.stderr
 
 
 def test_ship_generate_interactive_asks_for_the_hull_class_first():
@@ -1827,7 +1833,7 @@ def test_ship_generate_interactive_small_craft_power_prompt_offers_what_the_mane
 
 def test_ship_generate_interactive_power_prompt_names_no_value_when_the_hull_can_carry_none():
     """One reachable path to the prompt's empty form: Enter at hull
-    tonnage lets a 6-G manoeuvre rating pass the broad, unnarrowed check;
+    tonnage lets a 6-G maneuver rating pass the broad, unnarrowed check;
     revising the tonnage down to 10 then finds no plant fits beside it.
 
     The illegal `distributed` + `fuel_scoops` combination is what reaches the
@@ -1860,7 +1866,7 @@ def test_ship_generate_interactive_power_prompt_names_no_value_when_the_hull_can
 # --- Convergence: a refusal names the set its prompt named ---
 #
 # The two readers whose prompt is narrower than `available_ratings` are the
-# small craft's manoeuvre and power questions. An answer outside the *wider*
+# small craft's maneuver and power questions. An answer outside the *wider*
 # set used to be refused by `_read_rating` naming that wider set, so the prompt
 # above and the refusal below described different sets—the failure this
 # exists to prevent, and one that also named ratings the question then refused.
@@ -2256,13 +2262,13 @@ def test_ship_generate_interactive_power_below_its_floor_is_reasked_with_the_rea
 
 def test_ship_generate_interactive_power_floor_holds_when_only_one_drive_is_pinned():
     """A floor known in part is still a floor: Jump-2 alone puts the plant at 2,
-    even with the manoeuvre drive left to the dice.
+    even with the maneuver drive left to the dice.
 
     The floor counts only the drives the referee pinned, because those are the
     only ones it can count. The drive left to chance needs no floor: it is drawn
     from what the pinned plant can run, so a plant that clears the prompt is
     never then refused over a rating nobody asked for. This seed rolled a
-    manoeuvre drive of 5 before that cap existed, and the session lost the ship.
+    maneuver drive of 5 before that cap existed, and the session lost the ship.
     """
     result = runner.invoke(
         app,
@@ -2330,7 +2336,7 @@ def test_ship_generate_interactive_asks_for_armor_showing_its_default():
 
 
 def test_ship_generate_interactive_pins_an_armor_type_and_percent():
-    """Seed 7 draws no armour, so armour on this ship can only be the answer.
+    """Seed 7 draws no armor, so armor on this ship can only be the answer.
 
     Both spellings of the percent are accepted, because a referee reading
     "10% of the hull" off the SRD will type the sign as often as not.
@@ -2350,7 +2356,7 @@ def test_ship_generate_interactive_pins_an_armor_type_and_percent():
 
 
 def test_ship_generate_interactive_none_pins_an_unarmored_ship():
-    """Seed 0 draws crystaliron, so an unarmoured ship here is the `none` answer."""
+    """Seed 0 draws crystaliron, so an unarmored ship here is the `none` answer."""
     rolled = runner.invoke(app, ["ship", "generate", "--seed", "0", "--toml"])
     result = runner.invoke(
         app,
@@ -2385,7 +2391,7 @@ def test_ship_generate_interactive_armor_percent_rule_surfaces_at_assembly_not_t
     duplicated outward, so 7% is accepted at the prompt and rejected on
     assembly.
 
-    Since #51 that refusal is a question rather than an exit: the armour prompt
+    Since #51 that refusal is a question rather than an exit: the armor prompt
     comes back, and answering it legally yields a ship.
     """
     result = runner.invoke(
@@ -2434,14 +2440,14 @@ def test_ship_generate_interactive_unknown_armor_type_is_reasked_with_the_reason
     assert result.stderr.count(_ARMOR_PROMPT) == 2
 
 
-# --- Armour options can be pinned ---
+# --- Armor options can be pinned ---
 
 
 _ARMOR_OPTIONS_PROMPT = "Armor options (reflec, self sealing, stealth) [none]:"
 
 
 def test_ship_generate_interactive_armor_options_asked_directly_after_a_pinned_type():
-    """AS 4.1: the question follows the armour question with nothing between
+    """AS 4.1: the question follows the armor question with nothing between
     them, and does not name `none`—the `[none]` default already says it."""
     result = runner.invoke(
         app,
@@ -2559,7 +2565,7 @@ def test_ship_generate_interactive_armor_options_not_asked_when_armor_answered_n
 
 
 def test_ship_generate_interactive_armor_options_not_asked_when_armor_is_rolled():
-    """AS 4.5: Enter at armour leaves it to the dice, and no `ArmorFit`
+    """AS 4.5: Enter at armor leaves it to the dice, and no `ArmorFit`
     exists yet for the options question to attach to."""
     result = runner.invoke(
         app, ["ship", "generate", "--interactive", "--seed", "42"], input=_ENTER_THROUGH
@@ -2569,7 +2575,7 @@ def test_ship_generate_interactive_armor_options_not_asked_when_armor_is_rolled(
 
 
 def test_ship_generate_interactive_revising_armor_re_asks_the_options_question():
-    """AS 4.7: the options question follows a revised armour answer too, and
+    """AS 4.7: the options question follows a revised armor answer too, and
     the new answer replaces rather than merges with the old one."""
     from cetools.engine.ships import loads_design
 
@@ -2603,7 +2609,7 @@ def test_ship_generate_interactive_revising_another_field_leaves_armor_options_u
 
 def test_ship_generate_interactive_revising_armor_to_none_drops_its_options():
     """Options go with the layer they belonged to, since revising
-    armour to `none` leaves nothing for them to attach to."""
+    armor to `none` leaves nothing for them to attach to."""
     from cetools.engine.ships import loads_design
 
     result = runner.invoke(
@@ -2627,7 +2633,7 @@ def test_ship_generate_interactive_asks_for_the_hull_tonnage_showing_its_default
 
 
 def test_ship_generate_interactive_pressing_enter_yields_the_unprompted_ship():
-    """Enter rolls, so answering nothing collapses to today's behaviour exactly.
+    """Enter rolls, so answering nothing collapses to today's behavior exactly.
 
     Byte equality on stdout also pins that no prompt reaches it, which is what
     lets `--interactive` compose with `--toml` and `--out`.
@@ -2857,7 +2863,7 @@ _ARMOR_TYPE_KNOWN = [prompts.spell(kind.value) for kind in ArmorType]
 
 
 def _accept_armor(answer: str) -> None:
-    """The armour type alone, typed back; the percent is a free part excluded
+    """The armor type alone, typed back; the percent is a free part excluded
     from the count, so a fixed one is appended for the reader."""
     ship._read_armor(_ARMOR_TYPE_KNOWN, f"{answer} 15")
 

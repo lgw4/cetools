@@ -876,7 +876,7 @@ TURRET_MOUNTS: dict[str, MountRow] = {
 
 The SRD presents pop-up and fixed as *qualities* layered on a single/double/triple
 mount (+2 t and +MCr1 for pop-up; half cost for fixed), but ``TurretFit.mount`` is
-one flat choice among five, so each is modelled here as its own
+one flat choice among five, so each is modeled here as its own
 single-weapon-slot mount: pop-up at its literal SRD tons/cost, fixed at 0 t (the
 SRD's fixed mounting occupies no separate tonnage) and half of a single turret's
 cost."""

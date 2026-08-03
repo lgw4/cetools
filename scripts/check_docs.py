@@ -12,6 +12,9 @@ exists because the thing it catches actually happened:
 5. The README's `cetools ship build` console block kept `Jump-1 Maneuver-1 Power-1` on the
    drives line after the code started printing `Drives: Jump-1 (A)  Maneuver-1 (A)  Power-1
    (A), 4t power plant`; nothing ran non-Python console examples to catch it.
+6. British spellings accumulated in docstrings and comments while the tables, enums
+   and prompts stayed American, so the same concept was spelled two ways depending
+   on whether it was code or the prose above it.
 
 Run: uv run python scripts/check_docs.py
 """
@@ -35,7 +38,9 @@ ROOT = Path(__file__).resolve().parent.parent
 DOCS = ("README.md", "CONTRIBUTING.md", "AGENTS.md")
 PROSE = [ROOT / doc for doc in DOCS]
 SOURCES = sorted((ROOT / "src").rglob("*.py"))
+TESTS = sorted((ROOT / "tests").rglob("*.py"))
 ENGINE = ROOT / "src" / "cetools" / "engine"
+GLOSSARY = ROOT / "CONTEXT.md"
 
 # The only command `check_readme_ship_console_examples` will run. See its docstring.
 SHIP_CONSOLE_PREFIX = "uv run cetools ship"
@@ -87,6 +92,30 @@ NOT_CODE = {
     "keys",
     "values",
     "get",
+}
+
+# British spellings this project does not use, mapped to the American form.
+# Keys are *stems*, not whole words, so a derived form is caught by the same
+# entry: "catalogu" covers catalogue, catalogued and cataloguing, and "armour"
+# covers armoured and unarmoured. This file is not itself scanned (the scan
+# covers PROSE, SOURCES, TESTS and the glossary), so the keys below are not a
+# violation of the rule they enforce.
+#
+# A stem has to be unambiguous before it is added here. "specialis" looks like a
+# fine stem for "specialise" and would flag every one of this package's
+# `specialist_skills`, which is already American. When in doubt, spell out the
+# whole British form rather than reaching for a shorter stem.
+BRITISH_SPELLINGS = {
+    "armour": "armor",
+    "behaviour": "behavior",
+    "catalogu": "catalog",
+    "fuelled": "fueled",
+    "honour": "honor",
+    "labelled": "labeled",
+    "manoeuvre": "maneuver",
+    "modelled": "modeled",
+    "normalis": "normaliz",
+    "recognis": "recogniz",
 }
 
 failures: list[str] = []
@@ -207,13 +236,35 @@ def check_module_map() -> None:
 
 def check_punctuation() -> None:
     """Em-dashes and en-dashes are tight: no leading or trailing spaces."""
-    for path in PROSE + SOURCES:
+    for path in PROSE + SOURCES + [GLOSSARY]:
         if not path.exists():
             continue
         rel = path.relative_to(ROOT)
         for lineno, line in enumerate(path.read_text().splitlines(), 1):
             if re.search(r" [—–] ", line):
                 failures.append(f"{rel}:{lineno}: spaced em/en-dash; tighten it or use a comma")
+
+
+def check_spelling() -> None:
+    """Spelling is American English, in prose as much as in identifiers.
+
+    This project's docstrings are long and expository, so most of its prose lives
+    in the source rather than in the docs, and that is where the British forms
+    collected. Tests are scanned too: a test *name* is prose a reader greps for,
+    and `catalogue_names` was a local variable before this check existed.
+    """
+    for path in PROSE + SOURCES + TESTS + [GLOSSARY]:
+        if not path.exists():
+            continue
+        rel = path.relative_to(ROOT)
+        for lineno, line in enumerate(path.read_text().splitlines(), 1):
+            lowered = line.lower()
+            for british, american in BRITISH_SPELLINGS.items():
+                if british in lowered:
+                    failures.append(
+                        f"{rel}:{lineno}: British spelling {british!r}; this project "
+                        f"uses {american!r}"
+                    )
 
 
 def main() -> int:
@@ -223,6 +274,7 @@ def main() -> int:
     check_readme_ship_console_examples()
     check_module_map()
     check_punctuation()
+    check_spelling()
 
     if failures:
         print(f"{len(failures)} docs problem(s):\n", file=sys.stderr)
@@ -232,7 +284,7 @@ def main() -> int:
 
     print(
         "docs OK: symbols resolve, README examples run, `cetools ship` console blocks match, "
-        "module map complete, dashes tight"
+        "module map complete, dashes tight, spelling American"
     )
     return 0
 

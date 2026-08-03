@@ -336,7 +336,7 @@ def test_line_item_rejects_negative_cost():
         LineItem(name="Hull", tons=0, cost=-1)
 
 
-# --- Frozen / immutable behaviour ---
+# --- Frozen / immutable behavior ---
 
 
 @pytest.mark.parametrize(

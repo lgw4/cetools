@@ -270,7 +270,7 @@ def _validate_author_prose(value: str, field: str) -> None:
     first sentence, so a line break inside either would split the paragraph in
     two, and stray or doubled whitespace would render as the space
     before a period, or the doubled space, which is disallowed. Validation
-    rather than normalisation: the value is author prose that appears in the
+    rather than normalization: the value is author prose that appears in the
     output as written, and every other check here reports rather than rewrites.
     """
     if value != value.strip():

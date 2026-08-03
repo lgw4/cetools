@@ -42,7 +42,7 @@ src/cetools/
 │   │   ├── models.py     # ShipDesign, Ship, Crew, LineItem and the frozen component-fit records
 │   │   ├── builder.py    # build_ship(design): the sole costing/validation authority
 │   │   ├── generator.py  # generate_ship(rolls, ...): rolls a legal ShipDesign, then builds it
-│   │   ├── names.py      # ShipName, SHIP_NAMES, generate_ship_name(rolls): curated name catalogue
+│   │   ├── names.py      # ShipName, SHIP_NAMES, generate_ship_name(rolls): curated name catalog
 │   │   ├── design.py     # load_design/loads_design/dump_design: TOML round-trip
 │   │   ├── prose.py      # number, word and list formatting primitives for the description
 │   │   └── description.py # render_description(ship)

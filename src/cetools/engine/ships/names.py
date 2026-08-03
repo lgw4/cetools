@@ -1,4 +1,4 @@
-"""The ship-name catalogue and its provenance types.
+"""The ship-name catalog and its provenance types.
 
 Two invariants a future contributor must not disturb without reading this
 docstring first.
@@ -33,10 +33,10 @@ from cetools.engine.rolls import RandomRolls, RollName, Rolls
 
 
 class Tradition(StrEnum):
-    """Where a catalogue name comes from.
+    """Where a catalog name comes from.
 
     A name is assigned to the *earliest* tradition it belongs to and
-    catalogued exactly once: a mythological name later claimed by a
+    cataloged exactly once: a mythological name later claimed by a
     written- or screen-SF vessel stays under `MYTHOLOGY_FOLKLORE`.
     """
 
@@ -46,7 +46,7 @@ class Tradition(StrEnum):
 
 
 class BasisKind(StrEnum):
-    """Why a fiction-tradition name is safe to catalogue, recorded on its entry:
+    """Why a fiction-tradition name is safe to catalog, recorded on its entry:
     it belongs to a real vessel, is an ordinary word, or is a public-domain
     borrowing.
 
@@ -62,7 +62,7 @@ class BasisKind(StrEnum):
 
 @dataclass(frozen=True)
 class ShipName:
-    """One catalogue entry: a bare proper name plus its provenance.
+    """One catalog entry: a bare proper name plus its provenance.
 
     `basis_kind` and `basis_reference` are set together, and only for
     `WRITTEN_SF` and `SCREEN_SF` entries (V1-V3): the tradition itself is
@@ -175,7 +175,7 @@ SHIP_NAMES: tuple[ShipName, ...] = (
     # -- already claims (Pegasus, Prometheus, Erebus, ...) stays there
     # -- even where a written-SF vessel later bore it.
     # --
-    # -- `basis_*` records why a name is safe to catalogue, not
+    # -- `basis_*` records why a name is safe to catalog, not
     # -- where it comes from. Where an entry's *tradition* was queried and
     # -- confirmed, a comment above it names the source
     # -- vessel, since no field carries that and no test can check it.
@@ -694,7 +694,7 @@ SHIP_NAMES: tuple[ShipName, ...] = (
         basis_reference="USS Arizona, 1915",
     ),
     # Endurance, Interstellar (2014) -- the ranger's mothership. The basis below
-    # is Shackleton's ship, which the film's name honours; the tradition is the
+    # is Shackleton's ship, which the film's name honors; the tradition is the
     # film, no written-SF vessel of the name having been found.
     ShipName(
         name="Endurance",
@@ -706,7 +706,7 @@ SHIP_NAMES: tuple[ShipName, ...] = (
 
 
 def generate_ship_name(rolls: Rolls | None = None) -> str:
-    """A random catalogue name, drawn through the `Rolls` seam.
+    """A random catalog name, drawn through the `Rolls` seam.
 
     Must stay the last `Rolls` draw on every `generate_ship` path (module
     docstring, above)."""
