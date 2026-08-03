@@ -15,7 +15,7 @@ Three numeric helpers occupy deliberately disjoint domains:
     digits when it is fractional, because the SRD writes "two tons allocated to
     fire control" but "1.3 tons".
 ``number`` / ``money``
-    measured and rated values -- hull points, Jump rating, sensor DM, armour
+    measured and rated values -- hull points, Jump rating, sensor DM, armor
     protection, MCr cost. Digits at every magnitude; ``money`` adds thousands
     separators.
 

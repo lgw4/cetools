@@ -18,7 +18,7 @@ def test_house_rerolls_until_qualified_and_holds_the_term_cap() -> None:
     assert HOUSE == Rules(reroll_until_qualified=True, natural_12_forces_extra_term=False)
 
 
-def test_srd_rolls_for_enlistment_and_honours_the_natural_12() -> None:
+def test_srd_rolls_for_enlistment_and_honors_the_natural_12() -> None:
     assert SRD == Rules(reroll_until_qualified=False, natural_12_forces_extra_term=True)
 
 

@@ -420,7 +420,7 @@ def test_a_generated_ships_name_survives_dump_load_and_build():
     # Asserted through `loads_design`, not against the emitted TOML text: the
     # guarantee here is that the name round trips, and matching a
     # `name = "..."` substring would additionally pin dump_design's quoting and
-    # break on the first catalogue name needing an escape. That the key reaches
+    # break on the first catalog name needing an escape. That the key reaches
     # the file at all is the CLI contract's concern, pinned in test_cli.py.
     ship = generate_ship(RandomRolls.seeded(42)).ship
     reloaded = loads_design(dump_design(ship.design))

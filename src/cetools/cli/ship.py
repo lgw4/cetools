@@ -217,7 +217,7 @@ def _read_hull_class(known: list[str], answer: str) -> HullClass:
 def _read_maneuver_rating(
     hull_class: HullClass, hull_tons: int | None, offered: tuple[int, ...], answer: str
 ) -> int:
-    """A manoeuvre rating, narrowed to what a small craft can actually carry.
+    """A maneuver rating, narrowed to what a small craft can actually carry.
 
     The drive table tabulates ratings this hull could reach in isolation, but a
     craft also needs a plant and a cockpit. Refusing here keeps the power prompt
@@ -247,7 +247,7 @@ def _read_power_rating(
 ) -> int:
     """A power plant rating, narrowed on the small-craft path.
 
-    There the pair is chosen jointly, so a manoeuvre drive already pinned rules
+    There the pair is chosen jointly, so a maneuver drive already pinned rules
     out plants too weak to power it or too heavy to sit beside it. Offering a
     rating generation would then have to decline would be promising more than
     the hull can give.
@@ -332,7 +332,7 @@ def _read_rating(
 
 
 def _read_armor(known: list[str], answer: str) -> ArmorFit | Absent:
-    """One armour layer from `<type> <percent>`, or `ABSENT` from `none`.
+    """One armor layer from `<type> <percent>`, or `ABSENT` from `none`.
 
     Any SRD type may be pinned, including ones generation would never roll. The
     multiple-of-5 rule is *not* checked here: it lives in `build_ship` and is
@@ -364,7 +364,7 @@ def _read_armor(known: list[str], answer: str) -> ArmorFit | Absent:
 
 
 def _read_armor_options(known: list[str], answer: str) -> tuple[str, ...]:
-    """The once-only additions to a pinned armour layer, or none of them.
+    """The once-only additions to a pinned armor layer, or none of them.
 
     The literal `none` is accepted though the prompt does not name it—the
     `[none]` default already says it. An option may itself be two
@@ -440,10 +440,10 @@ def _read_fitting(known: list[str], answer: str) -> FittingFit | Absent:
     """A fitting kind; `FittingFit` rules on whether it is one.
 
     Quantity and vehicle tonnage are deliberately not askable (#41, Out of
-    Scope). A vehicle-sized fitting is a real fitting the tables recognise, so
+    Scope). A vehicle-sized fitting is a real fitting the tables recognize, so
     it still reaches `FittingFit`'s own refusal for a missing `vehicle_tons`,
     unchanged from today (AS 1.7). The prompt's own refusal, in the displayed
-    spelling, is reserved for a kind nothing recognises at all—found by
+    spelling, is reserved for a kind nothing recognizes at all—found by
     probing whether a tonnage would have let the same kind through.
     """
     stored = prompts.key(answer)
@@ -606,7 +606,7 @@ def _ask_turrets(
 
 def _read_name(answer: str) -> str | Absent:
     """The ship's name, taken as written. `none` pins a ship with no name of its
-    own, which is a different answer from letting the catalogue supply one.
+    own, which is a different answer from letting the catalog supply one.
 
     The shape rules `ShipDesign` applies to author prose—one line, single
     spaces—are not repeated here. They live with the record that renders them,
@@ -777,7 +777,7 @@ def _ask_constraints(
     )
 
     def ask_armor() -> ArmorFit | Absent | None:
-        """The armour layer, then—only when it is a real `ArmorFit`—its
+        """The armor layer, then—only when it is a real `ArmorFit`—its
         once-only options, folded into the same field so revising `armor`
         carries its options with it and `DesignConstraints` gains no field.
         """
@@ -882,7 +882,7 @@ def _read_fields(answer: str) -> frozenset[str]:
     """The answers a referee named, checked against the record.
 
     Five of the sixteen names are two words (`hull class`, `hull tons`, …), so
-    the answer is matched by the same greedy longest-match scan the armour-
+    the answer is matched by the same greedy longest-match scan the armor-
     options question uses, over `_REVISABLE` in its displayed spelling—which is
     also what still accepts today's underscored form, since `split_values`
     matches a whole answer against a single-word value too.
@@ -925,7 +925,7 @@ def _ask_to_revise() -> bool:
 
 
 def _report_unmet(unmet: tuple[UnmetConstraint, ...]) -> None:
-    """Say plainly which answers the tonnage could not honour.
+    """Say plainly which answers the tonnage could not honor.
 
     On stderr and never on stdout, so a degraded ship still pipes; and without
     an error exit, because a ship really was produced. A referee who is handed
@@ -935,7 +935,7 @@ def _report_unmet(unmet: tuple[UnmetConstraint, ...]) -> None:
     if not unmet:
         return
 
-    typer.echo(f"could not honour {len(unmet)} constraint(s):", err=True)
+    typer.echo(f"could not honor {len(unmet)} constraint(s):", err=True)
     for entry in unmet:
         typer.echo(
             f"  {entry.field}: asked {entry.asked}, got {entry.got} ({entry.reason})", err=True

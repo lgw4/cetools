@@ -385,7 +385,7 @@ def _cargo(ship: Ship) -> str:
     return f"Cargo capacity is {tons(capacity)} {plural(capacity, 'ton', 'tons')}."
 
 
-# --- 12. Hull configuration and armour ---------
+# --- 12. Hull configuration and armor ---------
 
 
 def _distinct(names: Iterable[str]) -> list[str]:
@@ -403,7 +403,7 @@ def _configuration(ship: Ship) -> str:
     if not layers:
         return f"The hull is {hull}, and no additional armor has been installed."
 
-    # Two layers yield one armour clause and one total protection rating.
+    # Two layers yield one armor clause and one total protection rating.
     types = _distinct(ARMOR[fit.type.value].name for fit in layers)
     options = _distinct(ARMOR_OPTIONS[opt].name for fit in layers for opt in fit.options)
     armored = f"{join(types)} ({number(ship.armor_protection)} points)"

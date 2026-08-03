@@ -178,7 +178,7 @@ generate(NAVY_CAREER, rules=SRD)
 | | `HOUSE` (default) | `SRD` |
 | --- | --- | --- |
 | qualification | characteristics are re-rolled until the career's target is met as a raw number; enlistment cannot fail | rolled once, then a `2D6 + DM ≥ target` check that can fail |
-| natural 12 at the 7-term cap | ignored—seven terms is the end | honoured—the character serves an eighth term |
+| natural 12 at the 7-term cap | ignored—seven terms is the end | honored—the character serves an eighth term |
 
 Under `HOUSE`, `generate()` **cannot fail**: characteristics are re-rolled until the career accepts them, and the draft table holds careers rather than names, so there is nothing left to fail at. `GenerationFailure` is an `SRD`-only outcome.
 
@@ -319,26 +319,26 @@ Fitting (armory, detention cell, fuel scoops, fuel processor, laboratory, librar
 Turrets (1-2, none) [roll]:
 ```
 
-Every question shows its default and pressing Enter takes it, so answering nothing produces exactly the ship the same seed produces without the flag. Typing `none` at an optional component's question pins its *absence*, which is a different answer from pressing Enter: `none` at the armour question guarantees an unarmoured ship, where Enter rolls for one. An answer outside the named values is refused with that same list, in that same spelling, and the question is asked again, so a typo costs a line rather than the session. `--hull` and `--small-craft` pre-answer their questions, which are then not asked. Questions and their answers go to stderr, so `--interactive` composes with `--toml` and `--out`.
+Every question shows its default and pressing Enter takes it, so answering nothing produces exactly the ship the same seed produces without the flag. Typing `none` at an optional component's question pins its *absence*, which is a different answer from pressing Enter: `none` at the armor question guarantees an unarmored ship, where Enter rolls for one. An answer outside the named values is refused with that same list, in that same spelling, and the question is asked again, so a typo costs a line rather than the session. `--hull` and `--small-craft` pre-answer their questions, which are then not asked. Questions and their answers go to stderr, so `--interactive` composes with `--toml` and `--out`.
 
 Drives are answered as *ratings* (Jump-2, 2-G) rather than as drive code letters, because the letter that delivers a rating depends on the hull and a referee does not think in letters. A pinned rating installs the lightest code delivering it on the chosen hull, so the tonnage a lighter drive saves flows on to fuel and fittings. The power plant is asked for too rather than derived, since a referee may want surplus power for energy weapons; its prompt states the floor the drives *it was given* set, and rejects an answer below it. A drive left to the dice needs no such floor, because the dice are capped at the pinned plant instead: a pin is a promise and a roll only a preference, so the roll gives way. When the hull was left to the dice a rating can only be checked against the ratings some hull of that class can deliver, so one this particular hull cannot reach surfaces when the ship is assembled.
 
-The wizard asks for the hull class first, because it governs everything after it: which hull tonnages are tabulated, and which questions are worth asking at all. It then walks the design in SRD build order: hull tonnage, configuration, the drives, armour, computer, electronics, staterooms, fitting, turrets, weapon bay, screen, name and purpose. A small craft is never asked about a jump drive or a weapon bay, because its ruleset forbids both, and its power plant is offered only the ratings that fit beside the manoeuvre drive already chosen. Its screen prompt defaults to none rather than to a roll, because the rules permit a small craft a screen but generation never draws one. `purpose` is the exception to every rule here, because cetools never invents one: its prompt defaults to none rather than to a roll, and leaving it unanswered yields a ship without a purpose rather than a random one. At the staterooms prompt `none` means a deliberate zero, which is a different answer from letting the dice choose the count.
+The wizard asks for the hull class first, because it governs everything after it: which hull tonnages are tabulated, and which questions are worth asking at all. It then walks the design in SRD build order: hull tonnage, configuration, the drives, armor, computer, electronics, staterooms, fitting, turrets, weapon bay, screen, name and purpose. A small craft is never asked about a jump drive or a weapon bay, because its ruleset forbids both, and its power plant is offered only the ratings that fit beside the maneuver drive already chosen. Its screen prompt defaults to none rather than to a roll, because the rules permit a small craft a screen but generation never draws one. `purpose` is the exception to every rule here, because cetools never invents one: its prompt defaults to none rather than to a roll, and leaving it unanswered yields a ship without a purpose rather than a random one. At the staterooms prompt `none` means a deliberate zero, which is a different answer from letting the dice choose the count.
 
 Turrets are the one repeating question. Answering a count opens a mount and a weapon question for each turret in turn, both defaulting to random, so pinning the count and pressing Enter through the rest gives a ship with that many turrets and nothing else decided. A count above the hull's hardpoints is refused at the prompt, since hardpoints follow from a hull tonnage settled earlier in the session; with the hull left to the dice the count is taken on trust and ruled on by the hull it lands on.
 
-Armour is answered as a type and a percent of the hull, like `crystaliron 10`. Any type in the SRD table may be pinned, including ones generation would never roll for itself. Rules that live in `build_ship`, such as armour arriving in 5% increments, are not duplicated into the prompts: an answer that breaks one is accepted where it is typed and reported when the ship is assembled. Pinning a real type is followed by an armour-options question—reflec, self sealing and stealth, any number of them in one answer, such as `reflec stealth`—so those once-only SRD additions are now askable rather than reachable only by hand-authoring TOML. Enter or `none` pins the layer with none of them.
+Armor is answered as a type and a percent of the hull, like `crystaliron 10`. Any type in the SRD table may be pinned, including ones generation would never roll for itself. Rules that live in `build_ship`, such as armor arriving in 5% increments, are not duplicated into the prompts: an answer that breaks one is accepted where it is typed and reported when the ship is assembled. Pinning a real type is followed by an armor-options question—reflec, self sealing and stealth, any number of them in one answer, such as `reflec stealth`—so those once-only SRD additions are now askable rather than reachable only by hand-authoring TOML. Enter or `none` pins the layer with none of them.
 
-A randomly generated ship arrives already named, drawn from `generate_ship_name`'s curated catalogue of mythology and folklore, written science fiction, and screen science fiction sources; a hand-authored design's own `name` is never overwritten.
+A randomly generated ship arrives already named, drawn from `generate_ship_name`'s curated catalog of mythology and folklore, written science fiction, and screen science fiction sources; a hand-authored design's own `name` is never overwritten.
 
 Add `--toml` to emit a round-trippable design file instead of the description, and `--out` to write it to a file. Omit `--seed` to have one chosen for you and reported on stderr, so the run can be reproduced.
 
-A referee can ask for more than a hull can hold. Generation never fails on tonnage: the ship still comes back, and the answers it could not honour are listed on stderr with what was asked, what was got, and why. That is a degraded ship rather than a failure, so the command still exits `0` and stdout still carries a design a pipe can read. A rolled value that would not fit is dropped in silence, because it was a preference rather than a promise.
+A referee can ask for more than a hull can hold. Generation never fails on tonnage: the ship still comes back, and the answers it could not honor are listed on stderr with what was asked, what was got, and why. That is a degraded ship rather than a failure, so the command still exits `0` and stdout still carries a design a pipe can read. A rolled value that would not fit is dropped in silence, because it was a preference rather than a promise.
 
-Interactively that report is a question rather than a verdict. The session lists what it could not honour and asks whether to accept the ship or revise, with accept as the default:
+Interactively that report is a question rather than a verdict. The session lists what it could not honor and asks whether to accept the ship or revise, with accept as the default:
 
 ```text
-could not honour 2 constraint(s):
+could not honor 2 constraint(s):
   staterooms: asked 8, got 7 (needs 32t, 30t free)
   turrets: asked turret 1 (triple pulse_laser), got none (needs 1t, 0t free)
 Accept this ship or revise [accept]:
@@ -379,7 +379,7 @@ assert result == generate_ship(RandomRolls.seeded(42))
 print(result.ship.hull_tons, result.unmet)   # 400 ()
 ```
 
-`generate_ship` returns a `GenerationResult`, not a bare `Ship`: `result.ship` is the ship, and `result.unmet` reports any constraint the tonnage budget could not honour. Unconstrained generation has nothing to report, so `unmet` is empty.
+`generate_ship` returns a `GenerationResult`, not a bare `Ship`: `result.ship` is the ship, and `result.unmet` reports any constraint the tonnage budget could not honor. Unconstrained generation has nothing to report, so `unmet` is empty.
 
 What a referee pins at the prompts, a library caller passes as a `DesignConstraints` value; the wizard is a thin layer over the same seam. Anything left unset is rolled, and a pinned value consumes no dice. What that buys is that generation with no constraints draws exactly the sequence it always drew, so a seed keeps meaning what it meant. What it costs is that a pin resolving without a draw shifts every draw behind it: two runs on one seed differing in a single pin diverge completely downstream of that pin, so seed 42 below yields a different configuration and a different name once the hull is pinned.
 
@@ -395,7 +395,7 @@ launch = generate_ship(
 print(launch.ship.design.hull_class is HullClass.SMALL_CRAFT)   # True
 ```
 
-Every optional-component field is three-state, because *roll for armour* and *no armour* are different instructions and the second has to be honoured. Leaving a field unset rolls it, a value pins it, and `ABSENT` pins its absence:
+Every optional-component field is three-state, because *roll for armor* and *no armor* are different instructions and the second has to be honored. Leaving a field unset rolls it, a value pins it, and `ABSENT` pins its absence:
 
 ```python
 from cetools.engine.ships import ABSENT, ArmorFit, ArmorType

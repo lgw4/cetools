@@ -82,7 +82,7 @@ class Absent(Enum):
 
 
 ABSENT = Absent.TOKEN
-"""Pins a component's absence: the referee said *no armour*, not nothing at all.
+"""Pins a component's absence: the referee said *no armor*, not nothing at all.
 
 An optional-component field is three-state, and a plain `X | None` cannot carry
 it: `None` already means "unset, roll it", so reusing it for "do not fit one"
@@ -148,7 +148,7 @@ class DesignConstraints:
 
 
 UNCONSTRAINED = DesignConstraints()
-"""Roll everything—the behaviour `generate_ship` had before it took constraints."""
+"""Roll everything—the behavior `generate_ship` had before it took constraints."""
 
 
 @dataclass(frozen=True)
@@ -228,7 +228,7 @@ class TonnageLedger:
 
 @dataclass(frozen=True)
 class GenerationResult:
-    """What generation produced, and what it could not honour.
+    """What generation produced, and what it could not honor.
 
     Generation never fails on tonnage: a pinned value that will not fit is
     declined and recorded here, so a caller always gets a ship and can ask
@@ -256,7 +256,7 @@ _COMPUTER_PROFILES: tuple[ComputerFit | None, ...] = (
 
 
 def armor_options() -> tuple[str, ...]:
-    """Every armour option a layer may carry, in table order. Pairs with
+    """Every armor option a layer may carry, in table order. Pairs with
     `ArmorFit`'s option validation in `models.py`."""
     return tuple(ARMOR_OPTIONS)
 
@@ -420,7 +420,7 @@ def _hull_demands(
 ) -> Iterable[Callable[[int], bool]]:
     """One predicate per pinned answer that depends on the hull.
 
-    Separate rather than combined, so that a pin no hull can honour costs only
+    Separate rather than combined, so that a pin no hull can honor costs only
     its own narrowing. A pinned jump rating is only asked of a starship: on a
     small craft `validate_rating` refuses it outright, and filtering here would
     be filtering on a rating the ruleset does not have.
@@ -439,7 +439,7 @@ def _hull_demands(
 def _draw_hull_tons(
     rolls: Rolls, hull_class: HullClass, tabulated: list[int], constraints: DesignConstraints
 ) -> int:
-    """The hull, drawn only from tonnages that can honour the hull-dependent pins.
+    """The hull, drawn only from tonnages that can honor the hull-dependent pins.
 
     A pin is a promise and a roll is only a preference, so where the referee
     pinned a rating or a turret count and left the hull to chance, the dice draw
@@ -450,15 +450,15 @@ def _draw_hull_tons(
     plant in `_select_drive_codes`.
 
     Narrowing is applied one pin at a time and kept only where it leaves the dice
-    something to draw. A pin no hull of the class can honour—a small craft has one
+    something to draw. A pin no hull of the class can honor—a small craft has one
     hardpoint however large it is, so a second turret fits none of them—is a
     refusal rather than an unlucky roll, and belongs to the validator that can say
     which. Dropping only that pin's own filter keeps it from taking the others
     down with it, so the refusal still names the answer that caused it.
     """
     pool = tabulated
-    for honours in _hull_demands(hull_class, constraints):
-        narrowed = [tons for tons in pool if honours(tons)]
+    for honors in _hull_demands(hull_class, constraints):
+        narrowed = [tons for tons in pool if honors(tons)]
         if narrowed:
             pool = narrowed
     return rolls.choose(pool, RollName.SHIP_HULL_SIZE)
@@ -479,7 +479,7 @@ def _select_name(rolls: Rolls, pinned: str | Absent | None) -> str:
 
     `ABSENT` pins a ship that carries no name of its own, which the description
     renderer already understands: a blank name renders as an unnamed ship. That
-    is a different answer from leaving the field to the catalogue.
+    is a different answer from leaving the field to the catalog.
     """
     if pinned is ABSENT:
         return ""
@@ -499,7 +499,7 @@ def _select_configuration(
     fitting and left the configuration to chance, drawing distributed would cost
     them the ship over an answer they never gave, so the draw skips it. Read from
     the table row rather than named here, so a second fitting that carries the
-    same restriction is honoured with no edit.
+    same restriction is honored with no edit.
 
     A pinned configuration is returned as given: two pins that contradict each
     other are the referee's to resolve, and `build_ship` owns that sentence.
@@ -595,7 +595,7 @@ def power_floor(
     can show the floor and refuse an answer beneath it. Only pinned ratings
     count: a drive left to the dice has no rating yet, and a floor guessed from
     a drive that has not been chosen would be a lie. A small craft carries no
-    jump drive, so its manoeuvre drive alone sets the floor.
+    jump drive, so its maneuver drive alone sets the floor.
     """
     if hull_class is HullClass.SMALL_CRAFT:
         return maneuver_rating
@@ -648,7 +648,7 @@ def _fit_jump_drive(hull_tons: int, drawn_code: str, budget: float) -> str:
 def _select_drive_codes(
     rolls: Rolls, hull_tons: int, constraints: DesignConstraints
 ) -> tuple[str, str, str]:
-    """Jump, manoeuvre and power codes, drawn in that order unless pinned.
+    """Jump, maneuver and power codes, drawn in that order unless pinned.
 
     A pinned rating resolves without a draw, so the codes left to chance shift
     down the roll stream. That is the documented cost of pinning consuming no
@@ -769,7 +769,7 @@ def _select_armor(
     ledger: TonnageLedger,
     pinned: ArmorFit | Absent | None,
 ) -> ArmorFit | None:
-    """The armour to fit: the referee's answer if they gave one, else a draw.
+    """The armor to fit: the referee's answer if they gave one, else a draw.
 
     A pinned layer is validated by `build_ship` alone, so any SRD type may be
     pinned even though `_ARMOR_CHOICES` would never roll it: that list keeps
@@ -1053,7 +1053,7 @@ def _select_screen(
 
 def _select_small_craft_hull_tons(rolls: Rolls, constraints: DesignConstraints) -> int:
     """The small-craft hull, narrowed by the same rule as the starship path: a
-    pinned manoeuvre or power rating is not tabulated for every small hull, and
+    pinned maneuver or power rating is not tabulated for every small hull, and
     the dice must not pick one that cannot deliver it."""
     if constraints.hull_tons is not None:
         validate_hull_tons(HullClass.SMALL_CRAFT, constraints.hull_tons)
@@ -1072,7 +1072,7 @@ def _small_craft_codes_for(hull_tons: int) -> list[str]:
 
 
 def _small_craft_power_codes(hull_tons: int, maneuver_letter: str) -> list[str]:
-    """The power plants a craft with this manoeuvre drive can still carry.
+    """The power plants a craft with this maneuver drive can still carry.
 
     Two rules at once: a plant may not be rated below the drive it powers, and
     the pair must leave room for at least the smallest cockpit. The small-craft
@@ -1094,12 +1094,12 @@ def _small_craft_power_codes(hull_tons: int, maneuver_letter: str) -> list[str]:
 
 
 def small_craft_maneuver_ratings(hull_tons: int) -> tuple[int, ...]:
-    """Every manoeuvre rating a small craft of this tonnage can actually carry.
+    """Every maneuver rating a small craft of this tonnage can actually carry.
 
     Narrower than what the drive table tabulates for the hull: a rating whose
     every drive leaves no room for a plant and a cockpit beside it is not one
     this craft can have. The wizard offers these so a referee is refused at the
-    manoeuvre prompt rather than at the power prompt that follows it, where
+    maneuver prompt rather than at the power prompt that follows it, where
     every answer would be wrong through no fault of their own.
     """
     return tuple(
@@ -1114,10 +1114,10 @@ def small_craft_maneuver_ratings(hull_tons: int) -> tuple[int, ...]:
 
 
 def small_craft_power_ratings(hull_tons: int, maneuver_rating: int) -> tuple[int, ...]:
-    """Every power plant rating a small craft at this manoeuvre rating can carry.
+    """Every power plant rating a small craft at this maneuver rating can carry.
 
     The wizard offers these rather than the ratings the hull can deliver at
-    large, because on this path the pair is chosen jointly: a manoeuvre drive
+    large, because on this path the pair is chosen jointly: a maneuver drive
     already fitted rules out plants that are too weak to power it or too heavy
     to sit beside it. Exposed so the prompt and the selection step agree on what
     is possible instead of the prompt promising more than generation can give.
@@ -1143,7 +1143,7 @@ def offerable_ratings(
     is the widest honest answer, and on the small-craft path it is wider than the
     truth: a rating whose every drive leaves no room for a plant and a cockpit
     beside it is tabulated but not carryable, and a plant is narrower still once
-    the manoeuvre drive it has to sit beside is settled.
+    the maneuver drive it has to sit beside is settled.
 
     Which of the three accessors applies is a rule about the rulesets, not about
     prompting, so it lives here rather than beside the question that asks it.
@@ -1279,7 +1279,7 @@ def _select_small_craft_drives(
     A pinned rating narrows the same candidate list rather than bypassing it, so
     the affordability filtering still holds. The power plant's floor needs no
     separate check here: `_small_craft_power_codes` already drops anything rated
-    below the manoeuvre drive, so a power rating pinned beneath it finds none and
+    below the maneuver drive, so a power rating pinned beneath it finds none and
     degrades upward, carrying the reason that floor gives it.
     """
     valid = _small_craft_codes_for(hull_tons)
@@ -1334,7 +1334,7 @@ def _select_small_craft_turret(
     """The one turret a small craft may carry, drawn or pinned.
 
     A separate path from the starship one because the craft has a single
-    hardpoint and its power plant caps energy weapons. A pin is honoured here
+    hardpoint and its power plant caps energy weapons. A pin is honored here
     just the same: an answer the referee gave must not be quietly dropped for
     having been given on the smaller ruleset.
     """
@@ -1457,7 +1457,7 @@ def generate_ship(
 
     Returns a `GenerationResult`, not a bare `Ship`: generation never fails on
     tonnage, so the caller needs somewhere to learn that a pinned value could not
-    be honoured. Reach for `.ship` when you do not care.
+    be honored. Reach for `.ship` when you do not care.
 
     `rolls` defaults to `RandomRolls()`; pass `RandomRolls.seeded(seed)` for
     reproducibility. `constraints` carries what the referee pinned:

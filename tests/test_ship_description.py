@@ -1544,7 +1544,7 @@ def test_hangar_kinds_follow_the_design_order():
 
 # --- the prose reports an honest, non-zero jump range -----------------------
 # `description.py` itself is untouched by the fuel-limited
-# jump-drive fix; these tests assert the behaviour that fix delivers, not a
+# jump-drive fix; these tests assert the behavior that fix delivers, not a
 # code change here.
 
 
@@ -1564,7 +1564,7 @@ def _fr014_budget_tons(ship) -> float:
 def _is_fr014_starved_hull_ship(ship) -> bool:
     """A ship is a starved-hull ship exactly when its jump fuel falls short of
     one complete jump at its installed rating *and* no drive legal for its
-    hull could have been fuelled for one complete jump within its own tonnage
+    hull could have been fueled for one complete jump within its own tonnage
     budget — both halves recomputable from the finished
     ship rather than from generator internals."""
     if ship.jump_fuel >= 0.1 * ship.hull_tons * ship.jump_rating:

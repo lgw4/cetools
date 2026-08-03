@@ -12,6 +12,9 @@ exists because the thing it catches actually happened:
 5. The README's `cetools ship build` console block kept `Jump-1 Maneuver-1 Power-1` on the
    drives line after the code started printing `Drives: Jump-1 (A)  Maneuver-1 (A)  Power-1
    (A), 4t power plant`; nothing ran non-Python console examples to catch it.
+6. British spellings accumulated in docstrings and comments while the tables, enums
+   and prompts stayed American, so the same concept was spelled two ways depending
+   on whether it was code or the prose above it.
 
 Run: uv run python scripts/check_docs.py
 """
@@ -35,7 +38,19 @@ ROOT = Path(__file__).resolve().parent.parent
 DOCS = ("README.md", "CONTRIBUTING.md", "AGENTS.md")
 PROSE = [ROOT / doc for doc in DOCS]
 SOURCES = sorted((ROOT / "src").rglob("*.py"))
+TESTS = sorted((ROOT / "tests").rglob("*.py"))
 ENGINE = ROOT / "src" / "cetools" / "engine"
+GLOSSARY = ROOT / "CONTEXT.md"
+
+# Every Markdown file the repo owns, for the checks that apply to prose wherever
+# it lives rather than to the three documents `check_symbols` reads. A dotted
+# path component means a tool owns the file (`.venv`, `.pytest_cache`), so it is
+# not ours to spell-check.
+MARKDOWN = sorted(
+    path
+    for path in ROOT.rglob("*.md")
+    if not any(part.startswith(".") for part in path.relative_to(ROOT).parts)
+)
 
 # The only command `check_readme_ship_console_examples` will run. See its docstring.
 SHIP_CONSOLE_PREFIX = "uv run cetools ship"
@@ -89,6 +104,30 @@ NOT_CODE = {
     "get",
 }
 
+# British spellings this project does not use, mapped to the American form.
+# Keys are *stems*, not whole words, so a derived form is caught by the same
+# entry: "catalogu" covers catalogue, catalogued and cataloguing, and "armour"
+# covers armoured and unarmoured. This file is not itself scanned (the scan
+# covers MARKDOWN, SOURCES and TESTS), so the keys below are not a violation of
+# the rule they enforce.
+#
+# A stem has to be unambiguous before it is added here. "specialis" looks like a
+# fine stem for "specialise" and would flag every one of this package's
+# `specialist_skills`, which is already American. When in doubt, spell out the
+# whole British form rather than reaching for a shorter stem.
+BRITISH_SPELLINGS = {
+    "armour": "armor",
+    "behaviour": "behavior",
+    "catalogu": "catalog",
+    "fuelled": "fueled",
+    "honour": "honor",
+    "labelled": "labeled",
+    "manoeuvre": "maneuver",
+    "modelled": "modeled",
+    "normalis": "normaliz",
+    "recognis": "recogniz",
+}
+
 failures: list[str] = []
 
 
@@ -121,7 +160,7 @@ def check_symbols(known: set[str]) -> None:
         if not path.exists():
             continue
         rel = path.relative_to(ROOT)
-        for lineno, line in enumerate(path.read_text().splitlines(), 1):
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             for raw in token.findall(line):
                 name = raw.removesuffix("()")
                 if name in NOT_CODE or name.endswith((".md", ".toml", ".lock")):
@@ -141,7 +180,9 @@ def check_readme_examples() -> None:
     The examples are one narrative: later blocks build on earlier imports, so they
     share a namespace and run in order, exactly as a reader would follow them.
     """
-    blocks = re.findall(r"```python\n(.*?)```", (ROOT / "README.md").read_text(), re.S)
+    blocks = re.findall(
+        r"```python\n(.*?)```", (ROOT / "README.md").read_text(encoding="utf-8"), re.S
+    )
     if not blocks:
         failures.append("README.md: no Python examples found; did the fences change?")
         return
@@ -168,7 +209,9 @@ def check_readme_ship_console_examples() -> None:
     command in CI; the prefix keeps the executed program pinned to this CLI.
     """
     prefix = "$ " + SHIP_CONSOLE_PREFIX + " "
-    blocks = re.findall(r"```console\n(.*?)```", (ROOT / "README.md").read_text(), re.S)
+    blocks = re.findall(
+        r"```console\n(.*?)```", (ROOT / "README.md").read_text(encoding="utf-8"), re.S
+    )
     for block in blocks:
         lines = block.splitlines()
         if not lines or not lines[0].startswith(prefix):
@@ -195,7 +238,11 @@ def check_module_map() -> None:
     Only the tree diagram counts: the prose elsewhere cites `tests/test_foo.py` as
     an example of the mirroring rule, and that is not a claim about a real file.
     """
-    tree = [line for line in (ROOT / "CONTRIBUTING.md").read_text().splitlines() if "──" in line]
+    tree = [
+        line
+        for line in (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8").splitlines()
+        if "──" in line
+    ]
     listed = set(re.findall(r"([a-z_]+\.py)", "\n".join(tree)))
     actual = {p.name for p in ENGINE.glob("*.py") if p.name != "__init__.py"}
     for missing in sorted(actual - listed):
@@ -206,14 +253,47 @@ def check_module_map() -> None:
 
 
 def check_punctuation() -> None:
-    """Em-dashes and en-dashes are tight: no leading or trailing spaces."""
-    for path in PROSE + SOURCES:
+    """Em-dashes and en-dashes are tight: no leading or trailing spaces.
+
+    Deliberately narrower than `check_spelling`, which sweeps every Markdown file
+    the repo owns. `docs/agents/` is seeded from a skill's own templates and
+    carries spaced dashes from them; adopting the punctuation rule there means
+    editing generated scaffolding, which is a decision on its own rather than a
+    consequence of this check.
+    """
+    for path in PROSE + SOURCES + [GLOSSARY]:
         if not path.exists():
             continue
         rel = path.relative_to(ROOT)
-        for lineno, line in enumerate(path.read_text().splitlines(), 1):
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             if re.search(r" [—–] ", line):
                 failures.append(f"{rel}:{lineno}: spaced em/en-dash; tighten it or use a comma")
+
+
+def check_spelling() -> None:
+    """Spelling is American English, in prose as much as in identifiers.
+
+    This project's docstrings are long and expository, so most of its prose lives
+    in the source rather than in the docs, and that is where the British forms
+    collected. Tests are scanned too: a test *name* is prose a reader greps for,
+    and `catalogue_names` was a local variable before this check existed.
+
+    Scans every Markdown file the repo owns rather than the three `check_symbols`
+    reads, because a spelling can drift back anywhere prose lives—`docs/agents/`
+    included, which is edited by hand even though a skill seeds it.
+    """
+    for path in MARKDOWN + SOURCES + TESTS:
+        if not path.exists():
+            continue
+        rel = path.relative_to(ROOT)
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            lowered = line.lower()
+            for british, american in BRITISH_SPELLINGS.items():
+                if british in lowered:
+                    failures.append(
+                        f"{rel}:{lineno}: British spelling {british!r}; this project "
+                        f"uses {american!r}"
+                    )
 
 
 def main() -> int:
@@ -223,6 +303,7 @@ def main() -> int:
     check_readme_ship_console_examples()
     check_module_map()
     check_punctuation()
+    check_spelling()
 
     if failures:
         print(f"{len(failures)} docs problem(s):\n", file=sys.stderr)
@@ -232,7 +313,7 @@ def main() -> int:
 
     print(
         "docs OK: symbols resolve, README examples run, `cetools ship` console blocks match, "
-        "module map complete, dashes tight"
+        "module map complete, dashes tight, spelling American"
     )
     return 0
 

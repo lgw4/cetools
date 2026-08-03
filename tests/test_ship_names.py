@@ -1,7 +1,7 @@
-"""Catalogue-invariant tests for `engine/ships/names.py`.
+"""Catalog-invariant tests for `engine/ships/names.py`.
 
 V1-V6 pin the per-entry shape every `SHIP_NAMES` row must have. V7 and the
-composition floors C1-C3 arrive with the catalogue itself; selection is tested
+composition floors C1-C3 arrive with the catalog itself; selection is tested
 separately through `ScriptedRolls`.
 """
 
@@ -86,7 +86,7 @@ def test_v6_name_survives_ship_design_construction(entry):
 # --- selection (contracts §generate_ship_name) ------------------------------
 
 
-def test_generate_ship_name_returns_the_scripted_catalogue_entry():
+def test_generate_ship_name_returns_the_scripted_catalog_entry():
     rolls = ScriptedRolls(choices={RollName.SHIP_NAME: 0})
     assert generate_ship_name(rolls) == SHIP_NAMES[0].name
 
@@ -96,18 +96,18 @@ def test_generate_ship_name_accepts_a_negative_index_from_the_end():
     assert generate_ship_name(rolls) == SHIP_NAMES[-1].name
 
 
-def test_generate_ship_name_always_returns_a_catalogue_name():
-    catalogue_names = {entry.name for entry in SHIP_NAMES}
+def test_generate_ship_name_always_returns_a_catalog_name():
+    catalog_names = {entry.name for entry in SHIP_NAMES}
     for index in range(len(SHIP_NAMES)):
         rolls = ScriptedRolls(choices={RollName.SHIP_NAME: index})
-        assert generate_ship_name(rolls) in catalogue_names
+        assert generate_ship_name(rolls) in catalog_names
 
 
-# --- catalogue composition floors and caps ---
+# --- catalog composition floors and caps ---
 # Assert floors and caps only, never exact counts, so adding a name is never a test edit.
 
 
-def test_c1_catalogue_has_at_least_150_entries():
+def test_c1_catalog_has_at_least_150_entries():
     assert len(SHIP_NAMES) >= 150
 
 
@@ -118,7 +118,7 @@ def test_c2_every_tradition_has_at_least_20_entries(tradition):
 
 
 @pytest.mark.parametrize("tradition", list(Tradition))
-def test_c3_no_tradition_exceeds_half_the_catalogue(tradition):
+def test_c3_no_tradition_exceeds_half_the_catalog(tradition):
     count = sum(1 for entry in SHIP_NAMES if entry.tradition is tradition)
     assert count <= len(SHIP_NAMES) // 2
 
