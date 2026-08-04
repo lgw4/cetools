@@ -196,6 +196,44 @@ def test_accessor_fitting_kinds_omits_vehicle_sized_fittings():
             assert kind not in values
 
 
+def test_accessor_fitting_kinds_drops_what_a_streamlined_hull_already_carries():
+    """Derived from the row's column rather than from the name `fuel_scoops`, so
+    a second SRD component included by streamlining drops out with no edit."""
+    narrowed = fitting_kinds(Configuration.STREAMLINED)
+
+    assert "fuel_scoops" not in narrowed
+    assert narrowed == tuple(
+        kind
+        for kind, row in FITTINGS.items()
+        if row.tons is not None and not row.included_on_streamlined
+    )
+
+
+def test_accessor_fitting_kinds_drops_what_a_distributed_hull_cannot_mount():
+    """Derived from the row's column rather than from the name `fuel_scoops`, so
+    a second SRD component forbidden to a shape drops out with no edit."""
+    narrowed = fitting_kinds(Configuration.DISTRIBUTED)
+
+    assert "fuel_scoops" not in narrowed
+    assert narrowed == tuple(
+        kind
+        for kind, row in FITTINGS.items()
+        if row.tons is not None and not row.forbidden_on_distributed
+    )
+
+
+def test_accessor_fitting_kinds_keeps_scoops_on_a_standard_hull():
+    """The shape that neither includes scoops nor forbids them is the one that
+    has to buy them, so it is the one still offered them."""
+    assert "fuel_scoops" in fitting_kinds(Configuration.STANDARD)
+
+
+def test_accessor_fitting_kinds_is_unnarrowed_without_a_configuration():
+    """What a caller passes while the shape is still to be drawn: nothing can be
+    ruled out yet, so nothing is."""
+    assert fitting_kinds(None) == fitting_kinds()
+
+
 @pytest.mark.parametrize("hull_tons, power_rating", [(40, 1), (95, 6), (10, 2)])
 def test_accessor_small_craft_weapons_narrows_by_energy_allowance_and_mount(
     hull_tons, power_rating

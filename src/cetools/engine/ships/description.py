@@ -435,11 +435,15 @@ def _feature(fit) -> str:
 
 
 def _special_features(ship: Ship) -> str | None:
-    # Hangars are rendered by sentence 10 and excluded here.
+    # Hangars are rendered by sentence 10 and excluded here. So is anything the
+    # hull shape already carries: a streamlined ship's scoops are part of its
+    # streamlining, so naming them among its *additional* components would say
+    # the ship has two sets. The builder drops the charge for the same entry.
     clauses = [
         _feature(fit)
         for fit in ship.design.fittings
         if FITTINGS[fit.kind].tons_per_vehicle_ton is None
+        and not ship.design.configuration.includes(fit.kind)
     ]
     if not clauses:
         return None

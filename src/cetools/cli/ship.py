@@ -815,7 +815,19 @@ def _ask_constraints(
         ),
     )
     fitting = answered(
-        "fitting", lambda: ask_closed("Fitting", fitting_kinds(), _read_fitting, none=True)
+        "fitting",
+        # Narrowed by the configuration already answered: a streamlined hull is
+        # not offered the scoops its streamlining includes, and a distributed
+        # hull is not offered the scoops it cannot mount. Where the referee left
+        # the shape to the dice `configuration` is `None` and nothing can be
+        # ruled out, so the full list is offered—the same unnarrowed form the
+        # drive prompts take against an unpinned hull tonnage.
+        #
+        # The reader is deliberately not narrowed to match. A fitting the rules
+        # forbid is still *accepted* if typed, and refused at assembly by the
+        # rule that forbids it; duplicating that rule here would give the same
+        # answer two authorities and two wordings.
+        lambda: ask_closed("Fitting", fitting_kinds(configuration), _read_fitting, none=True),
     )
     turrets = answered("turrets", lambda: _ask_turrets(hull_class, hull_tons, power_rating))
     bay = (

@@ -9,8 +9,12 @@
 #   hardpoints = 1, hardpoints_used = 1
 #   crew: pilot=1 navigator=0 engineers=1 gunners=1 screen_operators=0
 #         medic=0 stewards=0 (total=3)
-#   total_cost = 28.06 MCr (no standard-design discount)
+#   total_cost = 27.06 MCr (no standard-design discount)
 #   build_weeks = 36
+#
+# The fuel scoops below are deliberately redundant: this hull is streamlined, and
+# streamlining includes scoops, so they are declared but never charged. The
+# figure above was 28.06 while cetools billed MCr1 for them twice over.
 
 name = "Swift Wind"
 hull_tons = 100
