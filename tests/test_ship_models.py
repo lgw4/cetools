@@ -19,6 +19,7 @@ from cetools.engine.ships.models import (
     SoftwareFit,
     TurretFit,
 )
+from cetools.engine.ships.tables import FITTINGS
 
 # --- Enums ---
 
@@ -27,6 +28,36 @@ def test_configuration_members_and_cost_modifiers():
     assert Configuration.DISTRIBUTED.cost_modifier == 0.9
     assert Configuration.STANDARD.cost_modifier == 1.0
     assert Configuration.STREAMLINED.cost_modifier == 1.1
+
+
+def test_configuration_includes_and_forbids_are_opposites_and_never_both():
+    """Streamlining carries scoops; a distributed hull may not. No shape does
+    both to one fitting, and a standard hull does neither—it has to buy them."""
+    assert Configuration.STREAMLINED.includes("fuel_scoops")
+    assert not Configuration.STREAMLINED.forbids("fuel_scoops")
+    assert Configuration.DISTRIBUTED.forbids("fuel_scoops")
+    assert not Configuration.DISTRIBUTED.includes("fuel_scoops")
+    assert not Configuration.STANDARD.includes("fuel_scoops")
+    assert not Configuration.STANDARD.forbids("fuel_scoops")
+
+    for shape in Configuration:
+        for kind in FITTINGS:
+            assert not (shape.includes(kind) and shape.forbids(kind))
+
+
+@pytest.mark.parametrize("method", ["includes", "forbids"])
+@pytest.mark.parametrize("shape", list(Configuration))
+def test_configuration_refuses_a_fitting_kind_the_srd_has_no_row_for(shape, method):
+    """Public methods on a public enum, reachable without `FittingFit` and its
+    kind check, so they answer an unknown kind the way every other unknown kind
+    in this package is answered rather than with a bare `KeyError`.
+
+    Parametrized over every shape because the obvious spelling short-circuits:
+    testing the shape before looking the row up would refuse an unknown kind
+    only when the shape happened to match, and answer `False` otherwise.
+    """
+    with pytest.raises(ValueError, match="unknown fitting 'sunshade'"):
+        getattr(shape, method)("sunshade")
 
 
 def test_armor_type_members():

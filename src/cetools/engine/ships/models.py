@@ -25,7 +25,23 @@ from cetools.engine.ships.tables import (
     SOFTWARE,
     TURRET_MOUNTS,
     TURRET_WEAPONS,
+    FittingRow,
 )
+
+
+def _fitting_row(kind: str) -> FittingRow:
+    """The `FITTINGS` row for `kind`, refusing an unknown one as `FittingFit` does.
+
+    `Configuration.includes` and `Configuration.forbids` are public methods on a
+    public enum, so a caller can reach them without going through `FittingFit`
+    and its kind check first. A bare `KeyError` naming nothing would be a poorer
+    answer than the one every other unknown kind in this package gets, and the
+    message is spelled the same way here so the two cannot drift apart.
+    """
+    try:
+        return FITTINGS[kind]
+    except KeyError:
+        raise ValueError(f"unknown fitting {kind!r}; known: {sorted(FITTINGS)}") from None
 
 
 def _ammo_kinds() -> set[str]:
@@ -76,8 +92,13 @@ class Configuration(Enum):
         construction. Pairs with `forbids`: this reports redundancy, that
         reports illegality, and a shape can do either to a fitting but never
         both.
+
+        Raises `ValueError` for a kind the SRD has no row for, whichever shape
+        is asked: the row is looked up before the shape is tested, so that the
+        answer to an unknown kind does not depend on who asked.
         """
-        return self is Configuration.STREAMLINED and FITTINGS[kind].included_on_streamlined
+        row = _fitting_row(kind)
+        return self is Configuration.STREAMLINED and row.included_on_streamlined
 
     def forbids(self, kind: str) -> bool:
         """Whether a hull of this shape may not carry `kind` at all.
@@ -91,8 +112,12 @@ class Configuration(Enum):
         prompt narrowing costs the reader nothing: an answer typed anyway is
         still accepted and still refused at assembly, where the reason names the
         rule rather than a value set.
+
+        Raises `ValueError` for a kind the SRD has no row for, whichever shape
+        is asked, for the reason given on `includes`.
         """
-        return self is Configuration.DISTRIBUTED and FITTINGS[kind].forbidden_on_distributed
+        row = _fitting_row(kind)
+        return self is Configuration.DISTRIBUTED and row.forbidden_on_distributed
 
 
 class ArmorType(Enum):
