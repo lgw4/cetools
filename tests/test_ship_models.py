@@ -72,8 +72,35 @@ def test_hull_class_members():
 
 
 def test_armor_fit_accepts_a_valid_layer():
-    fit = ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=10, options=("reflec",))
+    fit = ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=10)
     assert fit.percent == 10
+
+
+def test_armor_fit_carries_no_options():
+    """A coating is on the hull, so it lives on the ship rather than on a layer.
+    Two layers each holding their own copy could be charged for both, and could
+    disagree about a coating the SRD lets a ship have only once."""
+    with pytest.raises(TypeError):
+        ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=10, options=("reflec",))
+
+
+def test_ship_design_rejects_an_unknown_armor_option():
+    with pytest.raises(ValueError, match="unknown armor option"):
+        ShipDesign(hull_tons=200, armor_options=("sunshade",))
+
+
+def test_ship_design_rejects_a_repeated_armor_option():
+    """Shape, not rules: a list naming reflec twice is malformed, whatever the
+    ship around it looks like."""
+    with pytest.raises(ValueError, match="must not repeat"):
+        ShipDesign(hull_tons=200, armor_options=("reflec", "reflec"))
+
+
+def test_ship_design_accepts_armor_options_with_no_armor():
+    """That a coating needs armor beneath it is an SRD *rule*, so it is
+    `build_ship`'s to refuse; the record only checks shape."""
+    design = ShipDesign(hull_tons=200, armor_options=("reflec",))
+    assert design.armor_options == ("reflec",)
 
 
 def test_armor_fit_accepts_a_non_5_percent_increment_shape_only():
@@ -88,14 +115,9 @@ def test_armor_fit_rejects_zero_percent():
         ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=0)
 
 
-def test_armor_fit_rejects_an_unknown_option():
-    with pytest.raises(ValueError, match="unknown armor option"):
-        ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5, options=("laser_resistant",))
-
-
-def test_armor_fit_rejects_a_repeated_option():
-    with pytest.raises(ValueError, match="not repeat"):
-        ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5, options=("reflec", "reflec"))
+# The unknown-option and repeated-option checks moved to `ShipDesign` with the
+# options themselves; see `test_ship_design_rejects_an_unknown_armor_option` and
+# `test_ship_design_rejects_a_repeated_armor_option` above.
 
 
 # --- SoftwareFit / ComputerFit ---

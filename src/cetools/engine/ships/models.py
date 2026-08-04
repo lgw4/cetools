@@ -143,20 +143,20 @@ def _validate_armor_fit(fit: ArmorFit) -> None:
     of 5 is an SRD *rule*, checked by `build_ship`'s armor step, not here."""
     if fit.percent <= 0:
         raise ValueError(f"armor percent must be positive, got {fit.percent}")
-    unknown = set(fit.options) - set(ARMOR_OPTIONS)
-    if unknown:
-        raise ValueError(f"unknown armor option(s): {sorted(unknown)}")
-    if len(fit.options) != len(set(fit.options)):
-        raise ValueError(f"armor options must not repeat, got {fit.options}")
 
 
 @dataclass(frozen=True)
 class ArmorFit:
-    """One armor layer: a type, a percent of hull tonnage, and once-only options."""
+    """One armor layer: a material and a percent of hull tonnage.
+
+    Carries no options. An armor option coats the *hull*—the SRD prices all
+    three per ton of hull and lets reflec and stealth be added only once—so it
+    belongs to the ship, and lives on `ShipDesign.armor_options`. Hanging it on a
+    layer made a two-layer ship able to buy two coatings and be charged for both.
+    """
 
     type: ArmorType
     percent: int
-    options: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         _validate_armor_fit(self)
@@ -339,6 +339,15 @@ def _validate_ship_design(design: ShipDesign) -> None:
     if design.hull_tons <= 0:
         raise ValueError(f"hull_tons must be positive, got {design.hull_tons}")
 
+    # Shape only. That an option needs armor beneath it is an SRD *rule*, and
+    # `build_ship` enforces it; a repeat here is a malformed list, not a ship
+    # that breaks a rule.
+    unknown = set(design.armor_options) - set(ARMOR_OPTIONS)
+    if unknown:
+        raise ValueError(f"unknown armor option(s): {sorted(unknown)}")
+    if len(design.armor_options) != len(set(design.armor_options)):
+        raise ValueError(f"armor options must not repeat, got {design.armor_options}")
+
     for code_field in ("jump_code", "maneuver_code", "power_code"):
         code = getattr(design, code_field)
         if code is not None and not _is_drive_code(code):
@@ -427,6 +436,12 @@ class ShipDesign:
     jump_distance: int | None = None
     power_weeks: int | None = None
     armor: tuple[ArmorFit, ...] = ()
+    armor_options: tuple[str, ...] = ()
+    """Coatings on the hull as a whole (SRD "Ship Armor Options"), priced per ton
+    of hull and added at most once each. A property of the ship rather than of
+    any one layer, so a layered ship buys them once. Requires armor to coat: the
+    SRD introduces them as options "added to a ship's armor", which `build_ship`
+    enforces."""
     bridge: bool = True
     cockpit: str | None = None
     computer: ComputerFit | None = None

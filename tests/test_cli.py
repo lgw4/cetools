@@ -1586,14 +1586,18 @@ def test_ship_generate_interactive_an_unknown_answer_name_is_reasked():
 
 _REVISE_PROMPT = (
     "Revise which answers (hull class, hull tons, configuration, jump rating, "
-    "maneuver rating, power rating, armor, computer, electronics, staterooms, "
+    "maneuver rating, power rating, armor, armor options, computer, electronics, staterooms, "
     "fitting, turrets, bay, screen, name, purpose) [all]:"
 )
 
 
-def test_ship_generate_interactive_revise_prompt_names_all_sixteen_answers():
+def test_ship_generate_interactive_revise_prompt_names_all_seventeen_answers():
     """The revise question is the one prompt exempt from the two-line
-    budget, and names every `DesignConstraints` field in spaced spelling."""
+    budget, and names every `DesignConstraints` field in spaced spelling.
+
+    Seventeen since the hull's coatings became an answer of their own: they are
+    on the ship rather than on a layer, so they are revisable without touching
+    the armor under them."""
     result = runner.invoke(
         app,
         ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11", "--toml"],
@@ -1656,8 +1660,9 @@ def test_ship_generate_interactive_gives_up_and_exits_1_when_every_round_is_refu
         app,
         ["ship", "generate", "--interactive", "--hull", "200", "--seed", "11"],
         input=_answers(skip=("hull",), pad=False, armor="crystaliron 7")
-        # Each revised armor answer pins a layer, so options is asked again too.
-        + "armor\ncrystaliron 7\n\n" * 4,
+        # Revising the armor no longer re-asks the coatings, so each round is
+        # the revise answer and the new armor answer, and nothing more.
+        + "armor\ncrystaliron 7\n" * 4,
     )
 
     assert result.exit_code == 1
@@ -2517,7 +2522,7 @@ def test_ship_generate_interactive_enter_at_armor_options_pins_no_options():
         input=_answers(armor="crystaliron 10"),
     )
     assert result.exit_code == 0, result.stderr
-    assert loads_design(result.stdout).armor[0].options == ()
+    assert loads_design(result.stdout).armor_options == ()
 
 
 def test_ship_generate_interactive_armor_options_literal_none_pins_no_options():
@@ -2530,7 +2535,7 @@ def test_ship_generate_interactive_armor_options_literal_none_pins_no_options():
         input=_answers(armor="crystaliron 10", armor_options="none"),
     )
     assert result.exit_code == 0, result.stderr
-    assert loads_design(result.stdout).armor[0].options == ()
+    assert loads_design(result.stdout).armor_options == ()
 
 
 @pytest.mark.parametrize("answer", ["reflec stealth", "reflec, stealth"])
@@ -2544,7 +2549,7 @@ def test_ship_generate_interactive_armor_options_space_or_comma_separates(answer
         input=_answers(armor="crystaliron 10", armor_options=answer),
     )
     assert result.exit_code == 0, answer
-    assert loads_design(result.stdout).armor[0].options == ("reflec", "stealth")
+    assert loads_design(result.stdout).armor_options == ("reflec", "stealth")
 
 
 def test_ship_generate_interactive_armor_options_self_sealing_typed_as_shown_is_one_option():
@@ -2558,7 +2563,7 @@ def test_ship_generate_interactive_armor_options_self_sealing_typed_as_shown_is_
         input=_answers(armor="crystaliron 10", armor_options="self sealing"),
     )
     assert result.exit_code == 0, result.stderr
-    assert loads_design(result.stdout).armor[0].options == ("self_sealing",)
+    assert loads_design(result.stdout).armor_options == ("self_sealing",)
 
 
 def test_ship_generate_interactive_armor_options_reflec_self_sealing_is_two_options():
@@ -2572,7 +2577,7 @@ def test_ship_generate_interactive_armor_options_reflec_self_sealing_is_two_opti
         input=_answers(armor="crystaliron 10", armor_options="reflec self sealing"),
     )
     assert result.exit_code == 0, result.stderr
-    assert loads_design(result.stdout).armor[0].options == ("reflec", "self_sealing")
+    assert loads_design(result.stdout).armor_options == ("reflec", "self_sealing")
 
 
 def test_ship_generate_interactive_repeated_armor_option_is_reasked_with_the_reason():
@@ -2598,7 +2603,7 @@ def test_ship_generate_interactive_armor_options_mixed_valid_and_unknown_is_refu
     )
     assert result.exit_code == 0, result.stderr
     assert "bogus" in result.stderr
-    assert loads_design(result.stdout).armor[0].options == ("reflec",)
+    assert loads_design(result.stdout).armor_options == ("reflec",)
 
 
 def test_ship_generate_interactive_armor_options_not_asked_when_armor_answered_none():
@@ -2622,20 +2627,46 @@ def test_ship_generate_interactive_armor_options_not_asked_when_armor_is_rolled(
     assert _ARMOR_OPTIONS_PROMPT not in result.stderr
 
 
-def test_ship_generate_interactive_revising_armor_re_asks_the_options_question():
-    """AS 4.7: the options question follows a revised armor answer too, and
-    the new answer replaces rather than merges with the old one."""
+def test_ship_generate_interactive_revising_armor_keeps_the_hulls_coatings():
+    """Revising the armor no longer re-asks the coatings.
+
+    They were once folded into the armor answer, so changing the layer meant
+    answering for them again. A coating is on the hull, so it survives a change
+    of what is under it—and `armor options` is its own revisable answer for a
+    referee who wants to change it.
+    """
     from cetools.engine.ships import loads_design
 
     result = runner.invoke(
         app,
         ["ship", "generate", "--interactive", "--seed", "7", "--toml"],
         input=_answers(pad=False, armor="crystaliron 7", armor_options="reflec")
-        + "armor\ncrystaliron 5\nstealth\n",
+        + "armor\ncrystaliron 5\n",
+    )
+    assert result.exit_code == 0, result.stderr
+    assert result.stderr.count(_ARMOR_OPTIONS_PROMPT) == 1  # asked once, not again
+    assert loads_design(result.stdout).armor_options == ("reflec",)
+
+
+def test_ship_generate_interactive_revising_armor_options_replaces_the_old_answer():
+    """`armor options` is revisable by name, and the new answer replaces the old
+    rather than merging with it.
+
+    Armor is revised alongside it because the illegal 7% is what reaches the
+    revise prompt in the first place; revising the coatings alone would leave
+    that percent to be refused again.
+    """
+    from cetools.engine.ships import loads_design
+
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7", "--toml"],
+        input=_answers(pad=False, armor="crystaliron 7", armor_options="reflec")
+        + "armor armor options\ncrystaliron 5\nstealth\n",
     )
     assert result.exit_code == 0, result.stderr
     assert result.stderr.count(_ARMOR_OPTIONS_PROMPT) == 2  # asked, revised, asked again
-    assert loads_design(result.stdout).armor[0].options == ("stealth",)
+    assert loads_design(result.stdout).armor_options == ("stealth",)
 
 
 def test_ship_generate_interactive_revising_another_field_leaves_armor_options_untouched():
@@ -2652,7 +2683,7 @@ def test_ship_generate_interactive_revising_another_field_leaves_armor_options_u
 
     after_revise = result.stderr.split("Accept this ship or revise")[1]
     assert _ARMOR_OPTIONS_PROMPT not in after_revise
-    assert loads_design(result.stdout).armor[0].options == ("reflec",)
+    assert loads_design(result.stdout).armor_options == ("reflec",)
 
 
 def test_ship_generate_interactive_revising_armor_to_none_drops_its_options():

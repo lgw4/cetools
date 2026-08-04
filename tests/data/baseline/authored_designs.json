@@ -16,6 +16,7 @@
     },
     "design": {
       "armor": [],
+      "armor_options": [],
       "bays": [],
       "bridge": false,
       "cockpit": "1_man",
@@ -125,6 +126,7 @@
     },
     "design": {
       "armor": [],
+      "armor_options": [],
       "bays": [],
       "bridge": true,
       "cockpit": null,
@@ -255,6 +257,7 @@
     },
     "design": {
       "armor": [],
+      "armor_options": [],
       "bays": [
         {
           "kind": "particle"
@@ -399,6 +402,7 @@
     },
     "design": {
       "armor": [],
+      "armor_options": [],
       "bays": [],
       "bridge": true,
       "cockpit": null,
@@ -555,11 +559,11 @@
     "design": {
       "armor": [
         {
-          "options": [],
           "percent": 10,
           "type": "titanium_steel"
         }
       ],
+      "armor_options": [],
       "bays": [],
       "bridge": true,
       "cockpit": null,
@@ -789,6 +793,7 @@
     },
     "design": {
       "armor": [],
+      "armor_options": [],
       "bays": [],
       "bridge": true,
       "cockpit": null,

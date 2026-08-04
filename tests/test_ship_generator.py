@@ -110,11 +110,14 @@ def test_accessor_hull_tonnages_small_craft_matches_validate_hull_tons():
         assert tons in values
 
 
-def test_accessor_armor_options_matches_armor_fit_validation():
+def test_accessor_armor_options_matches_ship_design_validation():
+    """Every option the accessor offers is one a design will accept. The
+    validation lives on `ShipDesign` rather than on `ArmorFit`, because a coating
+    is on the hull."""
     values = armor_options()
     assert values == tuple(ARMOR_OPTIONS)
     for option in values:
-        ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5, options=(option,))
+        ShipDesign(hull_tons=200, armor_options=(option,))
     for option in ARMOR_OPTIONS:
         assert option in values
 
@@ -419,6 +422,33 @@ def test_absent_pins_an_unarmored_ship_where_chance_would_have_armored_it():
 
     assert rolled.design.armor != ()
     assert result.ship.design.armor == ()
+
+
+def test_pinned_armor_options_are_installed_on_a_pinned_layer():
+    result = generate_ship(
+        RandomRolls.seeded(_ROLLS_NO_ARMOR),
+        constraints=DesignConstraints(
+            armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=10),
+            armor_options=("reflec", "stealth"),
+        ),
+    )
+
+    assert result.ship.design.armor_options == ("reflec", "stealth")
+
+
+def test_pinned_armor_options_are_dropped_and_recorded_when_no_armor_survives():
+    """A coating needs armor beneath it, so pinning one beside a pinned *absence*
+    of armor would hand `build_ship` a design its own rule refuses. The coatings
+    are dropped and the referee is told, rather than half-obeyed in silence."""
+    result = generate_ship(
+        RandomRolls.seeded(_ROLLS_ARMOR),
+        constraints=DesignConstraints(armor=ABSENT, armor_options=("reflec",)),
+    )
+
+    assert result.ship.design.armor_options == ()
+    unmet = next(entry for entry in result.unmet if entry.field == "armor_options")
+    assert unmet.asked == "reflec"
+    assert unmet.reason == "no armor for them to coat"
 
 
 def test_unset_armor_is_still_rolled():
