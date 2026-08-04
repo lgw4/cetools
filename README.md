@@ -299,7 +299,7 @@ uv run cetools ship build tests/data/ships/free-trader.toml
 $ uv run cetools ship build tests/data/ships/free-trader.toml
 TL8 Beowulf
 
-Using a 200-ton hull (4 Hull, 4 Structure), the Beowulf is a starship. It mounts jump drive A, maneuver drive A and power plant A, giving a performance of Jump-1 and 1-G acceleration. Fuel tankage of 22 tons supports the power plant for two weeks and one Jump-1 jump. Adjacent to the bridge is a computer Model 1. The ship is equipped with Standard sensors (DM-4). There are four staterooms. The ship has two hardpoints and two tons allocated to fire control, but has no weapons installed. Cargo capacity is 135 tons. The hull is standard, and no additional armor has been installed. Special features include one ton of fuel processors (processes 20 tons of unrefined fuel into refined fuel per day). The ship requires a crew of five: one pilot, one navigator, one engineer, one medic and one steward. The ship cannot carry any additional passengers. The ship costs MCr29.772 (including discounts and fees) and takes 44 weeks to build.
+Using a 200-ton hull (4 Hull, 4 Structure), the Beowulf is a starship. It mounts jump drive A, maneuver drive A and power plant A, giving a performance of Jump-1 and 1-G acceleration. Fuel tankage of 22 tons supports the power plant for two weeks and one Jump-1 jump. Adjacent to the bridge is a computer Model 1. The ship is equipped with Standard sensors (DM-4). There are four staterooms. The ship has two hardpoints and two tons allocated to fire control, but has no weapons installed. Cargo capacity is 135 tons. The hull is standard, and no additional armor has been installed. Special features include one ton of fuel processors (processes 20 tons of unrefined fuel into refined fuel per day). The ship requires a crew of five: one pilot, one navigator, one engineer, one medic and one steward. The ship berths four of its five crew, leaving one crew member unaccommodated. The ship cannot carry any additional passengers. The ship costs MCr29.772 (including discounts and fees) and takes 44 weeks to build.
 ```
 
 The output is the SRD's Universal Ship Description Format: a `TL<n> <name>` heading, a blank line, and one unwrapped paragraph whose sentences run in the order the rules use.
@@ -344,6 +344,12 @@ A streamlined hull already has fuel scoops, because streamlining includes them a
 
 A randomly generated ship arrives already named, drawn from `generate_ship_name`'s curated catalog of mythology and folklore, written science fiction, and screen science fiction sources; a hand-authored design's own `name` is never overwritten.
 
+A generated ship berths the crew it requires. Every component that obliges a crew member reserves that crew member's accommodation as part of its own affordability test, the way a weapon bay has always been charged for the fire control it obliges: a turret costs its mount and its gunner's stateroom, a screen its fifty tons and its operator's, and the pilot and navigator are berthed before anything at all is chosen. So generation never has to retract a choice—an extravagant drive is not chosen and then reconsidered, it is simply never affordable—and the staterooms are settled last, once every component that can add crew has been decided. One stateroom per crew member: the SRD's baseline is one person to a room and offers two as a passenger arrangement.
+
+On a small craft a cockpit is accommodation as well as a control station. The SRD's cockpit table carries a crew column, and the crew who sit in it need no stateroom, which is why a ship's boat carries none. One hull cannot be housed whatever it is given: a 10-ton craft has 1.2 tons free once its lightest drives and cockpit are in, against the 4 tons a berth costs, so it is generated with the shortfall reported rather than refused.
+
+Reporting is the other half. A ship whose crew exceed its berths says so, and says how many are unaccommodated, rather than leaving it to the passenger sentence's "cannot carry any additional passengers"—a sentence that reads like a design choice and conceals people with nowhere to sleep. The SRD's own worked free trader trips it: four staterooms against five crew and two middle passengers. `build_ship` does not refuse such a design, because the SRD never states that every crew member must have a stateroom, and refusing would invent a rule and block a referee mid-iteration. A pinned stateroom count is respected on the same principle, including a deliberate zero: it caps the berths generation reserves, and the shortfall is reported instead of being silently corrected upward.
+
 Add `--toml` to emit a round-trippable design file instead of the description, and `--out` to write it to a file. Omit `--seed` to have one chosen for you and reported on stderr, so the run can be reproduced.
 
 A referee can ask for more than a hull can hold. Generation never fails on tonnage: the ship still comes back, and the answers it could not honor are listed on stderr with what was asked, what was got, and why. That is a degraded ship rather than a failure, so the command still exits `0` and stdout still carries a design a pipe can read. A rolled value that would not fit is dropped in silence, because it was a preference rather than a promise.
@@ -352,8 +358,8 @@ Interactively that report is a question rather than a verdict. The session lists
 
 ```text
 could not honor 2 constraint(s):
-  staterooms: asked 8, got 7 (needs 32t, 30t free)
-  turrets: asked turret 1 (triple pulse_laser), got none (needs 1t, 0t free)
+  turrets: asked turret 1 (triple pulse_laser), got none (needs 5t (1t and 1 berth(s)), 1t free)
+  staterooms: asked 8, got 4 (needs 16t more, 1t free)
 Accept this ship or revise [accept]:
 ```
 
@@ -435,13 +441,13 @@ crowded = generate_ship(
     constraints=DesignConstraints(
         hull_tons=200,
         jump_rating=2,
-        armor=(ArmorFit(type=ArmorType.CRYSTALIRON, percent=30),),
+        armor=(ArmorFit(type=ArmorType.CRYSTALIRON, percent=40),),
         staterooms=8,
     ),
 )
 
 for unmet in crowded.unmet:
-    print(unmet.field, unmet.asked, unmet.got)   # staterooms 8 7
+    print(unmet.field, unmet.asked, unmet.got)   # staterooms 8 4
 ```
 
 Each record carries the `field` a caller can match against `DesignConstraints`, what was `asked`, what it `got`, and the `reason` it fell short.

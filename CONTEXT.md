@@ -27,6 +27,13 @@ _Avoid_: quarters, berthing
 **Stateroom**:
 The SRD component that provides accommodation. One per crew member.
 
+**Berth**:
+One place aboard where a crew member can sleep: a stateroom, or a seat in a
+small craft's cockpit. *Accommodation* is the tonnage; a berth is what that
+tonnage buys. A design may carry fewer berths than crew, and the description
+says so; nothing refuses it, since the SRD never requires one per head.
+_Avoid_: bunk, bed, berthing
+
 **Coherent**:
 A ship that is internally consistent: its crew have berths, and nothing is paid
 for twice. Distinct from *optimal*, which cetools does not attempt: optimality
