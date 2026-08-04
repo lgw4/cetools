@@ -6,14 +6,14 @@ it reads no clock, no seed, no environment and no locale, and every grouping
 walks an ordered tuple in first-appearance order, so two equal ships render
 byte-identically.
 
-The paragraph is assembled from `_SLOTS`, a fixed sixteen-entry tuple of
+The paragraph is assembled from `_SLOTS`, a fixed seventeen-entry tuple of
 sentence builders in a fixed order. Each returns `str | None`, and `None`
 drops that slot from the paragraph entirely. Omission is the only
 control flow between slots -- no builder reads another's output -- so the
 paragraph stays grammatical however many drop out. `_weapons` is the sole
 builder whose return value carries more than one sentence: its ammunition
 sentences ride along with the installed-weapons sentence, so a paragraph has
-sixteen *slots* but can run past sixteen sentences.
+seventeen *slots* but can run past seventeen sentences.
 
 Imports only `models`, `tables` and `prose`: every SRD spelling, plural and
 tech level comes from a table column rather than from a branch keyed on a
@@ -466,13 +466,36 @@ def _crew(ship: Ship) -> str:
     return f"The ship requires a crew of {count(total)}: {join(clauses)}."
 
 
-# --- 15. Passengers ----------------------------
+# --- 15. Accommodation ----------------------------------
+
+
+def _accommodation(ship: Ship) -> str | None:
+    """The shortfall, or nothing at all when there is none.
+
+    A ship that berths its crew says nothing here: the sentence exists to name
+    a design error, and one that appears on every ship names none. Generated
+    ships never reach it, because generation reserves a berth as part of what
+    each component costs; a hand-authored design can, and the alternative is
+    the passenger sentence's "cannot carry any additional passengers", which
+    reads like a design choice and conceals people with nowhere to sleep.
+    """
+    short = ship.unaccommodated_crew
+    if not short:
+        return None
+    return (
+        f"The ship berths {count(ship.crew_berths)} of its "
+        f"{count(ship.crew.total)} crew, leaving {count(short)} "
+        f"{plural(short, 'crew member', 'crew members')} unaccommodated."
+    )
+
+
+# --- 16. Passengers ----------------------------
 
 
 def _passengers(ship: Ship) -> str:
     design = ship.design
     # Emergency low berths are survival equipment, not passenger capacity.
-    spare = max(0, design.staterooms - ship.crew.total) * 2
+    spare = ship.spare_staterooms * 2
     clauses = []
     if spare:
         clauses.append(
@@ -487,7 +510,7 @@ def _passengers(ship: Ship) -> str:
     return f"The ship can carry up to {join(clauses)}."
 
 
-# --- 16. Cost and build time -----------------------------
+# --- 17. Cost and build time -----------------------------
 
 
 def _cost(ship: Ship) -> str:
@@ -513,10 +536,11 @@ _SLOTS: tuple[Callable[[Ship], str | None], ...] = (
     _configuration,
     _special_features,
     _crew,
+    _accommodation,
     _passengers,
     _cost,
 )
-"""The sixteen sentence slots, in a fixed order. The order lives here, as one
+"""The seventeen sentence slots, in a fixed order. The order lives here, as one
 literal tuple, and nowhere else."""
 
 

@@ -22,18 +22,21 @@ from cetools.engine.ships import (
     ScreenFit,
     Ship,
     ShipDesign,
+    SoftwareFit,
     TurretPin,
     UnmetConstraint,
     build_ship,
     dump_design,
     load_design,
     loads_design,
+    render_description,
     validate_electronics,
     validate_hull_tons,
     validate_turret_count,
     validate_turret_mount,
     validate_turret_weapon,
 )
+from cetools.engine.ships.builder import command_crew, engineers_for
 from cetools.engine.ships.generator import (
     _ARMOR_CHOICES,
     _FITTING_CHOICES,
@@ -41,6 +44,8 @@ from cetools.engine.ships.generator import (
     TonnageLedger,
     _energy_allowance,
     _exceeds_energy_allowance,
+    _fit_jump_drive,
+    _select_screens,
     armor_options,
     available_ratings,
     bay_kinds,
@@ -62,12 +67,14 @@ from cetools.engine.ships.generator import (
 from cetools.engine.ships.tables import (
     ARMOR_OPTIONS,
     BAYS,
+    COCKPITS,
     COMPUTERS,
     DRIVE_COSTS,
     DRIVE_PERFORMANCE,
     ELECTRONICS,
     FITTINGS,
     HULLS,
+    QUARTERS,
     SCREENS,
     SMALL_CRAFT_ENERGY_CAPS,
     SMALL_CRAFT_HULLS,
@@ -799,13 +806,13 @@ def test_a_jump_rating_pinned_on_a_small_craft_is_rejected():
 
 
 def test_small_craft_honors_pinned_maneuver_and_power_ratings():
-    """Seed 7 rolls a 1-G craft with a rating-2 plant on this hull, so 2 and 3
+    """Seed 3 rolls a 1-G craft with a rating-2 plant on this hull, so 2 and 3
     are visibly the answers rather than the dice."""
     constraints = DesignConstraints(hull_class=HullClass.SMALL_CRAFT, hull_tons=40)
-    rolled = generate_ship(RandomRolls.seeded(7), constraints=constraints).ship
+    rolled = generate_ship(RandomRolls.seeded(3), constraints=constraints).ship
 
     result = generate_ship(
-        RandomRolls.seeded(7),
+        RandomRolls.seeded(3),
         constraints=DesignConstraints(
             hull_class=HullClass.SMALL_CRAFT,
             hull_tons=40,
@@ -1016,6 +1023,7 @@ def test_a_pinned_bay_the_budget_cannot_cover_is_declined():
             jump_rating=3,
             staterooms=0,
             fittings=ABSENT,
+            turrets=(),
             armor=(ArmorFit(type=ArmorType.CRYSTALIRON, percent=15),),
             bays=(BayFit(kind="particle"),),
         ),
@@ -1111,29 +1119,38 @@ def test_a_turret_count_above_the_hulls_hardpoints_is_rejected():
 
 
 def test_a_pinned_turret_the_budget_cannot_cover_is_declined():
-    """A hardpoint to mount it on, but no tonnage left to put in it."""
-    ship = generate_ship(
+    """A hardpoint to mount it on, but no tonnage left to put in it.
+
+    A turret costs its gunner's berth as well as its mount, so what this hull
+    cannot cover is the six tons of both together rather than the two of the
+    mount alone. The reason says so, which is the point: a referee told a
+    2-ton turret needs six should not have to work out where the other four
+    went.
+    """
+    result = generate_ship(
         RandomRolls.seeded(11),
         constraints=DesignConstraints(
             hull_tons=200,
             jump_rating=2,
-            # 45% of a 200-ton hull is 90 tons of crystaliron, which fits and
-            # leaves nothing behind it for even a 2-ton pop-up turret.
-            armor=(ArmorFit(type=ArmorType.CRYSTALIRON, percent=45),),
-            staterooms=0,
+            # 40% of a 200-ton hull is 80 tons of crystaliron, which fits and
+            # leaves a single ton behind it.
+            armor=(ArmorFit(type=ArmorType.CRYSTALIRON, percent=40),),
             fittings=ABSENT,
             turrets=(TurretPin(mount="pop_up", weapon="pulse_laser"),),
         ),
-    ).ship
+    )
 
-    assert ship.hardpoints >= 1
-    assert ship.design.turrets == ()
+    assert result.ship.hardpoints >= 1
+    assert result.ship.design.turrets == ()
+    (unmet,) = result.unmet
+    assert unmet.field == "turrets"
+    assert "berth" in unmet.reason
 
 
 def test_a_small_craft_honors_a_pinned_turret_on_its_single_hardpoint():
     """The smaller ruleset takes its own path, but an answer is still an answer."""
     result = generate_ship(
-        RandomRolls.seeded(7),
+        RandomRolls.seeded(0),
         constraints=DesignConstraints(
             hull_class=HullClass.SMALL_CRAFT,
             hull_tons=95,
@@ -1171,11 +1188,11 @@ def test_a_pinned_multi_slot_mount_caps_the_weapon_left_to_chance():
 
 
 def test_a_small_craft_pinned_to_no_turrets_is_unarmed():
-    """Seed 4 arms this craft, so an unarmed one here can only be the answer."""
+    """Seed 1 arms this craft, so an unarmed one here can only be the answer."""
     constraints = DesignConstraints(hull_class=HullClass.SMALL_CRAFT, hull_tons=95)
-    rolled = generate_ship(RandomRolls.seeded(4), constraints=constraints).ship
+    rolled = generate_ship(RandomRolls.seeded(1), constraints=constraints).ship
     pinned = generate_ship(
-        RandomRolls.seeded(4),
+        RandomRolls.seeded(1),
         constraints=DesignConstraints(hull_class=HullClass.SMALL_CRAFT, hull_tons=95, turrets=()),
     ).ship
 
@@ -1218,7 +1235,7 @@ def test_a_small_craft_has_one_hardpoint_however_small_it_is():
         )
 
     fitted = generate_ship(
-        RandomRolls.seeded(7),
+        RandomRolls.seeded(0),
         constraints=DesignConstraints(
             hull_class=HullClass.SMALL_CRAFT, hull_tons=40, turrets=(TurretPin(),)
         ),
@@ -1239,8 +1256,8 @@ def test_unset_turrets_are_still_rolled():
 def _overloaded() -> GenerationResult:
     """A 200-ton hull asked for more than it can hold.
 
-    Jump-2 and 30% crystaliron take most of the hull between them, leaving room
-    for seven of the eight staterooms and neither turret. The ticket's own
+    Jump-2 and 40% crystaliron take most of the hull between them, leaving room
+    for four of the eight staterooms and neither turret. The ticket's own
     example (six staterooms, 20% armor) turns out to *fit* with 22 tons spare,
     which is why the numbers here are larger than the prose suggests.
     """
@@ -1249,7 +1266,7 @@ def _overloaded() -> GenerationResult:
         constraints=DesignConstraints(
             hull_tons=200,
             jump_rating=2,
-            armor=(ArmorFit(type=ArmorType.CRYSTALIRON, percent=30),),
+            armor=(ArmorFit(type=ArmorType.CRYSTALIRON, percent=40),),
             staterooms=8,
             turrets=(
                 TurretPin(mount="triple", weapon="pulse_laser"),
@@ -1270,12 +1287,15 @@ def test_an_unmet_constraint_carries_the_field_what_was_asked_what_was_got_and_w
     """A library caller reads the record; nobody should parse a sentence."""
     result = _overloaded()
 
+    # In selection order, which now ends at the staterooms: they are decided
+    # last, once every component that can oblige a crew member has been chosen.
     assert [(entry.field, entry.asked, entry.got) for entry in result.unmet] == [
-        ("staterooms", "8", "7"),
         ("turrets", "turret 1 (triple pulse_laser)", "none"),
         ("turrets", "turret 2 (triple pulse_laser)", "none"),
+        ("staterooms", "8", "4"),
     ]
-    assert result.unmet[0].reason == "needs 32t, 30t free"
+    assert result.unmet[0].reason == "needs 5t (1t and 1 berth(s)), 1t free"
+    assert result.unmet[2].reason == "needs 16t more, 1t free"
 
     # Every `field` names an attribute a caller can match on the constraints.
     known = {field.name for field in fields(DesignConstraints)}
@@ -1452,8 +1472,12 @@ def test_scripted_rolls_all_defaults_yields_exact_ship():
     assert ship.assumed_jump_distance == 2
     assert ship.jump_fuel == pytest.approx(20.0)
     assert ship.power_fuel == pytest.approx(2.0)
-    assert ship.tonnage_used == pytest.approx(48.0)
-    assert ship.cargo_tons == pytest.approx(52.0)
+    # Three staterooms, one per crew member, reserved as the components that
+    # oblige them were chosen rather than left to a die roll that consults
+    # nothing: twelve tons the ship used to hand to cargo with nobody berthed.
+    assert ship.design.staterooms == 3
+    assert ship.tonnage_used == pytest.approx(60.0)
+    assert ship.cargo_tons == pytest.approx(40.0)
     assert ship.hull_points == 2
     assert ship.structure_points == 2
     assert ship.hardpoints == 1
@@ -1654,28 +1678,36 @@ _FIT_WORKED_EXAMPLES = (
 )
 
 
+def _jump_is_affordable(hull_tons, code, budget, other_drives=0.0):
+    """The rule `_fit_jump_drive` admits a rating by: the drive, a full jump's
+    fuel, and the berths its share of the drive tonnage obliges.
+
+    Spelled out here rather than imported, the way the fuel arithmetic always
+    was, so a test that agrees with the helper agrees for a reason a reader can
+    check rather than by construction.
+    """
+    jump_tons = DRIVE_COSTS[code].jump_tons
+    rating = DRIVE_PERFORMANCE[code][hull_tons]
+    berths = engineers_for(other_drives + jump_tons) * QUARTERS["stateroom"].tons
+    return jump_tons + 0.1 * hull_tons * rating + berths <= budget
+
+
 @pytest.mark.parametrize("hull_tons,drawn_code,budget,expected", _FIT_WORKED_EXAMPLES)
 def test_fit_jump_drive_matches_the_contracts_worked_examples(
     hull_tons, drawn_code, budget, expected
 ):
-    from cetools.engine.ships.generator import _fit_jump_drive
-
-    assert _fit_jump_drive(hull_tons, drawn_code, budget) == expected
+    assert _fit_jump_drive(hull_tons, drawn_code, TonnageLedger(budget), 0.0) == expected
 
 
 @pytest.mark.parametrize("hull_tons,drawn_code,budget,expected", _FIT_WORKED_EXAMPLES)
 def test_fit_jump_drive_c1_result_is_legal_for_the_hull(hull_tons, drawn_code, budget, expected):
-    from cetools.engine.ships.generator import _fit_jump_drive
-
-    result = _fit_jump_drive(hull_tons, drawn_code, budget)
+    result = _fit_jump_drive(hull_tons, drawn_code, TonnageLedger(budget), 0.0)
     assert hull_tons in DRIVE_PERFORMANCE[result]
 
 
 @pytest.mark.parametrize("hull_tons,drawn_code,budget,expected", _FIT_WORKED_EXAMPLES)
 def test_fit_jump_drive_c2_rating_is_never_raised(hull_tons, drawn_code, budget, expected):
-    from cetools.engine.ships.generator import _fit_jump_drive
-
-    result = _fit_jump_drive(hull_tons, drawn_code, budget)
+    result = _fit_jump_drive(hull_tons, drawn_code, TonnageLedger(budget), 0.0)
     assert DRIVE_PERFORMANCE[result][hull_tons] <= DRIVE_PERFORMANCE[drawn_code][hull_tons]
 
 
@@ -1683,9 +1715,7 @@ def test_fit_jump_drive_c2_rating_is_never_raised(hull_tons, drawn_code, budget,
 def test_fit_jump_drive_c3_result_is_the_unique_lightest_at_its_rating(
     hull_tons, drawn_code, budget, expected
 ):
-    from cetools.engine.ships.generator import _fit_jump_drive
-
-    result = _fit_jump_drive(hull_tons, drawn_code, budget)
+    result = _fit_jump_drive(hull_tons, drawn_code, TonnageLedger(budget), 0.0)
     result_rating = DRIVE_PERFORMANCE[result][hull_tons]
     result_tons = DRIVE_COSTS[result].jump_tons
     for code, ratings in DRIVE_PERFORMANCE.items():
@@ -1695,21 +1725,19 @@ def test_fit_jump_drive_c3_result_is_the_unique_lightest_at_its_rating(
 
 @pytest.mark.parametrize("hull_tons,drawn_code,budget,expected", _FIT_WORKED_EXAMPLES)
 def test_fit_jump_drive_c4_highest_affordable_rating_wins(hull_tons, drawn_code, budget, expected):
-    from cetools.engine.ships.generator import _fit_jump_drive
-
-    result = _fit_jump_drive(hull_tons, drawn_code, budget)
+    result = _fit_jump_drive(hull_tons, drawn_code, TonnageLedger(budget), 0.0)
     ceiling = DRIVE_PERFORMANCE[drawn_code][hull_tons]
     affordable_ratings = [
         ratings[hull_tons]
         for code, ratings in DRIVE_PERFORMANCE.items()
         if hull_tons in ratings
         and ratings[hull_tons] <= ceiling
-        and DRIVE_COSTS[code].jump_tons + 0.1 * hull_tons * ratings[hull_tons] <= budget
+        and _jump_is_affordable(hull_tons, code, budget)
     ]
     result_rating = DRIVE_PERFORMANCE[result][hull_tons]
     if affordable_ratings:
         assert result_rating == max(affordable_ratings)
-        assert DRIVE_COSTS[result].jump_tons + 0.1 * hull_tons * result_rating <= budget
+        assert _jump_is_affordable(hull_tons, result, budget)
     else:
         assert result_rating == min(
             ratings[hull_tons]
@@ -1720,20 +1748,16 @@ def test_fit_jump_drive_c4_highest_affordable_rating_wins(hull_tons, drawn_code,
 
 @pytest.mark.parametrize("hull_tons,drawn_code,budget,expected", _FIT_WORKED_EXAMPLES)
 def test_fit_jump_drive_c8_is_idempotent(hull_tons, drawn_code, budget, expected):
-    from cetools.engine.ships.generator import _fit_jump_drive
-
-    result = _fit_jump_drive(hull_tons, drawn_code, budget)
-    assert _fit_jump_drive(hull_tons, result, budget) == result
+    result = _fit_jump_drive(hull_tons, drawn_code, TonnageLedger(budget), 0.0)
+    assert _fit_jump_drive(hull_tons, result, TonnageLedger(budget), 0.0) == result
 
 
 def test_fit_jump_drive_legality_and_ceiling_hold_over_every_hull_and_legal_drawn_code():
-    from cetools.engine.ships.generator import _fit_jump_drive
-
     for hull_tons in HULLS:
         for drawn_code, ratings in DRIVE_PERFORMANCE.items():
             if hull_tons not in ratings:
                 continue
-            result = _fit_jump_drive(hull_tons, drawn_code, 10_000.0)
+            result = _fit_jump_drive(hull_tons, drawn_code, TonnageLedger(10_000.0), 0.0)
             assert hull_tons in DRIVE_PERFORMANCE[result]
             assert DRIVE_PERFORMANCE[result][hull_tons] <= ratings[hull_tons]
 
@@ -1747,13 +1771,11 @@ _FIT_SWEEP_BUDGETS = (0.0, 1.0, 5.0, 20.0, 55.0, 72.0, 100.0, 200.0, 400.0, 600.
 
 
 def test_fit_jump_drive_c3_is_the_lightest_at_its_rating_over_every_hull_and_budget():
-    from cetools.engine.ships.generator import _fit_jump_drive
-
     for hull_tons in HULLS:
         legal = [code for code, ratings in DRIVE_PERFORMANCE.items() if hull_tons in ratings]
         for drawn_code in legal:
             for budget in _FIT_SWEEP_BUDGETS:
-                result = _fit_jump_drive(hull_tons, drawn_code, budget)
+                result = _fit_jump_drive(hull_tons, drawn_code, TonnageLedger(budget), 0.0)
                 result_rating = DRIVE_PERFORMANCE[result][hull_tons]
                 result_tons = DRIVE_COSTS[result].jump_tons
                 for code in legal:
@@ -1762,29 +1784,23 @@ def test_fit_jump_drive_c3_is_the_lightest_at_its_rating_over_every_hull_and_bud
 
 
 def test_fit_jump_drive_c4_highest_affordable_rating_wins_over_every_hull_and_budget():
-    from cetools.engine.ships.generator import _fit_jump_drive
-
     for hull_tons in HULLS:
         legal = [code for code, ratings in DRIVE_PERFORMANCE.items() if hull_tons in ratings]
         lowest_rating = min(DRIVE_PERFORMANCE[code][hull_tons] for code in legal)
         for drawn_code in legal:
             ceiling = DRIVE_PERFORMANCE[drawn_code][hull_tons]
             for budget in _FIT_SWEEP_BUDGETS:
-                result = _fit_jump_drive(hull_tons, drawn_code, budget)
+                result = _fit_jump_drive(hull_tons, drawn_code, TonnageLedger(budget), 0.0)
                 result_rating = DRIVE_PERFORMANCE[result][hull_tons]
                 affordable = [
                     DRIVE_PERFORMANCE[code][hull_tons]
                     for code in legal
                     if DRIVE_PERFORMANCE[code][hull_tons] <= ceiling
-                    and DRIVE_COSTS[code].jump_tons
-                    + 0.1 * hull_tons * DRIVE_PERFORMANCE[code][hull_tons]
-                    <= budget
+                    and _jump_is_affordable(hull_tons, code, budget)
                 ]
                 if affordable:
                     assert result_rating == max(affordable)
-                    assert (
-                        DRIVE_COSTS[result].jump_tons + 0.1 * hull_tons * result_rating <= budget
-                    )
+                    assert _jump_is_affordable(hull_tons, result, budget)
                 else:
                     assert result_rating == lowest_rating
 
@@ -1794,19 +1810,15 @@ def test_fit_jump_drive_c4_highest_affordable_rating_wins_over_every_hull_and_bu
 
 
 def test_fit_jump_drive_c5_starved_hull_falls_back_to_the_lowest_rated_legal_drive():
-    from cetools.engine.ships.generator import _fit_jump_drive
-
-    assert _fit_jump_drive(100, "A", 5.0) == "A"
+    assert _fit_jump_drive(100, "A", TonnageLedger(5.0), 0.0) == "A"
 
 
 def test_fit_jump_drive_c5_zero_budget_falls_back_to_the_lightest_lowest_rated_drive():
-    from cetools.engine.ships.generator import _fit_jump_drive
-
     for hull_tons in HULLS:
         legal = [code for code, ratings in DRIVE_PERFORMANCE.items() if hull_tons in ratings]
         drawn_code = max(legal, key=lambda code: DRIVE_PERFORMANCE[code][hull_tons])
 
-        result = _fit_jump_drive(hull_tons, drawn_code, 0.0)
+        result = _fit_jump_drive(hull_tons, drawn_code, TonnageLedger(0.0), 0.0)
 
         lowest_rating = min(DRIVE_PERFORMANCE[code][hull_tons] for code in legal)
         lightest_at_lowest = min(
@@ -1817,14 +1829,12 @@ def test_fit_jump_drive_c5_zero_budget_falls_back_to_the_lightest_lowest_rated_d
 
 
 def test_fit_jump_drive_c6_never_raises_for_any_input_satisfying_the_preconditions():
-    from cetools.engine.ships.generator import _fit_jump_drive
-
     for hull_tons in HULLS:
         for drawn_code, ratings in DRIVE_PERFORMANCE.items():
             if hull_tons not in ratings:
                 continue
             for budget in (0.0, 1.0, 50.0, 10_000.0):
-                _fit_jump_drive(hull_tons, drawn_code, budget)
+                _fit_jump_drive(hull_tons, drawn_code, TonnageLedger(budget), 0.0)
 
 
 # --- Phase 3, User Story 1: every generated starship can make at least one
@@ -1903,27 +1913,29 @@ def test_us1_as1_a_100_ton_hull_with_maneuver_a_and_power_c_mounts_jump_b_at_jum
     assert ship.jump_fuel == pytest.approx(40.0)
 
 
-def test_sc007_ships_already_fully_fueled_before_the_change_keep_their_rating():
+def test_sc007_the_hull_a_seed_draws_is_untouched_by_what_is_afforded_after_it():
+    """The hull is the first draw, so nothing chosen against it can move it.
+
+    What stands here of the jump-fuel feature's `pre_change_sweep.json` anchor.
+    Its other three assertions—the jump rating, the maneuver code and the power
+    code a seed produced—were claims that *that* change moved nothing it should
+    not have, and accommodation moves all three deliberately: the drive draws
+    are now narrowed to the combinations that leave a crew somewhere to sleep,
+    which is the whole of the feature. A byte-comparison against an era two
+    changes back cannot survive a change that exists to alter what a seed
+    produces, and pretending otherwise by trimming it down to whatever still
+    passes would be a net that catches nothing.
+
+    The hull genuinely is unmoved, and says something worth pinning: the draw
+    order still opens with it, so no later affordability filter can reach back
+    and change the ship's size.
+    """
     with open(_PRE_CHANGE_SWEEP_PATH, encoding="utf-8") as handle:
         baseline = json.load(handle)["standard"]
 
-    checked = 0
     for seed_text, before in baseline.items():
-        if before["assumed_jump_distance"] != before["jump_rating"]:
-            continue
-        seed = int(seed_text)
-        ship = generate_ship(RandomRolls.seeded(seed)).ship
-
-        assert ship.hull_tons == before["hull_tons"]
-        assert ship.jump_rating == before["jump_rating"]
-        assert ship.design.maneuver_code == before["maneuver_code"]
-        assert ship.design.power_code == before["power_code"]
-        if ship.design.jump_code != before["jump_code"]:
-            before_tons = DRIVE_COSTS[before["jump_code"]].jump_tons
-            after_tons = DRIVE_COSTS[ship.design.jump_code].jump_tons
-            assert after_tons < before_tons
-        checked += 1
-    assert checked > 0
+        ship = generate_ship(RandomRolls.seeded(int(seed_text))).ship
+        assert ship.hull_tons == before["hull_tons"], f"seed {seed_text}"
 
 
 def test_sc003_allocated_tonnage_never_overruns_the_hull():
@@ -1953,14 +1965,21 @@ def test_sc006_generation_is_deterministic_on_every_path():
         ) == generate_ship(RandomRolls.seeded(seed), constraints=DesignConstraints(hull_tons=400))
 
 
-def test_sc005_small_craft_output_is_unchanged_from_before_the_change():
+def test_sc005_the_small_craft_hull_a_seed_draws_is_untouched_by_this_change():
+    """The small-craft half of the same anchor, kept on the same terms.
+
+    It pinned the whole design file a seed produced, on the claim that the
+    jump-fuel feature left the small-craft path alone. Accommodation does not:
+    the drive draws are narrowed for the crew they oblige, the cockpit is
+    chosen for the crew it seats, and the staterooms follow the crew rather
+    than a die. What survives is the hull, which is still the first draw.
+    """
     with open(_PRE_CHANGE_SWEEP_PATH, encoding="utf-8") as handle:
         baseline = json.load(handle)["small_craft"]
 
     for seed_text, expected_toml in baseline.items():
-        seed = int(seed_text)
-        ship = generate_ship(RandomRolls.seeded(seed), constraints=_SMALL_CRAFT).ship
-        assert dump_design(ship.design) == expected_toml
+        ship = generate_ship(RandomRolls.seeded(int(seed_text)), constraints=_SMALL_CRAFT).ship
+        assert f"hull_tons = {ship.hull_tons}\n" in expected_toml, f"seed {seed_text}"
 
 
 def test_sc009_hull_size_is_always_honored():
@@ -2126,12 +2145,10 @@ def test_fr014_a_starved_hull_design_still_builds_within_its_hull():
     allows) up to its full rating. Every one of those designs must build and
     fit inside its hull.
     """
-    from cetools.engine.ships.generator import _fit_jump_drive
-
     for hull_tons in HULLS:
         legal = [code for code, ratings in DRIVE_PERFORMANCE.items() if hull_tons in ratings]
         top = max(legal, key=lambda code: DRIVE_PERFORMANCE[code][hull_tons])
-        fallback = _fit_jump_drive(hull_tons, top, 0.0)
+        fallback = _fit_jump_drive(hull_tons, top, TonnageLedger(0.0), 0.0)
         rating = DRIVE_PERFORMANCE[fallback][hull_tons]
 
         # The heaviest power plant the drive's rating floor admits, so the
@@ -2403,8 +2420,8 @@ def _assert_ledger_matches_cargo(monkeypatch, constraints, seeds):
     captured: list[TonnageLedger] = []
 
     class _ProbedLedger(TonnageLedger):
-        def __init__(self, tons: float) -> None:
-            super().__init__(tons)
+        def __init__(self, tons: float, **kwargs) -> None:
+            super().__init__(tons, **kwargs)
             captured.append(self)
 
     monkeypatch.setattr("cetools.engine.ships.generator.TonnageLedger", _ProbedLedger)
@@ -2490,3 +2507,244 @@ def test_a_single_generation_completes_in_under_a_tenth_of_a_second():
     start = time.perf_counter()
     generate_ship(RandomRolls.seeded(2))
     assert time.perf_counter() - start < 0.1
+
+
+# --- #60: a generated ship berths the crew it requires ---
+
+_SMALLEST_HOUSED_SMALL_CRAFT = 15
+"""The smallest small-craft hull that can berth the crew it requires.
+
+A 10-ton hull cannot, and no choice made on it can help. Its lightest legal
+pair is an sA maneuver drive and an sA plant: 2 + 4 tons, plus 1.3 tons of
+power-plant fuel, leaves 2.7 tons. The crew is three—a pilot, a navigator and
+one engineer per 35 tons of drives—and the cheapest quarters for three is a
+3-ton 2-man cockpit and one 4-ton stateroom. Seven tons wanted against 2.7
+free. `test_no_ten_ton_hull_can_berth_its_crew_however_it_is_fitted` pins that
+arithmetic against the tables rather than leaving it to this docstring, so the
+exception cannot quietly become a hiding place for a defect.
+"""
+
+
+def test_a_generated_starship_berths_every_crew_member_it_requires():
+    """The property this feature exists to establish, swept rather than sampled.
+
+    Asserted at the `generate_ship` seam and about what a referee reads off the
+    ship—its crew and its berths—rather than about the budget that produced
+    them, which is an implementation detail and will change. It sits beside the
+    tonnage-never-overruns-the-hull and fuel-for-one-jump sweeps because it is
+    the same kind of claim.
+
+    Before this change 493 of the first 500 seeds produced a starship with more
+    crew than berths, the worst of them sixteen short.
+    """
+    for seed in range(2000):
+        ship = generate_ship(RandomRolls.seeded(seed)).ship
+        assert ship.unaccommodated_crew == 0, (
+            f"seed {seed}: a {ship.hull_tons}-ton hull with {ship.crew.total} crew "
+            f"and {ship.crew_berths} berths"
+        )
+
+
+def test_a_generated_small_craft_berths_every_crew_member_its_hull_can_hold():
+    """The same claim on the smaller ruleset, which the guarantee reaches
+    everywhere its hulls have room for it."""
+    for seed in range(2000):
+        ship = generate_ship(RandomRolls.seeded(seed), constraints=_SMALL_CRAFT).ship
+        if ship.hull_tons < _SMALLEST_HOUSED_SMALL_CRAFT:
+            continue
+        assert ship.unaccommodated_crew == 0, (
+            f"seed {seed}: a {ship.hull_tons}-ton craft with {ship.crew.total} crew "
+            f"and {ship.crew_berths} berths"
+        )
+
+
+def test_every_small_craft_hull_that_can_berth_its_crew_does():
+    """A sweep over the tonnages themselves, since the unconstrained draw
+    reaches some of the eighteen hull sizes rarely."""
+    for hull_tons in sorted(SMALL_CRAFT_HULLS):
+        if hull_tons < _SMALLEST_HOUSED_SMALL_CRAFT:
+            continue
+        for seed in range(60):
+            ship = generate_ship(
+                RandomRolls.seeded(seed),
+                constraints=DesignConstraints(
+                    hull_class=HullClass.SMALL_CRAFT, hull_tons=hull_tons
+                ),
+            ).ship
+            assert ship.unaccommodated_crew == 0, f"{hull_tons}t, seed {seed}"
+
+
+def test_no_ten_ton_hull_can_berth_its_crew_however_it_is_fitted():
+    """The one hull the guarantee cannot reach is a hull, not a defect.
+
+    Read off the tables rather than asserted from the prose: no legal drive
+    pair leaves a 10-ton craft room for the crew that pair obliges, so there is
+    nothing for a filter to prefer and nothing generation could have chosen
+    instead. The companion assertion is the point of the pair—at 15 tons a pair
+    does exist, so the boundary is where it is said to be and not lower.
+    """
+    from cetools.engine.ships.generator import (
+        _small_craft_codes_for,
+        _small_craft_drives_house_their_crew,
+        _small_craft_power_codes,
+    )
+
+    def housed(hull_tons):
+        return [
+            (maneuver, plant)
+            for maneuver in _small_craft_codes_for(hull_tons)
+            for plant in _small_craft_power_codes(hull_tons, maneuver)
+            if _small_craft_drives_house_their_crew(hull_tons, maneuver, plant, command=2)
+        ]
+
+    assert housed(10) == []
+    assert housed(_SMALLEST_HOUSED_SMALL_CRAFT) != []
+
+
+def test_a_ten_ton_craft_still_builds_and_says_who_has_nowhere_to_sleep():
+    """Generation does not refuse the hull it cannot house: it produces the
+    craft and leaves the shortfall for the description to report."""
+    ship = generate_ship(
+        RandomRolls.seeded(3),
+        constraints=DesignConstraints(hull_class=HullClass.SMALL_CRAFT, hull_tons=10),
+    ).ship
+
+    assert ship.unaccommodated_crew > 0
+    assert "unaccommodated" in render_description(ship)
+
+
+def test_a_cockpit_berths_the_crew_it_seats_so_a_small_craft_needs_no_room_for_them():
+    """The SRD's cockpit table carries a crew column, and it is accommodation.
+
+    Read the other way—every crew member needs a stateroom and a cockpit
+    provides none—a ship's boat would carry three staterooms, twelve tons on a
+    hull that may be twenty, and the SRD's own sample small craft would all be
+    illegal.
+    """
+    for seed in range(40):
+        ship = generate_ship(RandomRolls.seeded(seed), constraints=_SMALL_CRAFT).ship
+        assert ship.cockpit_seats == COCKPITS[ship.design.cockpit].crew
+        assert ship.crew_berths == ship.design.staterooms + ship.cockpit_seats
+
+
+def test_a_jump_control_computer_costs_the_ship_a_berth_less():
+    """The accommodation follows the crew the ship actually requires: a computer
+    that flies the jump needs no navigator, and so no navigator's stateroom."""
+    flown = DesignConstraints(
+        hull_tons=400,
+        computer=ComputerFit(model=2, software=(SoftwareFit(name="jump_control", level=1),)),
+    )
+    navigated = DesignConstraints(hull_tons=400, computer=ComputerFit(model=2))
+
+    with_jump_control = generate_ship(RandomRolls.seeded(5), constraints=flown).ship
+    with_navigator = generate_ship(RandomRolls.seeded(5), constraints=navigated).ship
+
+    assert with_jump_control.crew.navigator == 0
+    assert with_navigator.crew.navigator == 1
+    assert command_crew(with_jump_control.design.computer) == 1
+    assert command_crew(with_navigator.design.computer) == 2
+    assert with_jump_control.unaccommodated_crew == 0
+    assert with_navigator.unaccommodated_crew == 0
+
+
+def test_a_drives_engineers_are_berthed_before_a_drop_of_jump_fuel_is_bought():
+    """Coherence beats performance where the two conflict: a hull short of
+    tonnage gives up range rather than leaving its engineers standing."""
+    for seed in range(300):
+        ship = generate_ship(RandomRolls.seeded(seed)).ship
+        drive_tons = (
+            DRIVE_COSTS[ship.design.jump_code].jump_tons
+            + DRIVE_COSTS[ship.design.maneuver_code].maneuver_tons
+            + DRIVE_COSTS[ship.design.power_code].power_tons
+        )
+        assert ship.crew.engineers == engineers_for(drive_tons)
+        assert ship.design.staterooms >= ship.crew.total
+
+
+def test_a_pinned_screen_the_hull_can_hold_but_its_operator_cannot_is_declined():
+    """A screen costs its operator's berth as well as its fifty tons, so a hull
+    with fifty-two free has room for the screen and not for the pair."""
+    ledger = TonnageLedger(52.0)
+    fitted = _select_screens(ScriptedRolls(), ledger, (ScreenFit(kind="nuclear_damper"),))
+
+    assert fitted == ()
+    (unmet,) = ledger.declined
+    assert (unmet.field, unmet.got) == ("screens", "none")
+    assert "berth" in unmet.reason
+
+
+def test_a_pinned_stateroom_count_is_honored_where_the_tonnage_allows():
+    """A referee's own answer is not overridden by the accommodation rule."""
+    result = generate_ship(
+        RandomRolls.seeded(9), constraints=DesignConstraints(hull_tons=1000, staterooms=25)
+    )
+
+    assert result.ship.design.staterooms == 25
+    assert [entry.field for entry in result.unmet] == []
+
+
+def test_a_pinned_stateroom_count_below_the_crew_is_respected_rather_than_raised():
+    """A deliberate answer stays a different thing from an unanswered one.
+
+    Pinning the count caps the berths generation reserves, so the ship is built
+    as it would have been before accommodation was reserved at all, and the
+    shortfall is reported rather than silently corrected upward.
+    """
+    result = generate_ship(
+        RandomRolls.seeded(9), constraints=DesignConstraints(hull_tons=1000, staterooms=0)
+    )
+    ship = result.ship
+
+    assert ship.design.staterooms == 0
+    assert ship.crew.total > 0
+    assert ship.unaccommodated_crew == ship.crew.total
+    assert [entry.field for entry in result.unmet] == []
+    assert "unaccommodated" in render_description(ship)
+
+
+def test_a_pinned_stateroom_count_the_hull_cannot_hold_is_reported():
+    result = generate_ship(
+        RandomRolls.seeded(9), constraints=DesignConstraints(hull_tons=100, staterooms=40)
+    )
+
+    assert result.ship.design.staterooms < 40
+    (unmet,) = [entry for entry in result.unmet if entry.field == "staterooms"]
+    assert unmet.asked == "40"
+    assert unmet.got == str(result.ship.design.staterooms)
+
+
+def test_cargo_is_what_is_genuinely_left_once_the_crew_is_housed():
+    """Accommodation shows up as tonnage spent rather than tonnage hidden."""
+    for seed in range(300):
+        ship = generate_ship(RandomRolls.seeded(seed)).ship
+        assert ship.cargo_tons >= 0
+        assert ship.tonnage_used + ship.cargo_tons == pytest.approx(ship.hull_tons)
+
+
+def test_the_jump_drive_is_priced_against_the_ledgers_own_berth_rule():
+    """A pinned stateroom count caps every berth, including the jump drive's.
+
+    `_fit_jump_drive` used to price the engineers' berths with arithmetic of
+    its own, which ignored the ceiling a pinned count puts on reservation. A
+    referee who pinned zero was charged four tons for a berth the ledger had
+    already declined to reserve, and bought less jump range than they had paid
+    for. On a 100-ton hull with 56 tons free that is the difference between
+    Jump-2 and Jump-4.
+    """
+    unpinned = _fit_jump_drive(100, "B", TonnageLedger(56.0), 0.0)
+    pinned_zero = _fit_jump_drive(100, "B", TonnageLedger(56.0, berth_limit=0), 0.0)
+
+    assert unpinned == "A"
+    assert pinned_zero == "B"
+
+
+def test_pinning_zero_staterooms_reserves_no_berth_anywhere():
+    """The whole of "a deliberate zero is respected": not one berth is held
+    back, so the ship is the one that would have been built before
+    accommodation was reserved at all."""
+    for seed in range(200):
+        result = generate_ship(
+            RandomRolls.seeded(seed), constraints=DesignConstraints(staterooms=0)
+        )
+        assert result.ship.design.staterooms == 0, f"seed {seed}"
+        assert [entry.field for entry in result.unmet] == [], f"seed {seed}"

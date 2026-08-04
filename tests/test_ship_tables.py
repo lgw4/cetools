@@ -391,8 +391,8 @@ def test_small_craft_hulls_keys_are_monotonically_ordered():
 
 def test_cockpits_hold_exactly_the_two_srd_cockpits():
     assert set(COCKPITS) == {"1_man", "2_man"}
-    assert COCKPITS["1_man"] == CockpitRow(tons=1.5)
-    assert COCKPITS["2_man"] == CockpitRow(tons=3.0)
+    assert COCKPITS["1_man"] == CockpitRow(tons=1.5, crew=1)
+    assert COCKPITS["2_man"] == CockpitRow(tons=3.0, crew=2)
 
 
 def test_small_craft_energy_caps_bands_are_exhaustive_over_power_plant_codes():

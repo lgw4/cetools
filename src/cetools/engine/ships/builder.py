@@ -18,7 +18,14 @@ from __future__ import annotations
 
 import math
 
-from cetools.engine.ships.models import Crew, HullClass, LineItem, Ship, ShipDesign
+from cetools.engine.ships.models import (
+    ComputerFit,
+    Crew,
+    HullClass,
+    LineItem,
+    Ship,
+    ShipDesign,
+)
 from cetools.engine.ships.tables import (
     AMMO,
     ARMOR,
@@ -55,6 +62,34 @@ raises the effective computer rating available for installed software by 5,
 letting a jump-control computer run 5 more points of software than its bare
 model rating allows. Not tabulated data (it modifies a `COMPUTERS` row rather
 than being one), so it lives here rather than in `tables.py`."""
+
+DRIVE_TONS_PER_ENGINEER = 35
+"""SRD "Ship Crew": one engineer per 35 tons of drives and power plant."""
+
+
+def engineers_for(drive_tons: float) -> int:
+    """How many engineers `drive_tons` of drives and power plant oblige.
+
+    Public because `generator.py` reserves an engineer's berth as part of what a
+    drive costs, and a second copy of this arithmetic would be a second
+    authority on it: were the two ever to disagree, generated ships would
+    quietly stop housing their crews and nothing would say why.
+    """
+    return math.ceil(drive_tons / DRIVE_TONS_PER_ENGINEER) if drive_tons > 0 else 0
+
+
+def command_crew(computer: ComputerFit | None) -> int:
+    """The crew every ship has whatever else it fits: a pilot, and a navigator
+    unless the computer's jump-control software flies the jump for them.
+
+    Public for the reason `engineers_for` is: generation reserves these berths
+    before it chooses a single component, and has to count them the way the
+    crew derivation below does.
+    """
+    flies_the_jump = computer is not None and any(
+        software.name == "jump_control" for software in computer.software
+    )
+    return 1 if flies_the_jump else 2
 
 
 def _drive_letter(code: str) -> str:
@@ -315,12 +350,9 @@ def _build_screens(design: ShipDesign, items: list[LineItem]) -> None:
 
 
 def _build_crew(design: ShipDesign, drive_tons: float, hardpoints_used: int) -> Crew:
-    has_jump_control_software = design.computer is not None and any(
-        software.name == "jump_control" for software in design.computer.software
-    )
     pilot = 1
-    navigator = 0 if has_jump_control_software else 1
-    engineers = math.ceil(drive_tons / 35) if drive_tons > 0 else 0
+    navigator = command_crew(design.computer) - pilot
+    engineers = engineers_for(drive_tons)
     gunners = hardpoints_used
     screen_operators = len(design.screens)
 

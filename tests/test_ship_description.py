@@ -193,12 +193,18 @@ _SLOT_ORDER = (
     "_configuration",
     "_special_features",
     "_crew",
+    "_accommodation",
     "_passengers",
     "_cost",
 )
 
+_SILENT_ON_A_COHERENT_SHIP = "_accommodation"
+"""The one slot the equipped ship omits. It exists to name a shortfall, and a
+sentence that appeared on every ship would name none, so a ship that berths its
+crew says nothing here."""
 
-def test_there_are_exactly_sixteen_slots_in_the_fr_004_order():
+
+def test_there_are_exactly_seventeen_slots_in_the_fr_004_order():
     assert tuple(slot.__name__ for slot in _SLOTS) == _SLOT_ORDER
 
 
@@ -209,17 +215,20 @@ def test_every_slot_renders_for_the_equipped_ship_in_slot_order():
     positions = []
     for slot in _SLOTS:
         text = slot(ship)
+        if slot.__name__ == _SILENT_ON_A_COHERENT_SHIP:
+            assert text is None, "the equipped ship berths its crew, so this slot is silent"
+            continue
         assert text is not None, f"{slot.__name__} was omitted for the equipped ship"
         assert text in paragraph
         positions.append(paragraph.index(text))
 
     assert positions == sorted(positions)
-    assert len(set(positions)) == len(_SLOT_ORDER)
+    assert len(set(positions)) == len(_SLOT_ORDER) - 1
 
 
 def test_a_slot_may_carry_more_than_one_sentence():
     """Slot 8 emits the weapons sentence plus one sentence per ammunition group,
-    so a paragraph has sixteen slots but more than sixteen sentences."""
+    so a paragraph has seventeen slots but more than seventeen sentences."""
     sentences = [s for s in _paragraph(_equipped_ship()).split(". ") if s]
 
     assert len(sentences) > len(_SLOT_ORDER)
@@ -577,6 +586,96 @@ def test_crew_sentence_omits_a_zero_count_position():
     assert "gunner" not in crew
     assert "screen operator" not in crew
     assert "one pilot" in crew
+
+
+def test_accommodation_sentence_says_nothing_when_the_crew_is_berthed():
+    """Sentence 15 exists to name a design error. One that appeared on every
+    ship would name none, so a coherent ship is silent here."""
+    ship = _equipped_ship()
+
+    assert ship.unaccommodated_crew == 0
+    assert _slot(ship, "_accommodation") is None
+    assert "unaccommodated" not in _paragraph(ship)
+
+
+def test_accommodation_sentence_names_how_many_crew_have_nowhere_to_sleep():
+    """A referee reading it should know how many staterooms to add."""
+    ship = build_ship(_simple_design(staterooms=1))
+
+    assert ship.crew.total == 3
+    assert ship.crew_berths == 1
+    assert (
+        _slot(ship, "_accommodation")
+        == "The ship berths one of its three crew, leaving two crew members unaccommodated."
+    )
+
+
+def test_accommodation_sentence_agrees_in_number_for_a_single_crew_member():
+    ship = build_ship(_simple_design(staterooms=2))
+
+    assert (
+        _slot(ship, "_accommodation")
+        == "The ship berths two of its three crew, leaving one crew member unaccommodated."
+    )
+
+
+def test_a_short_crewed_ship_offers_no_passenger_capacity_rather_than_a_negative_one():
+    """The arithmetic stays sensible while the shortfall is reported separately."""
+    ship = build_ship(_simple_design(staterooms=1))
+
+    assert ship.spare_staterooms == 0
+    assert _slot(ship, "_passengers") == "The ship cannot carry any additional passengers."
+
+
+def test_a_cockpits_seats_berth_its_crew_so_a_small_craft_needs_no_stateroom_for_them():
+    """A ship's boat sleeps its pilot in the cockpit the SRD gives it."""
+    ship = build_ship(
+        ShipDesign(
+            name="Gig",
+            hull_class=HullClass.SMALL_CRAFT,
+            hull_tons=30,
+            maneuver_code="sB",
+            power_code="sB",
+            bridge=False,
+            cockpit="2_man",
+            power_weeks=1,
+            staterooms=1,
+        )
+    )
+
+    assert (ship.crew.total, ship.cockpit_seats, ship.crew_berths) == (3, 2, 3)
+    assert _slot(ship, "_accommodation") is None
+
+
+def test_a_cockpits_seats_free_staterooms_for_passengers_rather_than_taking_them():
+    """Only the crew a cockpit cannot seat take a stateroom, so the rooms left
+    over are genuinely spare.
+
+    Counting the whole crew against the staterooms instead would cost this gig
+    both its passenger berths, and a cockpit seat is not passenger space to
+    give: the SRD's 2-man cockpit seats two *crew*, and only the larger control
+    cabins this package leaves out carry a passenger.
+    """
+    ship = build_ship(
+        ShipDesign(
+            name="Gig",
+            hull_class=HullClass.SMALL_CRAFT,
+            hull_tons=40,
+            maneuver_code="sB",
+            power_code="sB",
+            bridge=False,
+            cockpit="2_man",
+            power_weeks=1,
+            staterooms=3,
+        )
+    )
+
+    assert (ship.crew.total, ship.cockpit_seats) == (3, 2)
+    assert ship.spare_staterooms == 2
+    assert (
+        "The ship can carry up to four additional passengers at double occupancy."
+        in _paragraph(ship)
+    )
 
 
 def test_passenger_sentence_doubles_up_the_spare_staterooms():
