@@ -369,14 +369,22 @@ def _read_armor(known: list[str], answer: str) -> tuple[ArmorFit, ...] | Absent:
     reading. A comma between layers gives it one.
 
     A layer nothing recognizes refuses the whole answer, pinning none of them, so
-    a typo in the second layer does not leave the first one pinned.
+    a typo in the second layer does not leave the first one pinned. So does a
+    repeated layer, as in every other family: two identical layers cost and
+    protect exactly what one layer of their combined percent does, so the
+    referee giving up nothing by saying `crystaliron 20` instead, and a repeat
+    is far likelier to be a slip than an intention.
     """
     if prompts.key(answer) == _NONE:
         return ABSENT
     layers = [part for part in answer.split(",") if part.strip()]
     if not layers:
         raise ValueError(f'give an armor type and a percent, like "crystaliron 10"; got {answer}')
-    return tuple(_read_armor_layer(known, layer) for layer in layers)
+    fits = tuple(_read_armor_layer(known, layer) for layer in layers)
+    if len(fits) != len(set(fits)):
+        spelled = ", ".join(f"{fit.type.value} {fit.percent}" for fit in fits)
+        raise ValueError(f"armor layers must not repeat, got {spelled}")
+    return fits
 
 
 def _read_armor_options(known: list[str], answer: str) -> tuple[str, ...]:

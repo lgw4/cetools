@@ -2689,6 +2689,25 @@ def test_ship_generate_interactive_one_unknown_value_refuses_the_whole_answer():
     assert [fit.kind for fit in design.fittings] == ["vault"]
 
 
+def test_ship_generate_interactive_a_repeated_armor_layer_is_refused():
+    """Armor refuses a repeat like every other family. Nothing is lost by it:
+    two identical layers cost and protect exactly what one layer of their
+    combined percent does, so `crystaliron 20` says the same thing."""
+    design, stderr = _pinned_design(
+        armor="crystaliron 10, crystaliron 10\ncrystaliron 20", armor_options="none"
+    )
+
+    assert "armor layers must not repeat" in stderr
+    assert [(fit.type.value, fit.percent) for fit in design.armor] == [("crystaliron", 20)]
+
+
+def test_ship_generate_interactive_two_layers_of_one_type_at_different_percents_are_kept():
+    """Only an exact repeat is refused: differing percents are two real layers."""
+    design, _ = _pinned_design(armor="crystaliron 10, crystaliron 5", armor_options="none")
+
+    assert [fit.percent for fit in design.armor] == [10, 5]
+
+
 def test_ship_generate_interactive_armor_answer_of_only_commas_is_refused():
     design, stderr = _pinned_design(armor=",,\nnone")
 

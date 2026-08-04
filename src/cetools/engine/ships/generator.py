@@ -884,6 +884,13 @@ def _select_electronics(
 
     if isinstance(pinned, str):
         validate_electronics(pinned)
+        if pinned == "standard":
+            # `None` *is* the Standard package: it is what the rolled path
+            # produces and what the builder charges nothing for. Keeping the
+            # word would make a pinned Standard ship unequal to an identical
+            # rolled one, and would write an `electronics` key into a design
+            # file where the same ship rolled omits it.
+            return None
         tons = ELECTRONICS[pinned].tons
         if ledger.affords(tons):
             ledger.spend(tons)
@@ -1476,8 +1483,8 @@ def _generate_small_craft(rolls: Rolls, constraints: DesignConstraints) -> Gener
     hull_tons = _select_small_craft_hull_tons(rolls, constraints)
     if constraints.jump_rating is not None:
         validate_rating(HullClass.SMALL_CRAFT, hull_tons, Drive.JUMP, constraints.jump_rating)
-    if constraints.bays not in (None, ABSENT) and constraints.bays:
-        raise ValueError("small craft carry no weapon bays, so no bay can be pinned")
+    if isinstance(constraints.bays, tuple) and constraints.bays:
+        raise ValueError("small craft carry no weapon bays, so none can be pinned")
     configuration = _select_configuration(rolls, constraints.configuration, constraints.fittings)
     ledger = TonnageLedger(hull_tons)
     maneuver_code, power_code = _select_small_craft_drives(rolls, hull_tons, constraints, ledger)

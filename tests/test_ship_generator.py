@@ -478,6 +478,42 @@ def test_an_unset_family_still_draws_at_most_one():
         assert len(design.screens) <= 1, seed
 
 
+def test_pinning_standard_electronics_is_the_same_ship_as_rolling_it():
+    """`None` *is* the Standard package: it is what the rolled path produces and
+    what the builder charges nothing for. Keeping the word would make a pinned
+    Standard ship unequal to an identical rolled one, and would write an
+    `electronics` key into a design file where the same ship rolled omits it."""
+    pinned = generate_ship(
+        RandomRolls.seeded(11),
+        constraints=DesignConstraints(hull_tons=2000, electronics="standard"),
+    ).ship
+
+    assert pinned.design.electronics is None
+    assert not any(item.name.startswith("electronics") for item in pinned.line_items)
+
+
+def test_a_pinned_bay_on_a_small_craft_is_refused_in_the_plural():
+    """The refusal names the answer as the referee gave it, which may be several."""
+    with pytest.raises(ValueError, match="small craft carry no weapon bays"):
+        generate_ship(
+            RandomRolls.seeded(11),
+            constraints=DesignConstraints(
+                hull_class=HullClass.SMALL_CRAFT, bays=(BayFit(kind="meson"),)
+            ),
+        )
+
+
+def test_an_absent_bay_pin_is_allowed_on_a_small_craft():
+    """`ABSENT` says *no bays*, which is what a small craft has anyway, so it is
+    an answer the ruleset agrees with rather than one it forbids."""
+    result = generate_ship(
+        RandomRolls.seeded(11),
+        constraints=DesignConstraints(hull_class=HullClass.SMALL_CRAFT, bays=ABSENT),
+    )
+
+    assert result.ship.design.bays == ()
+
+
 def test_pinned_electronics_that_will_not_fit_are_declined():
     """The one scalar component whose three states are spelled out rather than
     shared with the families, so its shortfall path is worth its own case."""
