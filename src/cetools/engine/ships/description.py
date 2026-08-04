@@ -405,7 +405,9 @@ def _configuration(ship: Ship) -> str:
 
     # Two layers yield one armor clause and one total protection rating.
     types = _distinct(ARMOR[fit.type.value].name for fit in layers)
-    options = _distinct(ARMOR_OPTIONS[opt].name for fit in layers for opt in fit.options)
+    # Read from the ship, not from its layers: a coating is on the hull, so it
+    # is named once however many layers are under it.
+    options = _distinct(ARMOR_OPTIONS[opt].name for opt in ship.design.armor_options)
     armored = f"{join(types)} ({number(ship.armor_protection)} points)"
     if options:
         return f"The hull is {hull}, armored with {armored}, and possesses {join(options)}."

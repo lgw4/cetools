@@ -100,10 +100,29 @@ def _build_armor(
         tons_per_increment = max(1.0, hull_tons * 0.05)
         tons = tons_per_increment * increments
         cost = base_hull_cost * (row.cost_percent_per_5_percent / 100) * increments
-        for option in fit.options:
-            cost += ARMOR_OPTIONS[option].cost_per_ton * tons
         items.append(LineItem(name=f"{fit.type.value} armor", tons=tons, cost=cost))
         total_protection += row.protection_per_5_percent * increments
+
+    if design.armor_options and not design.armor:
+        # The SRD introduces these as options "added to a ship's armor", so a
+        # coating with nothing to coat is refused. Counter-intuitive next to the
+        # per-hull-ton pricing, which reads like a property of the bare hull, and
+        # refused anyway because the rules say so and cetools does not overrule
+        # them for being surprising.
+        named = ", ".join(sorted(design.armor_options))
+        raise ValueError(f"armor options require armor to coat: {named}")
+
+    for option in sorted(design.armor_options):
+        # Per ton of *hull*, not per ton of armor, and once for the ship however
+        # many layers it carries. Its own line item rather than a surcharge
+        # folded into a layer's cost, because it belongs to no layer.
+        items.append(
+            LineItem(
+                name=option,
+                tons=0.0,
+                cost=ARMOR_OPTIONS[option].cost_per_ton * hull_tons,
+            )
+        )
     return total_protection
 
 
@@ -339,8 +358,11 @@ def _fitted_rows(design: ShipDesign):
 
     for fit in design.armor:
         yield ARMOR[fit.type.value]
-        for option in fit.options:
-            yield ARMOR_OPTIONS[option]
+    # Once for the ship, not once per layer. The derivation takes a maximum, so
+    # the count never mattered to the answer—but it is the ship that carries the
+    # coating, and enumerating it per layer would say otherwise.
+    for option in design.armor_options:
+        yield ARMOR_OPTIONS[option]
 
     for code in (design.maneuver_code, design.jump_code, design.power_code):
         if code is not None:

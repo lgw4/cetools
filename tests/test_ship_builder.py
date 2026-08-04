@@ -698,24 +698,92 @@ def test_armor_protection_sums_stacked_layers_of_different_types():
     assert ship.armor_protection == 6  # 2 (titanium steel) + 4 (crystaliron)
 
 
-def test_armor_options_add_a_per_ton_cost():
-    bare = build_ship(
+def _armored(*, armor_options=(), percent=5, layers=None, hull_tons=200):
+    """A 200-ton hull with armor and, optionally, coatings on it."""
+    if layers is None:
+        layers = (ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=percent),)
+    return build_ship(
         ShipDesign(
-            hull_tons=200,
+            hull_tons=hull_tons,
             jump_code="A",
             power_code="A",
-            armor=(ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5),),
+            armor=layers,
+            armor_options=armor_options,
         )
     )
-    with_reflec = build_ship(
-        ShipDesign(
-            hull_tons=200,
-            jump_code="A",
-            power_code="A",
-            armor=(ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5, options=("reflec",)),),
-        )
+
+
+def test_armor_options_cost_per_ton_of_hull_not_per_ton_of_armor():
+    """The SRD prices all three coatings "per ton of hull". cetools charged them
+    against the armor layer's tonnage, which on this ship is 10 tons against a
+    200-ton hull: a twentyfold understatement."""
+    delta = _armored(armor_options=("reflec",)).total_cost - _armored().total_cost
+
+    assert delta == pytest.approx(ARMOR_OPTIONS["reflec"].cost_per_ton * 200)
+    assert delta == pytest.approx(20.0)
+
+
+def test_armor_option_cost_does_not_depend_on_how_much_armor_is_fitted():
+    """The sharpest statement of the same rule: the coating is on the hull, so
+    thickening the armor under it must not move its price."""
+    thin = (
+        _armored(percent=5, armor_options=("reflec",)).total_cost - _armored(percent=5).total_cost
     )
-    assert with_reflec.total_cost > bare.total_cost
+    thick = (
+        _armored(percent=20, armor_options=("reflec",)).total_cost
+        - _armored(percent=20).total_cost
+    )
+
+    assert thin == pytest.approx(thick)
+
+
+def test_an_armor_option_is_charged_once_however_many_layers_it_coats():
+    """Reflec "can only be added once". While options hung off a layer, a
+    two-layer ship could carry two copies and be billed for both."""
+    layers = (
+        ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5),
+        ArmorFit(type=ArmorType.CRYSTALIRON, percent=5),
+    )
+    delta = (
+        _armored(layers=layers, armor_options=("reflec",)).total_cost
+        - _armored(layers=layers).total_cost
+    )
+
+    assert delta == pytest.approx(ARMOR_OPTIONS["reflec"].cost_per_ton * 200)
+
+
+@pytest.mark.parametrize("option", sorted(ARMOR_OPTIONS))
+def test_every_armor_option_is_priced_per_ton_of_hull(option):
+    """Read from the table rather than restated, so a new SRD coating is priced
+    by the same rule with no edit here."""
+    delta = _armored(armor_options=(option,)).total_cost - _armored().total_cost
+
+    assert delta == pytest.approx(ARMOR_OPTIONS[option].cost_per_ton * 200)
+
+
+def test_armor_options_add_no_tonnage():
+    """A coating displaces nothing; only its cost is the ship's."""
+    assert _armored(armor_options=("reflec", "stealth")).tonnage_used == pytest.approx(
+        _armored().tonnage_used
+    )
+
+
+def test_armor_options_require_armor_to_coat():
+    """The SRD introduces them as options "added to a ship's armor", so a
+    coating with nothing under it is refused. Counter-intuitive beside the
+    per-hull-ton pricing, and refused anyway: cetools does not overrule a stated
+    rule for being surprising."""
+    design = ShipDesign(hull_tons=200, jump_code="A", power_code="A", armor_options=("reflec",))
+
+    with pytest.raises(ValueError, match="armor options require armor to coat: reflec"):
+        build_ship(design)
+
+
+def test_armor_options_are_their_own_line_items():
+    """They belong to no layer, so they are not folded into a layer's cost."""
+    ship = _armored(armor_options=("reflec",))
+
+    assert any(item.name == "reflec" for item in ship.line_items)
 
 
 # --- turret ammunition tonnage, cost, and the discount ---
@@ -1027,7 +1095,10 @@ def test_a_computer_raises_the_derived_tech_level():
 def test_an_armor_option_raises_the_derived_tech_level():
     # Stealth is TL 11, above titanium steel's 7 and the Standard floor of 8.
     assert (
-        _tl(armor=(ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5, options=("stealth",)),))
+        _tl(
+            armor=(ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5),),
+            armor_options=("stealth",),
+        )
         == ARMOR_OPTIONS["stealth"].tl
         == 11
     )

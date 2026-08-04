@@ -39,6 +39,7 @@ _TOP_LEVEL_KEYS = {
     "electronics",
     "quarters",
     "armor",
+    "armor_options",
     "fittings",
     "turrets",
     "bays",
@@ -161,19 +162,41 @@ def _parse_quarters(data: dict, kwargs: dict) -> None:
 
 
 def _parse_armor(data: dict) -> tuple[ArmorFit, ...]:
+    """The armor layers, each a material and a percent.
+
+    `options` is no longer among the accepted keys: an armor option coats the
+    hull, so it is read from the top-level `armor_options` instead. A file
+    written against the old shape is refused by `_reject_unknown` naming both the
+    key and the table it appeared in, which is the whole migration message. No
+    shim reads the old spelling: merging per-layer options up to the ship would
+    need an answer for two layers that disagree, and that there is no such answer
+    is exactly why they moved.
+    """
     fits = []
     for entry in data.get("armor", []):
         _require_table(entry, "[[armor]]")
-        _reject_unknown(entry, {"type", "percent", "options"}, "[[armor]]")
+        _reject_unknown(entry, {"type", "percent"}, "[[armor]]")
         if "type" not in entry:
             raise ValueError("[[armor]] entry requires 'type'")
         if "percent" not in entry:
             raise ValueError("[[armor]] entry requires 'percent'")
         armor_type = _parse_enum(ArmorType, entry["type"], "armor.type")
         percent = _require_int(entry["percent"], "armor.percent")
-        options = tuple(entry.get("options", ()))
-        fits.append(ArmorFit(type=armor_type, percent=percent, options=options))
+        fits.append(ArmorFit(type=armor_type, percent=percent))
     return tuple(fits)
+
+
+def _parse_armor_options(data: dict) -> tuple[str, ...]:
+    """The hull's coatings, as a top-level list of option keys."""
+    options = data.get("armor_options")
+    if options is None:
+        return ()
+    if not isinstance(options, list):
+        raise ValueError(f"armor_options must be an array, got {type(options).__name__}")
+    for option in options:
+        if not isinstance(option, str):
+            raise ValueError(f"armor_options entries must be strings, got {option!r}")
+    return tuple(options)  # ShipDesign rules on which options exist
 
 
 def _parse_fittings(data: dict) -> tuple[FittingFit, ...]:
@@ -294,6 +317,7 @@ def loads_design(text: str) -> ShipDesign:
 
     _parse_quarters(data, kwargs)
     kwargs["armor"] = _parse_armor(data)
+    kwargs["armor_options"] = _parse_armor_options(data)
     kwargs["fittings"] = _parse_fittings(data)
     kwargs["turrets"] = _parse_turrets(data)
     kwargs["bays"] = _parse_bays(data)
@@ -359,6 +383,11 @@ def dump_design(design: ShipDesign) -> str:
         lines.append("standard_design = true")
     if design.electronics is not None:
         lines.append(f"electronics = {_toml_str(design.electronics)}")
+    if design.armor_options:
+        # With the top-level scalars, and necessarily so: a bare key written
+        # after any table header would be read as a key *of that table*.
+        options = ", ".join(_toml_str(option) for option in design.armor_options)
+        lines.append(f"armor_options = [{options}]")
 
     drives_lines = []
     if design.jump_code is not None:
@@ -414,8 +443,6 @@ def dump_design(design: ShipDesign) -> str:
         lines.append("[[armor]]")
         lines.append(f"type = {_toml_str(fit.type.value)}")
         lines.append(f"percent = {fit.percent}")
-        if fit.options:
-            lines.append(f"options = [{', '.join(_toml_str(o) for o in fit.options)}]")
 
     for fit in design.fittings:
         lines.append("")

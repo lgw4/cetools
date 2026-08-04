@@ -70,7 +70,8 @@ def test_manually_constructed_design_round_trips():
         staterooms=3,
         low_berths=1,
         emergency_low_berths=1,
-        armor=(ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=10, options=("reflec",)),),
+        armor=(ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=10),),
+        armor_options=("reflec",),
         fittings=(FittingFit(kind="armory"),),
         turrets=(TurretFit(mount="double", weapons=("pulse_laser", "sandcaster")),),
         passengers_high=2,
@@ -134,13 +135,46 @@ def test_loads_design_accepts_a_7_percent_armor_layer():
 
 
 def test_armor_options_round_trip_through_toml():
-    """A layer's once-only options load and dump identically."""
+    """The hull's once-only coatings load and dump identically, from a top-level
+    key rather than from inside a layer."""
     design = loads_design(
-        'hull_tons = 200\n\n[[armor]]\ntype = "crystaliron"\npercent = 10\n'
-        'options = ["reflec", "stealth"]'
+        'hull_tons = 200\narmor_options = ["reflec", "stealth"]\n\n'
+        '[[armor]]\ntype = "crystaliron"\npercent = 10'
     )
-    assert design.armor[0].options == ("reflec", "stealth")
+    assert design.armor_options == ("reflec", "stealth")
     assert loads_design(dump_design(design)) == design
+
+
+def test_armor_options_dump_before_any_table_header():
+    """A bare key written after a table header would be read as a key *of* that
+    table, so the round trip depends on where this one lands."""
+    design = loads_design(
+        'hull_tons = 200\narmor_options = ["reflec"]\n\n'
+        '[[armor]]\ntype = "crystaliron"\npercent = 10'
+    )
+    dumped = dump_design(design)
+
+    assert dumped.index("armor_options") < dumped.index("[[armor]]")
+
+
+def test_armor_options_inside_a_layer_is_refused_by_name():
+    """The old per-layer shape is not read, and the refusal is the migration
+    message: it names the key and the table it appeared in."""
+    with pytest.raises(ValueError, match="options"):
+        loads_design(
+            'hull_tons = 200\n\n[[armor]]\ntype = "crystaliron"\npercent = 10\n'
+            'options = ["reflec"]'
+        )
+
+
+def test_armor_options_must_be_an_array():
+    with pytest.raises(ValueError, match="armor_options must be an array"):
+        loads_design('hull_tons = 200\narmor_options = "reflec"')
+
+
+def test_armor_options_entries_must_be_strings():
+    with pytest.raises(ValueError, match="armor_options entries must be strings"):
+        loads_design("hull_tons = 200\narmor_options = [1]")
 
 
 def test_loads_design_accepts_power_weeks_1_on_a_starship():

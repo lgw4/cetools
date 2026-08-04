@@ -72,9 +72,10 @@ def _equipped_design(**overrides) -> ShipDesign:
         maneuver_code="E",
         power_code="E",
         armor=(
-            ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5, options=("stealth",)),
+            ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5),
             ArmorFit(type=ArmorType.CRYSTALIRON, percent=5),
         ),
+        armor_options=("stealth",),
         computer=ComputerFit(model=3, jump_control=True, hardened=True),
         electronics="basic_military",
         staterooms=20,
@@ -1294,14 +1295,15 @@ def test_the_armor_clause_names_the_layers_in_the_designs_order():
 
 
 def test_the_armor_options_clause_follows_the_designs_option_order():
-    stealth_first = replace(_CRYSTALIRON, options=("stealth", "reflec"))
-    reflec_first = replace(_CRYSTALIRON, options=("reflec", "stealth"))
-
-    assert _ordered_slot("_configuration", armor=(stealth_first,)) == (
+    assert _ordered_slot(
+        "_configuration", armor=(_CRYSTALIRON,), armor_options=("stealth", "reflec")
+    ) == (
         "The hull is standard, armored with Crystaliron (4 points), "
         "and possesses a stealth coating and a reflec coating."
     )
-    assert _ordered_slot("_configuration", armor=(reflec_first,)) == (
+    assert _ordered_slot(
+        "_configuration", armor=(_CRYSTALIRON,), armor_options=("reflec", "stealth")
+    ) == (
         "The hull is standard, armored with Crystaliron (4 points), "
         "and possesses a reflec coating and a stealth coating."
     )
@@ -1391,10 +1393,8 @@ _OUT_OF_ORDER_TURRET = TurretFit(
 )
 
 _OUT_OF_ORDER = _ordering_design(
-    armor=(
-        replace(_CRYSTALIRON, options=("stealth", "reflec")),
-        _TITANIUM_STEEL,
-    ),
+    armor=(_CRYSTALIRON, _TITANIUM_STEEL),
+    armor_options=("stealth", "reflec"),
     bays=(BayFit(kind="meson"), BayFit(kind="missile_bank")),
     turrets=(
         _OUT_OF_ORDER_TURRET,
@@ -1423,7 +1423,7 @@ def test_the_out_of_order_fixture_is_fitted_against_every_table_order():
     """The fixture only has teeth while it disagrees with the tables; if a table
     is ever reordered to match it, this fails and says so."""
     armor = [fit.type.value for fit in _OUT_OF_ORDER.armor]
-    options = list(_OUT_OF_ORDER.armor[0].options)
+    options = list(_OUT_OF_ORDER.armor_options)
     bays = [fit.kind for fit in _OUT_OF_ORDER.bays]
     mounts = [fit.mount for fit in _OUT_OF_ORDER.turrets]
     weapons = list(_OUT_OF_ORDER_TURRET.weapons)
@@ -1652,7 +1652,8 @@ def test_srd_hyphenation_survives_the_prompts_spacing():
     —this is the guard against a global rename."""
     design = _simple_design(
         turrets=(TurretFit(mount="pop_up", weapons=("pulse_laser",)),),
-        armor=(ArmorFit(type=ArmorType.CRYSTALIRON, percent=5, options=("self_sealing",)),),
+        armor=(ArmorFit(type=ArmorType.CRYSTALIRON, percent=5),),
+        armor_options=("self_sealing",),
     )
     paragraph = _paragraph(build_ship(design))
 

@@ -776,28 +776,35 @@ def _ask_constraints(
         ),
     )
 
-    def ask_armor() -> ArmorFit | Absent | None:
-        """The armor layer, then—only when it is a real `ArmorFit`—its
-        once-only options, folded into the same field so revising `armor`
-        carries its options with it and `DesignConstraints` gains no field.
-        """
-        fit = ask_closed(
+    armor = answered(
+        "armor",
+        lambda: ask_closed(
             "Armor",
             [kind.value for kind in ArmorType],
             _read_armor,
             note=", each with a percent, or none",
+        ),
+    )
+    # Its own field and its own question, because a coating is on the hull rather
+    # than on a layer. Asked only when this session has a layer to coat: the SRD
+    # will not let a coating stand on a bare hull, so offering the question to a
+    # referee who answered `none` at the armor prompt would be offering an answer
+    # certain to be refused. Where armor was left to the dice, there is nothing
+    # to coat yet either—options are never rolled, so an unasked question and an
+    # unanswered one agree.
+    armor_options_pinned = (
+        answered(
+            "armor_options",
+            lambda: ask_closed(
+                "Armor options",
+                armor_options(),
+                _read_armor_options,
+                default_label=_NONE,
+            ),
         )
-        if not isinstance(fit, ArmorFit):
-            return fit
-        options = ask_closed(
-            "Armor options",
-            armor_options(),
-            _read_armor_options,
-            default_label=_NONE,
-        )
-        return ArmorFit(type=fit.type, percent=fit.percent, options=options or ())
-
-    armor = answered("armor", ask_armor)
+        if isinstance(armor, ArmorFit)
+        else None
+    )
     computer = answered(
         "computer",
         lambda: ask_closed(
@@ -867,6 +874,7 @@ def _ask_constraints(
         maneuver_rating=maneuver_rating,
         power_rating=power_rating,
         armor=armor,
+        armor_options=armor_options_pinned,
         computer=computer,
         electronics=electronics,
         staterooms=staterooms,

@@ -134,6 +134,11 @@ class DesignConstraints:
     maneuver_rating: int | None = None
     power_rating: int | None = None
     armor: ArmorFit | Absent | None = None
+    armor_options: tuple[str, ...] | None = None
+    """The hull's coatings. Two-state rather than three, like `purpose` and
+    unlike every optional *component*: generation has never drawn an armor
+    option, so unset and a pinned absence would mean the same thing and `ABSENT`
+    would be a state with no distinct behavior to name."""
     computer: ComputerFit | Absent | None = None
     electronics: str | Absent | None = None
     staterooms: int | None = None
@@ -813,6 +818,26 @@ def _select_armor(
     )
 
 
+def _selected_armor_options(
+    armor: ArmorFit | None, pinned: tuple[str, ...] | None, ledger: TonnageLedger
+) -> tuple[str, ...]:
+    """The hull's coatings, dropped when no armor survived for them to coat.
+
+    Never drawn—generation has never chosen an armor option—so this only passes
+    on what a referee pinned. A coating costs no tonnage and so is never declined
+    for space, but it does need armor beneath it, and the armor a referee pinned
+    *can* be declined for space. Rather than hand `build_ship` a design that its
+    own rule would refuse, the orphaned coatings are dropped and recorded, so the
+    referee is told rather than half-obeyed in silence.
+    """
+    if not pinned:
+        return ()
+    if armor is not None:
+        return pinned
+    ledger.decline("armor_options", ", ".join(pinned), "none", "no armor for them to coat")
+    return ()
+
+
 def _select_computer(rolls: Rolls, pinned: ComputerFit | Absent | None) -> ComputerFit | None:
     """The computer costs no tonnage, so a pin is never declined—only fitted."""
     if pinned is ABSENT:
@@ -1457,6 +1482,7 @@ def _generate_small_craft(rolls: Rolls, constraints: DesignConstraints) -> Gener
         bridge=False,
         cockpit=cockpit,
         armor=(armor,) if armor is not None else (),
+        armor_options=_selected_armor_options(armor, constraints.armor_options, ledger),
         computer=computer,
         electronics=electronics,
         staterooms=staterooms,
@@ -1554,6 +1580,7 @@ def generate_ship(
         power_code=power_code,
         jump_distance=jump_distance,
         armor=(armor,) if armor is not None else (),
+        armor_options=_selected_armor_options(armor, constraints.armor_options, ledger),
         computer=computer,
         electronics=electronics,
         staterooms=staterooms,

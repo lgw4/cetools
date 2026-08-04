@@ -647,22 +647,32 @@ def test_a_new_armor_option_row_is_accepted_and_costed_with_no_code_change(monke
         ArmorOptionRow(name="a synthetic coating", cost_per_ton=0.25, tl=9),
     )
 
-    def armor_cost(options):
-        design = ShipDesign(
-            hull_tons=200,
-            jump_code="A",
-            power_code="A",
-            armor=(ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5, options=options),),
+    def build(options):
+        return build_ship(
+            ShipDesign(
+                hull_tons=200,
+                jump_code="A",
+                power_code="A",
+                armor=(ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5),),
+                armor_options=options,
+            )
         )
-        item = next(i for i in build_ship(design).line_items if i.name == "titanium_steel armor")
-        return item.tons, item.cost
 
-    bare_tons, bare_cost = armor_cost(())
-    coated_tons, coated_cost = armor_cost(("synthetic_coating",))
+    def layer(ship):
+        return next(i for i in ship.line_items if i.name == "titanium_steel armor")
 
-    assert bare_tons == pytest.approx(10.0)
-    assert coated_tons == pytest.approx(10.0)
-    assert coated_cost == pytest.approx(bare_cost + 0.25 * 10.0)
+    bare = build(())
+    coated = build(("synthetic_coating",))
+
+    assert layer(bare).tons == pytest.approx(10.0)
+    # The layer is untouched: the coating is the ship's, so it neither adds to
+    # the layer's cost nor to its tonnage.
+    assert layer(coated).tons == pytest.approx(layer(bare).tons)
+    assert layer(coated).cost == pytest.approx(layer(bare).cost)
+    # Priced per ton of *hull*, so 200 tons at MCr0.25, not 10 armored tons.
+    surcharge = next(i for i in coated.line_items if i.name == "synthetic_coating")
+    assert surcharge.cost == pytest.approx(0.25 * 200)
+    assert surcharge.tons == pytest.approx(0.0)
 
 
 def test_a_new_hull_row_costs_and_allocates_correctly_with_no_code_change(monkeypatch):
