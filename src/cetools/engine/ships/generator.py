@@ -794,7 +794,7 @@ def _select_drive_codes(
     to reject none of 5,390 legal combinations. What made the difference on
     this path is `_fit_jump_drive`, which does weigh the berths, and the order
     in `generate_ship`, which berths the engineers before it buys a drop of
-    jump fuel. See `docs/adr/0001-accommodation-is-part-of-a-components-cost.md`.
+    jump fuel.
 
     A pinned rating resolves without a draw, so the codes left to chance shift
     down the roll stream. That is the documented cost of pinning consuming no

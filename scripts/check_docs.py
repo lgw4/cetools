@@ -40,7 +40,6 @@ PROSE = [ROOT / doc for doc in DOCS]
 SOURCES = sorted((ROOT / "src").rglob("*.py"))
 TESTS = sorted((ROOT / "tests").rglob("*.py"))
 ENGINE = ROOT / "src" / "cetools" / "engine"
-GLOSSARY = ROOT / "CONTEXT.md"
 
 # Every Markdown file the repo owns, for the checks that apply to prose wherever
 # it lives rather than to the three documents `check_symbols` reads. A dotted
@@ -78,8 +77,6 @@ NOT_CODE = {
     "docs",
     "scripts",
     "gh",
-    # triage label vocabulary
-    "wontfix",
     # SRD notation and pseudo-hex digits
     "Psi",
     "Edu",
@@ -253,15 +250,8 @@ def check_module_map() -> None:
 
 
 def check_punctuation() -> None:
-    """Em-dashes and en-dashes are tight: no leading or trailing spaces.
-
-    Deliberately narrower than `check_spelling`, which sweeps every Markdown file
-    the repo owns. `docs/agents/` is seeded from a skill's own templates and
-    carries spaced dashes from them; adopting the punctuation rule there means
-    editing generated scaffolding, which is a decision on its own rather than a
-    consequence of this check.
-    """
-    for path in PROSE + SOURCES + [GLOSSARY]:
+    """Em-dashes and en-dashes are tight: no leading or trailing spaces."""
+    for path in PROSE + SOURCES:
         if not path.exists():
             continue
         rel = path.relative_to(ROOT)
@@ -279,8 +269,7 @@ def check_spelling() -> None:
     and `catalogue_names` was a local variable before this check existed.
 
     Scans every Markdown file the repo owns rather than the three `check_symbols`
-    reads, because a spelling can drift back anywhere prose lives—`docs/agents/`
-    included, which is edited by hand even though a skill seeds it.
+    reads, because a spelling can drift back anywhere prose lives.
     """
     for path in MARKDOWN + SOURCES + TESTS:
         if not path.exists():
