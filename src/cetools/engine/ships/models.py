@@ -72,12 +72,27 @@ class Configuration(Enum):
         shape today.
 
         Asked here rather than at the builder and the renderer separately, so
-        that what a shape provides is stated once and both readers agree by
-        construction. It reports redundancy, never illegality: what a shape may
-        not carry is `FittingRow.forbidden_on_distributed`, which is the
-        builder's to refuse.
+        that what a shape provides is stated once and every reader agrees by
+        construction. Pairs with `forbids`: this reports redundancy, that
+        reports illegality, and a shape can do either to a fitting but never
+        both.
         """
         return self is Configuration.STREAMLINED and FITTINGS[kind].included_on_streamlined
+
+    def forbids(self, kind: str) -> bool:
+        """Whether a hull of this shape may not carry `kind` at all.
+
+        A distributed hull "cannot mount fuel scoops" (SRD "Ship
+        Configuration"), being non-aerodynamic. Nothing else is forbidden to any
+        shape today.
+
+        The builder raises on this and the fitting prompt declines to offer it,
+        so a referee is not invited to give an answer that cannot build. The
+        prompt narrowing costs the reader nothing: an answer typed anyway is
+        still accepted and still refused at assembly, where the reason names the
+        rule rather than a value set.
+        """
+        return self is Configuration.DISTRIBUTED and FITTINGS[kind].forbidden_on_distributed
 
 
 class ArmorType(Enum):

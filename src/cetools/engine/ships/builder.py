@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import math
 
-from cetools.engine.ships.models import Configuration, Crew, HullClass, LineItem, Ship, ShipDesign
+from cetools.engine.ships.models import Crew, HullClass, LineItem, Ship, ShipDesign
 from cetools.engine.ships.tables import (
     AMMO,
     ARMOR,
@@ -231,7 +231,7 @@ def _build_fittings(design: ShipDesign, items: list[LineItem]) -> int:
     bonus = 0
     for fit in design.fittings:
         row = FITTINGS[fit.kind]
-        if row.forbidden_on_distributed and design.configuration is Configuration.DISTRIBUTED:
+        if design.configuration.forbids(fit.kind):
             raise ValueError(f"a distributed hull cannot mount {fit.kind.replace('_', ' ')}")
         if design.configuration.includes(fit.kind):
             # The hull carries this already and its surcharge has paid for it, so

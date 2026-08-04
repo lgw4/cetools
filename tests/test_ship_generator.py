@@ -209,13 +209,23 @@ def test_accessor_fitting_kinds_drops_what_a_streamlined_hull_already_carries():
     )
 
 
-@pytest.mark.parametrize("configuration", [Configuration.STANDARD, Configuration.DISTRIBUTED])
-def test_accessor_fitting_kinds_keeps_scoops_on_every_other_shape(configuration):
-    """A distributed hull *forbids* scoops, and the list still names them. The
-    narrowing is about what a shape already carries, never about what it may not:
-    a rule stays `build_ship`'s to enforce, so the prompt built from this list
-    goes on accepting an answer the builder will refuse."""
-    assert "fuel_scoops" in fitting_kinds(configuration)
+def test_accessor_fitting_kinds_drops_what_a_distributed_hull_cannot_mount():
+    """Derived from the row's column rather than from the name `fuel_scoops`, so
+    a second SRD component forbidden to a shape drops out with no edit."""
+    narrowed = fitting_kinds(Configuration.DISTRIBUTED)
+
+    assert "fuel_scoops" not in narrowed
+    assert narrowed == tuple(
+        kind
+        for kind, row in FITTINGS.items()
+        if row.tons is not None and not row.forbidden_on_distributed
+    )
+
+
+def test_accessor_fitting_kinds_keeps_scoops_on_a_standard_hull():
+    """The shape that neither includes scoops nor forbids them is the one that
+    has to buy them, so it is the one still offered them."""
+    assert "fuel_scoops" in fitting_kinds(Configuration.STANDARD)
 
 
 def test_accessor_fitting_kinds_is_unnarrowed_without_a_configuration():

@@ -295,21 +295,27 @@ def fitting_kinds(configuration: Configuration | None = None) -> tuple[str, ...]
     hard-coded name, so a second vehicle-sized fitting drops out with no edit.
     Pairs with `FittingFit`'s kind validation in `models.py`.
 
-    Given a `configuration`, also drops what that hull shape carries already: a
-    streamlined hull's scoops are part of its streamlining, so offering them is
-    offering a second set. `None` is the unnarrowed set, which is what a caller
-    passes when the shape is still to be drawn and nothing can yet be ruled out.
+    Given a `configuration`, also drops every fitting that hull shape settles on
+    its own: what it carries already (a streamlined hull's scoops are part of
+    its streamlining, so offering them offers a second set) and what it may not
+    carry at all (a distributed hull cannot mount scoops). `None` is the
+    unnarrowed set, which is what a caller passes when the shape is still to be
+    drawn and nothing can yet be ruled out.
 
-    Narrowing here is about *availability*, never about rules. What a shape may
-    not carry stays `build_ship`'s to refuse, so a fitting a hull forbids is
-    still listed: the prompt's list says what the question accepts, not what the
-    ship will build.
+    Both halves are dropped for the same reason—there is no answer here worth a
+    referee's keystroke—though only one is a rule. That rule stays `build_ship`'s
+    to enforce: this narrows what is *offered*, and a fitting typed anyway is
+    still accepted and still refused at assembly, where the reason names the
+    rule rather than a value set.
     """
     return tuple(
         kind
         for kind, row in FITTINGS.items()
         if row.tons is not None
-        and not (configuration is not None and configuration.includes(kind))
+        and not (
+            configuration is not None
+            and (configuration.includes(kind) or configuration.forbids(kind))
+        )
     )
 
 

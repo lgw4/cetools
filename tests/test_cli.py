@@ -2409,12 +2409,16 @@ def test_ship_generate_interactive_armor_percent_rule_surfaces_at_assembly_not_t
 
 
 def test_ship_generate_interactive_fitting_still_accepts_fuel_scoops_on_a_distributed_hull():
-    """The prompt's list is a statement about what the *question* accepts, not
-    a promise the ship will build. A distributed hull cannot
-    mount fuel scoops, but that is `build_ship`'s rule to enforce, not the
-    fitting question's to pre-empt by shortening its list—so `fuel_scoops` is
-    still named and still accepted at the prompt, and the refusal reaches the
-    referee at assembly, through the revise loop, exactly as it does today.
+    """The prompt no longer *offers* scoops to a distributed hull, but the reader
+    still accepts them if typed.
+
+    The list was once deliberately unnarrowed here, on the grounds that it states
+    what the question accepts rather than what the ship will build. Offering an
+    answer that cannot build turned out to be worth no referee's keystroke, so
+    the list now drops it—but only the list. The rule itself stays `build_ship`'s
+    alone, so a typed answer is taken and the refusal reaches the referee at
+    assembly, through the revise loop, in the words of the rule rather than of a
+    value set.
     """
     result = runner.invoke(
         app,
@@ -2423,17 +2427,19 @@ def test_ship_generate_interactive_fitting_still_accepts_fuel_scoops_on_a_distri
         + "fitting\nvault\n",
     )
     assert result.exit_code == 0, result.stderr
-    assert "Fitting (armory, detention cell, fuel scoops," in result.stderr
-    assert "unknown fitting" not in result.stderr  # accepted at the prompt
+    assert "Fitting (armory, detention cell, fuel processor," in result.stderr
+    assert "fuel scoops," not in result.stderr  # not offered
+    assert "unknown fitting" not in result.stderr  # but still accepted when typed
     assert "a distributed hull cannot mount fuel scoops" in result.stderr  # refused at assembly
-    assert result.stderr.count("Fitting (armory, detention cell, fuel scoops,") == 2
+    assert result.stderr.count("Fitting (armory, detention cell, fuel processor,") == 2
 
 
 def test_ship_generate_interactive_fitting_omits_scoops_on_a_streamlined_hull():
     """Streamlining includes fuel scoops, so offering them is offering a second
-    set. Narrowing on what the hull already carries, which is availability, not
-    on what it may not carry, which stays a rule for `build_ship`—contrast
-    `test_ship_generate_interactive_fitting_still_accepts_fuel_scoops_on_a_distributed_hull`.
+    set. The distributed hull drops them from the same list for the opposite
+    reason—it cannot mount them at all—which
+    `test_ship_generate_interactive_fitting_still_accepts_fuel_scoops_on_a_distributed_hull`
+    covers along with the refusal that still arrives if they are typed anyway.
     """
     result = runner.invoke(
         app,
