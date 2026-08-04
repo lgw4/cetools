@@ -233,6 +233,14 @@ def _build_fittings(design: ShipDesign, items: list[LineItem]) -> int:
         row = FITTINGS[fit.kind]
         if row.forbidden_on_distributed and design.configuration is Configuration.DISTRIBUTED:
             raise ValueError(f"a distributed hull cannot mount {fit.kind.replace('_', ' ')}")
+        if design.configuration.includes(fit.kind):
+            # The hull carries this already and its surcharge has paid for it, so
+            # the entry buys nothing and costs nothing. Not a refusal: the SRD
+            # makes a redundant request pointless, not illegal, and cetools does
+            # not invent rules the SRD does not state. The design keeps the entry
+            # it was given, so a file still round-trips; it is the *charge* that
+            # is dropped, and the renderer omits the clause for the same reason.
+            continue
         if row.tons_per_vehicle_ton is not None:
             tons = fit.vehicle_tons * row.tons_per_vehicle_ton * fit.quantity
             cost = fit.vehicle_tons * row.cost_per_vehicle_ton * fit.quantity

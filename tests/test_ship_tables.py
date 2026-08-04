@@ -2,7 +2,7 @@ import dataclasses
 
 import pytest
 
-from cetools.engine.ships import build_ship, load_design
+from cetools.engine.ships import build_ship, load_design, render_description
 from cetools.engine.ships.models import (
     AmmoFit,
     ArmorFit,
@@ -515,6 +515,50 @@ def test_a_new_distributed_forbidden_fitting_rejects_on_a_distributed_hull_with_
     )
     with pytest.raises(ValueError, match="a distributed hull cannot mount synthetic shield"):
         build_ship(design)
+
+
+def test_a_new_streamlined_included_fitting_is_free_on_a_streamlined_hull_with_no_code_change(
+    monkeypatch,
+):
+    # builder.py and description.py both ask `Configuration.includes`, which
+    # reads `FittingRow.included_on_streamlined` rather than comparing against
+    # `"fuel_scoops"`, so a second SRD component included by streamlining is a
+    # data-only edit.
+    monkeypatch.setitem(
+        FITTINGS,
+        "synthetic_vane",
+        FittingRow(
+            name="a synthetic vane",
+            plural="synthetic vanes",
+            tons=0,
+            cost=3.0,
+            included_on_streamlined=True,
+        ),
+    )
+    base = dict(hull_tons=200, jump_code="A", power_code="A")
+    bare = build_ship(ShipDesign(**base, configuration=Configuration.STREAMLINED))
+    fitted = build_ship(
+        ShipDesign(
+            **base,
+            configuration=Configuration.STREAMLINED,
+            fittings=(FittingFit(kind="synthetic_vane"),),
+        )
+    )
+
+    assert fitted.total_cost == pytest.approx(bare.total_cost)
+    assert "synthetic vane" not in render_description(fitted)
+
+
+def test_fuel_scoops_are_included_on_streamlined_hulls():
+    assert FITTINGS["fuel_scoops"].included_on_streamlined is True
+
+
+def test_no_other_fitting_is_included_on_a_streamlined_hull():
+    """Streamlining includes scoops and nothing else (SRD "Ship Configuration"),
+    so a stray flag on another row would be a data error."""
+    included = {kind for kind, row in FITTINGS.items() if row.included_on_streamlined}
+
+    assert included == {"fuel_scoops"}
 
 
 def test_a_new_bay_row_is_accepted_and_allocated_with_no_code_change(monkeypatch):

@@ -815,7 +815,13 @@ def _ask_constraints(
         ),
     )
     fitting = answered(
-        "fitting", lambda: ask_closed("Fitting", fitting_kinds(), _read_fitting, none=True)
+        "fitting",
+        # Narrowed by the configuration already answered, so a streamlined hull
+        # is not offered the scoops its streamlining includes. Where the referee
+        # left the shape to the dice `configuration` is `None` and nothing can be
+        # ruled out, so the full list is offered—the same unnarrowed form the
+        # drive prompts take against an unpinned hull tonnage.
+        lambda: ask_closed("Fitting", fitting_kinds(configuration), _read_fitting, none=True),
     )
     turrets = answered("turrets", lambda: _ask_turrets(hull_class, hull_tons, power_rating))
     bay = (

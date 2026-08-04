@@ -2429,6 +2429,48 @@ def test_ship_generate_interactive_fitting_still_accepts_fuel_scoops_on_a_distri
     assert result.stderr.count("Fitting (armory, detention cell, fuel scoops,") == 2
 
 
+def test_ship_generate_interactive_fitting_omits_scoops_on_a_streamlined_hull():
+    """Streamlining includes fuel scoops, so offering them is offering a second
+    set. Narrowing on what the hull already carries, which is availability, not
+    on what it may not carry, which stays a rule for `build_ship`—contrast
+    `test_ship_generate_interactive_fitting_still_accepts_fuel_scoops_on_a_distributed_hull`.
+    """
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7"],
+        input=_answers(configuration="streamlined"),
+    )
+
+    assert result.exit_code == 0, result.stderr
+    assert "Fitting (armory, detention cell, fuel processor," in result.stderr
+    assert "fuel scoops" not in result.stderr
+
+
+def test_ship_generate_interactive_fitting_names_scoops_on_a_standard_hull():
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7"],
+        input=_answers(configuration="standard"),
+    )
+
+    assert result.exit_code == 0, result.stderr
+    assert "Fitting (armory, detention cell, fuel scoops," in result.stderr
+
+
+def test_ship_generate_interactive_fitting_names_scoops_when_the_shape_is_rolled():
+    """Enter at the configuration question leaves the shape to the dice, so the
+    prompt cannot narrow and must not pretend to—the same unnarrowed form the
+    drive prompts take against an unpinned hull tonnage."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--seed", "7"],
+        input=_answers(),
+    )
+
+    assert result.exit_code == 0, result.stderr
+    assert "Fitting (armory, detention cell, fuel scoops," in result.stderr
+
+
 def test_ship_generate_interactive_unknown_armor_type_is_reasked_with_the_reason():
     result = runner.invoke(
         app,

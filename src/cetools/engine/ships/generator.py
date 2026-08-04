@@ -287,15 +287,30 @@ _FITTING_CHOICES: tuple[str | None, ...] = (
 )
 
 
-def fitting_kinds() -> tuple[str, ...]:
+def fitting_kinds(configuration: Configuration | None = None) -> tuple[str, ...]:
     """Every fitting installable from a bare kind, in table order.
 
     Excludes the vehicle-sized fittings (`tons` is `None`, sized instead from
     `FittingFit.vehicle_tons`)—derived from the table row rather than a
     hard-coded name, so a second vehicle-sized fitting drops out with no edit.
     Pairs with `FittingFit`'s kind validation in `models.py`.
+
+    Given a `configuration`, also drops what that hull shape carries already: a
+    streamlined hull's scoops are part of its streamlining, so offering them is
+    offering a second set. `None` is the unnarrowed set, which is what a caller
+    passes when the shape is still to be drawn and nothing can yet be ruled out.
+
+    Narrowing here is about *availability*, never about rules. What a shape may
+    not carry stays `build_ship`'s to refuse, so a fitting a hull forbids is
+    still listed: the prompt's list says what the question accepts, not what the
+    ship will build.
     """
-    return tuple(kind for kind, row in FITTINGS.items() if row.tons is not None)
+    return tuple(
+        kind
+        for kind, row in FITTINGS.items()
+        if row.tons is not None
+        and not (configuration is not None and configuration.includes(kind))
+    )
 
 
 _TURRET_MOUNTS: tuple[str, ...] = tuple(sorted(TURRET_MOUNTS))

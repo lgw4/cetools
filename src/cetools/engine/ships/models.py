@@ -63,6 +63,22 @@ class Configuration(Enum):
         """The hull-cost multiplier: x0.9 / x1.0 / x1.1."""
         return CONFIGURATIONS[self.value].cost_modifier
 
+    def includes(self, kind: str) -> bool:
+        """Whether a hull of this shape carries `kind` already.
+
+        Streamlining "includes fuel scoops" (SRD "Ship Configuration"), which
+        the x1.1 hull surcharge has already paid for, so fitting them again buys
+        a second set of something the ship has. Nothing else is included by any
+        shape today.
+
+        Asked here rather than at the builder and the renderer separately, so
+        that what a shape provides is stated once and both readers agree by
+        construction. It reports redundancy, never illegality: what a shape may
+        not carry is `FittingRow.forbidden_on_distributed`, which is the
+        builder's to refuse.
+        """
+        return self is Configuration.STREAMLINED and FITTINGS[kind].included_on_streamlined
+
 
 class ArmorType(Enum):
     """A ship-armor material (SRD "Ship Armor")."""

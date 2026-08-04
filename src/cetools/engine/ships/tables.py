@@ -137,6 +137,13 @@ class FittingRow:
     processor: two data columns driving two generic renderer branches rather
     than a per-kind branch. The SRD tabulates no TL for any of
     these components, so there is no ``tl`` column.
+
+    ``forbidden_on_distributed`` and ``included_on_streamlined`` are the two
+    ways a hull shape can bear on a fitting, and they are opposites rather than
+    variations: the first says the shape cannot carry the component at all, the
+    second that it carries it already. Both are columns rather than comparisons
+    against a kind spelled out at each site, so a second SRD component with
+    either property stays a data-only edit.
     """
 
     name: str
@@ -144,6 +151,7 @@ class FittingRow:
     tons: float | None
     cost: float | None
     forbidden_on_distributed: bool = False
+    included_on_streamlined: bool = False
     hull_structure_bonus: int = 0
     tons_per_vehicle_ton: float | None = None
     cost_per_vehicle_ton: float | None = None
@@ -823,7 +831,12 @@ FITTINGS: dict[str, FittingRow] = {
         name="a detention cell", plural="detention cells", tons=2, cost=0.25
     ),
     "fuel_scoops": FittingRow(
-        name="fuel scoops", plural="fuel scoops", tons=0, cost=1, forbidden_on_distributed=True
+        name="fuel scoops",
+        plural="fuel scoops",
+        tons=0,
+        cost=1,
+        forbidden_on_distributed=True,
+        included_on_streamlined=True,
     ),
     "fuel_processor": FittingRow(
         name="a fuel processor",

@@ -523,12 +523,6 @@
         "tons": 12
       },
       {
-        "cost": 1,
-        "discountable": true,
-        "name": "fuel_scoops",
-        "tons": 0
-      },
-      {
         "cost": 0.45,
         "discountable": true,
         "name": "single turret",
@@ -541,7 +535,7 @@
     "structure_points": 2,
     "tech_level": 9,
     "tonnage_used": 62.0,
-    "total_cost": 28.06
+    "total_cost": 27.06
   },
   "tests/data/ships/warship.toml": {
     "armor_protection": 4,

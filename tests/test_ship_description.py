@@ -512,6 +512,44 @@ def test_special_features_names_a_single_fitting_without_a_count():
     assert "Special features include fuel scoops." in _paragraph(build_ship(design))
 
 
+def test_special_features_omit_the_scoops_a_streamlined_hull_already_has():
+    """A streamlined hull's scoops are part of its streamlining, so naming them
+    among its *additional* components would tell a referee the ship carries two
+    sets. Contrast `test_special_features_names_a_single_fitting_without_a_count`,
+    where the same entry on a standard hull is named."""
+    design = _simple_design(
+        configuration=Configuration.STREAMLINED,
+        fittings=(FittingFit(kind="fuel_scoops"),),
+    )
+
+    assert "fuel scoops" not in _paragraph(build_ship(design))
+
+
+def test_a_streamlined_hull_with_only_redundant_scoops_has_no_special_features():
+    """The sentence is dropped entirely rather than left empty: omission is how
+    this renderer handles a slot with nothing to say."""
+    design = _simple_design(
+        configuration=Configuration.STREAMLINED,
+        fittings=(FittingFit(kind="fuel_scoops"),),
+    )
+
+    assert "Special features" not in _paragraph(build_ship(design))
+
+
+def test_special_features_still_name_the_other_fittings_of_a_streamlined_hull():
+    """Only what the hull already carries drops out; a streamlined ship's armory
+    is still an addition to it."""
+    design = _simple_design(
+        configuration=Configuration.STREAMLINED,
+        fittings=(FittingFit(kind="fuel_scoops"), FittingFit(kind="armory")),
+    )
+
+    paragraph = _paragraph(build_ship(design))
+
+    assert "Special features include an armory." in paragraph
+    assert "fuel scoops" not in paragraph
+
+
 def test_special_features_counts_a_repeated_fitting():
     assert "four detention cells" in _paragraph(_equipped_ship())
 

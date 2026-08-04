@@ -80,6 +80,10 @@ def test_free_trader_golden_figures():
 
 
 def test_scout_courier_golden_figures():
+    """The Swift Wind is streamlined and declares fuel scoops, so its cost fell
+    by the MCr1 it used to be charged for scoops its streamlining already
+    includes. The hand-worked reference figures carried that double charge; the
+    tonnage is unchanged, because scoops displace nothing either way."""
     ship = build_ship(load_design(f"{_EXAMPLES}/scout-courier.toml"))
 
     assert ship.jump_rating == 2
@@ -94,7 +98,7 @@ def test_scout_courier_golden_figures():
     assert ship.structure_points == 2
     assert ship.hardpoints == 1
     assert ship.hardpoints_used == 1
-    assert ship.total_cost == pytest.approx(28.06)
+    assert ship.total_cost == pytest.approx(27.06)
     assert ship.build_weeks == 36
 
     crew = ship.crew
@@ -318,6 +322,52 @@ def test_fuel_scoops_are_allowed_on_a_non_distributed_hull():
         fittings=(FittingFit(kind="fuel_scoops"),),
     )
     build_ship(design)  # does not raise
+
+
+def _scooped(configuration, **kwargs):
+    """A 200-ton hull of `configuration`, with and without fuel scoops."""
+    base = dict(hull_tons=200, jump_code="A", power_code="A", configuration=configuration)
+    base.update(kwargs)
+    bare = ShipDesign(**base)
+    scooped = ShipDesign(**base, fittings=(FittingFit(kind="fuel_scoops"),))
+    return build_ship(bare), build_ship(scooped)
+
+
+def test_a_streamlined_hull_is_not_charged_for_the_scoops_its_streamlining_includes():
+    """Compared against the same hull without the entry rather than against a
+    literal, so the assertion survives any change to how the x1.1 surcharge is
+    computed. Streamlining "includes fuel scoops" (SRD "Ship Configuration")."""
+    bare, scooped = _scooped(Configuration.STREAMLINED)
+
+    assert scooped.total_cost == pytest.approx(bare.total_cost)
+    assert not any(item.name == "fuel_scoops" for item in scooped.line_items)
+
+
+def test_a_standard_hull_still_pays_for_its_fuel_scoops():
+    """The case that was already right stays right: an unstreamlined ship has to
+    buy scoops, and the SRD prices them at MCr1."""
+    bare, scooped = _scooped(Configuration.STANDARD)
+
+    assert scooped.total_cost == pytest.approx(bare.total_cost + 1.0)
+    assert any(item.name == "fuel_scoops" for item in scooped.line_items)
+
+
+def test_a_streamlined_hull_keeps_the_redundant_scoops_in_its_design():
+    """The charge is dropped, not the entry. A design file round-trips through
+    `build_ship` unaltered, so a referee's redundant declaration survives being
+    loaded and written back."""
+    _, scooped = _scooped(Configuration.STREAMLINED)
+
+    assert [fit.kind for fit in scooped.design.fittings] == ["fuel_scoops"]
+
+
+def test_redundant_scoops_do_not_change_a_streamlined_hulls_tonnage():
+    """Scoops displace nothing, so this holds either way—asserted so that a
+    future scoops tonnage cannot quietly go missing along with the charge."""
+    bare, scooped = _scooped(Configuration.STREAMLINED)
+
+    assert scooped.tonnage_used == pytest.approx(bare.tonnage_used)
+    assert scooped.cargo_tons == pytest.approx(bare.cargo_tons)
 
 
 # --- Edge case: "Zero remaining tonnage ... is valid" ---
