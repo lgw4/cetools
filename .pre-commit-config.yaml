@@ -1,3 +1,4 @@
+exclude: '^\.specify/'
 repos:
   - repo: local
     hooks:
