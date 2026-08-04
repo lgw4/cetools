@@ -317,9 +317,9 @@ def test_ledger_records_nothing_until_something_is_declined():
 def test_ledger_records_declines_in_order_with_their_reasons():
     ledger = TonnageLedger(5.0)
     ledger.decline("armor", "crystaliron 10%", "none", "needs 20.0t, 5.0t free")
-    ledger.decline("bay", "particle", "none", "needs 51.0t, 5.0t free")
+    ledger.decline("bays", "particle", "none", "needs 51.0t, 5.0t free")
 
-    assert [d.field for d in ledger.declined] == ["armor", "bay"]
+    assert [d.field for d in ledger.declined] == ["armor", "bays"]
     assert ledger.declined[0].asked == "crystaliron 10%"
     assert ledger.declined[0].reason == "needs 20.0t, 5.0t free"
 
@@ -327,7 +327,7 @@ def test_ledger_records_declines_in_order_with_their_reasons():
 def test_ledger_declined_is_a_snapshot_not_a_live_view():
     ledger = TonnageLedger(5.0)
     before = ledger.declined
-    ledger.decline("screen", "meson", "none", "needs 50.0t, 5.0t free")
+    ledger.decline("screens", "meson", "none", "needs 50.0t, 5.0t free")
     assert before == ()
     assert len(ledger.declined) == 1
 
@@ -389,6 +389,145 @@ def test_constraints_carry_the_hull_class_the_ruleset_branches_on():
     assert small_craft.design.hull_class is HullClass.SMALL_CRAFT
 
 
+# --- Component families: a referee pins several, the dice still draw one ---
+
+
+def _roomy(**constraints):
+    """A 2000-ton hull, big enough that nothing here is declined on tonnage."""
+    return generate_ship(
+        RandomRolls.seeded(11), constraints=DesignConstraints(hull_tons=2000, **constraints)
+    ).ship
+
+
+def test_several_fittings_are_all_installed():
+    """The question this whole change exists for: scoops *and* a processor, which
+    the SRD treats as independent and which no single-valued field could express."""
+    ship = _roomy(
+        fittings=(FittingFit(kind="fuel_scoops"), FittingFit(kind="fuel_processor")),
+    )
+
+    assert [fit.kind for fit in ship.design.fittings] == ["fuel_scoops", "fuel_processor"]
+
+
+def test_several_armor_layers_are_all_installed():
+    layers = (
+        ArmorFit(type=ArmorType.CRYSTALIRON, percent=10),
+        ArmorFit(type=ArmorType.TITANIUM_STEEL, percent=5),
+    )
+    ship = _roomy(armor=layers)
+
+    assert ship.design.armor == layers
+
+
+def test_several_screens_are_all_installed():
+    ship = _roomy(screens=(ScreenFit(kind="meson_screen"), ScreenFit(kind="nuclear_damper")))
+
+    assert [fit.kind for fit in ship.design.screens] == ["meson_screen", "nuclear_damper"]
+
+
+def test_several_bays_are_all_installed_and_each_spends_a_hardpoint():
+    ship = _roomy(bays=(BayFit(kind="meson"), BayFit(kind="fusion")))
+
+    assert [fit.kind for fit in ship.design.bays] == ["meson", "fusion"]
+    assert ship.hardpoints_used >= 2
+
+
+def test_an_unaffordable_item_is_declined_by_name_while_the_rest_are_fitted():
+    """A shortfall names the item, not the family: a referee who asks for three
+    fittings and can have two needs to know *which* one was dropped."""
+    result = generate_ship(
+        RandomRolls.seeded(11),
+        constraints=DesignConstraints(
+            hull_tons=100,
+            fittings=(FittingFit(kind="armory"), FittingFit(kind="vault")),
+        ),
+    )
+
+    fitted = [fit.kind for fit in result.ship.design.fittings]
+    declined = [entry.asked for entry in result.unmet if entry.field == "fittings"]
+
+    assert "armory" in fitted
+    assert declined == ["vault"]
+
+
+def test_bays_beyond_the_hardpoints_are_declined_one_by_one():
+    result = generate_ship(
+        RandomRolls.seeded(11),
+        constraints=DesignConstraints(
+            hull_tons=200,  # two hardpoints
+            turrets=(),
+            bays=(BayFit(kind="fusion"), BayFit(kind="meson"), BayFit(kind="particle")),
+        ),
+    )
+
+    declined = [entry for entry in result.unmet if entry.field == "bays"]
+
+    assert len(result.ship.design.bays) < 3
+    assert declined, "a bay with nowhere to go is a shortfall the referee hears about"
+
+
+def test_an_unset_family_still_draws_at_most_one():
+    """Pin-only plurality: roll plurality was considered and rejected, so a
+    random ship is no busier than before. Swept over seeds because a single seed
+    drawing one proves nothing about the next."""
+    for seed in range(40):
+        design = generate_ship(RandomRolls.seeded(seed)).ship.design
+        assert len(design.armor) <= 1, seed
+        assert len(design.fittings) <= 1, seed
+        assert len(design.bays) <= 1, seed
+        assert len(design.screens) <= 1, seed
+
+
+def test_pinning_standard_electronics_is_the_same_ship_as_rolling_it():
+    """`None` *is* the Standard package: it is what the rolled path produces and
+    what the builder charges nothing for. Keeping the word would make a pinned
+    Standard ship unequal to an identical rolled one, and would write an
+    `electronics` key into a design file where the same ship rolled omits it."""
+    pinned = generate_ship(
+        RandomRolls.seeded(11),
+        constraints=DesignConstraints(hull_tons=2000, electronics="standard"),
+    ).ship
+
+    assert pinned.design.electronics is None
+    assert not any(item.name.startswith("electronics") for item in pinned.line_items)
+
+
+def test_a_pinned_bay_on_a_small_craft_is_refused_in_the_plural():
+    """The refusal names the answer as the referee gave it, which may be several."""
+    with pytest.raises(ValueError, match="small craft carry no weapon bays"):
+        generate_ship(
+            RandomRolls.seeded(11),
+            constraints=DesignConstraints(
+                hull_class=HullClass.SMALL_CRAFT, bays=(BayFit(kind="meson"),)
+            ),
+        )
+
+
+def test_an_absent_bay_pin_is_allowed_on_a_small_craft():
+    """`ABSENT` says *no bays*, which is what a small craft has anyway, so it is
+    an answer the ruleset agrees with rather than one it forbids."""
+    result = generate_ship(
+        RandomRolls.seeded(11),
+        constraints=DesignConstraints(hull_class=HullClass.SMALL_CRAFT, bays=ABSENT),
+    )
+
+    assert result.ship.design.bays == ()
+
+
+def test_pinned_electronics_that_will_not_fit_are_declined():
+    """The one scalar component whose three states are spelled out rather than
+    shared with the families, so its shortfall path is worth its own case."""
+    result = generate_ship(
+        RandomRolls.seeded(11),
+        constraints=DesignConstraints(
+            hull_class=HullClass.SMALL_CRAFT, hull_tons=10, electronics="very_advanced"
+        ),
+    )
+
+    assert result.ship.design.electronics is None
+    assert any(entry.field == "electronics" for entry in result.unmet)
+
+
 # --- Three-state fields: unset rolls it, a value pins it, ABSENT pins its absence ---
 
 
@@ -406,7 +545,7 @@ def test_pinned_armor_is_installed_exactly_as_asked():
 
     rolled = generate_ship(RandomRolls.seeded(_ROLLS_NO_ARMOR)).ship
     result = generate_ship(
-        RandomRolls.seeded(_ROLLS_NO_ARMOR), constraints=DesignConstraints(armor=pinned)
+        RandomRolls.seeded(_ROLLS_NO_ARMOR), constraints=DesignConstraints(armor=(pinned,))
     )
 
     assert rolled.design.armor == ()
@@ -428,7 +567,7 @@ def test_pinned_armor_options_are_installed_on_a_pinned_layer():
     result = generate_ship(
         RandomRolls.seeded(_ROLLS_NO_ARMOR),
         constraints=DesignConstraints(
-            armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=10),
+            armor=(ArmorFit(type=ArmorType.CRYSTALIRON, percent=10),),
             armor_options=("reflec", "stealth"),
         ),
     )
@@ -468,7 +607,7 @@ def test_pinned_armor_may_be_a_type_the_generator_would_never_roll():
     pinned = ArmorFit(type=ArmorType.BONDED_SUPERDENSE, percent=5)
 
     result = generate_ship(
-        RandomRolls.seeded(_ROLLS_NO_ARMOR), constraints=DesignConstraints(armor=pinned)
+        RandomRolls.seeded(_ROLLS_NO_ARMOR), constraints=DesignConstraints(armor=(pinned,))
     )
 
     assert result.ship.design.armor == (pinned,)
@@ -476,7 +615,9 @@ def test_pinned_armor_may_be_a_type_the_generator_would_never_roll():
 
 
 def test_pinned_armor_draws_no_dice():
-    for pinned in (ArmorFit(type=ArmorType.CRYSTALIRON, percent=10), ABSENT):
+    """`ABSENT` pins the empty family and is not itself a layer, so it stands
+    where the tuple would rather than inside one."""
+    for pinned in ((ArmorFit(type=ArmorType.CRYSTALIRON, percent=10),), ABSENT):
         recorder = RecordingRolls(RandomRolls.seeded(_ROLLS_NO_ARMOR))
         generate_ship(recorder, constraints=DesignConstraints(armor=pinned))
         assert RollName.SHIP_ARMOR not in _names(recorder)
@@ -487,7 +628,7 @@ def test_pinned_armor_that_will_not_fit_leaves_the_ship_unarmored():
     surfacing it on the result is #50's work."""
     result = generate_ship(
         RandomRolls.seeded(_ROLLS_NO_ARMOR),
-        constraints=DesignConstraints(armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=100)),
+        constraints=DesignConstraints(armor=(ArmorFit(type=ArmorType.CRYSTALIRON, percent=100),)),
     )
 
     assert result.ship.design.armor == ()
@@ -702,9 +843,9 @@ _PINS_AND_ROLLS = (
     ("computer", ComputerFit(model=3), RollName.SHIP_COMPUTER),
     ("electronics", "basic_military", RollName.SHIP_ELECTRONICS),
     ("staterooms", 4, RollName.SHIP_STATEROOMS),
-    ("fitting", FittingFit(kind="laboratory"), RollName.SHIP_FITTING),
-    ("bay", BayFit(kind="particle"), RollName.SHIP_BAY),
-    ("screen", ScreenFit(kind="meson_screen"), RollName.SHIP_SCREEN),
+    ("fittings", (FittingFit(kind="laboratory"),), RollName.SHIP_FITTING),
+    ("bays", (BayFit(kind="particle"),), RollName.SHIP_BAY),
+    ("screens", (ScreenFit(kind="meson_screen"),), RollName.SHIP_SCREEN),
     ("name", "Wayfarer", RollName.SHIP_NAME),
 )
 """Each constrainable field, a value to pin it to, and the draw it must displace."""
@@ -726,17 +867,12 @@ def test_a_pinned_field_is_honored_and_draws_no_dice(field, pinned, roll):
 
 
 def _installed(ship, field):
-    """What the finished design carries for `field`, in the shape it was pinned."""
-    design = ship.design
-    singular = {
-        "armor": design.armor,
-        "fitting": design.fittings,
-        "bay": design.bays,
-        "screen": design.screens,
-    }
-    if field in singular:
-        return singular[field][0] if singular[field] else None
-    return getattr(design, field)
+    """What the finished design carries for `field`, in the shape it was pinned.
+
+    The component families are pinned and carried as tuples, so they compare
+    directly against the pin; the scalar fields are read as they always were.
+    """
+    return getattr(ship.design, field)
 
 
 @pytest.mark.parametrize(
@@ -754,14 +890,15 @@ def test_an_unset_field_is_still_rolled(field, pinned, roll):
     assert roll in _names(recorder)
 
 
-@pytest.mark.parametrize("field", ["computer", "electronics", "fitting", "bay", "screen"])
+@pytest.mark.parametrize("field", ["computer", "electronics", "fittings", "bays", "screens"])
 def test_absent_pins_an_optional_component_away(field):
     result = generate_ship(
         RandomRolls.seeded(11),
         constraints=DesignConstraints(hull_tons=2000, **{field: ABSENT}),
     )
 
-    assert _installed(result.ship, field) is None
+    # A family pins away to the empty tuple; a scalar component to `None`.
+    assert _installed(result.ship, field) in (None, ())
 
 
 def test_a_pinned_stateroom_count_of_zero_is_honored():
@@ -791,7 +928,7 @@ def test_a_bay_pinned_on_a_small_craft_is_rejected():
         generate_ship(
             RandomRolls.seeded(7),
             constraints=DesignConstraints(
-                hull_class=HullClass.SMALL_CRAFT, bay=BayFit(kind="particle")
+                hull_class=HullClass.SMALL_CRAFT, bays=(BayFit(kind="particle"),)
             ),
         )
 
@@ -812,9 +949,9 @@ def test_a_screen_pinned_on_a_small_craft_is_fitted():
             maneuver_rating=1,
             power_rating=1,
             armor=ABSENT,
-            fitting=ABSENT,
+            fittings=ABSENT,
             staterooms=0,
-            screen=pinned,
+            screens=(pinned,),
         ),
     )
 
@@ -859,7 +996,7 @@ def test_a_pinned_bay_with_no_hardpoint_left_is_declined():
     nowhere to mount even though the tonnage might have covered it."""
     ship = generate_ship(
         RandomRolls.seeded(0),
-        constraints=DesignConstraints(hull_tons=100, bay=BayFit(kind="missile_bank")),
+        constraints=DesignConstraints(hull_tons=100, bays=(BayFit(kind="missile_bank"),)),
     ).ship
 
     assert ship.design.turrets
@@ -878,9 +1015,9 @@ def test_a_pinned_bay_the_budget_cannot_cover_is_declined():
             hull_tons=300,
             jump_rating=3,
             staterooms=0,
-            fitting=ABSENT,
-            armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=15),
-            bay=BayFit(kind="particle"),
+            fittings=ABSENT,
+            armor=(ArmorFit(type=ArmorType.CRYSTALIRON, percent=15),),
+            bays=(BayFit(kind="particle"),),
         ),
     ).ship
 
@@ -893,7 +1030,7 @@ def test_a_pinned_component_may_be_one_the_generator_would_never_roll():
     pinned = FittingFit(kind="vehicle_hangar", vehicle_tons=20)
 
     result = generate_ship(
-        RandomRolls.seeded(11), constraints=DesignConstraints(hull_tons=2000, fitting=pinned)
+        RandomRolls.seeded(11), constraints=DesignConstraints(hull_tons=2000, fittings=(pinned,))
     )
 
     assert result.ship.design.fittings == (pinned,)
@@ -982,9 +1119,9 @@ def test_a_pinned_turret_the_budget_cannot_cover_is_declined():
             jump_rating=2,
             # 45% of a 200-ton hull is 90 tons of crystaliron, which fits and
             # leaves nothing behind it for even a 2-ton pop-up turret.
-            armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=45),
+            armor=(ArmorFit(type=ArmorType.CRYSTALIRON, percent=45),),
             staterooms=0,
-            fitting=ABSENT,
+            fittings=ABSENT,
             turrets=(TurretPin(mount="pop_up", weapon="pulse_laser"),),
         ),
     ).ship
@@ -1058,8 +1195,8 @@ def test_a_small_craft_turret_the_budget_cannot_cover_is_not_fitted():
             hull_class=HullClass.SMALL_CRAFT,
             hull_tons=20,
             staterooms=0,
-            fitting=ABSENT,
-            armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=5),
+            fittings=ABSENT,
+            armor=(ArmorFit(type=ArmorType.CRYSTALIRON, percent=5),),
             turrets=(TurretPin(mount="pop_up", weapon="sandcaster"),),
         ),
     ).ship
@@ -1112,7 +1249,7 @@ def _overloaded() -> GenerationResult:
         constraints=DesignConstraints(
             hull_tons=200,
             jump_rating=2,
-            armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=30),
+            armor=(ArmorFit(type=ArmorType.CRYSTALIRON, percent=30),),
             staterooms=8,
             turrets=(
                 TurretPin(mount="triple", weapon="pulse_laser"),
@@ -1169,8 +1306,8 @@ def test_a_small_craft_reports_its_unmet_constraints_too():
             hull_class=HullClass.SMALL_CRAFT,
             hull_tons=20,
             staterooms=0,
-            fitting=ABSENT,
-            armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=5),
+            fittings=ABSENT,
+            armor=(ArmorFit(type=ArmorType.CRYSTALIRON, percent=5),),
             turrets=(TurretPin(mount="pop_up", weapon="sandcaster"),),
         ),
     )
@@ -2103,11 +2240,11 @@ def test_a_pinned_fitting_survives_a_rolled_configuration(hull_class, kind):
     would refuse the design—costing the session a ship over an answer the referee
     never gave. The draw now skips the configurations that would forbid the pin.
     """
-    constraints = DesignConstraints(hull_class=hull_class, fitting=FittingFit(kind=kind))
+    constraints = DesignConstraints(hull_class=hull_class, fittings=(FittingFit(kind=kind),))
     for seed in range(150):
         result = generate_ship(RandomRolls.seeded(seed), constraints=constraints)
         fitted = any(fit.kind == kind for fit in result.ship.design.fittings)
-        assert _honored_or_declared(result, "fitting", fitted), seed
+        assert _honored_or_declared(result, "fittings", fitted), seed
 
 
 @pytest.mark.parametrize("rating", available_ratings(HullClass.STARSHIP, None))
@@ -2218,7 +2355,7 @@ _CONTRADICTORY_PINS = [
     (
         "configuration forbids the fitting",
         DesignConstraints(
-            configuration=Configuration.DISTRIBUTED, fitting=FittingFit(kind="fuel_scoops")
+            configuration=Configuration.DISTRIBUTED, fittings=(FittingFit(kind="fuel_scoops"),)
         ),
         "distributed hull cannot mount",
     ),
@@ -2311,12 +2448,12 @@ _LEDGER_PINS = [
     ("hull_tons=2000", DesignConstraints(hull_tons=2000)),
     (
         "armor=crystaliron_10",
-        DesignConstraints(armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=10)),
+        DesignConstraints(armor=(ArmorFit(type=ArmorType.CRYSTALIRON, percent=10),)),
     ),
     ("staterooms=20", DesignConstraints(staterooms=20)),
-    ("fitting=laboratory", DesignConstraints(fitting=FittingFit(kind="laboratory"))),
-    ("bay=meson", DesignConstraints(bay=BayFit(kind="meson"))),
-    ("screen=nuclear_damper", DesignConstraints(screen=ScreenFit(kind="nuclear_damper"))),
+    ("fitting=laboratory", DesignConstraints(fittings=(FittingFit(kind="laboratory"),))),
+    ("bay=meson", DesignConstraints(bays=(BayFit(kind="meson"),))),
+    ("screen=nuclear_damper", DesignConstraints(screens=(ScreenFit(kind="nuclear_damper"),))),
     (
         "small_craft hull_tons=40",
         DesignConstraints(hull_class=HullClass.SMALL_CRAFT, hull_tons=40),

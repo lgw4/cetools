@@ -325,6 +325,15 @@ Drives are answered as *ratings* (Jump-2, 2-G) rather than as drive code letters
 
 The wizard asks for the hull class first, because it governs everything after it: which hull tonnages are tabulated, and which questions are worth asking at all. It then walks the design in SRD build order: hull tonnage, configuration, the drives, armor, computer, electronics, staterooms, fitting, turrets, weapon bay, screen, name and purpose. A small craft is never asked about a jump drive or a weapon bay, because its ruleset forbids both, and its power plant is offered only the ratings that fit beside the maneuver drive already chosen. Its screen prompt defaults to none rather than to a roll, because the rules permit a small craft a screen but generation never draws one. `purpose` is the exception to every rule here, because cetools never invents one: its prompt defaults to none rather than to a roll, and leaving it unanswered yields a ship without a purpose rather than a random one. At the staterooms prompt `none` means a deliberate zero, which is a different answer from letting the dice choose the count.
 
+Armor, fittings, weapon bays and screens each take as many values as you want to give, on one line. A prompt that accepts several says so, and the same wording is used everywhere one does—including the armor-options and revise questions, which have always accepted lists without admitting it:
+
+```text
+Fittings (armory, detention cell, fuel scoops, fuel processor, laboratory, library, luxuries, vault, none, any number of them) [roll]: fuel scoops fuel processor
+Armor (titanium steel, crystaliron, bonded superdense, each with a percent, any number separated by commas, or none) [roll]: crystaliron 10, titanium steel 5
+```
+
+Values are separated by spaces or commas, so a kind that is itself two words (`fuel scoops`) is still understood inside a list. Armor is the exception: a layer is a type *and* a percent, and whitespace alone cannot say where one layer ends and the next begins, so its layers are separated by commas. A repeated value is refused, and one value the prompt does not know refuses the whole answer, so a typo in the second fitting never leaves the first one pinned. Each pinned item is fitted on its own, so a referee who asks for three and can have two is told which one was dropped rather than that "the fittings" were.
+
 Turrets are the one repeating question. Answering a count opens a mount and a weapon question for each turret in turn, both defaulting to random, so pinning the count and pressing Enter through the rest gives a ship with that many turrets and nothing else decided. A count above the hull's hardpoints is refused at the prompt, since hardpoints follow from a hull tonnage settled earlier in the session; with the hull left to the dice the count is taken on trust and ruled on by the hull it lands on.
 
 Armor is answered as a type and a percent of the hull, like `crystaliron 10`. Any type in the SRD table may be pinned, including ones generation would never roll for itself. Rules that live in `build_ship`, such as armor arriving in 5% increments, are not duplicated into the prompts: an answer that breaks one is accepted where it is typed and reported when the ship is assembled. Pinning a real type is followed by an armor-options question—reflec, self sealing and stealth, any number of them in one answer, such as `reflec stealth`. Enter or `none` asks for none of them.
@@ -399,14 +408,15 @@ launch = generate_ship(
 print(launch.ship.design.hull_class is HullClass.SMALL_CRAFT)   # True
 ```
 
-Every optional-component field is three-state, because *roll for armor* and *no armor* are different instructions and the second has to be honored. Leaving a field unset rolls it, a value pins it, and `ABSENT` pins its absence:
+Every optional-component field is three-state, because *roll for armor* and *no armor* are different instructions and the second has to be honored. Leaving a field unset rolls it, a tuple pins it, and `ABSENT` pins its absence. Armor, fittings, weapon bays and screens are *families*: a referee may pin several of each, while the dice still draw at most one, so a random ship is no busier than it ever was.
 
 ```python
 from cetools.engine.ships import ABSENT, ArmorFit, ArmorType
 
+
 armored = generate_ship(
     RandomRolls.seeded(7),
-    constraints=DesignConstraints(armor=ArmorFit(type=ArmorType.BONDED_SUPERDENSE, percent=5)),
+    constraints=DesignConstraints(armor=(ArmorFit(type=ArmorType.BONDED_SUPERDENSE, percent=5),)),
 )
 bare = generate_ship(RandomRolls.seeded(0), constraints=DesignConstraints(armor=ABSENT))
 
@@ -425,7 +435,7 @@ crowded = generate_ship(
     constraints=DesignConstraints(
         hull_tons=200,
         jump_rating=2,
-        armor=ArmorFit(type=ArmorType.CRYSTALIRON, percent=30),
+        armor=(ArmorFit(type=ArmorType.CRYSTALIRON, percent=30),),
         staterooms=8,
     ),
 )

@@ -30,7 +30,7 @@ def key(answer: str) -> str:
     return collapsed.lower().replace("-", "_")
 
 
-def split_values(answer: str, known: Iterable[str]) -> list[str]:
+def split_values(answer: str, known: Iterable[str], *, noun: str = "value") -> list[str]:
     """Split `answer` into stored keys by greedy longest-match.
 
     Words are separated by whitespace or commas; a value may itself contain a
@@ -38,6 +38,10 @@ def split_values(answer: str, known: Iterable[str]) -> list[str]:
     is split rather than split first and matched word by word. The span limit
     is derived from `known` rather than hard-coded. Raises `ValueError` naming
     a word run that matches nothing.
+
+    `noun` is what the refusal calls the thing that was not recognized, so a
+    caller reading a list of bays can say "bay kind" where the default says
+    "value". It changes only the wording, never what is accepted.
     """
     known = tuple(known)
     known_set = set(known)
@@ -58,7 +62,7 @@ def split_values(answer: str, known: Iterable[str]) -> list[str]:
                 break
             span -= 1
         else:
-            raise ValueError(f"{raw_words[i]!r} is not a known value")
+            raise ValueError(f"{raw_words[i]!r} is not a known {noun}")
     return result
 
 
