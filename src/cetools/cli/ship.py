@@ -331,8 +331,8 @@ def _read_rating(
     return rating
 
 
-def _read_armor(known: list[str], answer: str) -> ArmorFit | Absent:
-    """One armor layer from `<type> <percent>`, or `ABSENT` from `none`.
+def _read_armor_layer(known: list[str], layer: str) -> ArmorFit:
+    """One armor layer from `<type> <percent>`.
 
     Any SRD type may be pinned, including ones generation would never roll. The
     multiple-of-5 rule is *not* checked here: it lives in `build_ship` and is
@@ -342,12 +342,9 @@ def _read_armor(known: list[str], answer: str) -> ArmorFit | Absent:
     whitespace-separated token is taken as the percent and everything before
     it as the type, rather than requiring exactly two tokens.
     """
-    if prompts.key(answer) == _NONE:
-        return ABSENT
-
-    parts = answer.split()
+    parts = layer.split()
     if len(parts) < 2:
-        raise ValueError(f'give an armor type and a percent, like "crystaliron 10"; got {answer}')
+        raise ValueError(f'give an armor type and a percent, like "crystaliron 10"; got {layer}')
 
     *type_words, percent_text = parts
     name = prompts.key(" ".join(type_words))
@@ -361,6 +358,25 @@ def _read_armor(known: list[str], answer: str) -> ArmorFit | Absent:
         raise ValueError(f"{percent_text} is not a percent of the hull") from None
 
     return ArmorFit(type=kind, percent=percent)  # rejects a non-positive percent
+
+
+def _read_armor(known: list[str], answer: str) -> tuple[ArmorFit, ...] | Absent:
+    """Several armor layers, comma-separated, or `ABSENT` from `none`.
+
+    Commas rather than the longest-match scan the kind-list families use: a layer
+    is a type *and* a percent, so whitespace alone cannot say where one layer
+    ends and the next begins—`crystaliron 10 titanium steel 5` has no unambiguous
+    reading. A comma between layers gives it one.
+
+    A layer nothing recognizes refuses the whole answer, pinning none of them, so
+    a typo in the second layer does not leave the first one pinned.
+    """
+    if prompts.key(answer) == _NONE:
+        return ABSENT
+    layers = [part for part in answer.split(",") if part.strip()]
+    if not layers:
+        raise ValueError(f'give an armor type and a percent, like "crystaliron 10"; got {answer}')
+    return tuple(_read_armor_layer(known, layer) for layer in layers)
 
 
 def _read_armor_options(known: list[str], answer: str) -> tuple[str, ...]:
@@ -436,45 +452,95 @@ def _read_staterooms(answer: str) -> int:
     return count
 
 
-def _read_fitting(known: list[str], answer: str) -> FittingFit | Absent:
-    """A fitting kind; `FittingFit` rules on whether it is one.
+_SEVERAL = ", any number of them"
+"""Appended to a prompt that takes more than one value, so a referee can see the
+capability rather than discover it by reading the source. One spelling for every
+such prompt, including the two that quietly accepted lists before this existed.
+
+Phrased as a clause rather than a bare "any number" because it is rendered after
+the closing `none`, where a shorter form would read as one more value in the
+list: "vault, none, any number" names three answers, only two of which exist."""
+
+
+def _read_kinds[T](
+    kinds: Callable[[], tuple[str, ...]],
+    make: Callable[[str], T],
+    noun: str,
+    plural: str,
+    known: list[str],
+    answer: str,
+) -> tuple[T, ...] | Absent:
+    """Several components of one family, named by bare kind on a single line.
+
+    The three kind-list families answer identically, so the loop is written once:
+    `none` pins the empty family, an unknown kind refuses the whole answer, and a
+    repeat refuses it too. Refusing the whole answer rather than the offending
+    word is what keeps a typo from leaving half a family pinned and half not.
+
+    Matched by `prompts.split_values` rather than `answer.split()`, so a kind
+    that is itself two words (`fuel scoops`) is understood inside a list.
+    """
+    if prompts.key(answer) == _NONE:
+        return ABSENT
+    try:
+        chosen = prompts.split_values(answer, kinds(), noun=noun)
+    except ValueError as exc:
+        raise ValueError(f"{exc}; known: {', '.join(known)}") from None
+    if len(chosen) != len(set(chosen)):
+        spelled = ", ".join(prompts.spell(kind) for kind in chosen)
+        raise ValueError(f"{plural} must not repeat, got {spelled}")
+    return tuple(make(kind) for kind in chosen)
+
+
+def _read_fittings(known: list[str], answer: str) -> tuple[FittingFit, ...] | Absent:
+    """Several fitting kinds on one line, or `ABSENT` from `none`.
 
     Quantity and vehicle tonnage are deliberately not askable (#41, Out of
     Scope). A vehicle-sized fitting is a real fitting the tables recognize, so
     it still reaches `FittingFit`'s own refusal for a missing `vehicle_tons`,
-    unchanged from today (AS 1.7). The prompt's own refusal, in the displayed
-    spelling, is reserved for a kind nothing recognizes at all—found by
-    probing whether a tonnage would have let the same kind through.
+    unchanged (AS 1.7). The prompt's own refusal, in the displayed spelling, is
+    reserved for a kind nothing recognizes at all—found by probing whether a
+    tonnage would have let the same kind through.
+
+    That probe is why this family does not use `_read_kinds`. The list is matched
+    against every installable kind rather than against the narrowed set the
+    prompt displayed, because narrowing is display-only: a fitting this hull
+    forbids is still accepted here and refused at assembly by the rule that
+    forbids it, which is the boundary the fitting prompt has always drawn.
+    An answer matching nothing is then probed whole, so a referee who names one
+    real-but-unaskable fitting hears why it cannot be asked for rather than being
+    told it does not exist.
     """
-    stored = prompts.key(answer)
-    if stored == _NONE:
+    if prompts.key(answer) == _NONE:
         return ABSENT
     try:
-        return FittingFit(kind=stored)
-    except ValueError as exc:
+        chosen = prompts.split_values(answer, fitting_kinds(), noun="fitting")
+    except ValueError as unknown:
+        stored = prompts.key(answer)
         try:
             FittingFit(kind=stored, vehicle_tons=1)
         except ValueError:
-            raise ValueError(f"unknown fitting {stored!r}; known: {', '.join(known)}") from None
-        raise exc
+            # Not a real kind either, so the split's own refusal stands: it names
+            # the *word* that matched nothing, where this probe only ever knows
+            # about the answer as a whole.
+            raise ValueError(f"{unknown}; known: {', '.join(known)}") from None
+        return FittingFit(kind=stored)  # raises, naming the missing vehicle_tons
+    if len(chosen) != len(set(chosen)):
+        spelled = ", ".join(prompts.spell(kind) for kind in chosen)
+        raise ValueError(f"fittings must not repeat, got {spelled}")
+    return tuple(FittingFit(kind=kind) for kind in chosen)
 
 
-def _read_bay(known: list[str], answer: str) -> BayFit | Absent:
-    stored = prompts.key(answer)
-    if stored == _NONE:
-        return ABSENT
-    if stored not in bay_kinds():
-        raise ValueError(f"unknown bay kind {stored!r}; known: {', '.join(known)}")
-    return BayFit(kind=stored)
+def _read_bays(known: list[str], answer: str) -> tuple[BayFit, ...] | Absent:
+    return _read_kinds(
+        bay_kinds, lambda kind: BayFit(kind=kind), "bay kind", "weapon bays", known, answer
+    )
 
 
-def _read_screen(known: list[str], answer: str) -> ScreenFit | Absent:
-    stored = prompts.key(answer)
-    if stored == _NONE:
-        return ABSENT
-    if stored not in screen_kinds():
-        raise ValueError(f"unknown screen kind {stored!r}; known: {', '.join(known)}")
-    return ScreenFit(kind=stored)
+def _read_screens(known: list[str], answer: str) -> tuple[ScreenFit, ...] | Absent:
+    return _read_kinds(
+        screen_kinds, lambda kind: ScreenFit(kind=kind), "screen kind", "screens", known, answer
+    )
 
 
 def _read_turret_mount(known: list[str], answer: str) -> str:
@@ -782,7 +848,7 @@ def _ask_constraints(
             "Armor",
             [kind.value for kind in ArmorType],
             _read_armor,
-            note=", each with a percent, or none",
+            note=", each with a percent, any number separated by commas, or none",
         ),
     )
     # Its own field and its own question, because a coating is on the hull rather
@@ -800,9 +866,10 @@ def _ask_constraints(
                 armor_options(),
                 _read_armor_options,
                 default_label=_NONE,
+                note=_SEVERAL,
             ),
         )
-        if isinstance(armor, ArmorFit)
+        if isinstance(armor, tuple) and armor
         else None
     )
     computer = answered(
@@ -821,8 +888,8 @@ def _ask_constraints(
             prompts.offer("Staterooms", [], note="a count, or none"), _read_staterooms
         ),
     )
-    fitting = answered(
-        "fitting",
+    fittings = answered(
+        "fittings",
         # Narrowed by the configuration already answered: a streamlined hull is
         # not offered the scoops its streamlining includes, and a distributed
         # hull is not offered the scoops it cannot mount. Where the referee left
@@ -834,24 +901,34 @@ def _ask_constraints(
         # forbid is still *accepted* if typed, and refused at assembly by the
         # rule that forbids it; duplicating that rule here would give the same
         # answer two authorities and two wordings.
-        lambda: ask_closed("Fitting", fitting_kinds(configuration), _read_fitting, none=True),
+        lambda: ask_closed(
+            "Fittings",
+            fitting_kinds(configuration),
+            _read_fittings,
+            none=True,
+            note=_SEVERAL,
+        ),
     )
     turrets = answered("turrets", lambda: _ask_turrets(hull_class, hull_tons, power_rating))
-    bay = (
+    bays = (
         None
         if small_craft
-        else answered("bay", lambda: ask_closed("Weapon bay", bay_kinds(), _read_bay, none=True))
+        else answered(
+            "bays",
+            lambda: ask_closed("Weapon bays", bay_kinds(), _read_bays, none=True, note=_SEVERAL),
+        )
     )
-    screen = answered(
-        "screen",
+    screens = answered(
+        "screens",
         # A screen is never rolled onto a small craft, so Enter there pins
         # absence. Labelling it `[roll]` would promise a draw generation does
         # not make—the one field whose default did something other than it said.
         lambda: ask_closed(
-            "Screen",
+            "Screens",
             screen_kinds(),
-            _read_screen,
+            _read_screens,
             none=True,
+            note=_SEVERAL,
             default_label=_NONE if small_craft else _ROLL,
         ),
     )
@@ -878,10 +955,10 @@ def _ask_constraints(
         computer=computer,
         electronics=electronics,
         staterooms=staterooms,
-        fitting=fitting,
+        fittings=fittings,
         turrets=turrets,
-        bay=bay,
-        screen=screen,
+        bays=bays,
+        screens=screens,
         name=name,
         purpose=purpose,
     )
@@ -922,10 +999,10 @@ def _ask_which_to_revise() -> frozenset[str]:
     A rules refusal is a sentence: `build_ship` is the sole authority on those
     rules and does not carry a field alongside them, and reading fields out of
     its prose guesses wrongly more often than not—"a distributed hull cannot
-    mount fuel scoops" is about the configuration and the fitting, and mentions
+    mount fuel scoops" is about the configuration and the fittings, and mentions
     neither by name. So the referee is asked, having just been told the reason.
     """
-    text, _ = _closed_set("Revise which answers", _REVISABLE)
+    text, _ = _closed_set("Revise which answers", _REVISABLE, note=_SEVERAL)
     return _ask_until_understood(text, _read_fields, default_label="all") or frozenset(_REVISABLE)
 
 

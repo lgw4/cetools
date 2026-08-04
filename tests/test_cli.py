@@ -1002,10 +1002,10 @@ _QUESTIONS = (
     "computer",
     "electronics",
     "staterooms",
-    "fitting",
+    "fittings",
     "turrets",
-    "bay",
-    "screen",
+    "bays",
+    "screens",
     "name",
     "purpose",
 )
@@ -1017,7 +1017,7 @@ question edits one line rather than every test that answers a later one.
 """
 
 
-_SMALL_CRAFT_SKIPS = ("jump", "bay")
+_SMALL_CRAFT_SKIPS = ("jump", "bays")
 """The questions a small-craft session never asks: the ruleset forbids both."""
 
 _ENTER_THROUGH = "\n" * (len(_QUESTIONS) + 2)
@@ -1086,13 +1086,21 @@ _SCALAR_PROMPTS = (
     ),
     ("staterooms", "Staterooms (a count, or none) [roll]:", "4"),
     (
-        "fitting",
-        "Fitting (armory, detention cell, fuel scoops, fuel processor, laboratory, library, "
-        "luxuries, vault, none) [roll]:",
+        "fittings",
+        "Fittings (armory, detention cell, fuel scoops, fuel processor, laboratory, library, "
+        "luxuries, vault, none, any number of them) [roll]:",
         "laboratory",
     ),
-    ("bay", "Weapon bay (missile bank, particle, meson, fusion, none) [roll]:", "particle"),
-    ("screen", "Screen (meson screen, nuclear damper, none) [roll]:", "meson_screen"),
+    (
+        "bays",
+        "Weapon bays (missile bank, particle, meson, fusion, none, any number of them) [roll]:",
+        "particle",
+    ),
+    (
+        "screens",
+        "Screens (meson screen, nuclear damper, none, any number of them) [roll]:",
+        "meson_screen",
+    ),
     ("name", "Name (any text, or none) [roll]:", "Wayfarer"),
 )
 
@@ -1146,9 +1154,9 @@ def test_ship_generate_interactive_pins_every_scalar_field_at_once():
             computer="3",
             electronics="basic_military",
             staterooms="4",
-            fitting="laboratory",
-            bay="particle",
-            screen="meson_screen",
+            fittings="laboratory",
+            bays="particle",
+            screens="meson_screen",
             name="Wayfarer",
             purpose="a courier for the mails",
         ),
@@ -1238,9 +1246,9 @@ def test_ship_generate_interactive_zero_is_an_alternate_spelling_of_none_at_stat
         ("computer", "9", "unknown computer model 9"),
         ("electronics", "psychic", "unknown electronics package 'psychic'"),
         ("staterooms", "-1", "staterooms cannot be negative"),
-        ("fitting", "swimming_pool", "unknown fitting 'swimming_pool'"),
-        ("bay", "railgun", "unknown bay kind 'railgun'"),
-        ("screen", "deflector", "unknown screen kind 'deflector'"),
+        ("fittings", "swimming_pool", "'swimming_pool' is not a known fitting"),
+        ("bays", "railgun", "'railgun' is not a known bay kind"),
+        ("screens", "deflector", "'deflector' is not a known screen kind"),
     ],
 )
 def test_ship_generate_interactive_unknown_scalar_answers_are_reasked(question, answer, reason):
@@ -1262,14 +1270,14 @@ def test_ship_generate_interactive_unknown_scalar_answers_are_reasked(question, 
             "standard, basic civilian, basic military, advanced, very advanced, none",
         ),
         (
-            "fitting",
+            "fittings",
             "swimming_pool",
             "armory, detention cell, fuel scoops, fuel processor, laboratory, library, "
             "luxuries, vault, none",
         ),
-        ("screen", "deflector", "meson screen, nuclear damper, none"),
+        ("screens", "deflector", "meson screen, nuclear damper, none"),
     ],
-    ids=["electronics", "fitting", "screen"],
+    ids=["electronics", "fittings", "screens"],
 )
 def test_ship_generate_interactive_refusal_names_values_in_displayed_spelling_and_order(
     question, answer, known
@@ -1352,9 +1360,9 @@ def test_ship_generate_interactive_electronics_collapses_a_doubled_internal_spac
     [
         ("computer", "computer"),
         ("electronics", "electronics"),
-        ("fitting", "fittings"),
-        ("bay", "bays"),
-        ("screen", "screens"),
+        ("fittings", "fittings"),
+        ("bays", "bays"),
+        ("screens", "screens"),
     ],
 )
 def test_ship_generate_interactive_none_pins_each_optional_component_away(question, carried):
@@ -1392,7 +1400,7 @@ def test_ship_generate_interactive_pins_a_fitting_the_generator_would_never_roll
     result = runner.invoke(
         app,
         ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
-        input=_answers(skip=("hull",), fitting="vault"),
+        input=_answers(skip=("hull",), fittings="vault"),
     )
     assert result.exit_code == 0, result.stderr
 
@@ -1407,7 +1415,7 @@ def test_ship_generate_interactive_a_vehicle_sized_fitting_is_refused_at_the_pro
     result = runner.invoke(
         app,
         ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11"],
-        input=_answers(skip=("hull",), fitting="vehicle_hangar\nvault"),
+        input=_answers(skip=("hull",), fittings="vehicle_hangar\nvault"),
     )
     assert result.exit_code == 0, result.stderr
     assert "vehicle_hangar requires a positive vehicle_tons" in result.stderr
@@ -1587,7 +1595,7 @@ def test_ship_generate_interactive_an_unknown_answer_name_is_reasked():
 _REVISE_PROMPT = (
     "Revise which answers (hull class, hull tons, configuration, jump rating, "
     "maneuver rating, power rating, armor, armor options, computer, electronics, staterooms, "
-    "fitting, turrets, bay, screen, name, purpose) [all]:"
+    "fittings, turrets, bays, screens, name, purpose, any number of them) [all]:"
 )
 
 
@@ -1763,7 +1771,9 @@ def test_ship_generate_interactive_small_craft_screen_prompt_offers_none_not_a_r
         input=_small_craft_answers(),
     )
     assert result.exit_code == 0, result.stderr
-    assert "Screen (meson screen, nuclear damper, none) [none]:" in result.stderr
+    assert (
+        "Screens (meson screen, nuclear damper, none, any number of them) [none]:" in result.stderr
+    )
 
 
 def test_ship_generate_interactive_starship_screen_prompt_still_offers_a_roll():
@@ -1774,7 +1784,9 @@ def test_ship_generate_interactive_starship_screen_prompt_still_offers_a_roll():
         input=_answers(),
     )
     assert result.exit_code == 0, result.stderr
-    assert "Screen (meson screen, nuclear damper, none) [roll]:" in result.stderr
+    assert (
+        "Screens (meson screen, nuclear damper, none, any number of them) [roll]:" in result.stderr
+    )
 
 
 def test_ship_generate_interactive_hull_class_answer_selects_the_small_craft_ruleset():
@@ -1850,11 +1862,11 @@ def test_ship_generate_interactive_power_prompt_names_no_value_when_the_hull_can
         ["ship", "generate", "--interactive", "--seed", "7"],
         input=_answers(
             hull_class="small craft",
-            skip=("jump", "bay"),
+            skip=("jump", "bays"),
             pad=False,
             configuration="distributed",
             maneuver="6",
-            fitting="fuel_scoops",
+            fittings="fuel_scoops",
         )
         + "hull tons, power rating\n10\n6\n",
     )
@@ -1924,11 +1936,11 @@ def test_ship_generate_interactive_empty_power_set_refuses_every_answer_with_its
         ["ship", "generate", "--interactive", "--seed", "7"],
         input=_answers(
             hull_class="small craft",
-            skip=("jump", "bay"),
+            skip=("jump", "bays"),
             pad=False,
             configuration="distributed",
             maneuver="6",
-            fitting="fuel_scoops",
+            fittings="fuel_scoops",
         )
         + "hull tons, power rating\n10\n8\n2\n6\n",
     )
@@ -2328,7 +2340,8 @@ def test_ship_generate_interactive_checks_a_rating_against_every_hull_when_none_
 
 
 _ARMOR_PROMPT = (
-    "Armor (titanium steel, crystaliron, bonded superdense, each with a percent, or none) [roll]:"
+    "Armor (titanium steel, crystaliron, bonded superdense, each with a percent, "
+    "any number separated by commas, or none) [roll]:"
 )
 
 
@@ -2428,15 +2441,15 @@ def test_ship_generate_interactive_fitting_still_accepts_fuel_scoops_on_a_distri
     result = runner.invoke(
         app,
         ["ship", "generate", "--interactive", "--seed", "7"],
-        input=_answers(pad=False, configuration="distributed", fitting="fuel_scoops")
-        + "fitting\nvault\n",
+        input=_answers(pad=False, configuration="distributed", fittings="fuel_scoops")
+        + "fittings\nvault\n",
     )
     assert result.exit_code == 0, result.stderr
-    assert "Fitting (armory, detention cell, fuel processor," in result.stderr
+    assert "Fittings (armory, detention cell, fuel processor," in result.stderr
     assert "fuel scoops," not in result.stderr  # not offered
     assert "unknown fitting" not in result.stderr  # but still accepted when typed
     assert "a distributed hull cannot mount fuel scoops" in result.stderr  # refused at assembly
-    assert result.stderr.count("Fitting (armory, detention cell, fuel processor,") == 2
+    assert result.stderr.count("Fittings (armory, detention cell, fuel processor,") == 2
 
 
 def test_ship_generate_interactive_fitting_omits_scoops_on_a_streamlined_hull():
@@ -2453,7 +2466,7 @@ def test_ship_generate_interactive_fitting_omits_scoops_on_a_streamlined_hull():
     )
 
     assert result.exit_code == 0, result.stderr
-    assert "Fitting (armory, detention cell, fuel processor," in result.stderr
+    assert "Fittings (armory, detention cell, fuel processor," in result.stderr
     assert "fuel scoops" not in result.stderr
 
 
@@ -2465,7 +2478,7 @@ def test_ship_generate_interactive_fitting_names_scoops_on_a_standard_hull():
     )
 
     assert result.exit_code == 0, result.stderr
-    assert "Fitting (armory, detention cell, fuel scoops," in result.stderr
+    assert "Fittings (armory, detention cell, fuel scoops," in result.stderr
 
 
 def test_ship_generate_interactive_fitting_names_scoops_when_the_shape_is_rolled():
@@ -2479,7 +2492,7 @@ def test_ship_generate_interactive_fitting_names_scoops_when_the_shape_is_rolled
     )
 
     assert result.exit_code == 0, result.stderr
-    assert "Fitting (armory, detention cell, fuel scoops," in result.stderr
+    assert "Fittings (armory, detention cell, fuel scoops," in result.stderr
 
 
 def test_ship_generate_interactive_unknown_armor_type_is_reasked_with_the_reason():
@@ -2496,7 +2509,7 @@ def test_ship_generate_interactive_unknown_armor_type_is_reasked_with_the_reason
 # --- Armor options can be pinned ---
 
 
-_ARMOR_OPTIONS_PROMPT = "Armor options (reflec, self sealing, stealth) [none]:"
+_ARMOR_OPTIONS_PROMPT = "Armor options (reflec, self sealing, stealth, any number of them) [none]:"
 
 
 def test_ship_generate_interactive_armor_options_asked_directly_after_a_pinned_type():
@@ -2590,6 +2603,97 @@ def test_ship_generate_interactive_repeated_armor_option_is_reasked_with_the_rea
     assert result.exit_code == 0, result.stderr
     assert "armor options must not repeat" in result.stderr
     assert result.stderr.count(_ARMOR_OPTIONS_PROMPT) == 2
+
+
+# --- Component families: several values on one line ---
+
+
+def _pinned_design(**answers):
+    """Run a session pinning `answers` and hand back the design it produced."""
+    from cetools.engine.ships import loads_design
+
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
+        input=_answers(skip=("hull",), **answers),
+    )
+    assert result.exit_code == 0, result.stderr
+    return loads_design(result.stdout), result.stderr
+
+
+def test_ship_generate_interactive_pins_several_fittings_on_one_line():
+    """The session this whole change exists for: scoops *and* a processor, which
+    a referee previously had to abandon the wizard and hand-author TOML to get."""
+    design, _ = _pinned_design(fittings="fuel scoops fuel processor")
+
+    assert [fit.kind for fit in design.fittings] == ["fuel_scoops", "fuel_processor"]
+
+
+def test_ship_generate_interactive_pins_several_fittings_separated_by_commas():
+    """Spaces or commas, so a referee need not remember which."""
+    design, _ = _pinned_design(fittings="armory, library, vault")
+
+    assert [fit.kind for fit in design.fittings] == ["armory", "library", "vault"]
+
+
+def test_ship_generate_interactive_pins_several_armor_layers_separated_by_commas():
+    """A layer is a type *and* a percent, so commas rather than the longest-match
+    scan the kind lists use: `crystaliron 10 titanium steel 5` has no one reading."""
+    design, _ = _pinned_design(armor="crystaliron 10, titanium steel 5", armor_options="none")
+
+    assert [(fit.type.value, fit.percent) for fit in design.armor] == [
+        ("crystaliron", 10),
+        ("titanium_steel", 5),
+    ]
+
+
+def test_ship_generate_interactive_pins_several_screens_on_one_line():
+    design, _ = _pinned_design(screens="meson screen nuclear damper")
+
+    assert [fit.kind for fit in design.screens] == ["meson_screen", "nuclear_damper"]
+
+
+def test_ship_generate_interactive_pins_several_bays_on_one_line():
+    design, _ = _pinned_design(bays="meson fusion", turrets="none")
+
+    assert [fit.kind for fit in design.bays] == ["meson", "fusion"]
+
+
+@pytest.mark.parametrize(
+    "question,answer,reason",
+    [
+        ("fittings", "armory armory\narmory", "fittings must not repeat"),
+        ("bays", "meson meson\nmeson", "weapon bays must not repeat"),
+        ("screens", "meson screen meson screen\nmeson screen", "screens must not repeat"),
+    ],
+)
+def test_ship_generate_interactive_a_repeated_value_is_refused(question, answer, reason):
+    """Repeating a value would buy two of something the referee meant to have
+    once, so the whole answer is refused and asked again."""
+    result = runner.invoke(
+        app,
+        ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11"],
+        input=_answers(skip=("hull",), **{question: answer}),
+    )
+
+    assert result.exit_code == 0, result.stderr
+    assert reason in result.stderr
+
+
+def test_ship_generate_interactive_one_unknown_value_refuses_the_whole_answer():
+    """Half a family pinned and half not would be the worst outcome: the referee
+    would have to work out which half survived."""
+    design, stderr = _pinned_design(fittings="armory bogus_kind\nvault")
+
+    assert "is not a known fitting" in stderr
+    assert [fit.kind for fit in design.fittings] == ["vault"]
+
+
+def test_ship_generate_interactive_armor_answer_of_only_commas_is_refused():
+    design, stderr = _pinned_design(armor=",,\nnone")
+
+    assert 'give an armor type and a percent, like "crystaliron 10"' in stderr
+    assert design.armor == ()
 
 
 def test_ship_generate_interactive_armor_options_mixed_valid_and_unknown_is_refused_whole():
@@ -3123,30 +3227,30 @@ _ACCEPTABLE_VALUES_TABLE = [
         refuse="psychic",
     ),
     _closed_row(
-        "fitting",
+        "fittings",
         fitting_kinds(),
-        ship._read_fitting,
-        "_read_fitting",
+        ship._read_fittings,
+        "_read_fittings",
         kind="word",
         takes_known=True,
         none=True,
         refuse="swimming_pool",
     ),
     _closed_row(
-        "bay",
+        "bays",
         bay_kinds(),
-        ship._read_bay,
-        "_read_bay",
+        ship._read_bays,
+        "_read_bays",
         kind="word",
         takes_known=True,
         none=True,
         refuse="railgun",
     ),
     _closed_row(
-        "screen",
+        "screens",
         screen_kinds(),
-        ship._read_screen,
-        "_read_screen",
+        ship._read_screens,
+        "_read_screens",
         kind="word",
         takes_known=True,
         none=True,
@@ -3271,6 +3375,11 @@ _OPEN_OR_OUTSIDE_SEC7_READERS = frozenset(
         "_read_purpose",  # open answer, §2 not §1
         "_read_fields",  # §3's revise prompt, outside §7's closed-set scope
         "_read_verdict",  # §3's accept-or-revise prompt, outside §7's scope
+        # Not prompts of their own: the shared body of the kind-list families,
+        # and one layer of an armor answer that may name several. Each is
+        # exercised through the reader that calls it, which does have a row.
+        "_read_kinds",
+        "_read_armor_layer",
     }
 )
 
@@ -3378,7 +3487,7 @@ def _budgeted_prompts() -> list[tuple[str, str]]:
     text, _ = ship._closed_set("Electronics", electronics_packages(), none=True)
     rows.append(("electronics", _full_prompt(text, "roll")))
     text, _ = ship._closed_set("Fitting", fitting_kinds(), none=True)
-    rows.append(("fitting", _full_prompt(text, "roll")))
+    rows.append(("fittings", _full_prompt(text, "roll")))
 
     for tons, label in [(200, "200"), (None, "unnarrowed"), (5000, "5000")]:
         maximum = hardpoints(HullClass.STARSHIP, tons)
@@ -3398,7 +3507,7 @@ def _budgeted_prompts() -> list[tuple[str, str]]:
     rows.append(("turret_weapon", _full_prompt(text, "roll")))
 
     text, _ = ship._closed_set("Weapon bay", bay_kinds(), none=True)
-    rows.append(("bay", _full_prompt(text, "roll")))
+    rows.append(("bays", _full_prompt(text, "roll")))
     text, _ = ship._closed_set("Screen", screen_kinds(), none=True)
     rows.append(("screen_roll", _full_prompt(text, "roll")))
     rows.append(("screen_none_default", _full_prompt(text, "none")))
@@ -3471,11 +3580,11 @@ def test_ship_generate_interactive_toml_stdout_carries_no_prompt_or_refusal_text
     result = runner.invoke(
         app,
         ["ship", "generate", "--interactive", "--hull", "2000", "--seed", "11", "--toml"],
-        input=_answers(skip=("hull",), fitting="bogus_kind\nvault"),
+        input=_answers(skip=("hull",), fittings="bogus_kind\nvault"),
     )
     assert result.exit_code == 0, result.stderr
-    assert "unknown fitting" in result.stderr
-    assert "Fitting (" in result.stderr
+    assert "is not a known fitting" in result.stderr
+    assert "Fittings (" in result.stderr
 
     stdout = result.stdout
     first_line = stdout.splitlines()[0]
