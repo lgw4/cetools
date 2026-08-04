@@ -272,20 +272,24 @@ class CrewPositionRow:
 
 @dataclass(frozen=True)
 class CockpitRow:
-    """One row of the Small Craft Cockpit table: tonnage only.
+    """One row of the Small Craft Cockpit table: tonnage and seats.
 
     Cost is not fixed per cockpit: it scales with the ship, MCr 0.1 per 20 tons
     of hull, the same way bridge cost scales with hull tons.
 
-    Seating is deliberately **not** a column. The SRD names its cockpits "1-man"
-    and "2-man", but its minimum-crew rules are a separate,
-    ship-wide calculation the source page never reconciles with cockpit
-    capacity, so no builder step caps crew against seats—doing so would invent
-    a rule the SRD does not state. A `1_man`-cockpit fighter reporting
-    a multi-person minimum crew is expected, not a defect.
+    `crew` is the table's own Crew column, and it is *accommodation*, not a cap.
+    No step caps a craft's minimum crew against its seats: the SRD's crew rules
+    are a separate, ship-wide calculation the source page never reconciles with
+    cockpit capacity, so a `1_man`-cockpit fighter reporting a multi-person
+    minimum crew is still expected rather than a defect. What the seats do is
+    house the crew who sit in them, which is why a ship's boat needs no
+    stateroom for its pilot. Reading it the other way—every crew member needs a
+    stateroom and a cockpit provides none—makes the SRD's own sample small craft
+    illegal, and puts every 10-to-20-ton hull beyond housing its own crew.
     """
 
     tons: float
+    crew: int
 
 
 HULLS: dict[int, HullRow] = {
@@ -1003,10 +1007,10 @@ SMALL_CRAFT_HULLS: dict[int, HullRow] = {
 """Small-craft tons (10-95, 5-ton steps) -> (code, cost MCr, build weeks)."""
 
 COCKPITS: dict[str, CockpitRow] = {
-    "1_man": CockpitRow(tons=1.5),
-    "2_man": CockpitRow(tons=3.0),
+    "1_man": CockpitRow(tons=1.5, crew=1),
+    "2_man": CockpitRow(tons=3.0, crew=2),
 }
-"""Small-craft cockpit name -> tonnage. The SRD's two cockpits
+"""Small-craft cockpit name -> (tonnage, seats). The SRD's two cockpits
 only; the larger "control cabin" variants are out of scope."""
 
 SMALL_CRAFT_ENERGY_CAPS: dict[str, int] = {

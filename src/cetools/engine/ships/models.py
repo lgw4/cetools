@@ -617,3 +617,38 @@ class Ship:
 
     def __post_init__(self) -> None:
         _validate_ship(self)
+
+    @property
+    def cockpit_seats(self) -> int:
+        """How many crew a small craft's cockpit seats; none on a starship,
+        whose bridge is tabulated with no crew column at all."""
+        if self.design.cockpit is None:
+            return 0
+        return COCKPITS[self.design.cockpit].crew
+
+    @property
+    def crew_berths(self) -> int:
+        """Every place aboard a crew member can sleep.
+
+        One per stateroom, plus a small craft cockpit's tabulated seats. A
+        berth is not a *rule*—the SRD never says a crew member must have
+        one—so nothing here refuses a ship that has too few. It is what
+        generation spends against and what the description reports.
+        """
+        return self.design.staterooms + self.cockpit_seats
+
+    @property
+    def unaccommodated_crew(self) -> int:
+        """Crew with nowhere to sleep, which is zero on a coherent ship."""
+        return max(0, self.crew.total - self.crew_berths)
+
+    @property
+    def spare_staterooms(self) -> int:
+        """Staterooms the crew does not need, which is what a passenger may have.
+
+        Cockpit seats never count: a 2-man cockpit seats two *crew*, and the
+        SRD offers passenger space only in the larger control cabins this
+        package leaves out. So the crew a cockpit cannot seat take staterooms
+        first, and whatever survives that is spare.
+        """
+        return max(0, self.design.staterooms - max(0, self.crew.total - self.cockpit_seats))

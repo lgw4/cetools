@@ -33,7 +33,12 @@ from operator import attrgetter
 
 from cetools.engine.notation import numeric_values, spelled_values
 from cetools.engine.rolls import RandomRolls, RollName, Rolls
-from cetools.engine.ships.builder import BAY_FIRE_CONTROL_TONS, build_ship
+from cetools.engine.ships.builder import (
+    BAY_FIRE_CONTROL_TONS,
+    build_ship,
+    command_crew,
+    engineers_for,
+)
 from cetools.engine.ships.models import (
     ArmorFit,
     ArmorType,
@@ -73,6 +78,21 @@ from cetools.engine.ships.tables import (
 _STANDARD_POWER_WEEKS = 2
 _SMALL_CRAFT_POWER_WEEKS = 1
 _MIN_COCKPIT_TONS = min(row.tons for row in COCKPITS.values())
+
+_BERTH_TONS = QUARTERS["stateroom"].tons
+"""What accommodating one crew member costs: a stateroom, the SRD's only berth
+whose tonnage includes life support. Double occupancy is not used—the SRD's
+baseline is one person per stateroom and offers two as a *passenger*
+arrangement—and a cheaper berth would barely constrain the choices this
+reservation exists to constrain."""
+
+_GUNNERS_PER_WEAPON_SYSTEM = 1
+"""A turret and a bay each oblige one gunner, because the crew derivation
+counts one per hardpoint used. Named rather than written as a bare 1 at three
+call sites, so a change to the derivation has one place to look."""
+
+_OPERATORS_PER_SCREEN = 1
+"""SRD "Ship Crew", minimum column: one screen operator per screen device."""
 
 
 class Absent(Enum):
@@ -192,11 +212,21 @@ class TonnageLedger:
 
     Mutable by design, unlike the frozen records elsewhere in this package: it is
     an accumulator, and the accumulation is the point.
+
+    A component that obliges a crew member costs its own tonnage *and* that crew
+    member's berth, which is why `affords` and `spend` take a crew count beside
+    their tonnage. Accommodation is part of what a component costs, in the same
+    way a weapon bay has always cost its fire control as well as its 50 tons.
+    Charging it here rather than correcting the ship afterwards is what keeps
+    generation a single forward pass: a drive that would leave its engineers
+    standing is never affordable, so it is never chosen and never retracted.
     """
 
-    def __init__(self, tons: float) -> None:
+    def __init__(self, tons: float, *, berth_limit: int | None = None) -> None:
         self._remaining = tons
         self._declined: list[UnmetConstraint] = []
+        self._berths = 0
+        self._berth_limit = berth_limit
 
     @property
     def remaining(self) -> float:
@@ -204,31 +234,83 @@ class TonnageLedger:
         return self._remaining
 
     @property
+    def berths(self) -> int:
+        """How many crew berths the components chosen so far have reserved."""
+        return self._berths
+
+    @property
     def declined(self) -> tuple[UnmetConstraint, ...]:
         """Every pinned value recorded as unaffordable, in the order recorded."""
         return tuple(self._declined)
 
-    def affords(self, tons: float) -> bool:
-        """Whether `tons` still fits. Steps ask before they spend."""
-        return tons <= self._remaining
+    def berths_for(self, crew: int) -> int:
+        """How many of `crew` this ledger will actually berth.
 
-    def spend(self, tons: float) -> None:
-        """Allocate `tons`. Callers check `affords` first; nothing here enforces
-        it, so that this remains arithmetic and never a new failure mode."""
-        self._remaining -= tons
+        A pinned stateroom count is a ceiling as well as a floor: past it the
+        referee has said how many berths the ship has, and a component chosen
+        afterwards is charged for itself alone. That is what makes a deliberate
+        zero a different answer from an unanswered question—the ship is built
+        exactly as it would have been before accommodation was reserved, and
+        the description says who has nowhere to sleep. With no pin there is no
+        ceiling, and every crew member gets a berth.
+        """
+        if self._berth_limit is None:
+            return crew
+        return max(0, min(crew, self._berth_limit - self._berths))
+
+    def cost(self, tons: float, crew: int = 0) -> float:
+        """What a component of `tons` obliging `crew` costs this ship all in."""
+        return tons + self.berths_for(crew) * _BERTH_TONS
+
+    def affords(self, tons: float, crew: int = 0) -> bool:
+        """Whether `tons`, plus berths for `crew`, still fits. Steps ask before
+        they spend."""
+        return self.cost(tons, crew) <= self._remaining
+
+    def spend(self, tons: float, crew: int = 0) -> None:
+        """Allocate `tons` and berth `crew`. Callers check `affords` first;
+        nothing here enforces it, so that this remains arithmetic and never a
+        new failure mode."""
+        berthed = self.berths_for(crew)
+        self._remaining -= tons + berthed * _BERTH_TONS
+        self._berths += berthed
+
+    def accommodate(self, crew: int) -> int:
+        """Berth as many of `crew` as the hull still holds, and say how many.
+
+        Unlike `spend`, this never asks first: the crew a ship requires is not
+        a component that can be declined, so there is nothing to record and
+        nothing to drop. Where the hull has no room left—a 10-ton small craft
+        has none once its drives and cockpit are in—the shortfall simply
+        stands, and the description is what reports it.
+        """
+        berthed = min(self.berths_for(crew), max(0, int(self._remaining // _BERTH_TONS)))
+        self._remaining -= berthed * _BERTH_TONS
+        self._berths += berthed
+        return berthed
 
     def decline(self, field: str, asked: str, got: str, reason: str) -> None:
         """Record that `field` could not have `asked`, what it got instead, and why."""
         self._declined.append(UnmetConstraint(field=field, asked=asked, got=got, reason=reason))
 
-    def decline_unaffordable(self, field: str, asked: str, cost: float) -> None:
-        """Record that `asked` needed `cost` tons the budget could not cover.
+    def decline_unaffordable(self, field: str, asked: str, cost: float, crew: int = 0) -> None:
+        """Record that `asked` needed `cost` tons, plus berths for `crew`, that
+        the budget could not cover.
 
         The commonest shortfall by far, and the arithmetic behind it is the
         ledger's own, so the sentence is composed here once rather than at every
-        step that has to say it.
+        step that has to say it. Where a berth is part of the price it is named
+        as well as counted: a referee told a 50-ton screen needs 54 tons should
+        not have to work out where the other four went.
         """
-        self.decline(field, asked, "none", f"needs {_tons(cost)}t, {_tons(self._remaining)}t free")
+        berths = self.berths_for(crew)
+        detail = "" if not berths else f" ({_tons(cost)}t and {berths} berth(s))"
+        self.decline(
+            field,
+            asked,
+            "none",
+            f"needs {_tons(self.cost(cost, crew))}t{detail}, {_tons(self._remaining)}t free",
+        )
 
 
 @dataclass(frozen=True)
@@ -649,9 +731,17 @@ def _lightest_code_at(
     return min(at_rating, key=lambda code: tons_of(DRIVE_COSTS[code]))
 
 
-def _fit_jump_drive(hull_tons: int, drawn_code: str, budget: float) -> str:
+def _fit_jump_drive(hull_tons: int, drawn_code: str, budget: float, other_drives: float) -> str:
     """The lightest jump drive affording the highest rating `budget` buys,
     never rated above `drawn_code`.
+
+    A rating is affordable when the drive, a full jump's fuel *and* the berths
+    the drive's own tonnage adds to the engineering complement all fit. Fuel
+    alone was the old test, and it let a hull buy jump range with the tonnage
+    its engineers needed to sleep in. `other_drives` is the maneuver and power
+    tonnage already fitted, which is what makes the marginal engineer
+    knowable—the derivation takes one per 35 tons of *all* the drives together,
+    so the jump drive's share cannot be read off the jump drive alone.
 
     Total: `drawn_code` is itself legal for `hull_tons`, so a candidate always
     exists at every rating up to its own—step 4 never has to look further.
@@ -670,7 +760,9 @@ def _fit_jump_drive(hull_tons: int, drawn_code: str, budget: float) -> str:
 
     for rating in sorted(lightest_by_rating, reverse=True):
         code = lightest_by_rating[rating]
-        if DRIVE_COSTS[code].jump_tons + 0.1 * hull_tons * rating <= budget:
+        jump_tons = DRIVE_COSTS[code].jump_tons
+        berths = engineers_for(other_drives + jump_tons) * _BERTH_TONS
+        if jump_tons + 0.1 * hull_tons * rating + berths <= budget:
             return code
     return lightest_by_rating[min(lightest_by_rating)]
 
@@ -679,6 +771,15 @@ def _select_drive_codes(
     rolls: Rolls, hull_tons: int, constraints: DesignConstraints
 ) -> tuple[str, str, str]:
     """Jump, maneuver and power codes, drawn in that order unless pinned.
+
+    Deliberately *not* narrowed for accommodation, unlike the small-craft path
+    and unlike what #60 proposed. A maneuver drive and a power plant that fit
+    the hull at all leave room for the engineers they oblige on every one of
+    the SRD's eighteen starship hulls: the filter was written, and then found
+    to reject none of 5,390 legal combinations. What made the difference on
+    this path is `_fit_jump_drive`, which does weigh the berths, and the order
+    in `generate_ship`, which berths the engineers before it buys a drop of
+    jump fuel. See `docs/adr/0001-accommodation-is-part-of-a-components-cost.md`.
 
     A pinned rating resolves without a draw, so the codes left to chance shift
     down the roll stream. That is the documented cost of pinning consuming no
@@ -754,6 +855,7 @@ def _pin_all_or_draw_one[T](
     tons: Callable[[T], float],
     asked: Callable[[T], str],
     draw: Callable[[], T | None],
+    crew: int = 0,
 ) -> tuple[T, ...]:
     """One family of optional components, from the referee's answers or the dice.
 
@@ -773,6 +875,10 @@ def _pin_all_or_draw_one[T](
     rather than that "the fittings" were. Items are taken in the order given: a
     referee who cares which survives a tight budget can say so by ordering them.
 
+    `crew` is how many crew members *one* item of the family obliges, and it is
+    part of the price: a screen that leaves its operator no berth is as
+    unaffordable as one that leaves itself no tonnage.
+
     Only tonnage is checked here. Whether an item is *legal* was settled when the
     answer became a component-fit record, which validates its own kind against
     the SRD tables.
@@ -784,11 +890,11 @@ def _pin_all_or_draw_one[T](
         fitted: list[T] = []
         for item in pinned:
             cost = tons(item)
-            if ledger.affords(cost):
-                ledger.spend(cost)
+            if ledger.affords(cost, crew):
+                ledger.spend(cost, crew)
                 fitted.append(item)
             else:
-                ledger.decline_unaffordable(field, asked(item), cost)
+                ledger.decline_unaffordable(field, asked(item), cost, crew)
         return tuple(fitted)
 
     drawn = draw()
@@ -909,32 +1015,43 @@ def _select_electronics(
 
 
 def _select_staterooms(rolls: Rolls, ledger: TonnageLedger, pinned: int | None) -> int:
-    """How many staterooms to fit.
+    """How many staterooms to fit, never fewer than the crew already berthed.
+
+    Drawn last on both paths, after every component that can oblige a crew
+    member, so the berths the ledger holds are the whole crew's rather than
+    however much of it had been settled by this point. The rooms themselves were
+    paid for as each component was chosen; what is decided here is only how many
+    *more* the ship carries, which is what makes a passenger berth genuinely
+    spare.
 
     Two-state, not three: a stateroom count of zero *is* the pinned absence, and
-    `None` still means roll. A count the budget cannot cover is clamped like a
-    drawn one, since the referee asked for rooms rather than for a specific ship.
+    `None` still means roll. A pin is a ceiling as well as a floor—the ledger
+    stopped reserving berths at it—so a referee who deliberately pins fewer
+    rooms than crew gets the ship they asked for, and the description says who
+    has nowhere to sleep. A drawn count under the crew's is simply met by the
+    crew's, since the dice asked for rooms rather than for a specific ship.
     """
-    stateroom_tons = QUARTERS["stateroom"].tons
+    berthed = ledger.berths
+    affordable = max(0, int(ledger.remaining // _BERTH_TONS))
+
     if pinned is not None:
-        affordable = int(ledger.remaining // stateroom_tons) if stateroom_tons else 0
-        count = max(0, min(pinned, affordable))
+        extra = min(max(0, pinned - berthed), affordable)
+        count = berthed + extra
         if count < pinned:
             ledger.decline(
                 "staterooms",
                 str(pinned),
                 str(count),
-                f"needs {_tons(stateroom_tons * pinned)}t, {_tons(ledger.remaining)}t free",
+                f"needs {_tons(_BERTH_TONS * (pinned - berthed))}t more, "
+                f"{_tons(ledger.remaining)}t free",
             )
-        ledger.spend(stateroom_tons * count)
+        ledger.spend(_BERTH_TONS * extra)
         return count
 
-    count = rolls.d6(RollName.SHIP_STATEROOMS) - 1
-    stateroom_tons = QUARTERS["stateroom"].tons
-    affordable = int(ledger.remaining // stateroom_tons) if stateroom_tons else 0
-    count = max(0, min(count, affordable))
-    ledger.spend(stateroom_tons * count)
-    return count
+    drawn = rolls.d6(RollName.SHIP_STATEROOMS) - 1
+    extra = min(max(0, drawn - berthed), affordable)
+    ledger.spend(_BERTH_TONS * extra)
+    return berthed + extra
 
 
 def _fitting_tons(fit: FittingFit) -> float:
@@ -995,11 +1112,16 @@ def _fit_turret(
         mount_name = rolls.choose(_TURRET_MOUNTS, RollName.SHIP_TURRET_MOUNT)
 
     mount = TURRET_MOUNTS[mount_name]
-    if not ledger.affords(mount.tons):
+    if not ledger.affords(mount.tons, _GUNNERS_PER_WEAPON_SYSTEM):
         # Only a *pinned* turret is a promise. A drawn one that will not fit has
         # always been dropped in silence, and still is.
         if promised:
-            ledger.decline_unaffordable("turrets", _turret_asked(ordinal, pinned), mount.tons)
+            ledger.decline_unaffordable(
+                "turrets",
+                _turret_asked(ordinal, pinned),
+                mount.tons,
+                _GUNNERS_PER_WEAPON_SYSTEM,
+            )
         return None
 
     if pinned.weapon is not None:
@@ -1008,7 +1130,7 @@ def _fit_turret(
     else:
         weapon = rolls.choose(_TURRET_WEAPONS, RollName.SHIP_WEAPON)
 
-    ledger.spend(mount.tons)
+    ledger.spend(mount.tons, _GUNNERS_PER_WEAPON_SYSTEM)
     return TurretFit(mount=mount_name, weapons=(weapon,) * mount.weapon_slots)
 
 
@@ -1067,8 +1189,10 @@ def _select_bays(
     ledger: TonnageLedger,
     pinned: tuple[BayFit, ...] | Absent | None,
 ) -> tuple[tuple[BayFit, ...], int]:
-    """Pick bays only among kinds that fit both the remaining hardpoints and
-    tonnage (50 t plus fire control), so a chosen bay never needs correction.
+    """Pick bays only among kinds that fit the remaining hardpoints and tonnage
+    (50 t, fire control and a gunner's berth), so a chosen bay never needs
+    correction. Accommodation is the same kind of obligation as the fire control
+    a bay has always been charged for, and is charged the same way.
 
     The one family that cannot use `_pin_all_or_draw_one`: a bay spends a
     hardpoint as well as tonnage, and the hardpoint count has to be threaded back
@@ -1090,10 +1214,10 @@ def _select_bays(
                 ledger.decline("bays", bay.kind, "none", "no hardpoint left to mount it")
                 continue
             tons = BAYS[bay.kind].tons + BAY_FIRE_CONTROL_TONS
-            if not ledger.affords(tons):
-                ledger.decline_unaffordable("bays", bay.kind, tons)
+            if not ledger.affords(tons, _GUNNERS_PER_WEAPON_SYSTEM):
+                ledger.decline_unaffordable("bays", bay.kind, tons, _GUNNERS_PER_WEAPON_SYSTEM)
                 continue
-            ledger.spend(tons)
+            ledger.spend(tons, _GUNNERS_PER_WEAPON_SYSTEM)
             hardpoints_remaining -= 1
             fitted.append(bay)
         return tuple(fitted), hardpoints_remaining
@@ -1101,12 +1225,14 @@ def _select_bays(
     if hardpoints_remaining <= 0:
         return (), hardpoints_remaining
     candidates: tuple[str | None, ...] = (None,) + tuple(
-        kind for kind, row in BAYS.items() if ledger.affords(row.tons + BAY_FIRE_CONTROL_TONS)
+        kind
+        for kind, row in BAYS.items()
+        if ledger.affords(row.tons + BAY_FIRE_CONTROL_TONS, _GUNNERS_PER_WEAPON_SYSTEM)
     )
     kind = rolls.choose(candidates, RollName.SHIP_BAY)
     if kind is None:
         return (), hardpoints_remaining
-    ledger.spend(BAYS[kind].tons + BAY_FIRE_CONTROL_TONS)
+    ledger.spend(BAYS[kind].tons + BAY_FIRE_CONTROL_TONS, _GUNNERS_PER_WEAPON_SYSTEM)
     return (BayFit(kind=kind),), hardpoints_remaining - 1
 
 
@@ -1121,12 +1247,14 @@ def _select_screens(
 ) -> tuple[ScreenFit, ...]:
     def draw() -> ScreenFit | None:
         candidates: tuple[str | None, ...] = (None,) + tuple(
-            kind for kind, row in SCREENS.items() if ledger.affords(row.tons)
+            kind
+            for kind, row in SCREENS.items()
+            if ledger.affords(row.tons, _OPERATORS_PER_SCREEN)
         )
         kind = rolls.choose(candidates, RollName.SHIP_SCREEN)
         if kind is None:
             return None
-        ledger.spend(SCREENS[kind].tons)
+        ledger.spend(SCREENS[kind].tons, _OPERATORS_PER_SCREEN)
         return ScreenFit(kind=kind)
 
     return _pin_all_or_draw_one(
@@ -1136,6 +1264,7 @@ def _select_screens(
         tons=lambda fit: SCREENS[fit.kind].tons,
         asked=lambda fit: fit.kind,
         draw=draw,
+        crew=_OPERATORS_PER_SCREEN,
     )
 
 
@@ -1179,6 +1308,34 @@ def _small_craft_power_codes(hull_tons: int, maneuver_letter: str) -> list[str]:
         if maneuver_tons + power_tons + power_fuel + _MIN_COCKPIT_TONS <= hull_tons:
             options.append(power_letter)
     return options
+
+
+def _small_craft_quarters_tons(crew: int) -> float:
+    """The lightest cockpit-and-berths pairing that houses `crew`.
+
+    A cockpit is accommodation as well as a control station: its table row
+    carries a crew column, and the crew who sit in it need no stateroom. Which
+    cockpit is lightest *overall* depends on the crew—a 1-man cockpit saves 1.5
+    tons on the cockpit and spends 4 on the berth it does not provide—so the
+    pairing is minimized rather than either half chosen alone.
+    """
+    return min(row.tons + max(0, crew - row.crew) * _BERTH_TONS for row in COCKPITS.values())
+
+
+def _small_craft_drives_house_their_crew(
+    hull_tons: int, maneuver_letter: str, power_letter: str, command: int
+) -> bool:
+    """Whether this drive pair leaves room for the crew it obliges to sleep.
+
+    The same test `_drives_fit` applies on the starship path, in the terms this
+    ruleset uses: no jump drive and no bridge, a cockpit that berths some of the
+    crew itself, and power-plant fuel by the small-craft rounding.
+    """
+    maneuver_tons = DRIVE_COSTS[maneuver_letter].maneuver_tons
+    power_tons = DRIVE_COSTS[power_letter].power_tons
+    crew = command + engineers_for(maneuver_tons + power_tons)
+    quarters = _small_craft_quarters_tons(crew)
+    return maneuver_tons + power_tons + _small_craft_power_fuel(power_tons) + quarters <= hull_tons
 
 
 def small_craft_maneuver_ratings(hull_tons: int) -> tuple[int, ...]:
@@ -1355,10 +1512,22 @@ def _pin_small_craft_drive(
 
 
 def _select_small_craft_drives(
-    rolls: Rolls, hull_tons: int, constraints: DesignConstraints, ledger: TonnageLedger
+    rolls: Rolls,
+    hull_tons: int,
+    constraints: DesignConstraints,
+    ledger: TonnageLedger,
+    command: int,
 ) -> tuple[str, str]:
     """Pick maneuver+power codes that fit the hull, reserving room for at least
     the smallest cockpit so `_select_cockpit` always has a legal candidate.
+
+    The *dice* are narrowed further still, to the pairs that also leave the crew
+    somewhere to sleep. Only the draws: a pinned rating resolves against the
+    wider list, so `small_craft_maneuver_ratings` and `small_craft_power_ratings`
+    stay honest about what a referee may ask for, and a pin stays a promise
+    where a roll is only a preference. Where no pair houses its crew—a 10-ton
+    hull has 1.2 tons free once its lightest drives and cockpit are in, and a
+    berth is 4—the narrowing is dropped rather than the ship.
 
     Takes the ledger only to record a degraded pin. Nothing is spent here: the
     drives are priced against the hull directly, and what they cost is taken off
@@ -1385,7 +1554,15 @@ def _select_small_craft_drives(
             "no lighter maneuver drive leaves room for a power plant and a cockpit",
         )
     else:
-        maneuver_letter = rolls.choose(maneuver_candidates, RollName.SHIP_MANEUVER_CODE)
+        housed = [
+            code
+            for code in maneuver_candidates
+            if any(
+                _small_craft_drives_house_their_crew(hull_tons, code, plant, command)
+                for plant in _small_craft_power_codes(hull_tons, code)
+            )
+        ]
+        maneuver_letter = rolls.choose(housed or maneuver_candidates, RollName.SHIP_MANEUVER_CODE)
 
     options = _small_craft_power_codes(hull_tons, maneuver_letter)
     if constraints.power_rating is not None:
@@ -1400,14 +1577,33 @@ def _select_small_craft_drives(
             "drive it powers",
         )
     else:
-        power_letter = rolls.choose(options, RollName.SHIP_POWER_CODE)
+        housed_options = [
+            plant
+            for plant in options
+            if _small_craft_drives_house_their_crew(hull_tons, maneuver_letter, plant, command)
+        ]
+        power_letter = rolls.choose(housed_options or options, RollName.SHIP_POWER_CODE)
 
     return f"s{maneuver_letter}", f"s{power_letter}"
 
 
-def _select_cockpit(rolls: Rolls, ledger: TonnageLedger) -> str:
-    candidates = [name for name, row in COCKPITS.items() if ledger.affords(row.tons)]
-    cockpit = rolls.choose(candidates, RollName.SHIP_COCKPIT)
+def _select_cockpit(rolls: Rolls, ledger: TonnageLedger, crew: int) -> str:
+    """The control station, drawn from the cockpits that seat this craft's crew.
+
+    A cockpit's seats are accommodation, so the choice between the two is a
+    choice about who sleeps where: the 2-man costs 1.5 tons more than the 1-man
+    and saves a 4-ton stateroom. A cockpit is preferred when it and the berths
+    for whoever it cannot seat both still fit, and the draw falls back to bare
+    affordability where neither does—on a hull that small the crew is going
+    unhoused either way, and the description is what says so.
+    """
+    affordable = [name for name, row in COCKPITS.items() if ledger.affords(row.tons)]
+    housing = [
+        name
+        for name in affordable
+        if ledger.affords(COCKPITS[name].tons, max(0, crew - COCKPITS[name].crew))
+    ]
+    cockpit = rolls.choose(housing or affordable, RollName.SHIP_COCKPIT)
     ledger.spend(COCKPITS[cockpit].tons)
     return cockpit
 
@@ -1443,9 +1639,11 @@ def _select_small_craft_turret(
         mount_name = rolls.choose(_SMALL_CRAFT_TURRET_MOUNTS, RollName.SHIP_TURRET_MOUNT)
 
     mount = TURRET_MOUNTS[mount_name]
-    if not ledger.affords(mount.tons):
+    if not ledger.affords(mount.tons, _GUNNERS_PER_WEAPON_SYSTEM):
         if pinned is not None:
-            ledger.decline_unaffordable("turrets", _turret_asked(1, pin), mount.tons)
+            ledger.decline_unaffordable(
+                "turrets", _turret_asked(1, pin), mount.tons, _GUNNERS_PER_WEAPON_SYSTEM
+            )
         return ()
 
     if pin.weapon is not None:
@@ -1475,7 +1673,7 @@ def _select_small_craft_turret(
         )
         weapon = rolls.choose(weapon_choices, RollName.SHIP_WEAPON)
 
-    ledger.spend(mount.tons)
+    ledger.spend(mount.tons, _GUNNERS_PER_WEAPON_SYSTEM)
     return (TurretFit(mount=mount_name, weapons=(weapon,) * mount.weapon_slots),)
 
 
@@ -1486,8 +1684,16 @@ def _generate_small_craft(rolls: Rolls, constraints: DesignConstraints) -> Gener
     if isinstance(constraints.bays, tuple) and constraints.bays:
         raise ValueError("small craft carry no weapon bays, so none can be pinned")
     configuration = _select_configuration(rolls, constraints.configuration, constraints.fittings)
-    ledger = TonnageLedger(hull_tons)
-    maneuver_code, power_code = _select_small_craft_drives(rolls, hull_tons, constraints, ledger)
+    # Drawn before anything is priced, though it costs no tonnage: whether the
+    # computer flies the jump decides whether this craft needs a navigator, and
+    # that berth has to be reserved before a drive is chosen against it.
+    computer = _select_computer(rolls, constraints.computer)
+    command = command_crew(computer)
+
+    ledger = TonnageLedger(hull_tons, berth_limit=constraints.staterooms)
+    maneuver_code, power_code = _select_small_craft_drives(
+        rolls, hull_tons, constraints, ledger, command
+    )
     maneuver_letter, power_letter = maneuver_code[1:], power_code[1:]
 
     maneuver_tons = DRIVE_COSTS[maneuver_letter].maneuver_tons
@@ -1495,12 +1701,12 @@ def _generate_small_craft(rolls: Rolls, constraints: DesignConstraints) -> Gener
     power_fuel_tons = _small_craft_power_fuel(power_tons)
 
     ledger.spend(maneuver_tons + power_tons + power_fuel_tons)
-    cockpit = _select_cockpit(rolls, ledger)
+    crew = command + engineers_for(maneuver_tons + power_tons)
+    cockpit = _select_cockpit(rolls, ledger, crew)
+    ledger.accommodate(max(0, crew - COCKPITS[cockpit].crew))
 
     armor = _select_armor(rolls, hull_tons, ledger, constraints.armor)
-    computer = _select_computer(rolls, constraints.computer)
     electronics = _select_electronics(rolls, ledger, constraints.electronics)
-    staterooms = _select_staterooms(rolls, ledger, constraints.staterooms)
     fittings = _select_fittings(rolls, ledger, constraints.fittings)
 
     energy_cap = SMALL_CRAFT_ENERGY_CAPS[power_letter]
@@ -1513,6 +1719,7 @@ def _generate_small_craft(rolls: Rolls, constraints: DesignConstraints) -> Gener
         rolls, ledger, ABSENT if constraints.screens is None else constraints.screens
     )
 
+    staterooms = _select_staterooms(rolls, ledger, constraints.staterooms)
     name = _select_name(rolls, constraints.name)
 
     design = ShipDesign(
@@ -1576,18 +1783,30 @@ def generate_ship(
 
     hull_tons = _select_hull_tons(rolls, constraints)
     configuration = _select_configuration(rolls, constraints.configuration, constraints.fittings)
+    # Drawn before anything is priced, though it costs no tonnage: whether the
+    # computer flies the jump decides whether this ship needs a navigator, and
+    # that berth has to be reserved before a drive is chosen against it.
+    computer = _select_computer(rolls, constraints.computer)
+
+    ledger = TonnageLedger(hull_tons, berth_limit=constraints.staterooms)
+    ledger.spend(_bridge_tons(hull_tons))
+    ledger.accommodate(command_crew(computer))
+
     jump_code, maneuver_code, power_code = _select_drive_codes(rolls, hull_tons, constraints)
 
     maneuver_tons = DRIVE_COSTS[maneuver_code].maneuver_tons
     power_tons = DRIVE_COSTS[power_code].power_tons
     power_fuel_tons = (power_tons // 3) * _STANDARD_POWER_WEEKS
-    bridge_tons = _bridge_tons(hull_tons)
+    ledger.spend(maneuver_tons + power_tons + power_fuel_tons)
 
-    budget = hull_tons - (maneuver_tons + power_tons + bridge_tons + power_fuel_tons)
-    jump_code = _fit_jump_drive(hull_tons, jump_code, budget)
+    jump_code = _fit_jump_drive(hull_tons, jump_code, ledger.remaining, maneuver_tons + power_tons)
     jump_rating = DRIVE_PERFORMANCE[jump_code][hull_tons]
+    jump_tons = DRIVE_COSTS[jump_code].jump_tons
+    ledger.spend(jump_tons)
+    # The engineers are berthed before a drop of jump fuel is bought, so a hull
+    # short of tonnage gives up range rather than leaving its engineers standing.
+    ledger.accommodate(engineers_for(maneuver_tons + power_tons + jump_tons))
 
-    ledger = TonnageLedger(max(0.0, budget - DRIVE_COSTS[jump_code].jump_tons))
     if constraints.jump_rating is not None and jump_rating < constraints.jump_rating:
         ledger.decline(
             "jump_rating",
@@ -1602,9 +1821,7 @@ def generate_ship(
     ledger.spend(0.1 * hull_tons * jump_distance)
 
     armor = _select_armor(rolls, hull_tons, ledger, constraints.armor)
-    computer = _select_computer(rolls, constraints.computer)
     electronics = _select_electronics(rolls, ledger, constraints.electronics)
-    staterooms = _select_staterooms(rolls, ledger, constraints.staterooms)
     fittings = _select_fittings(rolls, ledger, constraints.fittings)
     turrets = _select_turrets(rolls, hull_tons, ledger, constraints.turrets)
 
@@ -1614,6 +1831,7 @@ def generate_ship(
     )
     screens = _select_screens(rolls, ledger, constraints.screens)
 
+    staterooms = _select_staterooms(rolls, ledger, constraints.staterooms)
     name = _select_name(rolls, constraints.name)
 
     design = ShipDesign(

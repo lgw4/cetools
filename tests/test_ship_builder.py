@@ -1291,3 +1291,31 @@ def test_a_new_row_with_a_tech_level_widens_the_derivation_with_no_code_change(m
         screens=(ScreenFit(kind="synthetic_screen"),),
     )
     assert build_ship(design).tech_level == 17
+
+
+def test_a_design_whose_crew_exceed_its_berths_still_builds_and_costs():
+    """#60: the builder does not refuse a ship it cannot house.
+
+    The SRD states that a stateroom holds one or two people and that its
+    tonnage covers life support; it never states that every crew member must
+    have one. Refusing here would invent a rule and would block a referee from
+    iterating on a design. Generation guarantees the berths; assembly reports
+    the arithmetic and leaves the judgment to the description.
+    """
+    design = ShipDesign(
+        name="Overcrowded",
+        hull_tons=1000,
+        jump_code="E",
+        maneuver_code="E",
+        power_code="E",
+        staterooms=1,
+        turrets=(TurretFit(mount="triple", weapons=("pulse_laser",) * 3),) * 4,
+    )
+
+    ship = build_ship(design)
+
+    assert ship.crew.total > ship.crew_berths
+    assert ship.unaccommodated_crew == ship.crew.total - 1
+    assert ship.spare_staterooms == 0
+    assert ship.total_cost > 0
+    assert ship.cargo_tons >= 0

@@ -792,9 +792,17 @@ _BEOWULF_PARAGRAPH = (
     "The hull is standard, and no additional armor has been installed. Special features "
     "include one ton of fuel processors (processes 20 tons of unrefined fuel into refined fuel "
     "per day). The ship requires a crew of five: one pilot, one navigator, one engineer, one "
-    "medic and one steward. The ship cannot carry any additional passengers. The ship costs "
+    "medic and one steward. The ship berths four of its five crew, leaving one crew member "
+    "unaccommodated. The ship cannot carry any additional passengers. The ship costs "
     "MCr29.772 (including discounts and fees) and takes 44 weeks to build."
 )
+"""The SRD's own worked free trader trips the accommodation sentence, and that
+is the sentence earning its place rather than a fault in the fixture. The
+Beowulf carries four staterooms, five crew and two middle passengers: under one
+berth per person it is a room short, which is why the passenger sentence has
+always said it "cannot carry any additional passengers" while the design file
+declares two. The shortfall was there all along; only the silence about it is
+new."""
 
 
 def test_ship_build_prints_a_heading_and_one_paragraph_and_exits_0():
@@ -1450,7 +1458,7 @@ _OVERLOADED = [
 _OVERLOADED_ANSWERS = dict(
     skip=("hull",),
     jump="2",
-    armor="crystaliron 30",
+    armor="crystaliron 40",
     staterooms="8",
     turrets="2\ntriple\npulse_laser\ntriple\npulse_laser",
 )
@@ -1495,7 +1503,7 @@ def test_ship_generate_interactive_revising_re_asks_only_the_implicated_prompts(
     design = loads_design(result.stdout)
     assert design.staterooms == 4  # the revised answer
     assert design.turrets == ()
-    assert design.armor[0].percent == 30  # the answer that was kept
+    assert design.armor[0].percent == 40  # the answer that was kept
 
 
 def test_ship_generate_interactive_revising_the_hull_class_re_asks_the_tonnage():
@@ -1709,7 +1717,7 @@ def test_ship_generate_reports_unmet_constraints_on_stderr_and_still_exits_0():
 def test_ship_generate_unmet_report_names_what_was_asked_and_what_was_got():
     result = runner.invoke(app, _OVERLOADED, input=_answers(**_OVERLOADED_ANSWERS))
 
-    assert "asked 8, got 7" in result.stderr
+    assert "asked 8, got 4" in result.stderr
     assert "t free" in result.stderr
 
 
