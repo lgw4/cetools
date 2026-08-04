@@ -731,8 +731,10 @@ def _lightest_code_at(
     return min(at_rating, key=lambda code: tons_of(DRIVE_COSTS[code]))
 
 
-def _fit_jump_drive(hull_tons: int, drawn_code: str, budget: float, other_drives: float) -> str:
-    """The lightest jump drive affording the highest rating `budget` buys,
+def _fit_jump_drive(
+    hull_tons: int, drawn_code: str, ledger: TonnageLedger, other_drives: float
+) -> str:
+    """The lightest jump drive affording the highest rating the ledger buys,
     never rated above `drawn_code`.
 
     A rating is affordable when the drive, a full jump's fuel *and* the berths
@@ -742,6 +744,17 @@ def _fit_jump_drive(hull_tons: int, drawn_code: str, budget: float, other_drives
     tonnage already fitted, which is what makes the marginal engineer
     knowable—the derivation takes one per 35 tons of *all* the drives together,
     so the jump drive's share cannot be read off the jump drive alone.
+
+    The test goes through `ledger.affords` rather than arithmetic of its own,
+    so the one rule about who gets a berth lives in one place. Priced here
+    directly, a referee who pinned a stateroom count would be charged for
+    berths the ledger had already stopped reserving—the pin caps reservation,
+    and a component chosen past it is charged for its tonnage alone—and a
+    pinned zero would quietly buy less jump range than it paid for.
+
+    Reads the ledger and never spends from it: the caller settles what the
+    chosen drive costs, because the rating it lands on decides how much fuel
+    there is to buy afterwards.
 
     Total: `drawn_code` is itself legal for `hull_tons`, so a candidate always
     exists at every rating up to its own—step 4 never has to look further.
@@ -761,8 +774,10 @@ def _fit_jump_drive(hull_tons: int, drawn_code: str, budget: float, other_drives
     for rating in sorted(lightest_by_rating, reverse=True):
         code = lightest_by_rating[rating]
         jump_tons = DRIVE_COSTS[code].jump_tons
-        berths = engineers_for(other_drives + jump_tons) * _BERTH_TONS
-        if jump_tons + 0.1 * hull_tons * rating + berths <= budget:
+        if ledger.affords(
+            jump_tons + 0.1 * hull_tons * rating,
+            engineers_for(other_drives + jump_tons),
+        ):
             return code
     return lightest_by_rating[min(lightest_by_rating)]
 
@@ -1799,7 +1814,7 @@ def generate_ship(
     power_fuel_tons = (power_tons // 3) * _STANDARD_POWER_WEEKS
     ledger.spend(maneuver_tons + power_tons + power_fuel_tons)
 
-    jump_code = _fit_jump_drive(hull_tons, jump_code, ledger.remaining, maneuver_tons + power_tons)
+    jump_code = _fit_jump_drive(hull_tons, jump_code, ledger, maneuver_tons + power_tons)
     jump_rating = DRIVE_PERFORMANCE[jump_code][hull_tons]
     jump_tons = DRIVE_COSTS[jump_code].jump_tons
     ledger.spend(jump_tons)

@@ -45,6 +45,12 @@ Concretely:
   the computer is now drawn before the drives — it costs no tonnage, and drawing
   it first is what makes the reservation exact rather than conservative.
 - Turrets, bays and screens each cost a berth alongside their own tonnage.
+- Every affordability test goes through `ledger.affords`, including
+  `_fit_jump_drive`'s, so the one rule about who gets a berth lives in one
+  place. A step that priced berths with arithmetic of its own would not see the
+  ceiling a pinned stateroom count puts on reservation, and would charge a
+  referee who pinned zero for berths the ledger had already declined to
+  reserve — buying less jump range than they had paid for.
 - The staterooms are selected **last** on both paths, after every component that
   can add crew, and start from the berths the ledger already holds.
 - `engineers_for` and `command_crew` are public in `builder.py` and are the sole

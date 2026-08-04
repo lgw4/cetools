@@ -44,6 +44,7 @@ from cetools.engine.ships.generator import (
     TonnageLedger,
     _energy_allowance,
     _exceeds_energy_allowance,
+    _fit_jump_drive,
     _select_screens,
     armor_options,
     available_ratings,
@@ -1695,24 +1696,18 @@ def _jump_is_affordable(hull_tons, code, budget, other_drives=0.0):
 def test_fit_jump_drive_matches_the_contracts_worked_examples(
     hull_tons, drawn_code, budget, expected
 ):
-    from cetools.engine.ships.generator import _fit_jump_drive
-
-    assert _fit_jump_drive(hull_tons, drawn_code, budget, 0.0) == expected
+    assert _fit_jump_drive(hull_tons, drawn_code, TonnageLedger(budget), 0.0) == expected
 
 
 @pytest.mark.parametrize("hull_tons,drawn_code,budget,expected", _FIT_WORKED_EXAMPLES)
 def test_fit_jump_drive_c1_result_is_legal_for_the_hull(hull_tons, drawn_code, budget, expected):
-    from cetools.engine.ships.generator import _fit_jump_drive
-
-    result = _fit_jump_drive(hull_tons, drawn_code, budget, 0.0)
+    result = _fit_jump_drive(hull_tons, drawn_code, TonnageLedger(budget), 0.0)
     assert hull_tons in DRIVE_PERFORMANCE[result]
 
 
 @pytest.mark.parametrize("hull_tons,drawn_code,budget,expected", _FIT_WORKED_EXAMPLES)
 def test_fit_jump_drive_c2_rating_is_never_raised(hull_tons, drawn_code, budget, expected):
-    from cetools.engine.ships.generator import _fit_jump_drive
-
-    result = _fit_jump_drive(hull_tons, drawn_code, budget, 0.0)
+    result = _fit_jump_drive(hull_tons, drawn_code, TonnageLedger(budget), 0.0)
     assert DRIVE_PERFORMANCE[result][hull_tons] <= DRIVE_PERFORMANCE[drawn_code][hull_tons]
 
 
@@ -1720,9 +1715,7 @@ def test_fit_jump_drive_c2_rating_is_never_raised(hull_tons, drawn_code, budget,
 def test_fit_jump_drive_c3_result_is_the_unique_lightest_at_its_rating(
     hull_tons, drawn_code, budget, expected
 ):
-    from cetools.engine.ships.generator import _fit_jump_drive
-
-    result = _fit_jump_drive(hull_tons, drawn_code, budget, 0.0)
+    result = _fit_jump_drive(hull_tons, drawn_code, TonnageLedger(budget), 0.0)
     result_rating = DRIVE_PERFORMANCE[result][hull_tons]
     result_tons = DRIVE_COSTS[result].jump_tons
     for code, ratings in DRIVE_PERFORMANCE.items():
@@ -1732,9 +1725,7 @@ def test_fit_jump_drive_c3_result_is_the_unique_lightest_at_its_rating(
 
 @pytest.mark.parametrize("hull_tons,drawn_code,budget,expected", _FIT_WORKED_EXAMPLES)
 def test_fit_jump_drive_c4_highest_affordable_rating_wins(hull_tons, drawn_code, budget, expected):
-    from cetools.engine.ships.generator import _fit_jump_drive
-
-    result = _fit_jump_drive(hull_tons, drawn_code, budget, 0.0)
+    result = _fit_jump_drive(hull_tons, drawn_code, TonnageLedger(budget), 0.0)
     ceiling = DRIVE_PERFORMANCE[drawn_code][hull_tons]
     affordable_ratings = [
         ratings[hull_tons]
@@ -1757,20 +1748,16 @@ def test_fit_jump_drive_c4_highest_affordable_rating_wins(hull_tons, drawn_code,
 
 @pytest.mark.parametrize("hull_tons,drawn_code,budget,expected", _FIT_WORKED_EXAMPLES)
 def test_fit_jump_drive_c8_is_idempotent(hull_tons, drawn_code, budget, expected):
-    from cetools.engine.ships.generator import _fit_jump_drive
-
-    result = _fit_jump_drive(hull_tons, drawn_code, budget, 0.0)
-    assert _fit_jump_drive(hull_tons, result, budget, 0.0) == result
+    result = _fit_jump_drive(hull_tons, drawn_code, TonnageLedger(budget), 0.0)
+    assert _fit_jump_drive(hull_tons, result, TonnageLedger(budget), 0.0) == result
 
 
 def test_fit_jump_drive_legality_and_ceiling_hold_over_every_hull_and_legal_drawn_code():
-    from cetools.engine.ships.generator import _fit_jump_drive
-
     for hull_tons in HULLS:
         for drawn_code, ratings in DRIVE_PERFORMANCE.items():
             if hull_tons not in ratings:
                 continue
-            result = _fit_jump_drive(hull_tons, drawn_code, 10_000.0, 0.0)
+            result = _fit_jump_drive(hull_tons, drawn_code, TonnageLedger(10_000.0), 0.0)
             assert hull_tons in DRIVE_PERFORMANCE[result]
             assert DRIVE_PERFORMANCE[result][hull_tons] <= ratings[hull_tons]
 
@@ -1784,13 +1771,11 @@ _FIT_SWEEP_BUDGETS = (0.0, 1.0, 5.0, 20.0, 55.0, 72.0, 100.0, 200.0, 400.0, 600.
 
 
 def test_fit_jump_drive_c3_is_the_lightest_at_its_rating_over_every_hull_and_budget():
-    from cetools.engine.ships.generator import _fit_jump_drive
-
     for hull_tons in HULLS:
         legal = [code for code, ratings in DRIVE_PERFORMANCE.items() if hull_tons in ratings]
         for drawn_code in legal:
             for budget in _FIT_SWEEP_BUDGETS:
-                result = _fit_jump_drive(hull_tons, drawn_code, budget, 0.0)
+                result = _fit_jump_drive(hull_tons, drawn_code, TonnageLedger(budget), 0.0)
                 result_rating = DRIVE_PERFORMANCE[result][hull_tons]
                 result_tons = DRIVE_COSTS[result].jump_tons
                 for code in legal:
@@ -1799,15 +1784,13 @@ def test_fit_jump_drive_c3_is_the_lightest_at_its_rating_over_every_hull_and_bud
 
 
 def test_fit_jump_drive_c4_highest_affordable_rating_wins_over_every_hull_and_budget():
-    from cetools.engine.ships.generator import _fit_jump_drive
-
     for hull_tons in HULLS:
         legal = [code for code, ratings in DRIVE_PERFORMANCE.items() if hull_tons in ratings]
         lowest_rating = min(DRIVE_PERFORMANCE[code][hull_tons] for code in legal)
         for drawn_code in legal:
             ceiling = DRIVE_PERFORMANCE[drawn_code][hull_tons]
             for budget in _FIT_SWEEP_BUDGETS:
-                result = _fit_jump_drive(hull_tons, drawn_code, budget, 0.0)
+                result = _fit_jump_drive(hull_tons, drawn_code, TonnageLedger(budget), 0.0)
                 result_rating = DRIVE_PERFORMANCE[result][hull_tons]
                 affordable = [
                     DRIVE_PERFORMANCE[code][hull_tons]
@@ -1827,19 +1810,15 @@ def test_fit_jump_drive_c4_highest_affordable_rating_wins_over_every_hull_and_bu
 
 
 def test_fit_jump_drive_c5_starved_hull_falls_back_to_the_lowest_rated_legal_drive():
-    from cetools.engine.ships.generator import _fit_jump_drive
-
-    assert _fit_jump_drive(100, "A", 5.0, 0.0) == "A"
+    assert _fit_jump_drive(100, "A", TonnageLedger(5.0), 0.0) == "A"
 
 
 def test_fit_jump_drive_c5_zero_budget_falls_back_to_the_lightest_lowest_rated_drive():
-    from cetools.engine.ships.generator import _fit_jump_drive
-
     for hull_tons in HULLS:
         legal = [code for code, ratings in DRIVE_PERFORMANCE.items() if hull_tons in ratings]
         drawn_code = max(legal, key=lambda code: DRIVE_PERFORMANCE[code][hull_tons])
 
-        result = _fit_jump_drive(hull_tons, drawn_code, 0.0, 0.0)
+        result = _fit_jump_drive(hull_tons, drawn_code, TonnageLedger(0.0), 0.0)
 
         lowest_rating = min(DRIVE_PERFORMANCE[code][hull_tons] for code in legal)
         lightest_at_lowest = min(
@@ -1850,14 +1829,12 @@ def test_fit_jump_drive_c5_zero_budget_falls_back_to_the_lightest_lowest_rated_d
 
 
 def test_fit_jump_drive_c6_never_raises_for_any_input_satisfying_the_preconditions():
-    from cetools.engine.ships.generator import _fit_jump_drive
-
     for hull_tons in HULLS:
         for drawn_code, ratings in DRIVE_PERFORMANCE.items():
             if hull_tons not in ratings:
                 continue
             for budget in (0.0, 1.0, 50.0, 10_000.0):
-                _fit_jump_drive(hull_tons, drawn_code, budget, 0.0)
+                _fit_jump_drive(hull_tons, drawn_code, TonnageLedger(budget), 0.0)
 
 
 # --- Phase 3, User Story 1: every generated starship can make at least one
@@ -2168,12 +2145,10 @@ def test_fr014_a_starved_hull_design_still_builds_within_its_hull():
     allows) up to its full rating. Every one of those designs must build and
     fit inside its hull.
     """
-    from cetools.engine.ships.generator import _fit_jump_drive
-
     for hull_tons in HULLS:
         legal = [code for code, ratings in DRIVE_PERFORMANCE.items() if hull_tons in ratings]
         top = max(legal, key=lambda code: DRIVE_PERFORMANCE[code][hull_tons])
-        fallback = _fit_jump_drive(hull_tons, top, 0.0, 0.0)
+        fallback = _fit_jump_drive(hull_tons, top, TonnageLedger(0.0), 0.0)
         rating = DRIVE_PERFORMANCE[fallback][hull_tons]
 
         # The heaviest power plant the drive's rating floor admits, so the
@@ -2744,3 +2719,32 @@ def test_cargo_is_what_is_genuinely_left_once_the_crew_is_housed():
         ship = generate_ship(RandomRolls.seeded(seed)).ship
         assert ship.cargo_tons >= 0
         assert ship.tonnage_used + ship.cargo_tons == pytest.approx(ship.hull_tons)
+
+
+def test_the_jump_drive_is_priced_against_the_ledgers_own_berth_rule():
+    """A pinned stateroom count caps every berth, including the jump drive's.
+
+    `_fit_jump_drive` used to price the engineers' berths with arithmetic of
+    its own, which ignored the ceiling a pinned count puts on reservation. A
+    referee who pinned zero was charged four tons for a berth the ledger had
+    already declined to reserve, and bought less jump range than they had paid
+    for. On a 100-ton hull with 56 tons free that is the difference between
+    Jump-2 and Jump-4.
+    """
+    unpinned = _fit_jump_drive(100, "B", TonnageLedger(56.0), 0.0)
+    pinned_zero = _fit_jump_drive(100, "B", TonnageLedger(56.0, berth_limit=0), 0.0)
+
+    assert unpinned == "A"
+    assert pinned_zero == "B"
+
+
+def test_pinning_zero_staterooms_reserves_no_berth_anywhere():
+    """The whole of "a deliberate zero is respected": not one berth is held
+    back, so the ship is the one that would have been built before
+    accommodation was reserved at all."""
+    for seed in range(200):
+        result = generate_ship(
+            RandomRolls.seeded(seed), constraints=DesignConstraints(staterooms=0)
+        )
+        assert result.ship.design.staterooms == 0, f"seed {seed}"
+        assert [entry.field for entry in result.unmet] == [], f"seed {seed}"
