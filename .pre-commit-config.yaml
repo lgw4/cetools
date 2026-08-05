@@ -1,4 +1,8 @@
-exclude: '^\.specify/'
+# Scoped to the vendored Spec Kit Python, not the whole tree. A blanket
+# `^\.specify/` excluded every file under it, so a commit touching only
+# .specify/memory/constitution.md matched no hook at all and pre-commit skipped
+# the pytest and docs hooks too, pushing past the gate silently.
+exclude: '^\.specify/scripts/python/'
 repos:
   - repo: local
     hooks:
