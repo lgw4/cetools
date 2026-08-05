@@ -27,6 +27,12 @@ repos:
         entry: uv run flake8
         language: system
         types: [python]
+        # flake8's own extend-exclude only filters directory expansion, not
+        # filenames passed on the command line, and pre-commit passes filenames.
+        # A hook-level exclude is the only thing that skips the vendored Spec Kit
+        # Python here. Kept narrow, and hook-level rather than top-level so a
+        # commit touching only these files still runs pytest and docs.
+        exclude: '^\.specify/(scripts|extensions/git/scripts)/python/'
         pass_filenames: true
         stages: [pre-push]
 

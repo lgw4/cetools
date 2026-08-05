@@ -1,3 +1,8 @@
 [flake8]
 max-line-length = 99
 extend-ignore = E203
+# Vendored Spec Kit Python, upstream's to format. This covers directory
+# expansion only (`flake8 .`); flake8 has no --force-exclude, so filenames
+# passed explicitly slip through and the pre-push gate needs the matching
+# hook-level exclude in .pre-commit-config.yaml as well.
+extend-exclude = .specify/scripts/python,.specify/extensions/git/scripts/python
