@@ -88,7 +88,7 @@ uv run isort . && uv run black . && uv run flake8 src tests && uv run pytest && 
 All five must pass, and the pre-push hooks run all five. `pytest` includes
 coverage measurement; the suite fails if `src/cetools` coverage drops below 85%.
 
-`scripts/check_docs.py` is the only thing that tests the docs, which is why it exists: docs drift faster than code and nothing else notices. It checks that every backticked symbol in the maintained prose resolves in the package, that the README's Python examples still run, that the module map above names every engine module, and that dashes are tight.
+`scripts/check_docs.py` is the only thing that tests the docs, which is why it exists: docs drift faster than code and nothing else notices. It checks that every backticked symbol in the maintained prose resolves in the package, that the README's Python examples still run, that the module map above names every engine module, that dashes are tight, and that spelling is American English.
 
 To run a single test file without coverage enforcement:
 
@@ -98,47 +98,24 @@ uv run pytest tests/test_foo.py --no-cov
 
 ## Engineering principles
 
-**SRD fidelity.** The [Cepheus Engine SRD](https://evolvedexperiment.github.io/cepheus-srd/index.html)
-is the authority on game rules. Tables are transcribed as data, separate from the code
-that reads them, and verified against the SRD text rather than against memory or another
-implementation. Any deliberate departure from the SRD must be a named, selectable policy
-rather than a silent default—house rules live behind `rules.py`'s `HOUSE` versus `SRD`
-value, and every departure must be documented in user-facing prose where a referee will
-see it. An undocumented divergence from the SRD is a defect.
+The project constitution, `.specify/memory/constitution.md`, is the authority on
+engineering principles and states each one in full:
 
-**Test-first.** Strict red-green TDD: write a test that specifies the desired behavior,
-run it and observe it fail for the expected reason, write the minimum implementation
-that makes it pass, then run the suite green and refactor with the suite still green.
-Skipping the observed-failure step is a violation even when the implementation is
-obvious—a test that passes before the implementation exists is not evidence. Tests
-mirror the source layout (`src/cetools/engine/foo.py` → `tests/test_foo.py`).
+- **I. Cepheus Engine SRD Fidelity.** The SRD is the authority on game rules; every
+  departure is a named, documented policy.
+- **II. Library-First, CLI-Thin.** The engine is the deliverable; the CLI is an I/O
+  binding over it and holds no game logic.
+- **III. Test-First (non-negotiable).** Strict red-green TDD, including observing the
+  failure before writing the implementation.
+- **IV. Deterministic by Construction.** Every roll goes through the `Rolls` seam, so the
+  same seed and inputs produce the same output.
+- **V. Simplicity.** YAGNI at every level.
 
-**Determinism.** Every random decision the rules make passes through the single `Rolls`
-seam in `src/cetools/engine/rolls.py` and is named in `RollName`; direct use of the
-`random` module outside that seam is prohibited in engine code. Given the same seed and
-inputs, generation produces identical output—this is a correctness property rather than
-a testing convenience, since it is what makes `--seed` meaningful. Tests script rolls
-with `ScriptedRolls` rather than seeding `RandomRolls` and asserting on whatever emerges.
+Versioning (CalVer in YYYY.0M.INC1 format, and why the PEP 440 unpadded form in `uv.lock` is not
+a mistake) is covered there too, under Versioning.
 
-A scripted check answers with an outcome and reads neither the DM nor the target, so
-scripting alone cannot tell whether a caller handed the seam the right ones—a career
-surviving on the wrong characteristic against the wrong number reads exactly the same.
-Where the *arguments* are the rule under test, wrap the adapter in `RecordingRolls` and
-assert on the `Draw` records it keeps: `ScriptedRolls` says what the dice said,
-`RecordingRolls` says what the engine asked.
-
-**Simplicity.** YAGNI applies at every level: three similar lines are preferable to a
-premature abstraction, and a concrete function is preferable to a configurable one.
-Design for the requirement in hand, not a hypothetical successor.
-
-**Versioning.** The package version in `pyproject.toml` and release tags use CalVer in
-YYYY.0M.INC1 format (YYYY the year, 0M the zero-padded month, INC1 an increment
-resetting to 1 each month)—e.g. `2026.07.1`, `2026.07.2`, `2026.08.1`. Version numbers
-carry no compatibility semantics; breaking changes are communicated in the changelog and
-commit history. PEP 440 normalization strips the month's leading zero, so `2026.07.1`
-and `2026.7.1` are the same version and both appear correctly—`2026.07.1` in
-`pyproject.toml`, `2026.7.1` in `uv.lock` and from Python's package metadata. This is
-expected and must not be "corrected" by unpadding the authored form.
+Read the constitution before your first substantive change. Where this file and the
+constitution disagree, the constitution governs.
 
 ## Adding a new career
 
