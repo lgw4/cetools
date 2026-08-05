@@ -32,7 +32,7 @@ show_missing = true
 [tool.black]
 line-length = 99
 target-version = ["py313"]
-force-exclude = '\.specify/'
+force-exclude = '\.specify/scripts/python/'
 
 [tool.flake8]
 max-line-length = 99
@@ -41,7 +41,7 @@ max-line-length = 99
 profile = "black"
 line_length = 99
 src_paths = ["src", "tests"]
-extend_skip = [".specify"]
+extend_skip_glob = ["*/.specify/scripts/python/*", ".specify/scripts/python/*"]
 
 [dependency-groups]
 dev = [
