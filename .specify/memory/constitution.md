@@ -32,12 +32,13 @@ Modified governance:
 Artifacts migrated with this amendment:
   - CONTRIBUTING.md: the "Engineering principles" section is replaced by a pointer here, ending
     the duplication introduced when this file was deleted.
+  - AGENTS.md: the quality gate and the pre-push hook list are corrected to five commands (the
+    gate command omitted isort; the hook list omitted the docs check), and a Principles section
+    now points here.
   - pyproject.toml: unchanged at 2026.07.1. Artifacts share a versioning *scheme*, not a version
     number; no released behavior changed.
 
-Follow-up TODOs:
-  - AGENTS.md's "PR instructions" section describes the gate as four commands and lists isort
-    separately under Hooks. The gate is five commands. Reconcile.
+Follow-up TODOs: None.
 -->
 
 # cetools Constitution
