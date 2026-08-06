@@ -8,9 +8,6 @@ metadata:
   source: "templates/commands/constitution.md"
 user-invocable: true
 disable-model-invocation: false
-context: fork
-agent: speckit-opus
-background: false
 ---
 
 
