@@ -7,6 +7,9 @@ metadata:
   source: "templates/commands/converge.md"
 user-invocable: true
 disable-model-invocation: false
+context: fork
+agent: speckit-opus
+background: false
 ---
 
 

@@ -8,6 +8,9 @@ metadata:
   source: "templates/commands/taskstoissues.md"
 user-invocable: true
 disable-model-invocation: false
+context: fork
+agent: git-ops
+background: false
 ---
 
 

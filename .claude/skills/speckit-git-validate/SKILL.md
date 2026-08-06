@@ -5,6 +5,9 @@ compatibility: Requires spec-kit project structure with .specify/ directory
 metadata:
   author: github-spec-kit
   source: git:commands/speckit.git.validate.md
+context: fork
+agent: git-ops
+background: false
 ---
 
 # Validate Feature Branch

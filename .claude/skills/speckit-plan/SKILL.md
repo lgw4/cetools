@@ -8,6 +8,9 @@ metadata:
   source: "templates/commands/plan.md"
 user-invocable: true
 disable-model-invocation: false
+context: fork
+agent: speckit-opus
+background: false
 ---
 
 

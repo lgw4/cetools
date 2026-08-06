@@ -5,6 +5,9 @@ compatibility: Requires spec-kit project structure with .specify/ directory
 metadata:
   author: github-spec-kit
   source: git:commands/speckit.git.remote.md
+context: fork
+agent: git-ops
+background: false
 ---
 
 # Detect Git Remote URL
