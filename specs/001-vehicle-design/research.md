@@ -30,8 +30,12 @@ The count and the breakdown are exactly right; only the chapter attribution is w
 and the spec is correct to exclude them: four of the five need the over-20-ton rules.
 
 **Decision**: read every "Chapter 1" in the spec as "the Vehicle Design System construction rules"
-where it means the rules, and as "Chapters 2, 3, 4 and 6" where it means the examples. Suggest a
-one-line spec amendment; nothing in the plan depends on the wrong attribution.
+where it means the rules, and as "Chapters 2, 3, 4 and 6" where it means the examples. Nothing in
+the plan depended on the wrong attribution.
+
+**Resolved** in the pre-tasks checklist pass: User Story 2 and FR-021 now name the correct chapters.
+The remaining "Chapter 1" references in the spec all mean the construction chapter, which is what
+Chapter 1 is, and are correct as written.
 
 ### C-002: the discount does not cover fuel or ammunition
 
@@ -131,14 +135,31 @@ single source of truth and here Chapter 1 contradicts itself:
    H → J 28,150.
 6. **Folding Wings/Rotors (TL3)** has a prose entry and no row in Additional Components.
 7. **Ordinance bay, Torpedo Nuclear Heavy**: truncated in the source HTML.
+8. **Construction time multiplier**: the prose says to multiply base construction hours "by the
+   amount of **additional** armor the vehicle will possess", and its own worked example in the next
+   sentence multiplies by a **total** of 12 Armor (90 × 12 = 1080). Two readings of the same rule,
+   one sentence apart. Taking "additional" literally also makes an unarmored vehicle take zero
+   hours to build.
+9. **The description template carries four starship slots**: the universal vehicle description
+   format includes "tons allocated for fire control", an "Installed on the hardpoints are" sentence
+   duplicating the weapon-points slot above it, "[Number of Screens Installed] screens" and
+   "[Number of Small Craft Hangers] small craft hangars". None is a vehicle concept. The screens
+   sentence still reads "This **ship** has", which is the tell that the template was copied from
+   the starship description format and incompletely edited.
 
 **Decision**: transcribe what the table prints, except where the table contradicts prose in the
 same chapter, in which case take the prose and record a divergence. That gives: Drive Code D takes
 the fuel table's 0.75; Primitive controls take TL2; Wet Bar takes 1.5 spaces at Cr2,000; Folding
 Wings gets a row from its prose entry. Sensors max range and chassis H price are transcribed as
 printed, because nothing in the chapter contradicts them and "looks like a typo" is not a source.
-Every one of these seven goes on `DIVERGENCES.md`, which therefore has a rules section as well as a
-worked-examples section.
+Defect 8 takes the worked example's reading—total armor, with a floor of one so an unarmored
+vehicle takes its base hours—because the example is the only place the rule is shown resolved.
+Defect 9 omits the four slots, there being nothing to render into them.
+
+Every one of these nine goes on `DIVERGENCES.md`, which therefore has a rules section as well as a
+worked-examples section. Defects 8 and 9 were found during the pre-tasks checklist pass rather than
+in the original Phase 0 sweep; FR-017a was added to the spec in the same pass to give this whole
+class a requirement to hang from, which it previously lacked.
 
 **Alternative rejected**: transcribing every printed value verbatim and letting the contradictions
 stand. A table that cannot produce a number is not transcription, and FR-003 requires the tables

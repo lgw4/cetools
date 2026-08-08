@@ -169,11 +169,12 @@ The three corrections, because they matter to whoever reads the spec next:
   its spaces column does not balance, so cetools prints 29.68 spaces of cargo where the book prints
   24.57.
 
-The decision with the widest blast radius is **R-003**: Chapter 1 contradicts *itself* in seven
-places, which FR-017 does not anticipate because it names Chapter 1 as the single source of truth.
-The rule adopted is to transcribe what the table prints unless prose in the same chapter contradicts
-it, in which case take the prose and record the divergence. That gives `DIVERGENCES.md` a rules
-section alongside its worked-examples section.
+The decision with the widest blast radius is **R-003**: Chapter 1 contradicts *itself* in nine
+places. FR-017 did not anticipate this, because it named Chapter 1 as the single source of truth;
+the pre-tasks checklist pass added **FR-017a** to govern the case. The rule adopted is to transcribe
+what the table prints unless prose in the same chapter contradicts it, in which case take the prose
+and record the divergence. That gives `DIVERGENCES.md` a rules section alongside its worked-examples
+section, and a generation-policy section besides (FR-020).
 
 ## Phase 1: Design and Contracts
 
