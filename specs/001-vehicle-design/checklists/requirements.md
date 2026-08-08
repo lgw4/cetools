@@ -34,8 +34,8 @@
 - All four of the decisions brief's open questions are resolved. Three were answered by the author
   on 2026-08-05: armaments nest mount → weapon → magazine (FR-015); divergences live on a
   documentation page of their own, brought inside the docs check (FR-020, FR-020a); the locomotion
-  constraint accepts both propulsion table names and coarse aliases (FR-026a). The fourth — whether
-  generation needs an unmet-constraint report — is resolved by assumption in favor of reporting
+  constraint accepts both propulsion table names and coarse aliases (FR-026a). The fourth—whether
+  generation needs an unmet-constraint report—is resolved by assumption in favor of reporting
   (FR-032), on the grounds that a non-interactive command has no other way to surface the conflict.
 - FR-020a is the only requirement that changes the shared quality gate. Flagged in Dependencies so
   planning does not treat it as incidental.
