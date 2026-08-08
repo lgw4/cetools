@@ -33,8 +33,8 @@ Single project, library-first: `src/cetools/engine/vehicles/` for the domain,
 somewhere to land.
 
 - [ ] T001 Create the vehicles package directory with a placeholder `src/cetools/engine/vehicles/__init__.py` containing a module docstring and an empty `__all__: tuple[str, ...] = ()`, plus an empty `src/cetools/engine/vehicles/catalog/` directory
-- [ ] T002 Add a failing test in `tests/test_rolls.py` asserting the seventeen `VEHICLE_*` members exist on `RollName` with the exact snake-case values from research R-009 (`VEHICLE_ROLE`, `VEHICLE_TECH_LEVEL`, `VEHICLE_CHASSIS`, `VEHICLE_CONFIGURATION`, `VEHICLE_ARMOR`, `VEHICLE_PROPULSION`, `VEHICLE_POWER_PLANT`, `VEHICLE_DRIVE_CODE`, `VEHICLE_CONTROLS`, `VEHICLE_COMMUNICATIONS`, `VEHICLE_SENSORS`, `VEHICLE_COMPUTER`, `VEHICLE_ACCOMMODATION`, `VEHICLE_COMPONENT`, `VEHICLE_MOUNT`, `VEHICLE_WEAPON`, `VEHICLE_AMMUNITION`)
-- [ ] T003 Add the seventeen `VEHICLE_*` members to the `RollName` `StrEnum` in `src/cetools/engine/rolls.py`, grouped as a block after the `SHIP_*` members, turning T002 green (FR-030)
+- [ ] T002 Add a failing test in `tests/test_rolls.py` asserting the nineteen `VEHICLE_*` members exist on `RollName` with the exact snake-case values from research R-009 (`VEHICLE_ROLE`, `VEHICLE_TECH_LEVEL`, `VEHICLE_CHASSIS`, `VEHICLE_CONFIGURATION`, `VEHICLE_ARMOR`, `VEHICLE_PROPULSION`, `VEHICLE_POWER_PLANT`, `VEHICLE_DRIVE_CODE`, `VEHICLE_FUEL`, `VEHICLE_CONTROLS`, `VEHICLE_COMMUNICATIONS`, `VEHICLE_SENSORS`, `VEHICLE_COMPUTER`, `VEHICLE_CREW`, `VEHICLE_ACCOMMODATION`, `VEHICLE_COMPONENT`, `VEHICLE_MOUNT`, `VEHICLE_WEAPON`, `VEHICLE_AMMUNITION`), and asserting the count, so a name added later without a decision to draw it fails here
+- [ ] T003 Add the nineteen `VEHICLE_*` members to the `RollName` `StrEnum` in `src/cetools/engine/rolls.py`, grouped as a block after the `SHIP_*` members and ordered as the build order draws them, turning T002 green (FR-030)
 
 **Checkpoint**: `uv run pytest tests/test_rolls.py --no-cov` green; `import cetools.engine.vehicles` succeeds.
 
@@ -42,8 +42,9 @@ somewhere to land.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-**Purpose**: The forty transcribed tables, the prose primitives, the record types and the design-file
-parser. Everything in every user story reads from these.
+**Purpose**: The thirty-seven transcribed table constants, the six prose option families, the prose
+primitives, the record types and the design-file parser. Everything in every user story reads from
+these.
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
@@ -54,9 +55,11 @@ the SRD text, observe it red, then transcribe.
 
 ### Row types and the first tables
 
-- [ ] T004 Write failing tests in `tests/test_vehicle_tables.py` for the chassis and configuration group: `CHASSIS` (24 rows, keys `"1"`–`"9"` and `"A"`–`"Q"` with no I and no O, columns tons, spaces, price, build hours, size, example) and `CONFIGURATIONS` (closed ×1, open ×0.9), including the assertion that `CHASSIS` stops at 20 tons
+- [ ] T004 Write failing tests in `tests/test_vehicle_tables.py` for the chassis and configuration group: `CHASSIS` (24 rows, keys `"1"`–`"9"` and `"A"`–`"Q"` with no I and no O, columns tons, spaces, price, build hours, size, example) and `CONFIGURATIONS` (closed ×1, open ×0.9), including the assertion that `CHASSIS` stops at 20 tons and that every row's transcribed `spaces` equals its `tons` × 12, which is what makes FR-005's "computed at twelve to the ton" and the printed column the same number rather than two sources; record any row where they disagree as an FR-017a divergence instead of silently preferring one
 - [ ] T005 Create `src/cetools/engine/vehicles/tables.py` with the `ChassisRow` and `ConfigurationRow` frozen dataclasses and the `CHASSIS` and `CONFIGURATIONS` annotated module constants, each followed by a bare docstring naming its SRD table and key columns, no functions and no in-package imports (FR-003)
 - [ ] T006 Record the chassis code H transcription decision as a comment at the `CHASSIS` definition site in `src/cetools/engine/vehicles/tables.py`: Cr23,350 is transcribed as printed even though it breaks the F→G→J progression, because nothing in the chapter contradicts it (research R-003 defect 5, FR-017a)
+- [ ] T006a Write failing tests in `tests/test_vehicle_tables.py` for `SUBMERSIBLE_DIVE_DEPTH` (6 rows keyed by tech level, columns safe dive depth and crush depth), including the assertion that nothing in the package reads it, since it is transcribed only to satisfy FR-003's completeness clause
+- [ ] T006b Add `DiveDepthRow` and `SUBMERSIBLE_DIVE_DEPTH` to `src/cetools/engine/vehicles/tables.py` with a docstring recording that the table is watercraft-only, is transcribed because FR-003 requires watercraft rows ship and then be refused, and is read by nothing (FR-003, FR-013)
 
 ### Armor, structure, drives and fuel
 
@@ -85,14 +88,27 @@ the SRD text, observe it red, then transcribe.
 - [ ] T023 Write failing tests in `tests/test_vehicle_tables.py` for `ORDINANCE_BAY_WEAPONS` (12, six of them watercraft-only torpedo rows), `MISSILES` (10) and `ANTI_MISSILE_SYSTEMS` (9)
 - [ ] T024 Add `OrdinanceRow`, `MissileRow`, `AntiMissileRow` and their constants to `src/cetools/engine/vehicles/tables.py`, transcribing the truncated Torpedo Nuclear Heavy row as the source gives it and recording that at the definition site (research R-003 defect 7)
 
+### The six prose option families
+
+**Note**: these are the entries the chapter prints as definition lists rather than as tables
+(research R-001a). They are not optional extras: the Air/Raft is streamlined, three description
+slots render from them, and FR-013 refuses three configuration options by name, so nothing downstream
+works without them. One shared `OptionRow` carries all six, because they share a modifier shape.
+
+- [ ] T026a Write failing tests in `tests/test_vehicle_tables.py` for `OptionRow`: every modifier field defaults to the identity (`spaces` and every percentage 0, `speed_mult` 1.0, `agility_mod` 0, `max_selections` 1), so a row states only what the chapter states, and a zero-price zero-space row is legal because several entries change only a derived figure
+- [ ] T026b Write failing tests in `tests/test_vehicle_tables.py` for `CONFIGURATION_OPTIONS` (11) and `ARMOR_OPTIONS` (5), asserting Streamlined at +300% chassis price with `speed_mult` 5.0, Open Frame at −20%, the four Environmental Protection Systems priced per space of chassis, Wave-Piercing Hull at 5% of chassis spaces rounded up, Self-Sealing and Reflec priced per ton, and Reinforced Hull and Reinforced Structure carrying `max_selections=2` per their own prose
+- [ ] T026c Add `OptionRow`, `CONFIGURATION_OPTIONS` and `ARMOR_OPTIONS` to `src/cetools/engine/vehicles/tables.py`, each constant followed by a bare docstring naming the SRD section it is transcribed from and recording that the section is prose rather than a table (FR-003a)
+- [ ] T026d Write failing tests in `tests/test_vehicle_tables.py` for `DRIVE_OPTIONS` (11), `CONTROL_OPTIONS` (1), `COMPUTER_OPTIONS` (1) and `ARMAMENT_OPTIONS` (5), asserting Increased Agility at +50% chassis price with `agility_mod` +1 capped at three selections, Decreased Agility at −25% capped at two, that Extended Operational Environment Range is present in `DRIVE_OPTIONS`, and that Heavy and Light Turret Weapon are recorded as mutually exclusive
+- [ ] T026e Add `DRIVE_OPTIONS`, `CONTROL_OPTIONS`, `COMPUTER_OPTIONS` and `ARMAMENT_OPTIONS` to `src/cetools/engine/vehicles/tables.py`, recording at the `DRIVE_OPTIONS` site that Extended Operational Environment Range is relocated here from the Atmospheres and Aircraft section, where the chapter prints it four sections away from the drive options it belongs with (FR-003a, FR-010)
+
 ### Special rules and the derived constants
 
 - [ ] T025 Write failing tests in `tests/test_vehicle_tables.py` for `LIFT_ENVELOPES` (4), `ANIMAL_GAITS` (4), `DRAFT_ANIMALS` (5) and `SAILING_SPEEDS` (3)
 - [ ] T026 Add `LiftEnvelopeRow`, `GaitRow`, `AnimalRow`, `SailingRow` and their constants to `src/cetools/engine/vehicles/tables.py`
 - [ ] T027 Write failing tests in `tests/test_vehicle_tables.py` for `LOCOMOTION_ALIASES`, asserting the nine aliases are exactly `grav`, `wheeled`, `tracked`, `rotor`, `jet`, `legged`, `rail`, `mole`, `non-powered`, that every alias resolves to at least one `PROPULSION` key (SC-010), and that no alias points at Screw Propeller or Sails
-- [ ] T028 Write failing tests in `tests/test_vehicle_tables.py` for `WATERCRAFT_ONLY`, asserting membership of the submersible, hydrofoil and wave-piercing configuration options, screw propeller and sails propulsion, the underwater sensor package, the six torpedo rows and floats/pontoons, and that every member resolves to a real row in its own table
+- [ ] T028 Write failing tests in `tests/test_vehicle_tables.py` for `WATERCRAFT_ONLY`, asserting membership of the submersible, hydrofoil and wave-piercing hull entries of `CONFIGURATION_OPTIONS`, screw propeller and sails in `PROPULSION`, the underwater package in `SENSORS`, the six torpedo rows of `ORDINANCE_BAY_WEAPONS` and floats/pontoons in `ADDITIONAL_COMPONENTS`, and that every member resolves to a real key in its own constant. That last assertion only became satisfiable once T026b transcribed the configuration options, three of the members having had no table to resolve against
 - [ ] T029 Add `LOCOMOTION_ALIASES: dict[str, tuple[str, ...]]` and `WATERCRAFT_ONLY: frozenset[str]` to `src/cetools/engine/vehicles/tables.py` (FR-013, FR-026a)
-- [ ] T030 Write a failing test in `tests/test_vehicle_tables.py` asserting the module defines exactly forty SRD tables and that `tables.py` contains no function or method definition, so FR-003's completeness is checkable against a count rather than at review
+- [ ] T030 Write a failing test in `tests/test_vehicle_tables.py` asserting three counts and one prohibition, so FR-003's and FR-003a's completeness is checkable against numbers rather than at review: exactly **37** SRD table constants covering the **38** in-scope tables of the chapter's 40 (the two Drive Performance tables having merged, and Missile Time to Impact and Missile To-Hit being the only exclusions, as play rules under FR-010); exactly **6** option-family constants holding **34** entries; and no function or method definition anywhere in `tables.py`. Name the two excluded tables in the test as a comment so a future reader sees that 38 is a decision and not an oversight
 - [ ] T031 Verify T030 green and run the mutation check from `quickstart.md` on three rows chosen from different groups: alter a value, confirm a test in `tests/test_vehicle_tables.py` fails, restore from a copy rather than with `git checkout`
 
 ### Prose, records and the design file
@@ -103,18 +119,19 @@ the SRD text, observe it red, then transcribe.
 - [ ] T035 Create `src/cetools/engine/vehicles/models.py` with those enums, importing from `tables` only
 - [ ] T036 Write failing tests in `tests/test_vehicle_models.py` for the component fits `ArmorFit`, `DriveFit`, `ComputerFit`, `AccommodationFit`, `ComponentFit` and `AmmunitionFit`: frozen, tuple collections defaulting to `()`, and a `ValueError` naming the offending value and the legal set for each vocabulary error
 - [ ] T037 Add those six component fits to `src/cetools/engine/vehicles/models.py`, each validated from `__post_init__` by a module-level `_validate_<name>` declared immediately above it
-- [ ] T038 Write failing tests in `tests/test_vehicle_models.py` for `WeaponFit` and `MountFit`: a weapon name must appear in one of the four weapon tables, ammunition is rejected outright for a weapon family with no `WEAPON_AMMUNITION` row, a weapon illegal in its mount kind is rejected by table membership, and a mount with no weapons is legal (FR-015, FR-016)
-- [ ] T039 Add `WeaponFit` and `MountFit` to `src/cetools/engine/vehicles/models.py`, with a comment recording that FR-015 is satisfied structurally: a magazine is a field of a weapon and a weapon is a field of a mount, so neither is expressible alone
-- [ ] T040 Write failing tests in `tests/test_vehicle_models.py` for `VehicleDesign`: frozen, `tech_level` and `chassis` required with no default, every other field defaulted, and no `cargo` field at any level (FR-006, FR-011)
-- [ ] T041 Add `VehicleDesign` to `src/cetools/engine/vehicles/models.py` with the twenty-four fields listed in `data-model.md` Layer 2
-- [ ] T042 Write failing tests in `tests/test_vehicle_models.py` for `LineItem` (`name`, `spaces`, `price`, `discountable=True`) and `Vehicle`, asserting `Vehicle` is frozen and carries every derived field in `data-model.md` Layer 3
+- [ ] T038 Write failing tests in `tests/test_vehicle_models.py` for `WeaponFit` and `MountFit`: a weapon name must appear in one of the four weapon tables, ammunition is rejected outright for a weapon family with no `WEAPON_AMMUNITION` row, a weapon illegal in its mount kind is rejected by table membership, a mount with no weapons is legal, and every entry of `WeaponFit.options` must key into `ARMAMENT_OPTIONS` with Heavy and Light Turret Weapon rejected together (FR-003a, FR-015, FR-016)
+- [ ] T039 Add `WeaponFit` and `MountFit` to `src/cetools/engine/vehicles/models.py`, with a comment recording that FR-015 is satisfied structurally: a magazine is a field of a weapon and a weapon is a field of a mount, so neither is expressible alone. Armament options hang off `WeaponFit` rather than off the design, because the chapter's armament options modify a weapon's price, RoF and damage rather than the vehicle
+- [ ] T040 Write failing tests in `tests/test_vehicle_models.py` for `VehicleDesign`: frozen, `tech_level` and `chassis` required with no default, every other field defaulted, no `cargo` field at any level, and each of the four option tuples (`configuration_options`, `armor_options`, `drive_options`, `control_options`) rejecting an entry that is not a key of its family's constant with a `ValueError` naming the option and the legal set (FR-003a, FR-006, FR-011)
+- [ ] T041 Add `VehicleDesign` to `src/cetools/engine/vehicles/models.py` with the twenty-six fields listed in `data-model.md` Layer 2, and a comment at `standard_design` recording that it is deliberately one flag for three effects and that there is no second `mass_produced` field, because the chapter defines base construction time as being for mass production of a standard design (FR-007, FR-008)
+- [ ] T042 Write failing tests in `tests/test_vehicle_models.py` for `LineItem` (`name`, `spaces`, `price`, `discountable=True`) and `Vehicle`, asserting `Vehicle` is frozen and carries every derived field in `data-model.md` Layer 3, including `design_fee` (FR-007)
 - [ ] T043 Add `LineItem` and `Vehicle` to `src/cetools/engine/vehicles/models.py`
-- [ ] T044 Write failing tests in `tests/test_vehicle_design.py` for `loads_design`: shape-only validation, `malformed TOML: {detail}` on a parse error, `unknown key(s) in [[mounts.weapons]]: ['ammo']` naming the TOML-literal path, wrong types and unknown enum strings as `ValueError`, and a well-formed but rules-illegal design loading cleanly
+- [ ] T044 Write failing tests in `tests/test_vehicle_design.py` for `loads_design`: shape-only validation, `malformed TOML: {detail}` on a parse error, `unknown key(s) in [[mounts.weapons]]: ['ammo']` naming the TOML-literal path, wrong types and unknown enum strings as `ValueError`, a well-formed but rules-illegal design loading cleanly, and the four option families reading as bare top-level arrays of strings rather than as TOML tables, with armament options read from `[[mounts.weapons]].options` (contracts/design-file.md)
 - [ ] T045 Create `src/cetools/engine/vehicles/design.py` with `loads_design`, `load_design` and the per-table `_reject_unknown(keys, allowed, path)` guard, propagating `OSError` unwrapped from `load_design`
 - [ ] T046 Write failing tests in `tests/test_vehicle_design.py` for `dump_design`: a fixed canonical key order, anything equal to its model default omitted, every bare top-level scalar written before the first table header, and `loads_design(dump_design(d)) == d` over a design exercising nested mounts, weapons and ammunition
 - [ ] T047 Add `dump_design` to `src/cetools/engine/vehicles/design.py`, turning T046 green and establishing User Story 4's round-trip guarantee before anything depends on it
+- [ ] T047a Write a failing test in `tests/test_vehicle_models.py` (or a small `tests/test_vehicle_imports.py` if it reads better) walking every module under `src/cetools/engine/vehicles/` with `ast` and asserting none of them imports from `cetools.engine.ships` or from `cetools.cli`, and that the in-domain direction matches `contracts/library.md`, where `tables`, `prose` and `published` import nothing in-package. FR-001 is a MUST that until now was carried only as an instruction to whoever typed the import (FR-001, FR-002)
 
-**Checkpoint**: forty tables transcribed and tested, records validated, design files round-trip. User story work can begin.
+**Checkpoint**: thirty-seven table constants and six option constants transcribed and tested, records validated, design files round-trip, the domain boundary enforced by a test. User story work can begin.
 
 ---
 
@@ -131,20 +148,22 @@ choices. No other story needs to exist.
 
 - [ ] T048 [P] [US1] Write failing tests in `tests/test_vehicle_builder.py` for the build order of FR-004: chassis and spaces at twelve to the displacement ton, configuration, armor, propulsion and power plant with their performance codes, fuel, controls, communications, sensors, computer and software, crew and accommodations, additional components, armaments, cargo as the remainder, then price and build time, asserting that a design breaking several rules reports the first in build order
 - [ ] T049 [P] [US1] Write failing tests in `tests/test_vehicle_builder.py` for the validation rules: a missing `tech_level` fails saying tech level is required (FR-011); a component above the vehicle's tech level fails naming the component, its TL and the vehicle's (FR-012, SC-004); a design over 20 tons fails saying vehicles over 20 tons are not yet supported and says nothing about watercraft; a watercraft-only component fails naming watercraft as the missing capability and naming the offending component (FR-013, SC-005); and a spaces overage fails identifying the overage rather than reporting negative cargo (FR-014)
-- [ ] T050 [P] [US1] Write failing tests in `tests/test_vehicle_builder.py` for the arithmetic edge cases: fractional space consumption never rounded per component (FR-005), cargo derived as the unconsumed remainder (FR-006), a negative-price component reducing the total rather than being floored at zero (FR-009), an unarmored vehicle taking its chassis base hours because the armor multiplier floors at one (FR-008), a design with no propulsion at all building with performance codes that reflect it, an empty mount costing what an empty mount costs, and two designs differing only in the discount election differing only in final price
+- [ ] T050 [P] [US1] Write failing tests in `tests/test_vehicle_builder.py` for the arithmetic edge cases: fractional space consumption never rounded per component (FR-005), cargo derived as the unconsumed remainder (FR-006), a negative-price component reducing the total rather than being floored at zero (FR-009), an unarmored vehicle taking its chassis base hours because the armor multiplier floors at one (FR-008), a design with no propulsion at all building with performance codes that reflect it, and an empty mount costing what an empty mount costs
 - [ ] T051 [P] [US1] Write failing tests in `tests/test_vehicle_builder.py` for the discount: fuel and ammunition line items carry `discountable=False`, the 10% multiplier applies only to discountable lines, and the exempt lines are added at full price afterward (FR-007, research C-002)
-- [ ] T052 [P] [US1] Write failing tests in `tests/test_vehicle_description.py` for `render_description`: every slot FR-025 lists is filled, the paragraph contains no fire-control tonnage, no hardpoints sentence, no screens and no small craft hangars (FR-025b, SC-012), and every figure the paragraph prints is reachable without the component table
-- [ ] T053 [P] [US1] Write failing tests in `tests/test_vehicle_description.py` for `render_component_table`: every line item with its spaces and price, discountable lines distinguished from exempt ones, then the summed price, the discount, the final price and the build time, with the lines summing to the printed price (FR-025a)
+- [ ] T051a [P] [US1] Write failing tests in `tests/test_vehicle_builder.py` for the standard-design election as **one flag with three effects** (FR-007, FR-008, research C-002a): two designs differing only in `standard_design` differ in final price, in `design_fee` and in `build_hours`, never in only one of the three; a standard design has `design_fee == 0.0` and base build hours; a new design pays 1% of the discounted total with a Cr100 floor, takes ten times the hours, and carries the fee as its own `discountable=False` line inside the printed price. Include the floor case, a design cheap enough that 1% is under Cr100
+- [ ] T051b [P] [US1] Write failing tests in `tests/test_vehicle_builder.py` for option pricing (FR-003a): a percentage-of-chassis-price option, a per-ton option, a per-space option and a flat-price option each priced correctly against the same chassis; Wave-Piercing Hull consuming 5% of chassis spaces rounded up; Streamlined multiplying base speed by 5; Reinforced Hull selected twice and rejected at three; an option naming no entry in its family rejected with the offending name and the legal set; and an option whose tech level exceeds the vehicle's rejected exactly as a component is (FR-012)
+- [ ] T052 [P] [US1] Write failing tests in `tests/test_vehicle_description.py` for `render_description`: every slot FR-025 lists is filled, including the three option slots (configuration options, drive options, and the options half of armor type, level and options) rendered from the FR-003a vocabularies, and the price slot printing the figure inclusive of the discount and the design fee as the template's own "(including discounts and fees)" requires; the paragraph contains no fire-control tonnage, no hardpoints sentence, no screens and no small craft hangars (FR-025b, SC-012); and every figure the paragraph prints is reachable without the component table
+- [ ] T053 [P] [US1] Write failing tests in `tests/test_vehicle_description.py` for `render_component_table`: every line item with its spaces and price, discountable lines distinguished from exempt ones, then the summed price, the discount, the design fee where one is charged, the final price and the build time, with the lines summing to the printed price and the fee appearing below the discount because it is charged on the discounted total (FR-025a, FR-007)
 - [ ] T054 [P] [US1] Write failing tests in the new `cetools vehicle` section of `tests/test_cli.py` for `build`: a valid design prints the paragraph on stdout and nothing else with exit 0; each failure path prints nothing to stdout, prints `str(exc)` verbatim to stderr and exits 1; an unreadable path reports `cannot read design file: {path}`; `--table` leaves the paragraph unchanged and appends the table
 
 ### Implementation for User Story 1
 
-- [ ] T055 [US1] Create `src/cetools/engine/vehicles/builder.py` with `build_vehicle(design) -> Vehicle`, one positional argument, no `rolls`, pure and deterministic, implementing FR-004's build order through chassis, configuration, armor and structure
-- [ ] T056 [US1] Extend `build_vehicle` in `src/cetools/engine/vehicles/builder.py` with propulsion, power plant, drive performance lookup, agility, base speed, cruise speed and range, and the lift-envelope sizing FR-010 keeps in scope
-- [ ] T057 [US1] Extend `build_vehicle` in `src/cetools/engine/vehicles/builder.py` with fuel, controls, drone controller, robot brain, communications, alternative communicator, sensors, computer, crew, accommodations and life support
-- [ ] T058 [US1] Extend `build_vehicle` in `src/cetools/engine/vehicles/builder.py` with additional components, trailers, mounts, weapons and ammunition, emitting one `LineItem` per component with `discountable=False` for fuel and ammunition
-- [ ] T059 [US1] Complete `build_vehicle` in `src/cetools/engine/vehicles/builder.py` with cargo as the remainder, the split discount of FR-007, and the build time of FR-008 taking total armor with a floor of one, recording the FR-017a decision in a comment at the build-time calculation (research R-003 defect 8)
-- [ ] T060 [US1] Add the scope gates to `src/cetools/engine/vehicles/builder.py`: a missing chassis row for the displacement raises the over-20-ton message, and a component in `WATERCRAFT_ONLY` raises the watercraft message naming the component, each message naming only the limit it actually hit (FR-013)
+- [ ] T055 [US1] Create `src/cetools/engine/vehicles/builder.py` with `build_vehicle(design) -> Vehicle`, one positional argument, no `rolls`, pure and deterministic, implementing FR-004's build order through chassis, configuration, configuration options, armor, armor options and structure, with one `_price_option(row, chassis)` helper resolving the four modifier shapes so no option is priced by a branch on its name (FR-003a)
+- [ ] T056 [US1] Extend `build_vehicle` in `src/cetools/engine/vehicles/builder.py` with propulsion, power plant, drive performance lookup, drive options and their agility and fuel-efficiency modifiers, agility, base speed with the option speed multipliers applied, cruise speed and range, and the lift-envelope sizing FR-010 keeps in scope
+- [ ] T057 [US1] Extend `build_vehicle` in `src/cetools/engine/vehicles/builder.py` with fuel, controls, control options, robot brain, drone controller, communications, alternative communicator, sensors, computer and its hardened option, crew, accommodations and life support
+- [ ] T058 [US1] Extend `build_vehicle` in `src/cetools/engine/vehicles/builder.py` with additional components, trailers, mounts, weapons, their armament options and ammunition, emitting one `LineItem` per component with `discountable=False` for fuel and ammunition
+- [ ] T059 [US1] Complete `build_vehicle` in `src/cetools/engine/vehicles/builder.py` with cargo as the remainder, the split discount of FR-007, the design fee of 1% of the discounted total floored at Cr100 when `standard_design` is false as its own non-discountable line, and the build time of FR-008 taking total armor with a floor of one and multiplying by ten when that same flag is false, recording at the build-time calculation both the FR-017a decision (research R-003 defect 8) and that the ×10 and the discount read one flag because the chapter's base construction time is stated to be for mass production of a standard design (research C-002a)
+- [ ] T060 [US1] Add the scope gates to `src/cetools/engine/vehicles/builder.py`: a missing chassis row for the displacement raises the over-20-ton message and says nothing about watercraft, and any component, propulsion type, sensor package or configuration option in `WATERCRAFT_ONLY` raises the watercraft message naming the offending entry and says nothing about the 20-ton limit. Each message names only the limit it actually hit; the spec's User Story 1 acceptance scenario 5 previously described a single combined message and was corrected in the analysis pass (FR-013, SC-005)
 - [ ] T061 [US1] Create `src/cetools/engine/vehicles/description.py` with `render_description(vehicle) -> str`, filling every FR-025 slot and omitting the four starship slots of FR-025b
 - [ ] T062 [US1] Add `render_component_table(vehicle) -> str` to `src/cetools/engine/vehicles/description.py` (FR-025a)
 - [ ] T063 [US1] Populate `src/cetools/engine/vehicles/__init__.py` with the building, design-file I/O and description exports and an explicit sorted `__all__`, no logic (contracts/library.md)
@@ -166,16 +185,26 @@ published stat blocks. Each figure either matches or appears in the divergence l
 
 **Ordering note**: the comparison test (T068) is written before any catalog design is authored, so
 authoring runs red to green against the published figures rather than being tuned until it passes
-(research R-007, and the explicit open item at the end of `research.md`).
+(research R-007, and the explicit open item at the end of `research.md`). Its pass condition is
+"matches, or is on the page," so the page has to exist first: T067b creates the skeleton, and
+T079/T080 fill it once the builds have surfaced what goes in it.
 
 ### Published figures and the comparison test
 
 - [ ] T067 [US2] Create `src/cetools/engine/vehicles/published.py` with `PUBLISHED: dict[str, dict[str, object]]`, transcribing all fifteen stat blocks figure by figure from the SRD text with the labels `spaces`, `cargo`, `price`, `discounted_price`, `prose_price`, `agility`, `speed`, `armor`, `crew` and `build_time`, omitting any figure its stat block does not print (FR-021a)
-- [ ] T068 [US2] Write the failing comparison test in `tests/test_vehicle_catalog.py`: build every catalog design, compare every `PUBLISHED` figure with `math.isclose` at an explicit stated tolerance, and fail on any mismatch not present on `DIVERGENCES.md` with the same published and produced values (FR-021a, SC-002)
-- [ ] T069 [US2] Write failing tests in `tests/test_vehicle_catalog.py` for `catalog_names()` returning exactly the fifteen sorted kebab-case names and `load_catalog(name)` raising `ValueError` naming the available names for an unknown name (FR-021b, FR-024a)
+- [ ] T067a [US2] Write failing tests in `tests/test_vehicle_published.py` for the transcription's own shape: exactly fifteen keys matching `catalog_names()`, every figure label drawn from the ten FR-021a allows and no other, every value a number, and no vehicle with an empty figure set. `published.py` is the one module that would otherwise have no mirrored test file (Principle III)
+- [ ] T067b [US2] Create `DIVERGENCES.md` at the repository root as a skeleton: the vehicles section with its three headings (worked examples, rules defects, generation policy), and the first two carrying an empty machine-readable table with the header row Vehicle, Figure, Published, cetools, Why. Nothing is filled here; this exists so T068 has a page to read (FR-020, FR-020b)
+- [ ] T068 [US2] Write the failing comparison test in `tests/test_vehicle_catalog.py`: build every catalog design, compare every `PUBLISHED` figure with `math.isclose` against a module-level `TOLERANCE = dict(rel_tol=0.0, abs_tol=0.01)`, one centicredit, sized to the Air/Raft's Cr104,614.51-against-Cr104,614.5 artifact and nothing larger (SC-002, research R-011); and fail on any mismatch not present on `DIVERGENCES.md` with the same published and produced values (FR-021a)
+- [ ] T069 [US2] Write failing tests in `tests/test_vehicle_catalog.py` for `catalog_names()` returning exactly the fifteen kebab-case names of `data-model.md` Layer 4 in sorted order, `afv-tracked` first and `van` last, and `load_catalog(name)` raising `ValueError` naming the available names for an unknown name (FR-021b, FR-024a)
 - [ ] T070 [US2] Create `src/cetools/engine/vehicles/catalog.py` with `catalog_names()` and `load_catalog(name)`, reading through `importlib.resources.files("cetools.engine.vehicles") / "catalog"` (research R-006)
 
 ### The fifteen authored designs
+
+**Note on form**: T104 asserts that every installed design round-trips through
+`dump_design(loads_design(text))` **unchanged**, so each file below must be written in `dump_design`
+canonical form: its key order, nothing that equals a model default, every bare top-level scalar and
+option array before the first table header. The practical way to satisfy that is to author freely,
+then run the file through `dump_design` once and commit the output.
 
 - [ ] T071 [US2] Author `src/cetools/engine/vehicles/catalog/air-raft.toml` and drive it green against its `PUBLISHED` figures, recording the four price divergences and the unbalanced spaces column as they surface (research C-003)
 - [ ] T072 [P] [US2] Author `src/cetools/engine/vehicles/catalog/biplane.toml`, `helicopter.toml` and `twin-engine-jet.toml`, the three Chapter 2 aircraft
@@ -187,10 +216,10 @@ authoring runs red to green against the published figures rather than being tune
 
 ### The divergence page and the widened gate
 
-- [ ] T078 [US2] Create `DIVERGENCES.md` at the repository root, opening with the vehicles material in three sections: worked examples (FR-017), rules defects (FR-017a) and generation policy (FR-026c), the first two as machine-readable tables with the columns Vehicle, Figure, Published, cetools and Why (FR-020, FR-020b)
+- [ ] T078 [US2] Fill in the prose of `DIVERGENCES.md` around the skeleton T067b created: what the page is for, why the three sections are three unlike things, why a divergence is errata rather than a house rule (FR-019), and a closing note that later domains open their own section below the vehicles one (FR-018, FR-020)
 - [ ] T079 [US2] Fill the rules-defects table in `DIVERGENCES.md` with the nine defects of research R-003, each naming the table, the printed value, the value cetools uses and why
 - [ ] T080 [US2] Fill the worked-examples table in `DIVERGENCES.md` with every divergence the fifteen builds surfaced, including the Air/Raft's four price figures and its 24.57-against-29.68 cargo (research C-003) and the discount-on-fuel divergence on every vehicle that carries fuel and elects the discount (research C-002)
-- [ ] T081 [US2] Write a failing test in `tests/test_check_docs.py` (or the existing docs-check test module) asserting that `check_docs.py` fails when a `cetools` column value in `DIVERGENCES.md` no longer matches what the builder produces, naming the vehicle and the figure
+- [ ] T081 [US2] Write a failing test in a **new** `tests/test_check_docs.py` asserting that `check_docs.py` fails when a `cetools` column value in `DIVERGENCES.md` no longer matches what the builder produces, naming the vehicle and the figure. There is no existing docs-check test module and `scripts/` is neither a package nor on `sys.path` (`pyproject.toml` sets `testpaths = ["tests"]` and no `pythonpath`), so load it explicitly with `importlib.util.spec_from_file_location("check_docs", ROOT / "scripts" / "check_docs.py")` rather than adding a package or widening the path for one test. Drive the failure by passing the parser a fixture string, not by editing the real page
 - [ ] T082 [US2] Add `"DIVERGENCES.md"` to `DOCS` in `scripts/check_docs.py` and add a `check_divergences()` function that parses the two machine-readable tables, rebuilds each named catalog vehicle and confirms the `cetools` column still matches, wiring it into `main()` (FR-020a, FR-020b, research R-007)
 - [ ] T083 [US2] Extend `NOT_CODE` in `scripts/check_docs.py` with any `DIVERGENCES.md` backtick that is an SRD table name rather than a package symbol, and confirm the punctuation and American-spelling checks now cover the new page
 
@@ -222,7 +251,7 @@ byte; run with different seeds and confirm the vehicles differ. Testable without
 ### Implementation for User Story 3
 
 - [ ] T091 [US3] Create `src/cetools/engine/vehicles/generator.py` with the `Role` enum, one `LoadoutProfile` per role, the `SpacesLedger`, `GenerationConstraints` with `UNCONSTRAINED`, the `ABSENT` sentinel, `UnmetConstraint` and `GenerationResult`, with a comment recording that roles are cetools generation policy and are never imported by `builder.py` (FR-026c)
-- [ ] T092 [US3] Implement `generate_vehicle(rolls=None, *, constraints=UNCONSTRAINED)` in `src/cetools/engine/vehicles/generator.py`, drawing the role first, then filling each category from that role's profile through the `Rolls` seam with up-front pool filtering rather than `bounded_retry` (research R-008, R-010)
+- [ ] T092 [US3] Implement `generate_vehicle(rolls=None, *, constraints=UNCONSTRAINED)` in `src/cetools/engine/vehicles/generator.py`, drawing the role first, then filling each category from that role's profile through the `Rolls` seam with up-front pool filtering rather than `bounded_retry` (research R-008, R-010). Include the two draws FR-026d's category list does not name but `VehicleDesign` still requires: endurance in weeks through `VEHICLE_FUEL` and crew count through `VEHICLE_CREW`. Draw no design options at all and leave the four option tuples empty, with a comment recording that this is FR-030's deliberate line rather than an omission
 - [ ] T093 [US3] Add `locomotion_names()` and `locomotion_aliases()` to `src/cetools/engine/vehicles/generator.py` and export the generation surface from `src/cetools/engine/vehicles/__init__.py` (FR-026a, contracts/library.md)
 - [ ] T094 [US3] Write a failing test in `tests/test_vehicle_generator.py` comparing unconstrained generation against `tests/data/baseline/vehicle_designs.json` keyed `"seed"` → `dump_design(...)` over 100 seeds, comparing serialized TOML rather than objects so a failure diffs readably (SC-003, research R-010)
 - [ ] T095 [US3] Generate and commit `tests/data/baseline/vehicle_designs.json`, then verify the test from T094 fails when one baseline entry is altered
@@ -255,9 +284,9 @@ description matches the one generation would have printed.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T105 Identify the table rows no catalog vehicle and no generation path exercises by instrumenting a run over `src/cetools/engine/vehicles/tables.py` that builds all fifteen catalog designs and generates across seeds, recording which rows were read, and write the unexercised remainder to a scratch file rather than estimating it (SC-006)
-- [ ] T106 Add direct tests in `tests/test_vehicle_tables.py` for every row identified in T105, then verify each by altering that row's values and confirming the new test fails (SC-006, and the mutation-testing practice `quickstart.md` names)
-- [ ] T107 [P] Add the vehicle section to `README.md` with runnable Python examples for `build_vehicle`, `render_description` and `load_catalog`, and CLI examples for the three commands
+- [ ] T105 Identify the table rows no catalog vehicle and no generation path exercises, and commit the answer as `tests/data/vehicles/unexercised_rows.json` rather than leaving it in a scratch file: it is SC-006's evidence, and a list nobody can re-read is not evidence. The mechanism, since a plain `dict` of frozen dataclasses records nothing: in a test-only helper, wrap each table constant in a `Mapping` subclass whose `__getitem__` records the key, monkeypatch the wrapped mappings into `tables` for the duration of one run, build all fifteen catalog designs and generate across 100 seeds, then subtract the recorded keys from the full key set per constant. Sort the output so the file diffs readably (SC-006)
+- [ ] T106 Add direct tests in `tests/test_vehicle_tables.py` for every row named in `tests/data/vehicles/unexercised_rows.json`, reading the fixture rather than restating the list, and assert the fixture is exhaustive so a row that stops being exercised is caught. Then verify by altering each such row's values and confirming the new test fails (SC-006, and the mutation-testing practice `quickstart.md` names)
+- [ ] T107 [P] Add the vehicle section to `README.md` with runnable Python examples for `build_vehicle`, `render_description` and `load_catalog`, CLI examples for the three commands, and the two locomotion vocabularies `--locomotion` accepts: all sixteen propulsion names and all nine coarse aliases, generated into the prose from `locomotion_names()` and `locomotion_aliases()` at authoring time rather than hand-listed, so the page and the tables cannot drift (FR-026a, SC-010)
 - [ ] T108 [P] Add `vehicles/` to the module map in `CONTRIBUTING.md`, listed by convention as `ships/` is
 - [ ] T109 [P] Update the docs-check description in `AGENTS.md` so it names `DIVERGENCES.md` as a fourth maintained document (FR-020a)
 - [ ] T110 Run every command in `quickstart.md` in order and confirm each expectation, including the deliberate `DIVERGENCES.md` figure change that must make `check_docs.py` fail by name
@@ -299,10 +328,13 @@ its own acceptance criteria once US1 exists, which is what the checkpoints asser
 ### Parallel Opportunities
 
 - **Phase 2**: T032 and T033 (`prose.py`) run parallel to the whole table sequence, being a different
-  file with no dependency on it. The table tasks T004–T031 are **not** parallel with each other:
-  they all write `tables.py` and `tests/test_vehicle_tables.py`.
-- **Phase 3**: the seven test tasks T048–T054 are all parallel, spanning three different test files.
-  The implementation tasks T055–T060 are sequential: they are one function in one file.
+  file with no dependency on it. The table tasks T004–T031, including T006a/T006b and T026a–T026e,
+  are **not** parallel with each other: they all write `tables.py` and
+  `tests/test_vehicle_tables.py`. T047a is parallel with everything in the phase, reading source
+  rather than writing it.
+- **Phase 3**: the nine test tasks T048–T054 plus T051a and T051b are all parallel, spanning three
+  different test files. The implementation tasks T055–T060 are sequential: they are one function in
+  one file.
 - **Phase 4**: T072–T076 are parallel, being five disjoint sets of TOML files. T071 is deliberately
   first and alone, because the Air/Raft is where the divergence machinery gets shaken out.
 - **Phase 5**: the five test tasks T086–T090 are parallel within one file only if written as separate
@@ -315,11 +347,13 @@ its own acceptance criteria once US1 exists, which is what the checkpoints asser
 ## Parallel Example: User Story 1
 
 ```bash
-# The seven US1 test tasks, all red before any implementation:
+# The nine US1 test tasks, all red before any implementation:
 Task: "T048 Build-order tests in tests/test_vehicle_builder.py"
 Task: "T049 Validation tests in tests/test_vehicle_builder.py"
 Task: "T050 Arithmetic edge-case tests in tests/test_vehicle_builder.py"
 Task: "T051 Discount tests in tests/test_vehicle_builder.py"
+Task: "T051a Standard-design flag and design-fee tests in tests/test_vehicle_builder.py"
+Task: "T051b Option-pricing tests in tests/test_vehicle_builder.py"
 Task: "T052 Description-slot tests in tests/test_vehicle_description.py"
 Task: "T053 Component-table tests in tests/test_vehicle_description.py"
 Task: "T054 CLI build tests in tests/test_cli.py"
@@ -342,8 +376,8 @@ Task: "T076 The tunnel boring machine in src/cetools/engine/vehicles/catalog/"
 
 ### MVP First (User Story 1 only)
 
-1. Phase 1: Setup — the package and the seventeen roll names
-2. Phase 2: Foundational — forty tables, prose, records, design file **(blocks everything)**
+1. Phase 1: Setup: the package and the nineteen roll names
+2. Phase 2: Foundational: 37 table constants, 6 option constants, prose, records, design file **(blocks everything)**
 3. Phase 3: User Story 1 — builder, description, `cetools vehicle build`
 4. **STOP and VALIDATE**: run the User Story 1 section of `quickstart.md`
 

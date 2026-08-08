@@ -16,7 +16,9 @@ chassis = "F"               # required; a chassis code
 configuration = "closed"    # or "open"; defaults to closed
 configuration_options = ["streamlined"]
 armor_options = ["reflec"]
-standard_design = true      # elects the 10% discount
+drive_options = ["off-road-capability"]
+control_options = ["autopilot"]
+standard_design = true      # one flag: 10% discount, no design fee, base build hours
 fuel_weeks = 4.0
 controls = "advanced"
 drone_controller = "advanced"
@@ -35,9 +37,6 @@ kind = "fusion"
 [propulsion]
 code = "F"
 kind = "grav"
-
-[propulsion_options]
-kinds = ["off-road"]
 
 [computer]
 model = 1
@@ -61,10 +60,19 @@ mount = "single-turret"
 
   [[mounts.weapons]]
   name = "machinegun-tl5"
+  options = ["rotary-turret-weapon"]
 
     [[mounts.weapons.ammunition]]
     spaces = 0.5
 ```
+
+**Every option list is a bare array of strings.** The four vehicle-level families
+(`configuration_options`, `armor_options`, `drive_options`, `control_options`) are top-level arrays
+written before the first table header; armament options are a field of the weapon they modify, since
+that is what the chapter modifies; and the one computer option is the existing `computer.hardened`
+boolean rather than a list of one. Each entry must key into its family's constant in `tables.py`
+(FR-003a), and an unknown one is a shape error raised here, not a rules error raised by the builder,
+because membership in a transcribed vocabulary is exactly what this layer checks.
 
 ## Rules
 

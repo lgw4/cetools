@@ -89,6 +89,8 @@ across changes.
 
 ## What this group does not have
 
-No `--interactive`, no wizard, no name generation, no watercraft, no vehicles over 20 tons. A design
-that needs the over-20-ton rules is rejected at build with a message naming watercraft support as
-the missing capability (FR-013, SC-005).
+No `--interactive`, no wizard, no name generation, no watercraft, no vehicles over 20 tons. Those
+last two are rejected at build with **separate messages**, each naming only the limit it hit: an
+oversized design is told that vehicles over 20 tons are not yet supported, and is told nothing about
+watercraft support it never asked for; a design naming a watercraft-only component is told that
+watercraft are not supported, and which component gave it away (FR-013, SC-005).

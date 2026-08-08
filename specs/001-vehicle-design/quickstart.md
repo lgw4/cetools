@@ -40,9 +40,12 @@ uv run cetools vehicle build tests/data/vehicles/example.toml --table
 ```
 
 **Expect**: the same paragraph unchanged, then every component with its spaces and price, then the
-summed price, the discount, the final price and the build time. The lines sum to the printed price.
+summed price, the discount, the design fee where one is charged, the final price and the build time.
+The lines sum to the printed price. Flip `standard_design` in the design file and re-run: the price,
+the fee and the build time all move together, because the SRD makes that one election (FR-007,
+FR-008).
 
-**Validates**: FR-025a, User Story 1 acceptance scenario 7.
+**Validates**: FR-007, FR-025a, User Story 1 acceptance scenario 7.
 
 ## User Story 2—re-derive the published catalog
 
@@ -53,8 +56,12 @@ uv run cetools vehicle build --catalog stagecoach
 ```
 
 **Expect**: fifteen names listed; each build succeeds and prints a description. The Air/Raft's price
-is Cr94,153.05, not the book's Cr94,160 footnote or its KCr94.340 prose. The Stagecoach builds with
-no propulsion at all and with a negative-price component reducing its total.
+is none of the book's three figures—not the Cr104,614.5 table total, not the Cr94,160 footnote, not
+the KCr94.340 prose—and it is deliberately not written down here either: it is Cr104,614.5 × 0.9
+only if the Air/Raft carried no fuel, and it carries fuel, which FR-007 exempts from the discount.
+The figure follows from the design once authored, and every published price that differs from it is
+recorded on `DIVERGENCES.md`. The Stagecoach builds with no propulsion at all and with a
+negative-price component reducing its total.
 
 ```shell
 uv run pytest tests/test_vehicle_catalog.py --no-cov
@@ -119,4 +126,12 @@ check again. It should name the vehicle and the figure.
 
 Coverage near 100% has hidden real defects in this repo before, so before calling a table done:
 alter a value in a `tables.py` row that no catalog vehicle and no generation path exercises, and
-confirm a test fails. If none does, SC-006 is not met yet for that row.
+confirm a test fails. If none does, SC-006 is not met yet for that row. The unexercised rows are
+listed in `tests/data/vehicles/unexercised_rows.json`, so this check reads a file rather than a
+guess. Restore the altered row from a copy, never with `git checkout`.
+
+The option families deserve the same treatment and are easy to overlook, being prose in the source:
+change Streamlined's speed multiplier from 5 to 4 and confirm `tests/test_vehicle_tables.py` fails,
+then change Reinforced Hull's `max_selections` from 2 to 3 and confirm `tests/test_vehicle_builder.py`
+fails. Both are transcribed from sentences rather than from cells, which is exactly where a
+transcription error is hardest to see (FR-003a).

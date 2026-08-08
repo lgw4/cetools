@@ -52,6 +52,30 @@ discountable components," which is what the rule it cites actually says.
 0.9 to the whole total (the Helicopter and the Twin Engine Jet both show it). That is a divergence
 under FR-017, and it goes on `DIVERGENCES.md`.
 
+### C-002a: the standard-design election is one flag, and a new design pays a fee
+
+FR-007 and FR-008 read the same election two different ways, and an edge case asserted that two
+designs differing only in it "differ only in final price." The chapter settles it in one sentence:
+"The construction time listed is for mass production of a **standard design**. A custom-made vehicle
+takes approximately ten times as long to construct." Standard design and mass production are the
+same thing, so one flag drives the discount and the ×10 build time both, and the edge case was
+false as written.
+
+The same section adds a rule neither the spec nor the plan carried at all: a new design "must be
+designed by a vehicular design specialist ... Such plans take a month to create, and costs
+approximately 1% of the final price of the vehicle, to a minimum of Cr100." The universal
+description format corroborates it by asking for a price "(including discounts and fees)"—the
+plural, and the only fee in the chapter.
+
+**Decision**: one `standard_design` flag with three effects (FR-007). The fee is charged on the
+discounted total, is its own non-discountable line in the component table, and is inside the printed
+price. The specialist's month is elapsed time before construction begins, not construction time, and
+stays out of scope.
+
+**Consequence**: every catalog vehicle that does *not* elect the standard design gains a price line
+the published stat blocks may not show, which is a divergence to check for at authoring time rather
+than one to assert now.
+
 ### C-003: the Air/Raft's four figures, verified
 
 All four figures the spec quotes in User Story 2, acceptance scenario 3 are quoted correctly. What
@@ -78,7 +102,7 @@ Chapter 1 holds **40 tables**. Grouped as the build order needs them:
 
 | Group | Tables |
 |---|---|
-| Chassis and configuration | Chassis by Displacement (24 rows), Configuration (2), Submersible Dive Depth (6, out of scope) |
+| Chassis and configuration | Chassis by Displacement (24 rows), Configuration (2), Submersible Dive Depth (6, transcribed and read by nothing) |
 | Armor and structure | Armor by Type (7), Hull and Structure (8) |
 | Drives and fuel | Power Plant Types (10), Propulsion Types (16), Drive Costs (24), Drive Performance smaller chassis (24×12), Drive Performance larger chassis (24×12), Base Speed by Drive Performance (15), Power Plant Fuel Requirements (24), Fuel Consumption by Power Plant Type (10), Agility Modifiers (24) |
 | Controls and electronics | Control Systems (5), Drone Controllers (5), Robot Brains (3), Communication Systems (4), Alternative Communicators (3), Standard Sensors (5), Computer Models (6) |
@@ -93,6 +117,14 @@ functions in the file, no in-package imports. The two Drive Performance tables m
 `DRIVE_PERFORMANCE: dict[str, dict[str, int | None]]` keyed drive code → chassis code, because
 their split is a page-width artifact.
 
+**The count, settled.** The chapter's HTML holds exactly 40 `<table>` elements, which is where the
+number comes from. Of those, 38 are transcribed: everything but Missile Time to Impact and Missile
+To-Hit, which resolve an attack and fail FR-010's test. Submersible Dive Depth *is* transcribed,
+because FR-003 requires watercraft-only rows ship and then be refused, and it is read by nothing.
+The two Drive Performance tables merge, so 38 tables land as **37 constants**. FR-003 now states
+those numbers, and a table test asserts them; the earlier "forty tables" phrasing was a count of the
+chapter rather than of the transcription and could not have passed.
+
 **Size estimate**: the two drive-performance matrices are 576 cells and the turret weapons table is
 76 rows of ten columns, so `tables.py` lands around 2,000 to 2,500 lines. That is the single
 largest file in the change and it is data.
@@ -100,10 +132,49 @@ largest file in the change and it is data.
 **Alternative rejected**: splitting into `tables/` submodules by group. `ships/tables.py` is 1,179
 lines in one file and the flat form is what the docs check and the import discipline expect.
 
+### R-001a: the six option families are prose, and they are not optional
+
+Six sections of the chapter carry options as HTML definition lists rather than as tables, which is
+why the 40-table sweep missed them and why the spec described them as bare strings with no
+vocabulary behind them:
+
+| Family | Entries | Examples |
+|---|---|---|
+| Vehicle Configuration Options | 11 | Streamlined, Open Frame, Self-Sealing, the four Environmental Protection Systems, Submersible, Hydrofoils, Wave-Piercing Hull |
+| Vehicle Armor Options | 5 | Electrostatic, Reflec, Reinforced Hull, Reinforced Structure, Stealth |
+| Vehicle Drive Options | 10 | Increased/Decreased Agility, Increased/Decreased Fuel Efficiency, Extra Pair of Wheels, Extra Leg(s), Jump Jets, Off-Road Capability, Tilt Rotors/Jets, Additional Drive Systems |
+| Vehicle Control Options | 1 | Autopilot |
+| Vehicle Computer Options | 1 | Hardened Systems |
+| Vehicle Armament Options | 5 | Heavy/Light/Rotary Turret Weapon, Laser Guidance, Missile Guidance System |
+
+Plus **Extended Operational Environment Range**, which FR-010 keeps in scope and which the chapter
+prints under Atmospheres and Aircraft, four sections away from the drive options it belongs with.
+Thirty-four entries.
+
+**They cannot be left unmodeled.** Three separate obligations run through them: FR-025's paragraph
+has slots for configuration options, drive options and armor options; FR-013 refuses Submersible,
+Hydrofoils and Wave-Piercing Hull *by name*, which is a membership test against a vocabulary that
+did not exist; and the price of a design that uses any of them cannot be computed without them. The
+Air/Raft is streamlined, so this is not a corner case—it blocks the first catalog vehicle.
+
+**Decision**: six constants in `tables.py`, one per family, each an `OptionRow` carrying the modifier
+shape rather than a figure. The shapes the chapter actually uses are: a percentage of chassis price
+(Streamlined +300%, Open Frame −20%, Reinforced Hull +20%), a figure per ton of chassis (Self-Sealing
+Cr10,000/ton, Reflec Cr100,000/ton), a figure per space of chassis (the Environmental Protection
+Systems, Cr5,000 to Cr50,000/space), and a flat figure (Electrostatic Cr10,000). Space cost is a
+figure, a percentage of chassis spaces (Wave-Piercing Hull, 5% rounded up), or nothing. Several also
+modify a derived figure rather than a price—Streamlined multiplies Base Speed by 5, Floats/Pontoons
+reduces it by 10% and Agility by 1—so the row carries speed and agility modifiers too.
+
+**Alternative rejected**: keeping them as free strings and pricing them with `if` branches in the
+builder. That is the transcription-as-code shape Principle I forbids, and it would put four of the
+nine known rules defects somewhere no divergence comment could sit next to the data.
+
 ### R-002: tech level is a gate, not a dimension
 
-Only three Chapter 1 tables carry values that **vary** with tech level: Submersible Dive Depth (out
-of scope), Manipulator Arm Maximums, and Vehicular Turret Weapons, where TL is baked into the row
+Only three Chapter 1 tables carry values that **vary** with tech level: Submersible Dive Depth
+(transcribed but read by nothing), Manipulator Arm Maximums, and Vehicular Turret Weapons, where TL
+is baked into the row
 identity ("Howitzer-TL 12") so fourteen weapon families reappear at several TLs. Everywhere else TL
 is a scalar availability gate on the row.
 
@@ -299,11 +370,18 @@ must be spelled exactly as a `GenerationConstraints` field name.
 ### R-009: roll names
 
 `RollName` is a flat `StrEnum` in `engine/rolls.py` grouped by verb, with `WORLD_*` and `SHIP_*`
-prefixes for the newer domains. Vehicles add `VEHICLE_*` members: `VEHICLE_ROLE`,
-`VEHICLE_TECH_LEVEL`, `VEHICLE_CHASSIS`, `VEHICLE_CONFIGURATION`, `VEHICLE_ARMOR`,
-`VEHICLE_PROPULSION`, `VEHICLE_POWER_PLANT`, `VEHICLE_DRIVE_CODE`, `VEHICLE_CONTROLS`,
-`VEHICLE_COMMUNICATIONS`, `VEHICLE_SENSORS`, `VEHICLE_COMPUTER`, `VEHICLE_ACCOMMODATION`,
-`VEHICLE_COMPONENT`, `VEHICLE_MOUNT`, `VEHICLE_WEAPON`, `VEHICLE_AMMUNITION`.
+prefixes for the newer domains. Vehicles add **nineteen** `VEHICLE_*` members, in build order:
+`VEHICLE_ROLE`, `VEHICLE_TECH_LEVEL`, `VEHICLE_CHASSIS`, `VEHICLE_CONFIGURATION`, `VEHICLE_ARMOR`,
+`VEHICLE_PROPULSION`, `VEHICLE_POWER_PLANT`, `VEHICLE_DRIVE_CODE`, `VEHICLE_FUEL`,
+`VEHICLE_CONTROLS`, `VEHICLE_COMMUNICATIONS`, `VEHICLE_SENSORS`, `VEHICLE_COMPUTER`,
+`VEHICLE_CREW`, `VEHICLE_ACCOMMODATION`, `VEHICLE_COMPONENT`, `VEHICLE_MOUNT`, `VEHICLE_WEAPON`,
+`VEHICLE_AMMUNITION`.
+
+`VEHICLE_FUEL` and `VEHICLE_CREW` were missing from the original seventeen. FR-026d enumerates the
+generator's decisions category by category and neither endurance nor crew count is a category, but
+both are `VehicleDesign` fields with no derivation, so generation has to choose them and Principle
+IV requires the choice be named. Design options (FR-003a) are deliberately not drawn and get no
+roll name; the reasoning is recorded at FR-030.
 
 `RandomRolls` wraps one `random.Random` stream, so **draw order is load-bearing** and the role draw
 must come first (it decides every later pool). Ships pins its name draw last for the same reason;
@@ -331,9 +409,12 @@ twelve to the displacement ton and Chapter 1 prices components in fractions of a
 intermediate rounding would drift.
 
 **Decision**: `float` everywhere in the engine; `prose.money` and `prose.number` do all rounding.
-Comparison against `published.py` uses `math.isclose` with an explicit tolerance rather than `==`,
-and the tolerance is stated in the test so a figure that differs by more than a printing artifact
-is a divergence rather than noise.
+Comparison against `published.py` uses `math.isclose(rel_tol=0.0, abs_tol=0.01)`, named as a module
+constant in the comparison test. One centicredit is exactly the size of the artifact that motivates
+the tolerance—Cr104,614.51 against a printed Cr104,614.5—and nothing larger slips through as noise.
+A relative tolerance was rejected because it scales with the figure: 0.1% of the Grav Tank's price
+is thousands of credits, which would swallow real divergences at the top of the range while being
+too tight at the bottom.
 
 ### R-012: the CLI surface
 
@@ -370,4 +451,9 @@ None blocking. Two things the task list should carry explicitly:
   definition site in `tables.py`, in the ships house style of documenting the *why* in prose next
   to the data.
 - The comparison test in R-007 needs writing before the catalog designs are authored, so authoring
-  is driven red-to-green against the published figures rather than tuned until it passes.
+  is driven red-to-green against the published figures rather than tuned until it passes. It reads
+  `DIVERGENCES.md`, so the page has to exist—as a skeleton with its three headings and empty
+  tables—before that test runs, not after the fifteen are authored.
+- The six option families in R-001a need transcribing in the table phase, before the builder, on the
+  same footing as the tables proper. The Air/Raft is streamlined, so the first catalog vehicle
+  cannot be priced without them.

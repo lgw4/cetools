@@ -135,6 +135,26 @@ Two findings that were not on the list and are worth a reader's attention:
    an arithmetic that no longer holds. **This is the one open number in the feature**: it cannot be
    computed until `catalog/air-raft.toml` exists, and it must be checked when it does.
 
+## Superseded by the analysis pass (2026-08-07)
+
+Three resolutions above were correct when written and are no longer what the spec says. Recorded
+here rather than edited in place, so the log stays a log.
+
+- **CHK011.** "FR-003 states forty tables" was the count of the chapter, not of the transcription.
+  Three of the forty were out of scope and two more merge, so the count could never have passed as a
+  test. FR-003 now states 38 tables as 37 constants and transcribes Submersible Dive Depth after all,
+  on its own watercraft clause.
+- **CHK013.** FR-008's custom-made multiplier was resolved without noticing it reads the same flag
+  FR-007 discounts on, which made an edge case ("differ only in final price") false. FR-007 now
+  states one election with three effects, and adds the design fee the chapter charges a new design,
+  which nothing in the feature had carried.
+- **CHK007.** SC-002's "explicit stated tolerance" is now an explicit stated *number*,
+  `abs_tol=0.01`, rather than a property for the implementer to pick.
+
+The pass also found something no checklist item reached: the six option families are printed as
+prose definition lists, so the 40-table sweep missed them entirely and the spec carried them as
+unvalidated strings with no prices behind them. See **FR-003a** and research **R-001a**.
+
 ## Notes
 
 - Check items off as resolved: `[x]`. An item is resolved when `spec.md` answers it, not when

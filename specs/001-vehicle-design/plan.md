@@ -7,7 +7,9 @@
 ## Summary
 
 A new `vehicles` domain implementing the Cepheus Engine Vehicle Design System construction rules,
-sibling to `ships` and importing nothing from it. The forty construction tables ship as data; one
+sibling to `ships` and importing nothing from it. Thirty-eight of the chapter's forty construction
+tables ship as data, as thirty-seven constants, alongside six more constants holding the
+thirty-four options the chapter prints as prose; one
 builder applies them in the SRD's own order and is the single authority on the rules; a description
 renderer prints the Universal Vehicle Description Format paragraph and, on request, the component
 table beneath it. Fifteen published vehicles ship as authored TOML installed with the package,
@@ -55,7 +57,8 @@ constraints must give byte-identical output. Floats throughout, rounded only at 
 The `vehicles` package must not import from `ships`. The five-command quality gate must pass, and
 this change widens it by adding a fourth maintained document.
 
-**Scale/Scope**: 40 tables; 15 catalog vehicles; ten engine modules plus one CLI module; three
+**Scale/Scope**: 38 of the chapter's 40 tables as 37 constants, plus 34 prose options in 6 more; 15
+catalog vehicles; ten engine modules plus one CLI module; three
 commands. Comparable ships work is ~6,300 lines across nine modules, and `tables.py` alone is
 expected at 2,000 to 2,500 lines because two 24×12 drive-performance matrices and a 76-row weapon
 table dominate it. This is a large single pull request by explicit, reaffirmed decision in the spec.
@@ -66,12 +69,12 @@ table dominate it. This is a large single pull request by explicit, reaffirmed d
 
 | Principle | Gate | Status |
 |---|---|---|
-| I. SRD Fidelity | Rules tables transcribed as data, separate from consuming code, verified against the SRD text | **PASS.** `tables.py` holds all forty tables and no logic. Every table was inventoried against the raw SRD HTML in Phase 0, not from memory. |
+| I. SRD Fidelity | Rules tables transcribed as data, separate from consuming code, verified against the SRD text | **PASS.** `tables.py` holds every in-scope table and every prose option family, and no logic. Both counts were taken from the raw SRD HTML, not from memory: 40 `<table>` elements, 38 in scope, and 34 option entries across six definition lists that the table sweep alone would have missed (R-001, R-001a). |
 | I. SRD Fidelity | Deliberate departures are a named, selectable policy, documented where a referee sees them | **PASS with a documented exception.** FR-019 declines the policy switch because these are errata in worked examples, not departures from the rules. The documentation obligation is discharged in full by `DIVERGENCES.md` and enforced by the gate. See Complexity Tracking. |
 | II. Library-First, CLI-Thin | Every capability a library function; no game logic in `cli/` | **PASS.** `cli/vehicle.py` parses arguments, calls the engine, formats output, picks an exit code. FR-027's ban on a wizard is what keeps it near 200 lines. |
 | II. Library-First, CLI-Thin | `engine/` must not import from `cli/`; a subpackage's `__init__.py` is its public surface | **PASS.** `vehicles/__init__.py` is imports and an explicit `__all__`, no logic, as ships is. |
 | III. Test-First | Red-green TDD, tests mirror source layout, coverage floor of 85% treated as a floor | **PASS.** One test module per source module. SC-006 goes further than the floor: every table row no catalog vehicle and no generation path exercises needs a test that fails when that row's values are altered. |
-| IV. Deterministic by Construction | Every random decision through `Rolls`, named in `RollName`; no bare `random` in engine code | **PASS.** Seventeen new `VEHICLE_*` members. The role draw goes first because it decides every later pool. |
+| IV. Deterministic by Construction | Every random decision through `Rolls`, named in `RollName`; no bare `random` in engine code | **PASS.** Nineteen new `VEHICLE_*` members. The role draw goes first because it decides every later pool. Endurance and crew count are named too, though FR-026d's category list does not mention them, because generation must still choose them (R-009). |
 | IV. Deterministic by Construction | Same seed and inputs give identical output; tests script rolls rather than seeding and asserting | **PASS.** `ScriptedRolls` for outcomes, `RecordingRolls` where the arguments are the rule under test, plus a pinned baseline. |
 | V. Simplicity | No abstraction beyond what the task requires | **PASS with one justified addition.** The role and loadout-profile concept is new machinery ships explicitly declined. See Complexity Tracking. |
 | Workflow | Five-command gate green before commit; Conventional Commits; one logical change per PR | **PASS.** The gate itself changes: `DIVERGENCES.md` joins the maintained documents and a rebuild check joins `scripts/check_docs.py`. |
@@ -109,7 +112,7 @@ src/cetools/
 │   ├── main.py                    # + one import, one add_typer, callback docstring
 │   └── vehicle.py                 # NEW: build, generate, catalog
 └── engine/
-    ├── rolls.py                   # + seventeen VEHICLE_* RollName members
+    ├── rolls.py                   # + nineteen VEHICLE_* RollName members
     └── vehicles/                  # NEW domain
         ├── __init__.py            # public surface, explicit __all__
         ├── tables.py              # the forty construction tables; no functions
@@ -134,9 +137,15 @@ tests/
 ├── test_vehicle_description.py
 ├── test_vehicle_generator.py
 ├── test_vehicle_catalog.py        # builds all fifteen, compares every published figure
+├── test_vehicle_published.py      # the transcription's own shape and figure vocabulary
+├── test_check_docs.py             # NEW: the first test over scripts/, for the rebuild check
 ├── test_cli.py                    # + a `cetools vehicle` section
-└── data/baseline/
-    └── vehicle_designs.json       # pinned seeded output
+└── data/
+    ├── baseline/
+    │   └── vehicle_designs.json   # pinned seeded output
+    └── vehicles/
+        ├── example.toml           # + four failure fixtures
+        └── unexercised_rows.json  # SC-006's evidence, checked in rather than scratch
 
 scripts/check_docs.py              # + DIVERGENCES.md in the maintained set, + rebuild check
 DIVERGENCES.md                     # NEW maintained document
@@ -154,10 +163,11 @@ no change.
 
 ## Phase 0: Research
 
-Complete. See [research.md](./research.md): thirteen decisions, plus three factual corrections to
-the spec that surfaced while verifying it against the SRD.
+Complete. See [research.md](./research.md): fourteen decisions, plus four factual corrections to
+the spec that surfaced while verifying it against the SRD. R-001a and C-002a were added in the
+analysis pass, both from the SRD text rather than from review judgment.
 
-The three corrections, because they matter to whoever reads the spec next:
+The corrections, because they matter to whoever reads the spec next:
 
 - **C-001**: the fifteen published vehicles are in Chapters 2, 3, 4 and 6, not Chapter 1, which is
   the construction chapter and carries no worked examples. The count and the breakdown are right;
@@ -165,6 +175,11 @@ The three corrections, because they matter to whoever reads the spec next:
 - **C-002**: the discount does not cover fuel or ammunition. FR-007 says it applies to the summed
   component price; the rule it cites exempts those two. cetools implements the rule, which puts it
   at odds with the published examples and generates a divergence.
+- **C-002a**: the standard-design election is one flag with three effects, not two independent
+  choices. The chapter defines base construction time as being "for mass production of a standard
+  design," which settles FR-008's ×10 against the same field FR-007 discounts on, and falsifies the
+  edge case that said the two designs differ only in price. The same passage charges a new design a
+  specialist's fee of 1% of the final price, minimum Cr100, which nothing in the feature carried.
 - **C-003**: the Air/Raft's four quoted figures all check out, and a fifth defect is worth knowing:
   its spaces column does not balance, so cetools prints 29.68 spaces of cargo where the book prints
   24.57.
@@ -195,9 +210,11 @@ each step sits where it does.
 3. **`builder.py`.** The rules, in the SRD's build order. This is User Story 1 and the feature's
    center of gravity.
 4. **`description.py`** and the CLI's `build` command. User Story 1 is now deliverable end to end.
-5. **`published.py` and `test_vehicle_catalog.py`, then the fifteen `catalog/*.toml`.** The
-   comparison test is written first so authoring runs red to green against the published figures
-   rather than being tuned until it passes. This is where the builder gets its real exercise, and
+5. **`published.py`, the `DIVERGENCES.md` skeleton, `test_vehicle_catalog.py`, then the fifteen
+   `catalog/*.toml`.** The comparison test is written first so authoring runs red to green against
+   the published figures rather than being tuned until it passes. The page has to exist before that
+   test does, empty tables and all, because the test's pass condition is "matches, or is on the
+   page," and it cannot read a file that has not been created. This is where the builder gets its real exercise, and
    where divergences are discovered rather than assumed.
 6. **`DIVERGENCES.md`, the `check_docs.py` extension, and `catalog.py`** with the CLI's `--catalog`
    and the `catalog` listing. User Story 2 complete, gate widened.

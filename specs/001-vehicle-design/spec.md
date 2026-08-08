@@ -45,6 +45,29 @@ Raised by the pre-tasks requirements checklist, [checklists/pre-tasks.md](./chec
   chapter beats a table; where nothing contradicts, the table is transcribed as printed. Recorded
   as a rules divergence either way (FR-017a).
 
+### Session 2026-08-07 (analysis pass)
+
+Raised by `/speckit-analyze` and settled against the SRD text rather than by judgment. Each changed
+a requirement rather than only a task.
+
+- Q: FR-003 said "forty tables" and made the count the completeness test, but three of the forty were
+  out of scope and two more merge. What is the number? → A: The chapter prints forty. Thirty-eight
+  are transcribed as thirty-seven constants; the two missile play tables are the only exclusions,
+  and Submersible Dive Depth is transcribed on FR-003's own watercraft clause (FR-003).
+- Q: The six option families—configuration, armor, drive, control, computer, armament—are prose
+  definition lists, not tables, so they fell outside FR-003's count and had no vocabulary, no
+  validation and no price rule. Are they in? → A: In, and required: the build cannot price a design
+  without them and three description slots render from them. Thirty-four entries in six constants,
+  carrying modifier semantics rather than fixed figures (FR-003a).
+- Q: Is `standard_design` one flag or two? FR-007 discounted on it and FR-008 multiplied build time
+  by ten on "custom-made," while an edge case asserted the two designs differ *only* in price. → A:
+  One flag. The chapter defines base construction time as being "for mass production of a standard
+  design," so the election governs discount, fee and build time together (FR-007, FR-008).
+- Q: The chapter charges a new design a specialist's fee of "approximately 1% of the final price of
+  the vehicle, to a minimum of Cr100," and the description template asks for a price "including
+  discounts and fees." Was the fee in scope? → A: In. It was missing outright; without it the
+  printed price is one the chapter's own template calls incomplete (FR-007).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Build a vehicle from a design file (Priority: P1)
@@ -76,9 +99,9 @@ story needs to exist.
    vehicle's tech level, and nothing is printed to standard output.
 4. **Given** a design that elects the standard-design discount, **When** it is built, **Then** the
    printed price is 10% below the summed component price.
-5. **Given** a design whose chassis or configuration is only legal under the over-20-ton rules,
-   **When** it is built, **Then** the build fails with a message stating that watercraft and
-   over-20-ton vehicles are not yet supported.
+5. **Given** a design whose chassis is only legal under the over-20-ton rules, **When** it is
+   built, **Then** the build fails with a message stating that vehicles over 20 tons are not yet
+   supported, and saying nothing about watercraft support the design never asked for (FR-013).
 6. **Given** a design that omits the tech level, **When** it is built, **Then** the build fails
    with an error saying tech level is required.
 7. **Given** a referee who wants to see how a price was reached, **When** they build the design and
@@ -206,7 +229,13 @@ description matches the one generation would have printed.
 - A mount with no weapon fitted builds, and costs what an empty mount costs.
 - A coarse locomotion alias that no longer matches any propulsion row is rejected rather than
   matching nothing and generating an unconstrained vehicle.
-- Two designs identical except for the discount election differ only in final price.
+- Two designs identical except for the standard-design election differ in final price, in the
+  design fee and in build time. The election is one flag with three effects, because the SRD makes
+  "standard design" and "mass produced" the same thing: a standard design earns the 10% discount,
+  pays no design fee and builds in its base hours, while a new design earns no discount, pays the
+  specialist's fee and takes ten times as long (FR-007, FR-008).
+- A design naming an option that is not in its family's vocabulary is rejected with an error naming
+  the option and the family, exactly as an unknown component is (FR-003a).
 - Generation asked for a locomotion that no chassis size in the constrained tech level supports
   reports the conflict rather than silently substituting.
 - An unarmored vehicle's build time is its chassis base hours rather than zero, so the armor
@@ -232,11 +261,30 @@ description matches the one generation would have printed.
 
 #### Tables and construction
 
-- **FR-003**: All forty tables of the Vehicle Design System construction chapter MUST be transcribed
-  as data, including rows that no v1 catalog vehicle or generation path exercises. Rows that are
-  legal only for watercraft or only above 20 tons MUST be transcribed too and then refused at build
-  time (FR-013), so that the transcription is complete even where the feature's scope is not.
-  "Complete" is checkable against the count: forty tables, not a judgment made at review.
+- **FR-003**: The construction chapter prints forty tables. **Thirty-eight** MUST be transcribed as
+  data, as **thirty-seven** module constants, because the two Drive Performance tables are one table
+  split for page width and merge into one constant. The two that are not transcribed are Missile
+  Time to Impact and Missile To-Hit, which resolve an attack at the table and are out of scope by
+  FR-010's test. Rows that no v1 catalog vehicle or generation path exercises MUST be transcribed,
+  and so MUST rows that are legal only for watercraft or only above 20 tons, which are then refused
+  at build time (FR-013); the Submersible Dive Depth table is transcribed on that clause and read by
+  nothing. "Complete" is checkable against the count: thirty-seven constants over thirty-eight
+  tables, not a judgment made at review.
+- **FR-003a**: Six option families are printed as prose definition lists rather than as tables, and
+  MUST be transcribed as data all the same, because the build cannot price a design without them:
+  **configuration options** (11), **armor options** (5), **drive options** (10), **control options**
+  (1), **computer options** (1) and **armament options** (5). Thirty-three entries, plus Extended
+  Operational Environment Range, which FR-010 keeps in scope and which the chapter prints under
+  Atmospheres and Aircraft rather than with the drive options it belongs with; it is transcribed as
+  a drive option and the relocation recorded at the transcription site. Thirty-four entries in six
+  constants, and that count is checkable the same way FR-003's is.
+
+  These are modifiers rather than fixed rows, and the row type MUST carry that: an option's price
+  is a percentage of chassis price, a figure per ton of chassis, a figure per space of chassis, or a
+  flat figure, and its space cost is a figure, a percentage of chassis spaces, or nothing. An option
+  naming no entry in its family MUST be rejected at build with the offending name and the legal set,
+  which is what makes FR-013's refusal of the submersible, hydrofoil and wave-piercing hull
+  configuration options a membership test rather than a special case.
 - **FR-004**: The build MUST follow Chapter 1's own order: chassis and spaces, configuration
   (open or closed), armor, propulsion and power plant with their performance codes, fuel, controls,
   communications, sensors, computer and software, crew and accommodations, additional components,
@@ -245,19 +293,32 @@ description matches the one generation would have printed.
   consumption MUST be tracked fractionally rather than rounded per component.
 - **FR-006**: Cargo capacity MUST be derived as the unconsumed space remainder; a design file MUST
   NOT declare cargo.
-- **FR-007**: Final price MUST support the optional 10% standard-design discount, applied to the
-  summed price of the *discountable* components only. Fuel and weapon ammunition are exempt: the
-  rules say so in as many words ("Fuel and weapon ammunition are not covered by the Std Design
-  Discount"). Several published examples appear to discount the whole total instead, so honoring
-  this rule produces a divergence on every catalog vehicle that carries fuel or ammunition and
-  elects the discount.
+- **FR-007**: The standard-design election is **one flag with three effects**, because the chapter
+  makes "standard design" and "mass produced" the same thing. A design that elects it:
+  - takes the 10% discount, applied to the summed price of the *discountable* components only. Fuel
+    and weapon ammunition are exempt; the rules say so in as many words ("Fuel and weapon ammunition
+    are not covered by the Std Design Discount"). Several published examples appear to discount the
+    whole total instead, so honoring this rule produces a divergence on every catalog vehicle that
+    carries fuel or ammunition and elects the discount.
+  - pays no design fee.
+  - builds in its base hours rather than ten times them (FR-008).
+
+  A design that does not elect it MUST instead carry a **design fee**: the chapter requires a new
+  design be drawn up by a specialist, "approximately 1% of the final price of the vehicle, to a
+  minimum of Cr100." The fee MUST be added after the discount arithmetic, MUST be its own line in
+  the component table, and MUST NOT itself be discountable. The universal description format asks
+  for a price "including discounts and fees," which is the slot this fills; a build that omitted it
+  would print a number the chapter's own template says is incomplete. The month the specialist takes
+  is elapsed time before construction starts, not construction time, and is out of scope.
 - **FR-008**: Build time MUST be produced alongside price, derived as the chassis's base
-  construction hours multiplied by the vehicle's total armor, times ten again if the vehicle is
-  custom-made rather than mass-produced. The multiplier MUST have a floor of one, so an unarmored
-  vehicle takes its chassis base hours rather than zero. The chapter is self-contradictory here—its
-  prose says to multiply by *additional* armor while its own worked example multiplies by a *total*
-  of 12 Armor—and the worked example's reading is the one adopted, recorded as a rules divergence
-  under FR-017a.
+  construction hours multiplied by the vehicle's total armor, times ten again when the vehicle is
+  custom-made. "Custom-made" is not a field of its own: it is the absence of the FR-007
+  standard-design election, and the two MUST read the same flag, because the chapter defines the
+  base construction time as being "for mass production of a standard design." The armor multiplier
+  MUST have a floor of one, so an unarmored vehicle takes its chassis base hours rather than zero.
+  The chapter is self-contradictory here—its prose says to multiply by *additional* armor while its
+  own worked example multiplies by a *total* of 12 Armor—and the worked example's reading is the one
+  adopted, recorded as a rules divergence under FR-017a.
 - **FR-009**: Components priced negatively by Chapter 1 MUST reduce the total rather than being
   floored at zero.
 - **FR-010**: Rules that only change a printed number—lift envelope sizing, speed by drive
@@ -265,7 +326,8 @@ description matches the one generation would have printed.
   feeds back into component selection or into a figure the description prints: if it does, it is
   construction and it stays; if it resolves an action at the table instead, it is play and it goes.
   Two rules that read as play rules are construction items by this test and stay in, because they
-  are bought as components: Off-Road Capability and Extended Operational Environment Range.
+  are bought as components: Off-Road Capability and Extended Operational Environment Range. Both are
+  transcribed as drive options under FR-003a.
 
 #### Validation
 
@@ -383,15 +445,20 @@ description matches the one generation would have printed.
   its comms DM, and computer model; accommodations by type and number; weapon points and the
   armaments and ammunition fitted; additional components; cargo capacity in both tons and
   kiloliters; armor type, level and options; crew total and positions; passengers by accommodation;
-  price in KCr; and construction time in hours.
+  price in KCr, inclusive of the discount and of the design fee, which is what the template's own
+  "(including discounts and fees)" parenthesis asks for (FR-007); and construction time in hours.
+  Three of these slots—configuration options, drive options, and the options half of armor type,
+  level and options—are rendered from the vocabularies FR-003a transcribes, which is the second
+  reason those vocabularies cannot stay unmodeled strings.
 - **FR-025a**: An opt-in flag MUST print the component table beneath the description paragraph:
   every component line with the spaces it consumes and the price it costs, then the summed price,
-  the discount if elected, the final price and the build time. The table MUST make the discount
-  legible given FR-007, distinguishing discountable lines from exempt ones rather than showing a
-  single 10% deduction that does not reconcile. The flag MUST NOT change the paragraph itself, and
+  the discount if elected, the design fee if charged, the final price and the build time. The table
+  MUST make the discount legible given FR-007, distinguishing discountable lines from exempt ones
+  rather than showing a single 10% deduction that does not reconcile, and MUST show the design fee
+  as its own line below the discount, since it is charged on the discounted total. The flag MUST NOT change the paragraph itself, and
   it MUST be available on both commands that describe a vehicle, building and generation. Asking for
-  the table and for design-file output at once MUST fail with an error explaining that the two are
-  different representations of the same vehicle.
+  the table and for design-file output at once is an error, stated with the rest of the argument
+  rules in FR-028, which is their single home.
 - **FR-025b**: Four slots in the published template MUST be omitted, because they are starship
   concepts that reached the vehicle template by copy-paste and have no vehicle meaning: tons
   allocated for fire control, the "installed on the hardpoints" sentence (vehicle armaments are
@@ -403,9 +470,11 @@ description matches the one generation would have printed.
 - **FR-026a**: The locomotion constraint MUST accept the propulsion table's own sixteen names, and
   MUST also accept exactly these nine coarse aliases, each standing for a group of those names:
   `grav`, `wheeled`, `tracked`, `rotor`, `jet`, `legged`, `rail`, `mole`, `non-powered`. Watercraft
-  propulsion is transcribed but no alias points at it. Both vocabularies MUST be documented, and an
-  alias MUST be rejected if it no longer names any propulsion row, so the two cannot drift apart
-  silently.
+  propulsion is transcribed but no alias points at it. An alias MUST be rejected if it no longer
+  names any propulsion row, so the two cannot drift apart silently. Both vocabularies MUST be
+  documented in the vehicle section of `README.md`, which is the page a referee reaching for
+  `--locomotion` will already have open, and both MUST be reachable as library functions so the
+  documentation names them from the tables rather than from a second hand-maintained list.
 - **FR-026b**: Generation MUST roll a vehicle role first and then fill each construction category
   from a loadout profile that fits that role, so that armaments, electronics, accommodations and
   additional components are consistent with what the vehicle is for. There are exactly six roles,
@@ -442,7 +511,11 @@ description matches the one generation would have printed.
 #### Determinism
 
 - **FR-030**: Every random decision MUST pass through the existing rolls seam and MUST be named
-  there. New roll names MUST be added for the vehicle decisions.
+  there. New roll names MUST be added for the vehicle decisions, and the set MUST cover every field
+  generation chooses, including the two a category-by-category reading of FR-026d overlooks:
+  endurance in weeks, from which fuel volume follows, and crew count. Design options (FR-003a) are
+  deliberately *not* drawn: a role fills categories, and an option is a refinement within one, so
+  drawing options would widen the generator without making a vehicle more usable at the table.
 - **FR-030a**: The role MUST be drawn before any other vehicle decision. The seam draws from one
   stream, so draw order is load-bearing for reproducibility, and the role decides every pool drawn
   after it. This ordering is a requirement rather than an implementation detail because changing it
@@ -477,14 +550,19 @@ description matches the one generation would have printed.
 ### Key Entities
 
 - **Vehicle Design**: The referee's authored input. Carries tech level (required), chassis size,
-  configuration, and the chosen components across every Chapter 1 category, plus the discount
-  election. Does not carry cargo.
+  configuration, and the chosen components and options across every Chapter 1 category, plus the
+  standard-design election, which is at once the discount election, the design-fee election and the
+  mass-production election (FR-007). Does not carry cargo.
 - **Vehicle**: The built result. Carries the design's choices plus everything derived from
   them—consumed and remaining spaces, performance codes, crew and passenger capacity, cargo,
-  total price, build time—and is what the description paragraph is rendered from.
+  total price, design fee, build time—and is what the description paragraph is rendered from.
 - **Component**: One line of a design: a name, a tech level, a space cost, a price, and whatever
   category-specific attributes Chapter 1 gives it. Space cost and price may be fractional; price may
   be negative.
+- **Design Option**: A modifier on a component category rather than a component of its own, printed
+  in the chapter as prose (FR-003a). Carries a name, a tech level where one is given, and a price
+  and space cost expressed as a percentage of chassis price, a figure per ton or per space of
+  chassis, or a flat figure. Belongs to exactly one of six families, and is legal only within it.
 - **Mount**: A turret, gun port, ordinance bay or missile rack. Carries the vehicular weapon fitted
   to it. A mount may exist without a weapon; a weapon may not exist outside a mount.
 - **Weapon**: A vehicular weapon fitted to a mount, carrying its own ammunition. Ammunition belongs
@@ -512,9 +590,11 @@ description matches the one generation would have printed.
   selected by name from the command line, and every one of the fifteen names appears in the listing.
 - **SC-002**: Across the fifteen, every published figure either matches cetools' output or appears in
   the divergence documentation. Figures are compared within an explicit tolerance rather than by
-  exact equality, because both sides are floating-point and the book rounds its own printed totals;
-  the tolerance MUST be stated in the test and MUST be tight enough that anything larger than a
-  printing artifact registers as a divergence rather than as noise. Undocumented divergences: zero,
+  exact equality, because both sides are floating-point and the book rounds its own printed totals.
+  The tolerance is `math.isclose(rel_tol=0.0, abs_tol=0.01)`, named as a module constant in the
+  comparison test: one centicredit, which absorbs the Air/Raft's Cr104,614.51-against-Cr104,614.5
+  printing artifact and nothing larger. A figure the book prints to coarser precision than that is
+  compared at the precision the book prints it, not at a looser blanket tolerance. Undocumented divergences: zero,
   enforced by the stat-block comparison test and the documentation check together rather than by
   review—the comparison test catches a divergence nobody noticed, the documentation check catches a
   divergence whose prose has gone stale.
@@ -532,15 +612,18 @@ description matches the one generation would have printed.
   is covered by a test that fails when that row's values are altered. The set is identified rather
   than estimated: the exercised rows are collected by building all fifteen catalog vehicles and
   running generation across seeds and recording which rows were read, and the remainder is what
-  needs the direct test. Coverage of the package stays at or above the 85% floor, and the floor is
-  treated as a floor rather than as evidence.
+  needs the direct test. That remainder MUST be committed as a checked-in fixture the direct tests
+  read, rather than left in a scratch file: it is the evidence for this criterion, and a list nobody
+  can re-read is not evidence. Coverage of the package stays at or above the 85% floor, and the
+  floor is treated as a floor rather than as evidence.
 - **SC-007**: A referee can build a design and get a table-ready description in a single command,
   with no component table unless asked for.
 - **SC-008**: A design file emitted by either command rebuilds to the identical description.
 - **SC-009**: The five-command quality gate passes on the delivered change, including the
   documentation check with the divergence page inside its scope.
-- **SC-010**: Every coarse locomotion alias resolves to at least one propulsion row, and every
-  accepted alias and table name is named in the documentation.
+- **SC-010**: Every coarse locomotion alias resolves to at least one propulsion row, and all sixteen
+  propulsion names and all nine aliases are named in the vehicle section of `README.md`, where the
+  docs check already reads them (FR-026a).
 - **SC-011**: Every generated vehicle carries only components its role's loadout profile admits, and
   all six roles are named in the generation-policy section of `DIVERGENCES.md` as cetools generation
   choices rather than SRD rules.

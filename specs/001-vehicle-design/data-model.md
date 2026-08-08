@@ -38,7 +38,7 @@ and its key columns.
 | `AccommodationRow` | `ACCOMMODATIONS` | accommodation name | duration, spaces, price, occupancy notes. |
 | `LifeSupportRow` | `LIFE_SUPPORT` | basic, extended | `tl`, spaces per head count, price per space. |
 | `TrailerRow` | `CARGO_TRAILERS` | trailer size | price, capacity, description. |
-| `ManipulatorRow` | `MANIPULATOR_MAXIMUMS` | tech level 5, 8, 11, 14 | max strength, max dexterity. One of only two in-scope tables whose values vary with TL. |
+| `ManipulatorRow` | `MANIPULATOR_MAXIMUMS` | tech level 5, 8, 11, 14 | max strength, max dexterity. One of only three transcribed tables whose values vary with TL. |
 | `ComponentRow` | `ADDITIONAL_COMPONENTS` | component name | `tl`, spaces, price. Several rows defer to prose. |
 | `GunPortWeaponRow` | `GUN_PORT_WEAPONS` | weapon name | `tl`, price, spaces, RoF, range, damage, recoil, LL. |
 | `MountRow` | `WEAPON_MOUNTS` | mount type | `tl`, price, max spaces, stabilized. Gun Shield is priced per point of armor and has no `tl`. |
@@ -52,6 +52,35 @@ and its key columns.
 | `GaitRow` | `ANIMAL_GAITS` | gait | speed modifier, range. |
 | `AnimalRow` | `DRAFT_ANIMALS` | animal | strength, walk and run speed, endurance. Required by the Stagecoach. |
 | `SailingRow` | `SAILING_SPEEDS` | vehicle medium | speed as a percentage of wind speed, by displacement band. |
+| `DiveDepthRow` | `SUBMERSIBLE_DIVE_DEPTH` | tech level | safe dive depth, crush depth. Watercraft-only, transcribed under FR-003's completeness clause and read by nothing. |
+
+Thirty-seven constants over thirty-eight SRD tables, the two Drive Performance tables having merged.
+A test asserts both numbers (FR-003).
+
+### Option families (`tables.py`)
+
+The chapter prints six families of options as prose definition lists rather than as tables, and
+FR-003a requires them as data all the same. One `OptionRow` type serves all six, because they share
+a shape: a modifier rather than a figure.
+
+`OptionRow`: `name: str`, `tl: int | None`, `spaces: float = 0.0`,
+`spaces_pct_of_chassis: float = 0.0`, `price: float = 0.0`, `price_pct_of_chassis: float = 0.0`,
+`price_per_ton: float = 0.0`, `price_per_space: float = 0.0`, `speed_mult: float = 1.0`,
+`speed_pct: float = 0.0`, `agility_mod: int = 0`, `max_selections: int = 1`, `notes: str = ""`.
+
+Every field defaults to the identity, so a row states only what the chapter states about it. The
+zero-price, zero-space option is legal and common: several entries change only a derived figure.
+
+| Constant | Entries | Shape it exercises |
+|---|---|---|
+| `CONFIGURATION_OPTIONS` | 11 | `price_pct_of_chassis` (Streamlined +300%, Open Frame −20%), `price_per_ton` (Self-Sealing), `price_per_space` (the four Environmental Protection Systems), `spaces_pct_of_chassis` (Wave-Piercing Hull, 5% rounded up), `speed_mult` (Streamlined ×5) |
+| `ARMOR_OPTIONS` | 5 | `price` (Electrostatic Cr10,000, 1 space), `price_per_ton` (Reflec, Stealth), `price_pct_of_chassis` with `max_selections=2` (Reinforced Hull, Reinforced Structure) |
+| `DRIVE_OPTIONS` | 11 | `price_pct_of_chassis` (Increased Agility +50%, Decreased Agility −25%), `agility_mod`, plus Extended Operational Environment Range, relocated here from Atmospheres and Aircraft per FR-003a and recorded at the site |
+| `CONTROL_OPTIONS` | 1 | Autopilot: `price` plus a TL-derived skill level in `notes` |
+| `COMPUTER_OPTIONS` | 1 | Hardened Systems: `price_pct` of the computer, expressed as `ComputerFit.hardened` |
+| `ARMAMENT_OPTIONS` | 5 | multipliers on a weapon's price, RoF and damage rather than on the vehicle |
+
+Thirty-four entries in six constants, and a test asserts that count as it does FR-003's.
 
 Two derived constants, both data rather than logic, both asserted by tests:
 
@@ -86,7 +115,7 @@ Plain `Enum`, lowercase snake string values, as in `ships/models.py`.
 | `AccommodationFit` | `kind: str`, `count: int = 1` | kind in `ACCOMMODATIONS`; count at least 1. |
 | `ComponentFit` | `kind: str`, `count: int = 1` | kind in `ADDITIONAL_COMPONENTS`. |
 | `AmmunitionFit` | `spaces: float`, `kind: str \| None = None` | spaces above 0. Not expressible outside a `WeaponFit`. |
-| `WeaponFit` | `name: str`, `ammunition: tuple[AmmunitionFit, ...] = ()` | name in `TURRET_WEAPONS`, `GUN_PORT_WEAPONS`, `ORDINANCE_BAY_WEAPONS` or `MISSILES`; ammunition rejected outright for a weapon whose family has no `WEAPON_AMMUNITION` row (FR-016 and the edge case). |
+| `WeaponFit` | `name: str`, `ammunition: tuple[AmmunitionFit, ...] = ()`, `options: tuple[str, ...] = ()` | name in `TURRET_WEAPONS`, `GUN_PORT_WEAPONS`, `ORDINANCE_BAY_WEAPONS` or `MISSILES`; ammunition rejected outright for a weapon whose family has no `WEAPON_AMMUNITION` row (FR-016 and the edge case); each option in `ARMAMENT_OPTIONS`, because an armament option modifies the weapon rather than the vehicle, and Heavy and Light Turret Weapon are mutually exclusive by the chapter's own sentence. |
 | `MountFit` | `kind: MountKind`, `mount: str`, `weapons: tuple[WeaponFit, ...] = ()` | mount in `WEAPON_MOUNTS` or `TURRETS`; a mount with no weapon is legal and costs what an empty mount costs; a weapon illegal in this mount is rejected. |
 
 **The nesting is the constraint.** FR-015 is satisfied structurally rather than by validation:
@@ -103,12 +132,13 @@ The referee's authored input, mirroring the TOML one-to-one. Frozen; every field
 | `tech_level` | `int` | **Required.** FR-011: no default, and a design without one fails to build. |
 | `chassis` | `str` | Required. A chassis code key into `CHASSIS`. |
 | `configuration` | `Configuration` | Defaults to `CLOSED`. |
-| `configuration_options` | `tuple[str, ...]` | Streamlined, Open Frame, Self-Sealing and the rest. Watercraft options are rejected at build. |
+| `configuration_options` | `tuple[str, ...]` | Each must be a `CONFIGURATION_OPTIONS` key. Streamlined, Open Frame, Self-Sealing and the rest. Watercraft options load cleanly and are rejected at build (FR-013). |
 | `armor` | `tuple[ArmorFit, ...]` | |
-| `armor_options` | `tuple[str, ...]` | Electrostatic, Reflec, Reinforced Hull, Reinforced Structure, Stealth. |
+| `armor_options` | `tuple[str, ...]` | Each must be an `ARMOR_OPTIONS` key. |
 | `power_plant` | `DriveFit \| None` | `None` is legal: the Stagecoach has none. |
 | `propulsion` | `DriveFit \| None` | `None` for animal-drawn and sailed vehicles. |
-| `propulsion_options` | `tuple[str, ...]` | Off-road capability, extra wheels, jump jets and so on. |
+| `drive_options` | `tuple[str, ...]` | Each must be a `DRIVE_OPTIONS` key. Renamed from `propulsion_options`: the chapter calls them Vehicle Drive Options and several apply to the power plant rather than to propulsion, so the old name was both off-SRD and wrong. |
+| `control_options` | `tuple[str, ...]` | Each must be a `CONTROL_OPTIONS` key. Autopilot is the only entry, and it was previously unexpressible. |
 | `fuel_weeks` | `float` | Endurance, from which fuel spaces are derived. |
 | `controls` | `ControlInterface` | |
 | `drone_controller` | `ControlInterface \| None` | |
@@ -123,7 +153,12 @@ The referee's authored input, mirroring the TOML one-to-one. Frozen; every field
 | `components` | `tuple[ComponentFit, ...]` | |
 | `mounts` | `tuple[MountFit, ...]` | |
 | `trailer` | `str \| None` | |
-| `standard_design` | `bool` | The 10% discount election. |
+| `standard_design` | `bool` | One flag, three effects (FR-007): the 10% discount, no design fee, and base build hours rather than ten times them. There is deliberately no second `mass_produced` field, because the chapter defines base construction time as being "for mass production of a standard design," so a design that could set them apart would be expressing a state the rules do not have. |
+
+**Every option tuple validates against its family.** An unknown option raises `ValueError` naming the
+option and the legal set, exactly as an unknown component does. That is what turns FR-013's refusal
+of Submersible, Hydrofoils and Wave-Piercing Hull into a `WATERCRAFT_ONLY` membership test over a
+vocabulary that exists, rather than a string comparison against a list that lives nowhere.
 
 **No `cargo` field.** FR-006 makes cargo the unconsumed remainder, and a design file that could
 declare it would let a referee state a figure the builder then contradicts.
@@ -162,8 +197,9 @@ The built result, frozen, carrying `design` plus everything derived from it.
 | `crew` | `int` | |
 | `passengers` | `int` | From `ACCOMMODATIONS` occupancy less crew. |
 | `fuel_spaces` | `float` | |
-| `price` | `float` | Discountable lines ×0.9 when elected, plus exempt lines. |
-| `build_hours` | `float` | Chassis base hours × total armor; ×10 if custom-made. |
+| `design_fee` | `float` | `0.0` for a standard design; otherwise 1% of the discounted total, floored at Cr100 (FR-007). Its own non-discountable `LineItem`. |
+| `price` | `float` | Discountable lines ×0.9 when elected, plus exempt lines, plus `design_fee`. The description prints this figure, which is what the template's "(including discounts and fees)" asks for. |
+| `build_hours` | `float` | Chassis base hours × total armor, floored at ×1; ×10 again when `design.standard_design` is false, which is the chapter's "custom-made". |
 | `line_items` | `tuple[LineItem, ...]` | The component table FR-025a prints. |
 
 ## Layer 4: catalog and published figures
@@ -175,9 +211,11 @@ Not a stored record but the pairing the module exposes: a stable kebab-case `nam
 `catalog_names() -> tuple[str, ...]` and `load_catalog(name) -> VehicleDesign`, the latter raising
 `ValueError` naming the available names when the name is unknown (FR-024a).
 
-The fifteen names: `air-raft`, `afv-tracked`, `atv-tracked`, `biplane`, `g-carrier`, `grav-bike`,
-`grav-floater`, `grav-tank`, `ground-car`, `helicopter`, `speeder`, `stagecoach`,
-`tunnel-boring-machine`, `twin-engine-jet`, `van`.
+The fifteen names, in the sorted order `catalog_names()` returns and the `catalog` command prints:
+`afv-tracked`, `air-raft`, `atv-tracked`, `biplane`, `g-carrier`, `grav-bike`, `grav-floater`,
+`grav-tank`, `ground-car`, `helicopter`, `speeder`, `stagecoach`, `tunnel-boring-machine`,
+`twin-engine-jet`, `van`. This is the canonical list; `spec.md` FR-021 groups the same fifteen by
+chapter for readability and `contracts/library.md` names none of them.
 
 ### `PUBLISHED` (`published.py`)
 
