@@ -1,10 +1,10 @@
 {
   "integration": "speckit",
-  "version": "0.16.0",
+  "version": "0.16.1",
   "installed_at": "2026-08-04T23:16:49.973239+00:00",
   "files": {
-    ".specify/scripts/python/check_prerequisites.py": "74df3ef0a05141d85ed1473b315446fa93c62ca3d1bde87fb8d4459011277fa7",
-    ".specify/scripts/python/setup_tasks.py": "23fb1595011649d57ef699eed41e853b53dd3eda47fb5d1417514963faf7928f",
+    ".specify/scripts/python/check_prerequisites.py": "df249f365ecdda67ded4d2c1b0fa42d6619d4e5c7f9b933686feac4b0de974ef",
+    ".specify/scripts/python/setup_tasks.py": "45319f588a3af123ed5588fa1cfe9fe7c6f0d424e48ecbfb2efa55e19697d65f",
     ".specify/scripts/python/common.py": "1d61ae07a4286c38c4ed82ca2b190eb09e338aa7f9c732547f7feffe1814c609",
     ".specify/scripts/python/setup_plan.py": "d89bf18f8c57de802700ec6befabc01a359f296fb5d9b2481e96ec62539bb4da",
     ".specify/scripts/python/create_new_feature.py": "6fdcc954bf121cb4b24d4dafc442f72a8241b9eb05a186b19d37b2f1c634f143",
@@ -17,6 +17,7 @@
     ".specify/templates/checklist-template.md": "709d8ab8384a3a49f5e0f64479f71553ef6d6f8bb4f00281b05f47837993b536",
     ".specify/templates/tasks-template.md": "fc29a233f6f5a27ca31f1aa46b596af6500c627441c6e62b2bc4a1d721525842",
     ".specify/templates/spec-template.md": "3945437fc35cd30a5b2bf7beea680337c3516826d3efa5a6b92c4a7eca1ba28e",
-    ".specify/templates/plan-template.md": "7e637502d41eccf0ca672496636365691fdca62ef37b27ec07fcb412dbfa90d4"
+    ".specify/templates/plan-template.md": "7e637502d41eccf0ca672496636365691fdca62ef37b27ec07fcb412dbfa90d4",
+    ".specify/.gitignore": "8c908410d177a1ef3d0dee16d7ad55f2ac3333df3104c4d4adee1c9b82f1dbc1"
   }
 }
