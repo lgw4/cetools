@@ -57,6 +57,9 @@ uv sync
 uv run pytest
 ```
 
+See `CONTRIBUTING.md` for the workflow, the testing rules, and the
+licensing constraints on new files, and `CHANGELOG.md` for release history.
+
 ## Licensing
 
 This repository carries two licenses. `src/cetools/data/tasks.toml` is Open
