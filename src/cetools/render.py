@@ -1,6 +1,7 @@
 from functools import singledispatch
 
 from cetools.dice import ThrowResult
+from cetools.tasks import CheckResult
 
 
 @singledispatch
@@ -26,4 +27,22 @@ def _(result: ThrowResult) -> str:
         sign = "+" if result.modifier > 0 else ""
         lines.append(f"  {'Modifier:'.ljust(width)}{sign}{result.modifier}")
     lines.append(f"  {'Seed:'.ljust(width)}{result.seed}")
+    return "\n".join(lines) + "\n"
+
+
+@as_text.register
+def _(result: CheckResult) -> str:
+    outer_width = max(len(label) for label in ("Dice:", "Total:", "Seed:")) + 1
+    mod_width = max(len(modifier.label) for modifier in result.modifiers)
+
+    dice_value = ", ".join(str(face) for face in result.faces) + f" (sum {result.dice_total})"
+
+    lines = [f"Check: {'SUCCESS' if result.success else 'FAILURE'}"]
+    lines.append(f"  {'Dice:'.ljust(outer_width)}{dice_value}")
+    lines.append("  Modifiers:")
+    for modifier in result.modifiers:
+        sign = "+" if modifier.value >= 0 else "-"
+        lines.append(f"    {modifier.label.ljust(mod_width)} {sign}{abs(modifier.value)}")
+    lines.append(f"  {'Total:'.ljust(outer_width)}{result.total} vs target {result.target}")
+    lines.append(f"  {'Seed:'.ljust(outer_width)}{result.seed}")
     return "\n".join(lines) + "\n"

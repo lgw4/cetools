@@ -37,3 +37,12 @@ def test_readme_contains_ogc_gpl_designation():
     assert "Open Game Content" in text
     assert "Open Game License" in text
     assert "GNU General Public License" in text
+
+
+def test_packaged_tasks_toml_opens_with_ogc_designation_and_omits_pi_strings():
+    from importlib import resources
+
+    text = resources.files("cetools.data").joinpath("tasks.toml").read_text(encoding="utf-8")
+    assert "Open Game Content" in text
+    assert "Cepheus Engine" not in text
+    assert "Samardan Press" not in text

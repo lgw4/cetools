@@ -1,0 +1,31 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# Core task resolution parameters.
+
+[task]
+roll = "2d6"
+target = 8
+unskilled-dm = -3
+
+[difficulty-dms]
+"Simple" = 6
+"Easy" = 4
+"Routine" = 2
+"Average" = 0
+"Difficult" = -2
+"Very Difficult" = -4
+"Formidable" = -6
+
+[characteristic-dms]
+"0-2" = -2
+"3-5" = -1
+"6-8" = 0
+"9-11" = 1
+"12-14" = 2
+"15-17" = 3
+"18-20" = 4
+"21-23" = 5
+"24-26" = 6
+"27-29" = 7
+"30-32" = 8
+"33+" = 9
