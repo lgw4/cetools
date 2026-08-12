@@ -44,7 +44,7 @@ Each feature now exits the map through `/grill-me` then
 `/speckit-specify`; as each `specs/<NNN>-<name>/` directory is created,
 link it here:
 
-- dice-task-engine: (not yet specified)
+- dice-task-engine: [specs/001-dice-task-engine](../../../specs/001-dice-task-engine/spec.md)
 - rules-data-loading: (not yet specified)
 - npc-generator: (not yet specified)
 - career-data: (not yet specified)
