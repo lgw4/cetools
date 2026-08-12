@@ -67,6 +67,7 @@ validates the substance of individual requirements.
   - **Fixed.** FR-024 now lists all five exactly.
 - [x] CHK018 Is the requirement that the shipped data file carry its Open Game Content designation stated as a requirement? It currently appears only in the Assumptions section, where it is not binding. [Gap, Spec §Assumptions, §FR-021]
   - **Fixed.** FR-021 now requires it, noting that the file is created by this feature even though the wider licensing work belongs to packaging and release.
+  - **Superseded in part (2026-08-12, post-analysis).** The clause about the wider licensing work was too broad. `/speckit-analyze` found that the constitution's bundling obligation is written against *every distribution*, and this feature builds the first distribution containing Open Game Content, so the licence text, its Section 15 chain, and the repository-level OGC/GPL designation land here too. FR-035 now requires them and SC-012 verifies them. What still belongs to packaging and release is only what happens after the artefact is built.
 - [x] CHK019 Are the three skill states distinguishable by input as well as by behaviour? FR-016 defines the states but the distinction between "omitted" and "level zero" is carried only in the Assumptions section. [Clarity, Spec §FR-016, §Assumptions]
   - **Fixed.** FR-016 now requires omitted and zero to be distinct inputs producing distinct results. This is the single easiest thing in the feature to implement backwards, so it belonged in a requirement rather than an assumption.
 
@@ -155,3 +156,44 @@ things now stated as requirements (seed parsing, absent skill meaning untrained,
 the licensing designation). That duplication is explanatory rather than
 contradictory, so it was left alone, but a future editor consolidating the spec
 should read the two sections together.
+
+### Post-analysis remediation pass (2026-08-12)
+
+`/speckit-analyze` reported one CRITICAL, four HIGH, five MEDIUM, and four LOW
+findings across `spec.md`, `plan.md`, and `tasks.md`. All were addressed. The four
+that changed a decision rather than merely tightening wording:
+
+- **Licensing scope (CRITICAL).** See the note under CHK018. FR-035 and SC-012 are
+  new; `tasks.md` T004 now ships `LICENSE-OGL.txt` and the README designation, T008
+  and T031 test them, T065 checks the built artefact. This also repaired a dangling
+  reference: `tasks.toml`'s opening comment pointed at `LICENSE-OGL.txt`, which
+  nothing created.
+- **Loader seam (HIGH).** `tests/unit/test_rules.py` was specified to exercise every
+  `RulesDataError` path against temporary fixtures, but the contracted loader takes
+  no arguments, reads exactly one packaged file, and is cached, so there was nowhere
+  to put a fixture. `contracts/library-api.md` now splits it into
+  `_task_parameters_from_toml(text)` (validation, testable) and
+  `load_task_parameters()` (which bytes, cached). This also gave SC-010 a route
+  through the real loader instead of only through an injected `TaskParameters`.
+- **Unpublished expected values (HIGH).** Golden files and case tables must be
+  hand-written before the code exists, but only `session-alpha`'s values were
+  published; several cases used `--seed 1`, whose faces appeared nowhere and could
+  not be derived by hand. `contracts/cli.md` now carries a published-seed table
+  (`session-alpha` → `1, 5`; `1` → `2, 5`), computed by running the specified
+  algorithm and verified identical on CPython 3.10 through 3.14. Anything else needs
+  adding to that table before a test may assert it.
+- **Unverified cross-version claim (MEDIUM).** FR-007 and SC-001 bind
+  reproducibility across every supported runtime and platform, but the only evidence
+  was a one-off manual check recorded in `research.md`. T005 adds a CI matrix;
+  `research.md` R15 records the decision.
+
+Six smaller gaps were closed inside existing tasks rather than as new ones: FR-008
+roller independence (T014), the SC-004 seed round trip (T016, T034), FR-023's
+no-search behaviour (T029), and the FR-021 Product Identity assertions (T031).
+`contracts/library-api.md`'s stale `difficulty: str = "Average"` default was
+corrected in place, which removed a polish-phase task that existed only to fix it
+later than it needed fixing.
+
+**Task IDs were renumbered** this once, from 63 tasks to 66. Nothing outside
+`tasks.md` cites a task ID and no implementation had begun, so a clean sequence cost
+nothing; that will not be true again once work starts.

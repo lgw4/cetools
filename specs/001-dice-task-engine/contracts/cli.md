@@ -58,6 +58,30 @@ running the algorithm this plan specifies (blake2b fold, then `getrandbits`
 rejection sampling) and are what a correct implementation must produce. They are
 suitable as the first literal expected values in the test suite.
 
+### Published seeded values
+
+Every expected value a test or golden file needs must be derivable from this table
+rather than from running the implementation, because SC-008 requires expected values
+to exist before the code does. Anything not listed here is not yet available as a
+literal; publish it here first, by running the specified algorithm, before writing a
+test against it.
+
+| Seed | Resolves to | First two d6 faces | First d6 face |
+|---|---|---|---|
+| `session-alpha` | `14333185781139156525` | `1, 5` | `1` |
+| `1` | `1` | `2, 5` | `2` |
+
+Verified identical on CPython 3.10, 3.11, 3.12, 3.13, and 3.14.
+
+Derived from the table, for the two check cases the golden files pin:
+
+- `--seed session-alpha`: dice `1, 5`, dice sum `6`.
+- `--seed 1`: dice `2, 5`, dice sum `7`. A bare `check --seed 1` therefore resolves
+  as `7` (dice) `+ 0` (`Average`, the default rung) `- 3` (`Unskilled`) `= 4`
+  against target `8`, a **FAILURE**.
+
+A one-sided die yields face `1` on every seed, since `getrandbits(0)` is `0`.
+
 ## `cetools check`
 
 ```

@@ -232,7 +232,38 @@ are.
 it Open Game Content under OGL 1.0a. The strings "Cepheus Engine" and "Samardan
 Press" appear nowhere in the package name or in that data file.
 
-**Rationale**: Constitution, Licensing and Distribution Constraints. Bundling the
-full OGL text, the Section 15 chain, and the compatibility statement belongs to the
-`packaging-release` feature; only the per-file designation is in scope here, because
-the file is created here.
+**Rationale**: Constitution, Licensing and Distribution Constraints.
+
+**Correction (post-analysis)**: this entry originally deferred the full OGL text,
+the Section 15 chain, and the repository-level OGC/GPL designation to
+`packaging-release`, keeping only the per-file designation in scope. That was wrong
+on the constitution's own wording, which binds *every distribution* rather than
+every release. This feature builds the first wheel and sdist containing Open Game
+Content, so the obligation attaches here. `LICENSE-OGL.txt` and the README's
+OGC/GPL statement are therefore in scope (FR-035), and SC-012 checks them
+automatically. Still deferred, correctly: the PyPI description, the published
+compatibility statement, and the release process. The README this feature writes
+makes no compatibility claim, so it owes no trademark attribution yet; if a later
+edit adds such a claim, the attribution and non-affiliation statement come with it.
+
+## R15: Verifying the cross-version reproducibility claim
+
+**Decision**: a CI matrix running the full suite on every Python version in
+`requires-python` and on Linux, macOS, and Windows.
+
+**Rationale**: FR-007 binds reproducibility across every runtime version the package
+declares support for, and SC-001 establishes cross-machine identity by running the
+same automated check on each supported platform. R1 and R3's verification was a
+one-off manual check on this machine; nothing re-ran it, so a regression would be
+invisible until a user hit it. The matrix is what converts those findings from
+recorded observations into a standing guarantee.
+
+**Verified**: the folded value of `session-alpha` (`14333185781139156525`), the
+`session-alpha` 2d6 faces `(1, 5)`, the `--seed 1` 2d6 faces `(2, 5)`, and the
+1-sided-die face `1` are all identical on CPython 3.10, 3.11, 3.12, 3.13, and 3.14.
+Re-confirmed during the post-analysis pass, on the same five interpreters.
+
+**Note on the floor**: `requires-python` is `>=3.13`, so the matrix is 3.13 and 3.14
+today. The recipe's stability on 3.10 through 3.12 is recorded as evidence that it
+rests on documented guarantees rather than on a happy accident of one version, not
+as a support claim.

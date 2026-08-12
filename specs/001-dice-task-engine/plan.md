@@ -57,7 +57,7 @@ committed public interface (FR-028); `seed` is emitted as a JSON **string** beca
 which the constitution names as a future client.
 
 **Scale/Scope**: Roughly 7 small modules plus 1 data file; on the order of 600 lines
-of implementation and a larger test suite. 34 functional requirements, 11 success
+of implementation and a larger test suite. 35 functional requirements, 12 success
 criteria.
 
 **Toolchain**: uv for environment and dependency management, hatchling as build
@@ -77,6 +77,7 @@ flake8 cannot read `pyproject.toml`, so it needs a separate `.flake8` set to
 | **IV. Seed-Reproducible** | Seed accepted everywhere; same seed and version give same output; no unseeded randomness | **PASS** - single explicitly-passed `Roller`; `getrandbits`-only derivation; blake2b text folding; seed echoed in every output unconditionally; two guard tests defend the contract. |
 | **V. Data-Driven Rules** | SRD content in data files, none hard-coded | **PASS** - target, ladder, unskilled penalty, characteristic bands, and the check's own dice notation all in `tasks.toml`. SC-010 verifies that editing the file changes results with no code change. |
 | **VI. Simplicity** | YAGNI; stdlib preferred; runtime dependencies justified | **PASS** - see below. |
+| **Licensing & Distribution** | OGC files designated; every distribution bundles the OGL text and Section 15 chain; PI strings absent from OGC data; compatibility claims carry attribution | **PASS** - `tasks.toml` carries its per-file designation; `LICENSE-OGL.txt` ships in both the wheel and the sdist; README states the OGC/GPL split; the README makes no compatibility claim, so no attribution is owed yet. SC-012 verifies all of it automatically. See below. |
 
 **Principle VI in detail.** Typer is the only runtime dependency and was justified
 in the ratified library-and-CLI-architecture decision (it derives the CLI from typed
@@ -88,15 +89,38 @@ supported floor. Deliberate omissions in service of YAGNI: no JSON error envelop
 no golden-file regeneration flag, no `--target` override, no rules-data search path.
 
 **Licensing constraints.** `tasks.toml` opens with its Open Game Content designation
-and contains neither "Cepheus Engine" nor "Samardan Press". Full OGL text bundling,
-the Section 15 chain, and the compatibility statement belong to `packaging-release`;
-only the per-file designation is in scope here, because the file is created here.
+and contains neither "Cepheus Engine" nor "Samardan Press". Beyond that per-file
+designation, this feature also ships `LICENSE-OGL.txt` (the full OGL 1.0a text plus
+the SRD's complete Section 15 chain extended with this project's own game-data
+copyright line) and a README section naming `src/cetools/data/tasks.toml` as the sole
+Open Game Content file with everything else under GPL-3.0. Both are included in the
+wheel and the sdist.
+
+This is a deliberate correction to the original scoping, which deferred all licence
+bundling to `packaging-release`. The constitution's bundling clause is written
+against *every distribution*, and this feature is the one that first builds a
+distribution containing Open Game Content, so the obligation lands here whether or
+not a release is cut. What genuinely does belong to `packaging-release` is
+everything downstream of building the artefact: the PyPI description, the
+compatibility statement as published, and the release process. `README.md` therefore
+either carries the trademark attribution and non-affiliation statement or makes no
+compatibility claim at all; this feature takes the second route and says only what
+the tool does.
 
 **Post-Phase-1 re-check**: still **PASS**. The Phase 1 design introduced no new
 dependency and no new hard-coded rules content. The one design choice worth
 recording against Principle VI is `ThrowResult` serving both dice throws and `d66`
 with an overloaded `total`; a second result type was rejected as more machinery than
 the problem needs, and the overload is documented explicitly in the JSON contract.
+
+**Post-analysis re-check (2026-08-12)**: **PASS**, after one repair. `/speckit-analyze`
+found the Licensing & Distribution row failing: this plan deferred all OGL bundling to
+`packaging-release`, but the constitution binds every *distribution*, and this feature
+builds the first one containing Open Game Content. The plan now ships `LICENSE-OGL.txt`
+and the README designation, and SC-012 guards both. No principle row changed. The
+repair adds two files and one test module and introduces no dependency, so Principle VI
+is untouched. The other analysis findings were traceability and coverage gaps in
+`tasks.md` and the contracts, not design changes.
 
 ## Project Structure
 
@@ -124,8 +148,10 @@ specs/001-dice-task-engine/
 ```text
 pyproject.toml           # hatchling, requires-python >=3.13, typer, dev group
 .flake8                  # flake8 cannot read pyproject.toml
-README.md
-LICENSE                  # GPL-3.0
+.github/workflows/ci.yml # pytest across the supported Python versions and platforms
+README.md                # states the OGC/GPL split; makes no compatibility claim
+LICENSE                  # GPL-3.0, covers the code
+LICENSE-OGL.txt          # OGL 1.0a + Section 15 chain, covers the OGC data
 
 src/
 └── cetools/

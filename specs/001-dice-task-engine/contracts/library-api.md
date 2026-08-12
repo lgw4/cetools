@@ -64,7 +64,7 @@ it.
 def check(
     roller: Roller,
     *,
-    difficulty: str = "Average",
+    difficulty: str | None = None,
     characteristic: int | None = None,
     skill: int | None = None,
     modifiers: Sequence[Modifier] = (),
@@ -78,7 +78,7 @@ transposition bug).
 
 | Parameter | Meaning of the default |
 |---|---|
-| `difficulty` | `"Average"`, the +0 rung. |
+| `difficulty` | `None` resolves through `parameters.default_difficulty()`, the sole rung whose modifier is `0` (`"Average"` in the shipped data). No rung name appears in code. |
 | `characteristic` | `None` means **no characteristic modifier at all**, not a score of zero. |
 | `skill` | `None` means **untrained**, applying the unskilled penalty. `0` means trained at level 0, applying nothing. |
 | `modifiers` | Empty. |
@@ -92,16 +92,38 @@ consumer supplies its own table without this feature growing a search path.
 ## Rules data
 
 ```python
-def load_task_parameters() -> TaskParameters   # cached
+def load_task_parameters() -> TaskParameters              # public, cached
+def _task_parameters_from_toml(text: str) -> TaskParameters   # internal, not cached
 ```
 
-Reads the single packaged `cetools/data/tasks.toml`. Performs no filesystem search
-(FR-023). Raises `RulesDataError` on missing, unreadable, malformed, or incomplete
-data, with no fallback to built-in values (FR-024).
+`load_task_parameters` reads the single packaged `cetools/data/tasks.toml` through
+`importlib.resources` and hands the text to `_task_parameters_from_toml`. It
+performs no filesystem search (FR-023). Raises `RulesDataError` on missing,
+unreadable, malformed, or incomplete data, with no fallback to built-in values
+(FR-024).
+
+**On the split.** `_task_parameters_from_toml` holds the TOML parse and the whole
+validation table from [tasks-toml.md](tasks-toml.md); `load_task_parameters` holds
+only "which bytes, and cache them". The split exists because the validation rules
+are the part with many cases and the packaged-file read is the part with one, and a
+zero-argument cached function that reads exactly one file has nowhere to put a
+fixture. With the seam, every `RulesDataError` path is reachable by passing fixture
+text directly, and a valid edited fixture demonstrates SC-010 through the real
+loader rather than by constructing a `TaskParameters` by hand.
+
+The leading underscore is the contract: it is not in `__all__` and callers outside
+the package must not use it. Only the missing-and-unreadable-file cases need to go
+through the public function, by pointing `importlib.resources` at an absent
+resource.
+
+`functools.cache` on `load_task_parameters` means tests that do exercise the public
+function must call `load_task_parameters.cache_clear()` afterwards, or they will
+leak state into whatever runs next. `tests/conftest.py` provides an autouse fixture
+that clears it, so no individual test has to remember.
 
 This function and its module are the seam that feature 2 (`rules-data-loading`)
-replaces. It is deliberately kept small so replacing it is easy and so nobody is
-tempted to extend it.
+replaces. Both functions are deliberately kept small so replacing them is easy and
+so nobody is tempted to extend them.
 
 ## Rendering
 

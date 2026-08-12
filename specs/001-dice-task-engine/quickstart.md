@@ -63,6 +63,12 @@ For reference, the folded value of `session-alpha` is `14333185781139156525`, an
 `uv run cetools roll 2d6 --seed 14333185781139156525` must produce the same result
 as `--seed session-alpha`.
 
+The two seeds used throughout this document have published expected values in
+[contracts/cli.md](contracts/cli.md): `session-alpha` throws 2d6 as `1, 5`, and
+`--seed 1` throws 2d6 as `2, 5`. Both are stable on CPython 3.10 through 3.14. Every
+scenario below that names a specific number is derived from that table, not from a
+run of the implementation.
+
 ## Scenario 3: The difficulty ladder is a modifier, not a target shift
 
 Validates FR-014, SC-003.
@@ -73,9 +79,10 @@ for d in Simple Easy Routine Average Difficult "Very Difficult" Formidable; do
 done
 ```
 
-**Expected**: `target` is `8` in all seven outputs, `faces` are identical in all
-seven, and `total` decreases by exactly 2 at each step from `Simple` (+6) down to
-`Formidable` (-6). If `target` moves, difficulty has been modelled wrongly.
+**Expected**: `target` is `8` in all seven outputs, `faces` are `2, 5` in all seven,
+and `total` decreases by exactly 2 at each step from `Simple` (+6) down to
+`Formidable` (-6): `13, 11, 9, 7, 5, 3, 1`. If `target` moves, difficulty has been
+modelled wrongly.
 
 ## Scenario 4: Skill 0 differs from untrained
 
@@ -86,8 +93,9 @@ uv run cetools check --skill 0 --seed 1        # trained at level 0
 uv run cetools check --seed 1                  # no --skill: untrained
 ```
 
-**Expected**: the first shows a `Skill 0` modifier of `+0`; the second shows an
-`Unskilled` modifier of `-3`. Totals differ by exactly 3.
+**Expected**: the first shows a `Skill 0` modifier of `+0` and a total of `7`; the
+second shows an `Unskilled` modifier of `-3` and a total of `4`. Both throw `2, 5`.
+Totals differ by exactly 3, and both fail against the target of `8`.
 
 ## Scenario 5: The characteristic table, including its unbounded top
 
@@ -179,15 +187,38 @@ print('module state untouched:', random.getstate() == before)
 
 **Expected**: `True`.
 
+## Scenario 11: The distribution carries its licences
+
+Validates FR-035, SC-012. Covered automatically by `tests/unit/test_licensing.py`
+and by the build check; by hand:
+
+```sh
+uv build
+python -c "
+import zipfile, glob
+w = glob.glob('dist/*.whl')[0]
+names = zipfile.ZipFile(w).namelist()
+print('OGL text:  ', any('LICENSE-OGL.txt' in n for n in names))
+print('GPL text:  ', any(n.endswith('LICENSE') for n in names))
+print('rules data:', 'cetools/data/tasks.toml' in names)
+"
+grep -c 'Cepheus Engine\|Samardan Press' src/cetools/data/tasks.toml   # expect 0
+```
+
+**Expected**: `True`, `True`, `True`, then `0`. The last one matters because the
+Product Identity strings must not appear inside shipped Open Game Content; the
+package name and the data file both stay clear of them.
+
 ## Test suite map
 
 | Path | Covers |
 |---|---|
 | `tests/unit/test_seeds.py` | Seed resolution, folding, digit-string rule |
-| `tests/unit/test_dice.py` | Notation grammar, faces, modifiers, `DiceError` |
+| `tests/unit/test_dice.py` | Notation grammar, faces, modifiers, `DiceError`, roller independence |
 | `tests/unit/test_d66.py` | `d66` specifically (SC-009) |
 | `tests/unit/test_tasks.py` | Ladder, bands, skill states, `TaskError` |
-| `tests/unit/test_rules.py` | Data loading and every `RulesDataError` path |
+| `tests/unit/test_rules.py` | Data loading, every `RulesDataError` path, SC-010 through the loader |
+| `tests/unit/test_licensing.py` | OGC designation, absent PI strings, bundled licences (SC-012) |
 | `tests/unit/test_render.py` | Text and dict rendering |
 | `tests/contract/test_json_contract.py` | Committed JSON shape, incl. `seed` is a string |
 | `tests/integration/test_cli.py` | Both subcommands, streams, exit codes |

@@ -319,6 +319,19 @@ throws all thirty-six values occur.
   contain these values. The file MUST carry the Open Game Content designation
   required by the project's licensing constraints, since the file is created by
   this feature even though the wider licensing work is not.
+- **FR-035**: Because this feature is the one that first produces a distributable
+  package containing Open Game Content, that distribution MUST satisfy the
+  project's licensing constraints as they apply to a distribution: it MUST bundle
+  the full text of the licence the rules data is released under together with the
+  complete verbatim copyright-notice chain that licence requires, and the
+  repository MUST state plainly which files are Open Game Content and which are
+  under the source-code licence. This is not the whole of the licensing work.
+  Publishing, the compatibility statement, and the package description belong to
+  the packaging and release feature; what belongs here is only what an installable
+  artefact containing Open Game Content cannot be built without. Where any text
+  this feature writes claims compatibility with the source rules, it MUST carry
+  the trademark attribution and non-affiliation statement the project's licensing
+  constraints require, or else make no such claim.
 - **FR-022**: Editing the shipped data file MUST change the engine's arithmetic
   correspondingly, with no code change required, so a referee's house rule is a
   data edit. The edits that MUST be honoured are: changing any value; adding,
@@ -469,6 +482,12 @@ throws all thirty-six values occur.
   that imports the library directly without invoking the command line, so that
   FR-034's programmatic reachability is verified rather than assumed to follow from
   the command-line tests passing.
+- **SC-012**: The licensing obligations that attach to the shipped rules data are
+  verified by automated check rather than by inspection: the data file as read
+  from the installed package carries its Open Game Content designation and
+  contains neither Product Identity string, and the licence text and its
+  copyright-notice chain are present in the built distribution. A later edit that
+  drops any of these fails the suite instead of shipping quietly.
 
 ## Out of Scope
 
@@ -540,5 +559,10 @@ determine what later features must add.
   package skeleton, packaging configuration, and test harness it establishes are
   consumed by all four remaining MVP features.
 - **Licensing**: the shipped rules data file is Open Game Content and carries the
-  designation required by the project's licensing constraints; the full licence
-  bundling and attribution work belongs to the packaging and release feature.
+  designation required by the project's licensing constraints. Because this
+  feature also builds the first installable artefact containing that content, the
+  licence text, its copyright-notice chain, and the repository-level statement of
+  which files are Open Game Content travel with it (FR-035) rather than waiting
+  for the packaging and release feature. What still waits for that feature is
+  everything to do with publishing: the package description, the compatibility
+  statement as it appears on the index, and the release process itself.

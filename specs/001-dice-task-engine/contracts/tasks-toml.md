@@ -102,9 +102,19 @@ detection across bands is **not** performed here; a score falling in a gap raise
 
 The file opens with its Open Game Content designation, per the constitution's
 Licensing and Distribution Constraints. The Product Identity strings "Cepheus
-Engine" and "Samardan Press" must not appear in it. Bundling the full OGL 1.0a
-text, the Section 15 chain, and the compatibility statement is the
-`packaging-release` feature's job; only the per-file designation is in scope here.
+Engine" and "Samardan Press" must not appear in it.
+
+The `LICENSE-OGL.txt` the opening comment points at is a real file created by this
+feature: the full OGL 1.0a text plus the SRD's complete Section 15 chain, extended
+with this project's own game-data copyright line, shipped in both the wheel and the
+sdist. The README names this file as the sole Open Game Content in the repository,
+with everything else under GPL-3.0. All of it is verified by SC-012 rather than by
+inspection, so a later edit that drops the designation, reintroduces a Product
+Identity string, or unships the licence text fails the suite.
+
+What remains the `packaging-release` feature's job is everything downstream of the
+built artefact: the PyPI description, the published compatibility statement, and the
+release process.
 
 ## Packaging
 

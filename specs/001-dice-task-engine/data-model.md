@@ -7,6 +7,13 @@ that are compared, rendered, and serialized but never mutated after construction
 Sequence fields are tuples so instances stay hashable and cannot be edited in place
 by a caller holding a reference.
 
+**A note on vocabulary.** The spec says "modifier", "unskilled penalty", and
+"characteristic modifier"; the data file and the API say `dm`, `unskilled-dm`, and
+`characteristic_dm`. These name the same things. "DM" is the source rules' own
+abbreviation for a dice modifier and is the right register for a field name; the
+spec's longer forms are the right register for prose. The mapping is one-to-one and
+no third term is introduced anywhere.
+
 ## Roller
 
 The only source of randomness in the feature. Constructed from a seed and passed
@@ -150,7 +157,18 @@ The parsed contents of `tasks.toml`. Loaded once and cached.
 required tables present, values are integers of the right sign-free types, band
 keys parse as `N-M` or `N+`, exactly one unbounded band exists, and exactly one
 difficulty rung has a modifier of `0`. Any failure raises `RulesDataError`. There
-is no fallback to built-in values (FR-024).
+is no fallback to built-in values.
+
+**FR-024 is the normative statement** of what "required" means, and the table in
+[contracts/tasks-toml.md](contracts/tasks-toml.md) is its check-by-check
+expansion. The two invariants that survive every house-rule edit — exactly one
+zero-modifier rung, exactly one unbounded band — are restated in FR-014 and FR-022
+for local readability, but FR-024 is where they are decided. If the three ever
+disagree, FR-024 wins.
+
+Validation lives in `_task_parameters_from_toml`, not in `load_task_parameters`, so
+every failure path is reachable from a test without a file on disk. See
+[contracts/library-api.md](contracts/library-api.md).
 
 ## Error hierarchy
 
