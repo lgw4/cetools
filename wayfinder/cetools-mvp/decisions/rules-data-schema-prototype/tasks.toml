@@ -1,0 +1,26 @@
+# PROTOTYPE: schema sketch for the core task/dice parameters.
+# Values are illustrative, not yet SRD-faithful.
+# Shipped data files will open with the OGC designation, e.g.:
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+
+[task]
+roll = "2d6"
+target = 8
+unskilled-dm = -3
+
+[characteristic-dms]
+# characteristic value range -> DM applied to throws
+"0-2" = -2
+"3-5" = -1
+"6-8" = 0
+"9-11" = 1
+"12-14" = 2
+"15+" = 3
+
+[difficulty-dms]
+"Easy" = 4
+"Routine" = 2
+"Average" = 0
+"Difficult" = -2
+"Very Difficult" = -4
+"Formidable" = -6

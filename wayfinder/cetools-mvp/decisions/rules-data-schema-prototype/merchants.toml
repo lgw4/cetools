@@ -1,0 +1,37 @@
+# PROTOTYPE: schema sketch for a career data file.
+# Values are illustrative, not yet SRD-faithful; the real data files are
+# authored during the relevant feature.
+# Shipped data files will open with the OGC designation, e.g.:
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+
+[career]
+name = "Merchants"
+qualification = "INT 4+"
+survival = "INT 5+"
+position = "INT 5+"
+promotion = "INT 9+"
+reenlistment = 4
+
+# Compact-string micro-grammar, parsed and validated by the engine:
+#   "INT 4+"      -> check: characteristic INT, target 8+ throw DM base 4
+#   "STR +1"      -> effect: raise characteristic STR by 1
+#   "Gun Combat"  -> effect: gain skill Gun Combat +1
+#   "Pilot 2"     -> effect: gain skill Pilot at level 2
+
+[skill-tables]
+personal = ["STR +1", "DEX +1", "END +1", "INT +1", "Bribery", "Gambling"]
+service = ["Steward", "Electronics", "Broker", "Gun Combat", "Vehicle", "Jack-of-All-Trades"]
+advanced = ["Medicine", "Navigation", "Engineering", "Computer", "Pilot", "Admin"]
+
+[[ranks]]
+number = 0
+title = "Crewman"
+
+[[ranks]]
+number = 4
+title = "First Officer"
+bonus = "Pilot"
+
+[mustering-out]
+cash = [1000, 5000, 10000, 20000, 20000, 40000, 40000]
+benefits = ["Low Passage", "INT +1", "Weapon", "Mid Passage", "EDU +1", "Free Trader"]
