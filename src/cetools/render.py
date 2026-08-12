@@ -1,3 +1,4 @@
+import json
 from functools import singledispatch
 
 from cetools.dice import ThrowResult
@@ -46,3 +47,40 @@ def _(result: CheckResult) -> str:
     lines.append(f"  {'Total:'.ljust(outer_width)}{result.total} vs target {result.target}")
     lines.append(f"  {'Seed:'.ljust(outer_width)}{result.seed}")
     return "\n".join(lines) + "\n"
+
+
+@singledispatch
+def as_dict(result) -> dict:
+    raise TypeError(f"no as_dict rendering registered for {type(result).__name__}")
+
+
+@as_dict.register
+def _(result: ThrowResult) -> dict:
+    return {
+        "kind": "roll",
+        "notation": result.notation,
+        "faces": list(result.faces),
+        "modifier": result.modifier,
+        "total": result.total,
+        "seed": str(result.seed),
+    }
+
+
+@as_dict.register
+def _(result: CheckResult) -> dict:
+    return {
+        "kind": "check",
+        "faces": list(result.faces),
+        "dice_total": result.dice_total,
+        "modifiers": [
+            {"label": modifier.label, "value": modifier.value} for modifier in result.modifiers
+        ],
+        "total": result.total,
+        "target": result.target,
+        "success": result.success,
+        "seed": str(result.seed),
+    }
+
+
+def as_json(result) -> str:
+    return json.dumps(as_dict(result), indent=2, ensure_ascii=False) + "\n"

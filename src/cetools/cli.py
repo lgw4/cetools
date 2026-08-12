@@ -6,7 +6,7 @@ import typer
 
 from cetools.dice import Roller, throw
 from cetools.errors import CetoolsError
-from cetools.render import as_text
+from cetools.render import as_json, as_text
 from cetools.tasks import Modifier
 from cetools.tasks import check as check_task
 
@@ -61,7 +61,7 @@ def roll(
     except CetoolsError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1)
-    typer.echo(as_text(result), nl=False)
+    typer.echo(as_json(result) if json_output else as_text(result), nl=False)
 
 
 @app.command()
@@ -97,7 +97,7 @@ def check(
     except CetoolsError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1)
-    typer.echo(as_text(result), nl=False)
+    typer.echo(as_json(result) if json_output else as_text(result), nl=False)
 
 
 def main() -> None:

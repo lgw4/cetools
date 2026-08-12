@@ -1,5 +1,7 @@
+import json
+
 from cetools.dice import ThrowResult
-from cetools.render import as_text
+from cetools.render import as_dict, as_json, as_text
 from cetools.tasks import CheckResult, Modifier
 
 
@@ -139,3 +141,75 @@ def test_as_text_check_ends_with_trailing_newline():
     text = as_text(result)
     assert text.endswith("\n")
     assert not text.endswith("\n\n")
+
+
+def test_as_dict_throw_matches_json_contract_shape():
+    result = ThrowResult(
+        notation="2d6+1",
+        faces=(1, 5),
+        modifier=1,
+        total=7,
+        seed=14333185781139156525,
+    )
+    assert as_dict(result) == {
+        "kind": "roll",
+        "notation": "2d6+1",
+        "faces": [1, 5],
+        "modifier": 1,
+        "total": 7,
+        "seed": "14333185781139156525",
+    }
+
+
+def test_as_dict_check_matches_json_contract_shape():
+    result = CheckResult(
+        faces=(1, 5),
+        dice_total=6,
+        modifiers=(
+            Modifier(label="Difficulty (Difficult)", value=-2),
+            Modifier(label="cover", value=-2),
+        ),
+        total=1,
+        target=8,
+        success=False,
+        seed=14333185781139156525,
+    )
+    assert as_dict(result) == {
+        "kind": "check",
+        "faces": [1, 5],
+        "dice_total": 6,
+        "modifiers": [
+            {"label": "Difficulty (Difficult)", "value": -2},
+            {"label": "cover", "value": -2},
+        ],
+        "total": 1,
+        "target": 8,
+        "success": False,
+        "seed": "14333185781139156525",
+    }
+
+
+def test_as_json_throw_uses_indent_two_and_unescaped_unicode():
+    result = ThrowResult(notation="1d6", faces=(1,), modifier=0, total=1, seed=1)
+    text = as_json(result)
+    assert text == json.dumps(as_dict(result), indent=2, ensure_ascii=False) + "\n"
+
+
+def test_as_json_check_uses_indent_two_and_unescaped_unicode():
+    result = CheckResult(
+        faces=(2, 5),
+        dice_total=7,
+        modifiers=(Modifier(label="Difficulty (Average)", value=0),),
+        total=7,
+        target=8,
+        success=False,
+        seed=1,
+    )
+    text = as_json(result)
+    assert text == json.dumps(as_dict(result), indent=2, ensure_ascii=False) + "\n"
+
+
+def test_as_json_ends_with_trailing_newline():
+    result = ThrowResult(notation="1d6", faces=(1,), modifier=0, total=1, seed=1)
+    assert as_json(result).endswith("\n")
+    assert json.loads(as_json(result)) == as_dict(result)

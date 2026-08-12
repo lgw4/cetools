@@ -157,17 +157,17 @@ JSON parses cleanly and every shared value is identical to the text output.
 
 ### Tests for User Story 3 ⚠️ Write first, confirm failing
 
-- [ ] T046 [P] [US3] Write `tests/contract/test_json_contract.py` pinning both payloads from contracts/json-output.md: the exact key set and insertion order, the type of every value, `kind` being `"roll"` and `"check"`, the two arithmetic invariants, and specifically `isinstance(payload["seed"], str)` with a dedicated assertion whose stated purpose is to fail loudly if the type is later "tidied" to `int`
-- [ ] T047 [US3] Extend `tests/unit/test_render.py` with `as_dict` and `as_json` for both result types, asserting `json.dumps(..., indent=2, ensure_ascii=False)` formatting and that `as_json` returns a string already carrying its trailing newline
-- [ ] T048 [US3] Extend `tests/integration/test_cli.py` with `--json` on both commands: output parses, every value shared with the text mode is identical for the same seed (FR-026), and on an error nothing is written to stdout while the plain-text (not JSON) message goes to stderr (FR-027)
-- [ ] T049 [US3] Run `uv run pytest` and confirm every test added in T046–T048 fails
+- [X] T046 [P] [US3] Write `tests/contract/test_json_contract.py` pinning both payloads from contracts/json-output.md: the exact key set and insertion order, the type of every value, `kind` being `"roll"` and `"check"`, the two arithmetic invariants, and specifically `isinstance(payload["seed"], str)` with a dedicated assertion whose stated purpose is to fail loudly if the type is later "tidied" to `int`
+- [X] T047 [US3] Extend `tests/unit/test_render.py` with `as_dict` and `as_json` for both result types, asserting `json.dumps(..., indent=2, ensure_ascii=False)` formatting and that `as_json` returns a string already carrying its trailing newline
+- [X] T048 [US3] Extend `tests/integration/test_cli.py` with `--json` on both commands: output parses, every value shared with the text mode is identical for the same seed (FR-026), and on an error nothing is written to stdout while the plain-text (not JSON) message goes to stderr (FR-027)
+- [X] T049 [US3] Run `uv run pytest` and confirm every test added in T046–T048 fails
 
 ### Implementation for User Story 3
 
-- [ ] T050 [US3] Implement `as_dict` and `as_json` in `src/cetools/render.py` as `singledispatch` generics registered for `ThrowResult` and `CheckResult`, emitting `seed` as a decimal string and every other numeric field as a JSON number
-- [ ] T051 [US3] Add the `--json` flag to both commands in `src/cetools/cli.py`, printing `as_json(result)` with `end=""`; errors stay plain text on stderr in both modes, with no JSON error envelope (deliberate, per FR-027)
-- [ ] T052 [US3] Extend `src/cetools/__init__.py` `__all__` with `as_dict` and `as_json`
-- [ ] T053 [US3] Run `uv run pytest` to green and confirm `cetools roll 2d6 --seed session-alpha --json | python -m json.tool` round-trips
+- [X] T050 [US3] Implement `as_dict` and `as_json` in `src/cetools/render.py` as `singledispatch` generics registered for `ThrowResult` and `CheckResult`, emitting `seed` as a decimal string and every other numeric field as a JSON number
+- [X] T051 [US3] Add the `--json` flag to both commands in `src/cetools/cli.py`, printing `as_json(result)` with `end=""`; errors stay plain text on stderr in both modes, with no JSON error envelope (deliberate, per FR-027)
+- [X] T052 [US3] Extend `src/cetools/__init__.py` `__all__` with `as_dict` and `as_json`
+- [X] T053 [US3] Run `uv run pytest` to green and confirm `cetools roll 2d6 --seed session-alpha --json | python -m json.tool` round-trips
 
 **Checkpoint**: All three stories work. The JSON shape is now a committed public interface (FR-028), and any later change to it is a breaking change.
 

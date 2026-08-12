@@ -1,3 +1,4 @@
+import json
 import re
 from importlib.metadata import version
 
@@ -119,3 +120,83 @@ def test_check_seed_round_trip_is_byte_identical():
     third = runner.invoke(app, ["check", "--seed", seed])
 
     assert second.stdout == third.stdout
+
+
+def test_roll_json_output_parses_and_matches_text_values():
+    text_result = runner.invoke(app, ["roll", "2d6+1", "--seed", "session-alpha"])
+    json_result = runner.invoke(app, ["roll", "2d6+1", "--seed", "session-alpha", "--json"])
+
+    assert json_result.exit_code == 0
+    payload = json.loads(json_result.stdout)
+    assert payload["kind"] == "roll"
+    assert payload["notation"] == "2d6+1"
+    assert payload["faces"] == [1, 5]
+    assert payload["modifier"] == 1
+    assert payload["total"] == 7
+    assert str(payload["total"]) in text_result.stdout
+    assert payload["seed"] in text_result.stdout
+
+
+def test_roll_json_error_writes_nothing_to_stdout_and_plain_text_to_stderr():
+    result = runner.invoke(app, ["roll", "7dQ", "--seed", "session-alpha", "--json"])
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    assert result.stderr != ""
+    stripped = result.stderr.strip()
+    assert not (stripped.startswith("{") and stripped.endswith("}"))
+
+
+def test_check_json_output_parses_and_matches_text_values():
+    text_result = runner.invoke(
+        app,
+        [
+            "check",
+            "--difficulty",
+            "Difficult",
+            "--characteristic",
+            "9",
+            "--skill",
+            "2",
+            "--dm",
+            "cover=-2",
+            "--seed",
+            "session-alpha",
+        ],
+    )
+    json_result = runner.invoke(
+        app,
+        [
+            "check",
+            "--difficulty",
+            "Difficult",
+            "--characteristic",
+            "9",
+            "--skill",
+            "2",
+            "--dm",
+            "cover=-2",
+            "--seed",
+            "session-alpha",
+            "--json",
+        ],
+    )
+
+    assert json_result.exit_code == 0
+    payload = json.loads(json_result.stdout)
+    assert payload["kind"] == "check"
+    assert payload["faces"] == [1, 5]
+    assert payload["dice_total"] == 6
+    assert payload["total"] == 5
+    assert payload["target"] == 8
+    assert payload["success"] is False
+    assert str(payload["target"]) in text_result.stdout
+    assert payload["seed"] in text_result.stdout
+
+
+def test_check_json_error_writes_nothing_to_stdout_and_plain_text_to_stderr():
+    result = runner.invoke(app, ["check", "--difficulty", "Trivial", "--seed", "1", "--json"])
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    assert result.stderr != ""
+    stripped = result.stderr.strip()
+    assert not (stripped.startswith("{") and stripped.endswith("}"))
