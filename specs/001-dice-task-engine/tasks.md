@@ -200,12 +200,12 @@ fixed seeded sample of at least 1000 throws all 36 values occur.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T061 [P] Audit SC-011 across `tests/`: confirm every capability (seed resolution, throw, `throw_dice`, `d66`, `check`, `load_task_parameters`, all three renderers) is exercised by at least one test that imports the library without invoking the CLI, and add the missing cases to the relevant `tests/unit/` module
-- [ ] T062 [P] Add docstrings to every symbol in `src/cetools/__init__.py`'s `__all__`, since Principle I requires library modules to be documented
-- [ ] T063 [P] Expand `README.md` with installation, the `roll` and `check` examples from contracts/cli.md, and a note that results are reproducible from a seed plus a package version. Keep the licensing section T004 added, and keep the file free of compatibility claims unless the trademark attribution and non-affiliation statement are added in the same change (FR-035)
-- [ ] T064 Run `uv run black --check src tests`, `uv run isort --check-only src tests`, and `uv run flake8 src tests`, fixing findings; these are quality tooling and explicitly not a gate on done (Principle III)
-- [ ] T065 Build the distribution with `uv build` and confirm the sdist and wheel both carry `LICENSE` and `LICENSE-OGL.txt` and that the wheel contains `cetools/data/tasks.toml` (FR-035, SC-012). This is the one check that exercises the built artefact rather than the source tree
-- [ ] T066 Walk quickstart.md end to end, all eleven scenarios, and confirm each stated expectation, then confirm the full suite is green with `uv run pytest` and that T005's CI matrix is green on every supported version and platform
+- [X] T061 [P] Audit SC-011 across `tests/`: confirm every capability (seed resolution, throw, `throw_dice`, `d66`, `check`, `load_task_parameters`, all three renderers) is exercised by at least one test that imports the library without invoking the CLI, and add the missing cases to the relevant `tests/unit/` module
+- [X] T062 [P] Add docstrings to every symbol in `src/cetools/__init__.py`'s `__all__`, since Principle I requires library modules to be documented
+- [X] T063 [P] Expand `README.md` with installation, the `roll` and `check` examples from contracts/cli.md, and a note that results are reproducible from a seed plus a package version. Keep the licensing section T004 added, and keep the file free of compatibility claims unless the trademark attribution and non-affiliation statement are added in the same change (FR-035)
+- [X] T064 Run `uv run black --check src tests`, `uv run isort --check-only src tests`, and `uv run flake8 src tests`, fixing findings; these are quality tooling and explicitly not a gate on done (Principle III)
+- [X] T065 Build the distribution with `uv build` and confirm the sdist and wheel both carry `LICENSE` and `LICENSE-OGL.txt` and that the wheel contains `cetools/data/tasks.toml` (FR-035, SC-012). This is the one check that exercises the built artefact rather than the source tree
+- [X] T066 Walk quickstart.md end to end, all eleven scenarios, and confirm each stated expectation, then confirm the full suite is green with `uv run pytest` and that T005's CI matrix is green on every supported version and platform
 
 ---
 

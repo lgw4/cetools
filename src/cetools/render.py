@@ -7,6 +7,13 @@ from cetools.tasks import CheckResult
 
 @singledispatch
 def as_text(result) -> str:
+    """Render a result (`ThrowResult` or `CheckResult`) as human-readable text.
+
+    Follows the rendering rules pinned by the golden files in
+    `tests/golden/`: labels padded to the longest present, values signed,
+    a trailing newline, and no `Modifier:`/sum noise when there is no
+    modifier to show.
+    """
     raise TypeError(f"no as_text rendering registered for {type(result).__name__}")
 
 
@@ -51,6 +58,12 @@ def _(result: CheckResult) -> str:
 
 @singledispatch
 def as_dict(result) -> dict:
+    """Render a result (`ThrowResult` or `CheckResult`) as the committed JSON shape.
+
+    `seed` is emitted as a decimal string, since 64-bit seeds exceed
+    2^53 and would be silently corrupted by a JavaScript consumer; every
+    other numeric field is a JSON number.
+    """
     raise TypeError(f"no as_dict rendering registered for {type(result).__name__}")
 
 
@@ -83,4 +96,5 @@ def _(result: CheckResult) -> dict:
 
 
 def as_json(result) -> str:
+    """Render `as_dict(result)` as indented JSON with a trailing newline."""
     return json.dumps(as_dict(result), indent=2, ensure_ascii=False) + "\n"

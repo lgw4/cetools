@@ -79,6 +79,14 @@ def check(
     modifiers: Sequence[Modifier] = (),
     parameters: TaskParameters | None = None,
 ) -> CheckResult:
+    """Resolve a 2D6 task check against `parameters` (the packaged rules by default).
+
+    Modifiers are applied in fixed order: difficulty, characteristic (if
+    given), skill, then the caller's `modifiers` in the order supplied.
+    `difficulty=None` resolves through `parameters.default_difficulty()`;
+    `skill=None` applies the unskilled penalty, while `skill=0` is trained
+    at level 0.
+    """
     if parameters is None:
         from cetools.rules import load_task_parameters
 

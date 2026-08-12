@@ -6,6 +6,7 @@
         "Apifox",
         "backupdb",
         "celerybeat",
+        "cetools",
         "codz",
         "Connor",
         "cython",

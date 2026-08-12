@@ -75,6 +75,7 @@ def parse_notation(notation: str) -> tuple[int, int, int] | None:
 
 
 def throw_dice(roller: Roller, count: int, sides: int, modifier: int = 0) -> ThrowResult:
+    """Throw `count` dice of `sides` faces plus `modifier`, as a `ThrowResult`."""
     faces = roller.dice(count, sides)
     sign = "+" if modifier >= 0 else "-"
     notation = f"{count}d{sides}" + (f"{sign}{abs(modifier)}" if modifier else "")
@@ -100,6 +101,7 @@ def d66(roller: Roller) -> ThrowResult:
 
 
 def throw(roller: Roller, notation: str) -> ThrowResult:
+    """Throw dice notation, routing the `d66` literal to `d66`."""
     parsed = parse_notation(notation)
     if parsed is None:
         return d66(roller)
