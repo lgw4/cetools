@@ -15,6 +15,15 @@ def test_roll_successful_throw_exits_zero_with_stdout():
     assert "2d6 = 6" in result.stdout
 
 
+def test_roll_d66_exits_zero_and_is_distinct_from_1d66():
+    d66_result = runner.invoke(app, ["roll", "d66", "--seed", "session-alpha"])
+    one_d66_result = runner.invoke(app, ["roll", "1d66", "--seed", "session-alpha"])
+    assert d66_result.exit_code == 0
+    assert "d66 = 15" in d66_result.stdout
+    assert one_d66_result.exit_code == 0
+    assert d66_result.stdout != one_d66_result.stdout
+
+
 def test_roll_bad_notation_exits_one_with_stderr_and_empty_stdout():
     result = runner.invoke(app, ["roll", "7dQ", "--seed", "session-alpha"])
     assert result.exit_code == 1
@@ -120,6 +129,21 @@ def test_check_seed_round_trip_is_byte_identical():
     third = runner.invoke(app, ["check", "--seed", seed])
 
     assert second.stdout == third.stdout
+
+
+def test_roll_d66_json_output_matches_text_values():
+    text_result = runner.invoke(app, ["roll", "d66", "--seed", "session-alpha"])
+    json_result = runner.invoke(app, ["roll", "d66", "--seed", "session-alpha", "--json"])
+
+    assert json_result.exit_code == 0
+    payload = json.loads(json_result.stdout)
+    assert payload["kind"] == "roll"
+    assert payload["notation"] == "d66"
+    assert payload["faces"] == [1, 5]
+    assert payload["modifier"] == 0
+    assert payload["total"] == 15
+    assert str(payload["total"]) in text_result.stdout
+    assert payload["seed"] in text_result.stdout
 
 
 def test_roll_json_output_parses_and_matches_text_values():

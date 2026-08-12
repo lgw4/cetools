@@ -183,16 +183,16 @@ fixed seeded sample of at least 1000 throws all 36 values occur.
 
 ### Tests for User Story 4 ⚠️ Write first, confirm failing
 
-- [ ] T054 [P] [US4] Write `tests/unit/test_d66.py` as dedicated coverage per SC-009: `d66(Roller("session-alpha"))` gives `faces == (1, 5)`, `total == 15`, `modifier == 0`, `notation == "d66"`; `parse_notation("d66")` returns `None` (the literal, matched before the general grammar) while `parse_notation("1d66")` returns `(1, 66, 0)`; `D66` is accepted case-insensitively; and a fixed seeded sample of at least 1000 throws covers all 36 values with no digit `0` and none above `6` (FR-012)
-- [ ] T055 [P] [US4] Hand-write the golden file `tests/golden/roll_d66.txt` for `cetools roll d66 --seed session-alpha`, matching the worked example in contracts/cli.md
-- [ ] T056 [US4] Extend `tests/integration/test_cli.py` and `tests/integration/test_golden.py` for `cetools roll d66`, and `tests/contract/test_json_contract.py` for the `d66` JSON payload where `total` is the composed value rather than a sum and `notation` is what discriminates it (FR-010)
-- [ ] T057 [US4] Extend `tests/property/test_invariants.py` with the `d66` invariant that both digits always lie in `1..6` and `total == faces[0] * 10 + faces[1]`
-- [ ] T058 [US4] Run `uv run pytest` and confirm every test added in T054–T057 fails
+- [X] T054 [P] [US4] Write `tests/unit/test_d66.py` as dedicated coverage per SC-009: `d66(Roller("session-alpha"))` gives `faces == (1, 5)`, `total == 15`, `modifier == 0`, `notation == "d66"`; `parse_notation("d66")` returns `None` (the literal, matched before the general grammar) while `parse_notation("1d66")` returns `(1, 66, 0)`; `D66` is accepted case-insensitively; and a fixed seeded sample of at least 1000 throws covers all 36 values with no digit `0` and none above `6` (FR-012)
+- [X] T055 [P] [US4] Hand-write the golden file `tests/golden/roll_d66.txt` for `cetools roll d66 --seed session-alpha`, matching the worked example in contracts/cli.md
+- [X] T056 [US4] Extend `tests/integration/test_cli.py` and `tests/integration/test_golden.py` for `cetools roll d66`, and `tests/contract/test_json_contract.py` for the `d66` JSON payload where `total` is the composed value rather than a sum and `notation` is what discriminates it (FR-010)
+- [X] T057 [US4] Extend `tests/property/test_invariants.py` with the `d66` invariant that both digits always lie in `1..6` and `total == faces[0] * 10 + faces[1]`
+- [X] T058 [US4] Run `uv run pytest` and confirm every test added in T054–T057 fails
 
 ### Implementation for User Story 4
 
-- [ ] T059 [US4] Implement `d66(roller)` in `src/cetools/dice.py` and make `parse_notation` match the `d66` literal case-insensitively *before* the general grammar; route `throw` to `d66` on that literal, and export `d66` from `src/cetools/__init__.py`
-- [ ] T060 [US4] Run `uv run pytest` to green and walk quickstart.md Scenario 9, confirming `d66` and `1d66` are different throws
+- [X] T059 [US4] Implement `d66(roller)` in `src/cetools/dice.py` and make `parse_notation` match the `d66` literal case-insensitively *before* the general grammar; route `throw` to `d66` on that literal, and export `d66` from `src/cetools/__init__.py`
+- [X] T060 [US4] Run `uv run pytest` to green and walk quickstart.md Scenario 9, confirming `d66` and `1d66` are different throws
 
 **Checkpoint**: All four user stories are independently functional.
 

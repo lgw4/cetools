@@ -8,6 +8,7 @@ from cetools.seeds import resolve_seed
 _NOTATION = re.compile(
     r"^\s*(?P<count>\d+)?\s*[dD]\s*(?P<sides>\d+)\s*" r"(?:(?P<sign>[+-])\s*(?P<mod>\d+))?\s*$"
 )
+_D66_LITERAL = re.compile(r"^\s*[dD]66\s*$")
 
 
 class Roller:
@@ -51,9 +52,13 @@ class ThrowResult:
 def parse_notation(notation: str) -> tuple[int, int, int] | None:
     """Parse dice notation into `(count, sides, modifier)`.
 
+    Returns `None` for the `d66` literal, matched case-insensitively before
+    the general grammar so it can never be confused with a 66-sided die.
     Raises `DiceError` for anything the grammar does not match, and for a
     count or side count below 1.
     """
+    if _D66_LITERAL.match(notation):
+        return None
     match = _NOTATION.match(notation)
     if match is None:
         raise DiceError(f"invalid dice notation: {notation!r}")
@@ -82,6 +87,21 @@ def throw_dice(roller: Roller, count: int, sides: int, modifier: int = 0) -> Thr
     )
 
 
+def d66(roller: Roller) -> ThrowResult:
+    """Throw the two-digit table die: two d6, read as tens and units."""
+    faces = roller.dice(2, 6)
+    return ThrowResult(
+        notation="d66",
+        faces=faces,
+        modifier=0,
+        total=faces[0] * 10 + faces[1],
+        seed=roller.seed,
+    )
+
+
 def throw(roller: Roller, notation: str) -> ThrowResult:
-    count, sides, modifier = parse_notation(notation)
+    parsed = parse_notation(notation)
+    if parsed is None:
+        return d66(roller)
+    count, sides, modifier = parsed
     return throw_dice(roller, count, sides, modifier)

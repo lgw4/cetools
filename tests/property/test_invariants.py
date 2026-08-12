@@ -1,7 +1,7 @@
 from hypothesis import given
 from hypothesis import strategies as st
 
-from cetools.dice import Roller, throw_dice
+from cetools.dice import Roller, d66, throw_dice
 from cetools.rules import load_task_parameters
 from cetools.tasks import Modifier, check
 
@@ -39,6 +39,14 @@ def test_same_seed_and_arguments_yield_equal_result(seed, count, sides_, modifie
     first = throw_dice(Roller(seed), count, sides_, modifier)
     second = throw_dice(Roller(seed), count, sides_, modifier)
     assert first == second
+
+
+@given(seed=seeds)
+def test_d66_digits_are_within_range_and_total_is_composed(seed):
+    result = d66(Roller(seed))
+    assert len(result.faces) == 2
+    assert all(1 <= face <= 6 for face in result.faces)
+    assert result.total == result.faces[0] * 10 + result.faces[1]
 
 
 @given(

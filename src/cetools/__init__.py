@@ -1,4 +1,4 @@
-from cetools.dice import Roller, ThrowResult, parse_notation, throw, throw_dice
+from cetools.dice import Roller, ThrowResult, d66, parse_notation, throw, throw_dice
 from cetools.errors import CetoolsError, DiceError, RulesDataError, TaskError
 from cetools.render import as_dict, as_json, as_text
 from cetools.rules import load_task_parameters
@@ -14,6 +14,7 @@ __all__ = [
     "parse_notation",
     "throw",
     "throw_dice",
+    "d66",
     "as_text",
     "as_dict",
     "as_json",

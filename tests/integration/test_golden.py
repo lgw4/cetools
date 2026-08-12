@@ -17,6 +17,12 @@ def test_roll_1d6_matches_golden_file(read_golden):
     assert result.stdout == read_golden("roll_1d6.txt")
 
 
+def test_roll_d66_matches_golden_file(read_golden):
+    result = runner.invoke(app, ["roll", "d66", "--seed", "session-alpha"])
+    assert result.exit_code == 0
+    assert result.stdout == read_golden("roll_d66.txt")
+
+
 def test_check_difficult_matches_golden_file(read_golden):
     result = runner.invoke(
         app,
