@@ -36,9 +36,9 @@ def _declared_floor() -> tuple[int, int]:
 
 
 def _matrix_versions() -> set[tuple[int, int]]:
-    workflow = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    workflow = (REPO_ROOT / ".github" / "workflows" / "ci.yaml").read_text(encoding="utf-8")
     match = _MATRIX_VERSIONS.search(workflow)
-    assert match is not None, "no python-version matrix in .github/workflows/ci.yml"
+    assert match is not None, "no python-version matrix in .github/workflows/ci.yaml"
     versions = {(int(major), int(minor)) for major, minor in _VERSION.findall(match.group(1))}
     assert versions, "the python-version matrix is empty"
     return versions
@@ -55,7 +55,7 @@ def test_the_matrix_covers_every_python_from_the_declared_floor_to_the_one_in_us
     assert not missing, (
         "requires-python declares support for "
         + ", ".join(f"{major}.{minor}" for major, minor in missing)
-        + " but .github/workflows/ci.yml does not verify it. Either add the version to "
+        + " but .github/workflows/ci.yaml does not verify it. Either add the version to "
         "the matrix or narrow requires-python; FR-007 binds every version in the "
         "declared set."
     )

@@ -38,7 +38,7 @@ binds every version in the declared set, so an unbounded declaration only stays
 dischargeable if something notices when the matrix falls behind the range: that is
 `tests/guards/test_python_support.py`, which fails when a Python inside
 `requires-python` that the suite is actually running on is absent from the matrix in
-`.github/workflows/ci.yml`. The guard keys off the running interpreter rather than a
+`.github/workflows/ci.yaml`. The guard keys off the running interpreter rather than a
 hard-coded list of releases, so it needs no network and no periodic maintenance: the
 first run on a new Python — a developer's local upgrade, or a matrix entry added
 without the other jobs following — is what fires it. Recorded 2026-08-12 per T084,
@@ -199,12 +199,12 @@ specs/001-dice-task-engine/
 ### Source Code (repository root)
 
 ```text
-pyproject.toml           # hatchling, requires-python >=3.13, typer, dev group
-.flake8                  # flake8 cannot read pyproject.toml
-.github/workflows/ci.yml # pytest across the supported Python versions and platforms
-README.md                # states the OGC/GPL split; makes no compatibility claim
-LICENSE                  # GPL-3.0, covers the code
-LICENSE-OGL.txt          # OGL 1.0a + Section 15 chain, covers the OGC data
+pyproject.toml            # hatchling, requires-python >=3.13, typer, dev group
+.flake8                   # flake8 cannot read pyproject.toml
+.github/workflows/ci.yaml # pytest across the supported Python versions, on Linux
+README.md                 # states the OGC/GPL split; makes no compatibility claim
+LICENSE                   # GPL-3.0, covers the code
+LICENSE-OGL.txt           # OGL 1.0a + Section 15 chain, covers the OGC data
 
 src/
 └── cetools/
