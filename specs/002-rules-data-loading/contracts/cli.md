@@ -60,20 +60,32 @@ errors and nothing else.
 Packaged:
 
 ```text
-  Rules: packaged
+  Rules: packaged (cetools 2026.08.1)
 ```
 
-Overridden:
+Overridden, with a file ignored:
 
 ```text
-  Rules: overridden
+  Rules: overridden (cetools 2026.08.1)
     navy.toml     replaced  sha256:3b1f...c0
     scouts.toml   added     sha256:9ad4...71
+    notes.md      ignored
 ```
 
-The file column is padded to the longest basename present and the disposition column
-to the longest disposition present, matching the padding rule the `Modifiers` block
-already uses. Files are listed sorted by name. Fingerprints are printed whole.
+The package version follows the source in parentheses, in both the packaged and the
+overridden case (FR-033a). The file column is padded to the longest basename present and
+the disposition column to the longest disposition present, matching the padding rule the
+`Modifiers` block already uses. Files that took effect are listed first, sorted by name,
+then ignored files, sorted by name. Fingerprints are printed whole; an ignored file has
+none and its line ends at the disposition.
+
+An override holding nothing but ignored files still reads `packaged`, because nothing
+took effect, and still lists them:
+
+```text
+  Rules: packaged (cetools 2026.08.1)
+    notes.md      ignored
+```
 
 ### `cetools check`
 
@@ -89,19 +101,24 @@ Check: FAILURE
     cover                  -2
   Total: 5 vs target 8
   Seed:  14333185781139156525
-  Rules: packaged
+  Rules: packaged (cetools 2026.08.1)
 ```
 
 The outer label column stays seven characters wide, because `Rules:` is no longer
 than `Total:`. Every line above the new one is byte-for-byte what it was, which is
 what SC-009 checks.
 
+The committed golden holds the version as a placeholder, substituted at comparison
+time, so a release rewrites no golden file (SC-009). SC-008 asserts the rendered
+version against the installed package version separately, so the normalization does
+not become the only check on it.
+
 ### `cetools validate`, no problems
 
 ```text
 Rules data is valid.
   Files: 5
-  Rules: packaged
+  Rules: packaged (cetools 2026.08.1)
 ```
 
 ### `cetools validate`, with problems
@@ -117,7 +134,7 @@ skills.toml:skills: found no entries; expected at least one
 Rules data is invalid.
   Files:    5
   Problems: 4
-  Rules:    packaged
+  Rules:    packaged (cetools 2026.08.1)
 ```
 
 The problem line is `FILE:LOCATION: found FOUND; expected EXPECTED`, dropping

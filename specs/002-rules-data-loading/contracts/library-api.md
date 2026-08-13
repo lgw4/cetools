@@ -45,9 +45,14 @@ Composes the packaged data set with `override` if one is given, validates all of
 and returns the loaded set. Raises `RulesDataError` carrying `.problems` if anything
 is wrong; the exception's message summarizes and the tuple carries the detail.
 
-`override` may name a directory or a single file (FR-040a). A path that does not
+`override` may name a directory or a single file (FR-028, FR-029). A path that does not
 exist raises `RulesDataError` naming it. `None` opens nothing outside the installed
 package (FR-027).
+
+A file in an override that is not a `.toml` file does not raise: its basename lands in
+`provenance.ignored` and the load proceeds (FR-032a). A file whose name begins with a dot
+is passed over without appearing anywhere (FR-032b), so a `.DS_Store` beside a house rule
+neither fails the load nor clutters the report.
 
 The no-override call is cached, because the installed files cannot change within a
 process. Tests that write data files and reload must call
@@ -91,9 +96,11 @@ class ValidationProblem:
 
 @dataclass(frozen=True, slots=True)
 class Provenance:
-    files: tuple[FileProvenance, ...]
+    version: str                  # installed package version (FR-033a)
+    files: tuple[FileProvenance, ...]     # took effect; sorted by file
+    ignored: tuple[str, ...]              # not rules data (FR-032a); sorted
     @property
-    def is_packaged(self) -> bool: ...
+    def is_packaged(self) -> bool: ...    # not self.files
 
 @dataclass(frozen=True, slots=True)
 class FileProvenance:

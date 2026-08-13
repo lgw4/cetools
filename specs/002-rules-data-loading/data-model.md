@@ -140,7 +140,7 @@ would make `[tables.sevice]` a new table rather than a typo.
 | Field | Type | Notes |
 |---|---|---|
 | `characteristic` | `str \| None` | `None` means the throw takes no characteristic modifier, which is how re-enlistment is thrown. |
-| `target` | `int` | Plain typed value, never notation (FR-004a). |
+| `target` | `int` | Plain typed value, never notation (FR-004a). Positive; a throw against a target of zero or less is not a throw (FR-014). |
 
 ### `SkillTable`
 
@@ -180,6 +180,11 @@ No length constraint is imposed on any table; see research R13.
 A `StrEnum` with members `REPLACED` and `ADDED`, so the value serializes to
 `"replaced"` and `"added"` in JSON without a conversion step (FR-032, FR-035).
 
+A file ignored under FR-032a is **not** a third member here. It carries no fingerprint,
+because nothing was made of its content, and it contributed nothing to the data set. It
+is held in a separate `ignored` tuple instead, which keeps `fingerprint` non-optional and
+keeps `is_packaged` an emptiness check rather than a filter.
+
 ### `FileProvenance`
 
 | Field | Type | Notes |
@@ -192,16 +197,24 @@ A `StrEnum` with members `REPLACED` and `ADDED`, so the value serializes to
 
 | Field | Type | Notes |
 |---|---|---|
-| `files` | `tuple[FileProvenance, ...]` | Sorted by `file`. Empty exactly when nothing was overridden. |
+| `version` | `str` | The installed package version, from `importlib.metadata` (FR-033a). Present whether or not anything was overridden. |
+| `files` | `tuple[FileProvenance, ...]` | Files that took effect. Sorted by `file`. Empty exactly when nothing was overridden. |
+| `ignored` | `tuple[str, ...]` | Basenames of files in an override location that are not rules data (FR-032a). Sorted. Dot-prefixed files never appear here (FR-032b). |
 
 | Property | Returns |
 |---|---|
 | `is_packaged` | `not self.files` |
 
-An empty tuple is the packaged data set, which FR-034 says needs no further detail
-because the package version already determines that content. Provenance is still
-reported in that case, as a value saying "packaged" rather than as an absent line
-(FR-037).
+An empty `files` is the packaged data set, which FR-034 says needs no detail beyond the
+version because that version determines the content exactly. Provenance is still reported
+in that case, as a value saying "packaged" rather than as an absent line (FR-037).
+
+`ignored` is independent of `is_packaged`: an override location holding only a README
+leaves the data packaged and the README named. That combination is the point of FR-032a,
+so the two fields must not be collapsed into one.
+
+The version is read once from installed package metadata rather than threaded in by the
+caller, so that a result cannot report a version other than the one that produced it.
 
 ## Validation reporting (`cetools/errors.py`)
 
@@ -289,10 +302,14 @@ reader of its own.
 | Benefit items | `benefits` | 1 | `registries/benefits.toml` |
 | Career | `career` | 1 | `careers/navy.toml` |
 
-Versions are counted per kind (FR-002a): the supported version is looked up by the
-file's declared kind, so bumping one kind leaves user files of every other kind valid.
-`career` is the only repeatable kind; the other four are singletons, and two files in
-force declaring the same singleton kind is a validation problem naming both. That is
-the registry analogue of FR-019b's duplicate career name rule, and it catches a
-misspelled registry filename, which would otherwise be admitted as an addition and
-leave the real registry silently in force.
+Versions are counted per kind (FR-002a, which now names this closed set of five in the
+spec): the supported version is looked up by the file's declared kind, so bumping one kind
+leaves user files of every other kind valid. Each file declares its kind (FR-001a), and a
+file replacing a packaged one must declare that file's kind.
+
+`career` is the only repeatable kind. The other four occur exactly once, and FR-010a
+requires each to be present and forbids two files in force from declaring the same one,
+naming both when they do. That rule catches a misspelled registry filename, which would
+otherwise be admitted as an addition and leave the real registry silently in force. It
+began as the registry analogue of FR-019b's duplicate career name rule and is now a
+requirement in its own right.

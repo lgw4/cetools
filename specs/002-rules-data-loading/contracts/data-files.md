@@ -43,16 +43,24 @@ supported version for every kind is currently `1`.
 
 Rules:
 
-1. A file declaring no `schema`, or no `schema-version`, is rejected (FR-001).
+1. A file declaring no `schema`, or no `schema-version`, is rejected (FR-001, FR-001a).
 2. A file declaring an unsupported version for its kind is rejected naming the
    declared version and the supported version for that kind, and its contents are not
    interpreted, so no further problem is reported from that file (FR-002).
 3. A file whose basename matches a packaged file must declare that file's kind. A
-   mismatch is a problem naming both kinds.
+   mismatch is a problem naming both kinds (FR-001a).
 4. `schema-version` counts per kind (FR-002a). It is never derived from, compared to,
    or displayed alongside the package's release version (FR-003).
-5. The Open Game Content designation comment is required in every shipped data file
-   and neither Product Identity string may appear (FR-046).
+5. The Open Game Content designation comment is required in every **shipped** data file
+   and neither Product Identity string may appear (FR-046). This is the one rule an
+   override file is not held to: FR-031 covers its kind, its version, its keys and its
+   names, and FR-046 binds only what this project redistributes. A house rule needs no
+   licensing header.
+6. The copyright notice chain shipped with the package must cover every data file the
+   package contains, and the check that verifies it derives what must be covered from the
+   files actually present rather than comparing against a fixed expected text (FR-047,
+   SC-016). A fixed comparison passes unchanged when a file is added, which is the failure
+   FR-047 exists to prevent.
 
 ## `task-parameters` (`tasks.toml`)
 
@@ -233,7 +241,7 @@ A **throw** is a table with:
 | Key | Type | Required | Notes |
 |---|---|---|---|
 | `characteristic` | string | no | A characteristics registry code. Absent means the throw takes no characteristic modifier. |
-| `target` | integer | yes | Plain value, never notation (FR-014, FR-004a). |
+| `target` | integer | yes | Plain value, never notation (FR-014, FR-004a). Positive. |
 
 A **table** is a table with:
 
@@ -263,14 +271,27 @@ unrecognized key, not a new table.
 ## Composition
 
 1. The packaged data set is every `.toml` under `cetools/data/`, keyed by basename.
-2. If an override location was named and is a directory, every `.toml` under it, at
-   any depth, is collected and keyed by basename. If it is a single file, that file
-   alone is collected, keyed by its basename (FR-040a).
-3. A key present in both is a **replacement**: the override file is used whole, and
-   nothing from the packaged file survives (FR-029, FR-030).
-4. A key present only in the override is an **addition** (FR-032).
-5. Two override files sharing a basename is a problem naming both.
-6. Nothing outside the package is opened when no override was named (FR-027).
+   Basenames are unique across that layout, which FR-029a requires and a test enforces.
+2. If an override location was named and is a directory, every file under it, at any
+   depth, is collected and keyed by basename. If it is a single file, that file alone is
+   collected, keyed by its basename. The directory a file sits in never affects its key
+   (FR-029, of which FR-040a is the single-file case).
+3. A collected file whose name begins with a dot is discarded before anything else
+   happens: not loaded, not keyed, not reported (FR-032b).
+4. A collected file whose extension is not `.toml` is **ignored**: its basename goes to
+   `provenance.ignored` and it contributes nothing. It is not a validation problem and
+   does not fail the load (FR-032a).
+5. A key present in both the packaged set and the override is a **replacement**: the
+   override file is used whole, and nothing from the packaged file survives (FR-029,
+   FR-030).
+6. A key present only in the override is an **addition** (FR-032).
+7. Two override files sharing a basename is a problem naming both (FR-029a).
+8. Nothing outside the package is opened when no override was named (FR-027).
+
+Rules 3 and 4 are the only places a file is passed over rather than validated, and they
+differ deliberately: a dot-prefixed file was made by a tool and says nothing about the
+author's intent, while a file the author named and saved with the wrong extension is a
+mistake they need to see. Neither fails the load.
 
 Composition never reads a file's contents to decide its position. Validation happens
 afterwards, over the composed set, all of it, every time (FR-024).
@@ -283,9 +304,9 @@ time:
 | Rule | Requirement |
 |---|---|
 | No two careers in force declare the same `name` | FR-019b. The problem names both files. |
-| No two files in force declare the same singleton kind | Registry analogue of FR-019b (see `data-model.md`). The problem names both files. |
-| Every singleton kind is present | A data set missing its skills registry cannot validate careers. |
-| Every name resolves against its registry | FR-013. |
+| No two files in force declare the same single-instance kind | FR-010a. The problem names both files. Catches a misspelled registry filename, which would otherwise be admitted as an addition and leave the real registry silently in force. |
+| Every single-instance kind is present | FR-010a. A data set missing its skills registry cannot validate careers. |
+| Every name resolves against its registry, matched exactly and case sensitively | FR-013. |
 
 ## Failure
 

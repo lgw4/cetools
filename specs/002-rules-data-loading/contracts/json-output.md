@@ -14,7 +14,9 @@ Packaged:
 ```json
 {
   "source": "packaged",
-  "files": []
+  "version": "2026.08.1",
+  "files": [],
+  "ignored": []
 }
 ```
 
@@ -23,6 +25,7 @@ Overridden:
 ```json
 {
   "source": "overridden",
+  "version": "2026.08.1",
   "files": [
     {
       "file": "navy.toml",
@@ -34,17 +37,28 @@ Overridden:
       "disposition": "added",
       "fingerprint": "sha256:9ad4e2...71"
     }
-  ]
+  ],
+  "ignored": ["notes.md"]
 }
 ```
 
 | Key | Type | Notes |
 |---|---|---|
 | `source` | string | `"packaged"` or `"overridden"`. Redundant with `files` being empty, and emitted anyway so a consumer never infers "packaged" from an absence (FR-037). |
-| `files` | array | Sorted by `file`. Empty exactly when `source` is `"packaged"`. |
+| `version` | string | The installed package version (FR-033a). Present in both cases: with the seed it is the whole reproduction key, and a consumer must not have to obtain it separately. |
+| `files` | array | Files that took effect. Sorted by `file`. Empty exactly when `source` is `"packaged"`. |
 | `files[].file` | string | The composition key, which is the basename. |
 | `files[].disposition` | string | `"replaced"` or `"added"` (FR-032, FR-035). |
 | `files[].fingerprint` | string | `"sha256:"` and the 64-character lowercase hex digest of the file's bytes. Reproducible with `shasum -a 256`. |
+| `ignored` | array of string | Basenames in an override that are not rules data (FR-032a). Sorted. Dot-prefixed files never appear (FR-032b). |
+
+Key order: `source`, `version`, `files`, `ignored`.
+
+`ignored` is a separate array rather than a third `disposition` value because an ignored
+file has no fingerprint and contributed nothing, so it would need a null field and would
+break the `files`-empty-iff-packaged invariant. It is also independent of `source`: an
+override holding only a README yields `"source": "packaged"` with a non-empty `ignored`,
+which is exactly the case FR-032a exists to make visible.
 
 ## `check` payload
 
@@ -65,14 +79,24 @@ One key appended; every existing key, its position, and its type are unchanged.
   "target": 8,
   "success": false,
   "seed": "14333185781139156525",
-  "provenance": {"source": "packaged", "files": []}
+  "provenance": {
+    "source": "packaged",
+    "version": "2026.08.1",
+    "files": [],
+    "ignored": []
+  }
 }
 ```
 
 Key order: `kind`, `faces`, `dice_total`, `modifiers`, `total`, `target`, `success`,
 `seed`, `provenance`. Appending rather than inserting is deliberate, so a consumer
-reading keys positionally is unaffected and a diff against the previous contract is
-one added line.
+reading keys positionally is unaffected and a diff against the previous contract adds
+one key at the end.
+
+The committed fixture holds `version` as a placeholder substituted at comparison time, so
+that a release changes no fixture (SC-009). One test asserts the emitted value against the
+installed package version directly (SC-008); normalizing it in the fixture must not be the
+only place it is checked.
 
 ## `validation` payload
 
@@ -83,7 +107,12 @@ New. Produced by `cetools validate --json` and by `as_dict(ValidationReport)`.
   "kind": "validation",
   "valid": false,
   "file_count": 5,
-  "provenance": {"source": "packaged", "files": []},
+  "provenance": {
+    "source": "packaged",
+    "version": "2026.08.1",
+    "files": [],
+    "ignored": []
+  },
   "problems": [
     {
       "file": "navy.toml",

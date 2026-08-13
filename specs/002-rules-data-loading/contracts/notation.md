@@ -57,7 +57,8 @@ Examples:
 ## Contexts
 
 The field an entry sits in fixes which forms are admissible and which registry
-validates each name (FR-005).
+validates each name (FR-005, FR-009a). The three subsets below are now stated in the
+spec; this table is their expansion to the fields that bear them.
 
 | Context | Fields | Admissible forms | Registry |
 |---|---|---|---|
@@ -66,8 +67,16 @@ validates each name (FR-005).
 | Gate | `tables.*.requires` | check | characteristics |
 
 A well-formed entry in the wrong context is a problem reporting the entry as written
-and the forms acceptable in that position (FR-009). `INT 4+` in a service table and
-`Pilot 2` in a benefits table are both rejected on this rule.
+and the forms acceptable in that position (FR-009, FR-009a). `INT 4+` in a service table
+and `Pilot 2` in a benefits table are both rejected on this rule.
+
+Note that a benefit table validates against two registries: bare names against benefit
+items, and adjustments against characteristics. FR-005 permits this explicitly, scoping
+its "and no other" to bare names, because an adjustment carries its own meaning rather
+than taking it from position.
+
+Every registry lookup is exact and case sensitive (FR-013), so `int 4+` fails on the
+characteristic rather than being folded to `INT`.
 
 ## Specialties
 

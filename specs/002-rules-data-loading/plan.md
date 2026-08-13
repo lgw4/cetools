@@ -22,21 +22,22 @@ it is not clean. That is what makes FR-021's collect-everything and FR-023's
 same-check-both-ways structural rather than a matter of discipline, and it is why a
 file with four mistakes costs one run instead of four.
 
-**A file is positioned by its basename and classified by its own declaration.** The
-clarified FR-040a fixes basename keying for a single file, and using it everywhere is
-the only way `cetools validate override/navy.toml` and a real load of `override/`
-agree in every case, which FR-040 demands. Basename keying leaves an added file with
-nothing outside it to say what schema it should be held to, so every file declares a
-`schema` kind alongside its version. That declaration is one line, and it is what
-lets a house rule introduce a career (FR-032) while a replacement is still checked
-against the kind it claims to replace.
+**A file is positioned by its basename and classified by its own declaration.** Both are
+now requirements rather than design inferences: FR-029 states basename positioning
+directly, with layout mirroring reduced to a recommendation, and FR-001a requires each
+file to declare its kind. That pairing is what makes `cetools validate override/navy.toml`
+and a real load of `override/` agree in every case, which FR-040 demands, and what lets a
+house rule introduce a career (FR-032) while a replacement is still checked against the
+kind it claims to replace.
 
 **Provenance rides on the result.** `CheckResult` gains a `provenance` field and
 `check` takes `rules=` in place of `parameters=`. `cetools roll` resolves against no
 rules data and is untouched, so its three golden files stay byte-for-byte identical,
 which is itself part of the evidence for SC-009. The fingerprint is a plain SHA-256
 over the file's raw bytes so that anyone handed a result can reproduce it with
-`shasum -a 256`.
+`shasum -a 256`. Provenance also carries the package version (FR-033a), which with the
+seed is the whole reproduction key; committed goldens and fixtures hold that version as a
+placeholder so a release rewrites none of them.
 
 ## Technical Context
 
@@ -82,10 +83,14 @@ cached, because the authoring loop edits a file and reloads in the same process.
   against the frozen pre-loader copies, so a changed number cannot be absorbed into a
   regeneration.
 
-**Scale/Scope**: 46 functional requirements, 14 success criteria. Four new library
-modules plus a rewritten `rules.py`; four new data files plus two header lines added
-to `tasks.toml`; one new command and one new option on an existing command. On the
-order of 800 lines of implementation and a substantially larger test suite.
+**Scale/Scope**: 61 functional requirements, 16 success criteria, after the requirements
+checklist review added ten requirements and two criteria and amended fifteen more. Four
+new library modules plus a rewritten `rules.py`; four new data files plus two header lines
+added to `tasks.toml`; one new command and one new option on an existing command. On the
+order of 800 lines of implementation and a substantially larger test suite. The review
+added no new module and no new dependency: the added requirements state rules the design
+had already settled, plus three behaviors it had not (the package version in provenance,
+ignored files named in the report, and the notice-chain check deriving its coverage).
 
 ## Constitution Check
 
@@ -109,15 +114,30 @@ instead of naming `tasks.toml`. Separately, the Section 15 chain in `LICENSE-OGL
 ends with this project's own game-data copyright line, which currently names
 `src/cetools/data/tasks.toml` specifically. That line must be widened to cover the
 whole data directory, and `tests/conftest.py`'s `SECTION_15_NOTICES` literal, which
-pins the chain verbatim, must be updated in the same change. This is easy to miss:
-adding OGC files without touching the notice would leave four of the five shipped
-files outside the copyright line that travels with them.
+pins the chain verbatim, must be updated in the same change.
+
+This was recorded here as a thing easy to miss, and the requirements checklist found it
+was worse than that: nothing in the spec required it, and the existing guard could not
+catch it, because comparing the chain against a fixed expected text passes unchanged while
+the copyright line beneath it goes stale. FR-047 now requires the coverage and SC-016
+requires the check to derive what must be covered from the data files actually present, so
+adding a data file without widening the notice fails the suite rather than depending on a
+reviewer's memory. FR-046 was also amended to say outright that it binds shipped files
+only: a house rule needs no licensing header, which FR-031's "exactly the same rules" had
+left arguable.
 
 **Post-Phase-1 re-check**: still **PASS**. The Phase 1 design added no dependency and
-no hard-coded rules content. It did add one declared field per data file beyond what
-FR-001 names, which is recorded under Complexity Tracking rather than waved through.
-The closed sets of throw names and table names are a strictness choice, not hard-coded
-content: they name the schema's own slots, and the values in every slot stay in data.
+no hard-coded rules content. The closed sets of throw names and table names are a
+strictness choice, not hard-coded content: they name the schema's own slots, and the
+values in every slot stay in data. Both are now stated in the spec (FR-014, FR-015)
+rather than being design choices about it.
+
+**Post-checklist re-check**: still **PASS**, and one row left Complexity Tracking. The
+kind declaration each file carries was recorded there as a field beyond what the
+requirements named; FR-001a now names it, so it implements a requirement rather than
+exceeding one. The three behaviors the review added (the package version in provenance,
+ignored files named rather than rejected, a notice check that derives its coverage) each
+introduce a field or a report line and no new module, dependency, or abstraction.
 
 ## Project Structure
 
@@ -249,25 +269,46 @@ skills when writing the code. The ones that apply here:
   does not change. If it did, every line of every check golden would change and
   SC-009's "one difference" claim would be false.
 - Do not delete `tests/golden/pre-loader/` when regenerating goldens.
+- The package version must be a placeholder in every committed golden and JSON fixture,
+  substituted at comparison time. Writing the literal makes every release rewrite every
+  check golden, and each rewrite is another chance to absorb a changed number, which is
+  what SC-009 exists to prevent. Assert the real value once, directly, per SC-008.
+- The dot-prefixed filter runs before the extension filter, not after. A `.DS_Store` must
+  disappear entirely (FR-032b); only a non-dot file with the wrong extension becomes an
+  ignored entry (FR-032a). Reversing the order puts every tool artifact in the report.
+- An ignored file does not fail the load and carries no fingerprint. It is a separate
+  tuple on `Provenance`, not a third `Disposition` member, so `is_packaged` stays an
+  emptiness check and `fingerprint` stays non-optional.
+- An override containing only ignored files still reports `packaged`, because nothing took
+  effect, and still lists them. That combination is the whole point of FR-032a, so it needs
+  its own test rather than falling out of the packaged case.
 
 **Deliberately not built**, so review does not read these as gaps: per-key merging,
 any implicitly searched location, warnings-instead-of-errors, partial or lazy
 loading, benefit item semantics, the remaining careers, house-rule onboarding
-documentation, and schema migration. Each is recorded with its reason in the spec's
-Out of Scope. Research R13 adds three more at implementation grain: no table length
-constraints, no override caching, and no schema migration machinery behind the
-version field.
+documentation, schema migration, and grouping or bounding a cascade of related problems.
+Each is recorded with its reason in the spec's Out of Scope. Research R13 adds three more
+at implementation grain: no table length constraints, no override caching, and no schema
+migration machinery behind the version field.
 
 ## Complexity Tracking
 
-Neither row below is a constitutional violation. Both are places where this feature
+One row remains. It is not a constitutional violation; it is a place where this feature
 is deliberately less simple than the minimum, and Principle VI says such a choice must
 survive review rather than pass unnoticed.
 
 | Choice | Why needed | Simpler alternative rejected because |
 |---|---|---|
 | `schema-version` in every file | Recorded in the spec's Assumptions as a conscious departure: overrides mean user-authored files outlive package upgrades, CalVer carries no compatibility signal, and by the time two dozen career files exist outside anyone's control the schema is fixed. One line per file buys an upgrade story that cannot be recovered afterwards. | Omitting the field entirely, rejected because a user file written against an old shape would fail as a scatter of key errors with no way to say what actually went wrong. |
-| `schema` kind declaration in every file | FR-032 and FR-040a together leave an added file with no directory and no matching packaged slot, so nothing outside the file can say which schema holds it (research R2). It also makes a replacement's kind checkable rather than inherited. | Inferring the kind from the override directory, rejected because FR-040a discards the directory, so `validate` on a file would disagree with a load of its directory, which FR-040 forbids. Inferring from content shape, rejected because FR-002 forbids interpreting contents before the version is accepted. |
+
+**Removed after the requirements checklist review**: the `schema` kind declaration. It sat
+here because research R2 showed FR-032 and FR-040a together forced a field no requirement
+asked for. The review treated that as a gap in the requirements rather than a liberty taken
+by the design, and FR-001a now requires the declaration outright. Worth naming the
+circularity plainly: the spec was amended to require what the design had found it needed.
+That is legitimate here because the need was demonstrable from requirements that already
+existed, and the alternative was to leave a load-bearing field permanently unaccounted for.
+It would not be legitimate as a general habit.
 
 No new runtime dependency is introduced, so the dependency clause of Principle VI is
 not engaged.

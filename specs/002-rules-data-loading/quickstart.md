@@ -29,8 +29,11 @@ Expected: exit 0 and
 ```text
 Rules data is valid.
   Files: 5
-  Rules: packaged
+  Rules: packaged (cetools 2026.08.1)
 ```
+
+The version in parentheses is the installed package version (FR-033a); with a seed it is
+the whole of what reproduces a result.
 
 Machine-readable, same outcome:
 
@@ -59,11 +62,17 @@ uv run cetools validate /tmp/ce-broken/navy.toml
 Expected: exit 1, and **all four** problems in that single run, each naming the file
 and its location within it (SC-003). One run is always enough.
 
-Check each remaining category the same way, one at a time: an unsupported
-`schema-version` (expect a version-mismatch problem and no other problem from that
-file), a required element removed (expect a problem naming what is missing, SC-004),
-and a file that is not well-formed TOML at all (expect one problem naming the file
-and the parse position).
+Check each remaining category the same way, one at a time. SC-002 lists twelve and
+declares the list closed, so each needs a case: an unsupported `schema-version` (expect a
+version-mismatch problem and *no other* problem from that file), a missing or wrong
+`schema` kind, a required element removed (expect a problem naming what is missing,
+SC-004), a well-formed entry in a context that does not admit it (`INT 4+` in a service
+table), a file that is not well-formed TOML at all (expect one problem naming the file and
+the parse position), two careers declaring one name, two files declaring one
+single-instance kind or such a kind absent, and two override files sharing a basename.
+
+A file in an override that is not rules data is deliberately *not* in that list: it is
+reported rather than rejected, and Scenario 4b covers it.
 
 ## Scenario 3: An override replaces one file and nothing else (SC-005, SC-006)
 
@@ -88,6 +97,8 @@ rules = load_rules("/tmp/ce-house")
 rules.careers["navy"].throws["survival"].target   # the override's value
 rules.task_parameters.target                      # still the packaged value
 rules.provenance.files                            # one entry, disposition REPLACED
+rules.provenance.ignored                          # empty; see Scenario 4b
+rules.provenance.version                          # the installed package version
 ```
 
 The element deleted from the override file is absent from the loaded career, not
@@ -104,6 +115,33 @@ Expected: exit 1. `navvy.toml` is an **addition**, not a replacement, so the dat
 now holds two careers declaring the name `Navy`, and the report names both files
 (FR-019b). Change the declared `name` inside `navvy.toml` and rerun: exit 0, with
 `navvy.toml` reported as `added` and `navy.toml` still packaged.
+
+## Scenario 4b: A wrong extension is visible too, without failing (FR-032a, FR-032b)
+
+```sh
+cp src/cetools/data/careers/navy.toml /tmp/ce-house/scouts.yaml
+touch /tmp/ce-house/.DS_Store
+uv run cetools validate /tmp/ce-house
+```
+
+Expected: exit 0. The load succeeds, and the provenance block names `scouts.yaml` as
+`ignored`, so an author who expected it to be in force sees why it was not. `.DS_Store` is
+named nowhere, because a file made by a tool is not a mistake anyone made (FR-032b).
+
+This is the same bargain FR-032 strikes for a misspelled stem: visibility rather than
+rejection. Rejecting instead would fail the load over the `.DS_Store`, which is why it was
+considered and dropped.
+
+Put a file that is *only* ignorable in a location of its own to see the two report
+independently:
+
+```sh
+mkdir -p /tmp/ce-notes && cp README.md /tmp/ce-notes/
+uv run cetools validate /tmp/ce-notes
+```
+
+Expected: exit 0, `Rules: packaged`, and `README.md` listed as ignored. Nothing took
+effect, so the data is packaged; the file is still named.
 
 ## Scenario 5: Provenance describes content, not location (SC-008)
 
@@ -129,9 +167,19 @@ uv run cetools check --seed 1
 uv run cetools check --seed 1 --json
 ```
 
-Expected: `Rules: packaged` under the seed in text, and
-`"provenance": {"source": "packaged", "files": []}` in JSON. The line is present for
-a packaged load, so a reader never infers it from an absence.
+Expected: `Rules: packaged (cetools 2026.08.1)` under the seed in text, and in JSON:
+
+```json
+"provenance": {
+  "source": "packaged",
+  "version": "2026.08.1",
+  "files": [],
+  "ignored": []
+}
+```
+
+The block is present for a packaged load, so a reader never infers it from an absence, and
+it names the version, so a reader never has to obtain that separately (FR-033a).
 
 ## Scenario 7: Nothing changed about how a check resolves (SC-009, FR-045)
 
@@ -176,5 +224,15 @@ uv run pytest tests/guards/test_packaging.py tests/unit/test_licensing.py
 
 Every data file this feature adds must carry its Open Game Content designation and
 neither Product Identity string, checked against the built wheel and sdist rather
-than the working tree (SC-014). The Section 15 game-data copyright line must cover
-the new files, not just `tasks.toml`.
+than the working tree (SC-014).
+
+The Section 15 game-data copyright line must cover every data file the package contains,
+not just `tasks.toml` (FR-047). The check derives what must be covered from the files
+actually present rather than comparing the chain against a fixed expected text (SC-016):
+a fixed comparison passes unchanged when a file is added, which is the failure the
+requirement exists to prevent. Add a data file without widening the notice and this
+must fail.
+
+An override file is held to none of this. FR-046 binds what the project redistributes, so
+a house rule needs no licensing header, which FR-031's "exactly the same rules" was
+amended to say outright.

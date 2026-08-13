@@ -51,8 +51,11 @@ contents, rejected because FR-002 forbids interpreting a file's contents before 
 version is accepted, and because a career file missing its `[tables]` section would
 be diagnosed as an unrecognized shape rather than as a career with a missing section.
 
-**Recorded as a Principle VI tension** in `plan.md` Complexity Tracking, since it
-adds a declared field beyond the one FR-001 names.
+**No longer a Principle VI tension.** This was recorded in `plan.md` Complexity Tracking
+as a declared field beyond the one FR-001 names. The requirements checklist found that the
+field was forced by requirements that did not themselves state it, and FR-001a now
+requires the kind declaration outright, so the field implements a requirement rather than
+exceeding one.
 
 ## R3: Composition key: basename everywhere
 
@@ -67,10 +70,14 @@ would make `cetools validate override/navy.toml` report a replacement while
 `careers/`. FR-040 requires that what the command reports is what a run would do, so
 the two must agree, and only basename keying makes them agree in every case.
 
-FR-029's requirement that an override location mirror the packaged layout is still
-honored: a mirrored layout composes exactly as specified. Basename keying additionally
-accepts a flat layout, which is a superset of the specified behavior rather than a
-departure from it.
+**Superseded rationale, kept for the record.** This finding originally had to argue that
+basename keying honored FR-029's "MUST mirror the layout" as a superset rather than a
+departure. That reconciliation is no longer needed: the requirements checklist found that
+the two readings give opposite outcomes for a flat-layout override, a replacement under
+one and a rejected duplicate career name under the other, and FR-029 was amended to state
+basename positioning directly, with layout mirroring reduced to a recommendation. The
+decision above is unchanged; only its standing is. It now implements a requirement rather
+than reinterpreting one.
 
 **Consequence to guard**: basenames must be unique across the packaged layout, or the
 key stops identifying a slot. This is a test, not a convention (see `plan.md`).
@@ -174,6 +181,15 @@ says the old reading is replaced rather than kept alongside. Package version
 `2026.08.1` is unreleased, so the break costs no released consumer; it is recorded
 under a **Breaking changes** heading in the changelog regardless.
 
+**Added after the requirements review**: provenance also carries the package version
+(FR-033a), read once from `importlib.metadata` rather than passed in, so a result cannot
+report a version other than the one that produced it. Because that version reaches
+rendered output, committed goldens and JSON fixtures hold it as a placeholder substituted
+at comparison time (SC-009), and one test asserts the reported value against the installed
+version directly (SC-008). Embedding the literal would rewrite every check golden on every
+release, and each rewrite is another occasion to absorb an unrelated change, which is what
+SC-009 exists to prevent.
+
 ## R9: Notation disambiguation
 
 **Decision**: parse the four forms by anchoring on the tail of the entry, in this
@@ -258,3 +274,8 @@ Recorded so review does not read them as oversights.
 - **No override caching.** The packaged load is cached, since the installed files
   cannot change within a process. An override load is not, because a caller may edit
   the file and load again in the same process, which is the authoring loop.
+- **No grouping or bounding of a problem cascade.** One truncated skills registry makes
+  every skill reference in every career an unrecognized name. FR-021 requires every
+  problem, and folding some would put the loader in the business of guessing which mistake
+  caused which. Now recorded in the spec's Out of Scope with its cost stated and deferred
+  to the feature that authors the full career set, which will have evidence this one lacks.
