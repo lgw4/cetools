@@ -2,7 +2,33 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from cetools.dice import Roller, parse_notation
-from cetools.errors import RulesDataError, TaskError
+from cetools.errors import DiceError, RulesDataError, TaskError
+
+
+def _check_dice(roll: str) -> tuple[int, int, int]:
+    """Parse a `task.roll` value into `(count, sides, modifier)`.
+
+    The single place a check's dice are read, so the loader and `check`
+    itself cannot disagree about what `task.roll` may hold. Package-internal
+    despite being imported by `rules.py`: the leading underscore is the
+    convention contracts/library-api.md states for a seam callers outside
+    the package must not use. Raises
+    `RulesDataError` for notation the grammar rejects and for the `d66`
+    literal, which composes two faces into a two-digit table value rather
+    than describing a count and a side count: a check needs the latter, and
+    accepting it would surface as a `TypeError` that no `CetoolsError`
+    handler catches (FR-029).
+    """
+    try:
+        parsed = parse_notation(roll)
+    except DiceError as exc:
+        raise RulesDataError(f"task.roll is not valid dice notation: {roll!r}") from exc
+    if parsed is None:
+        raise RulesDataError(
+            f"task.roll must describe a count and a side count: {roll!r} is a "
+            "two-digit table die and cannot describe a check's dice"
+        )
+    return parsed
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,17 +112,27 @@ def check(
     `difficulty=None` resolves through `parameters.default_difficulty()`;
     `skill=None` applies the unskilled penalty, while `skill=0` is trained
     at level 0.
+
+    A `task.roll` carrying a flat modifier (a house rule under FR-022, since
+    the shipped `2d6` has none) is itemized like every other modifier rather
+    than folded into `dice_total`, which stays `sum(faces)` as data-model.md
+    and contracts/json-output.md define it. FR-018 requires every applied
+    modifier to be itemized, and a `dice_total` that silently included one
+    would make the rendered `(sum N)` false.
     """
     if parameters is None:
         from cetools.rules import load_task_parameters
 
         parameters = load_task_parameters()
 
-    count, sides, roll_modifier = parse_notation(parameters.roll)
+    count, sides, roll_modifier = _check_dice(parameters.roll)
     faces = roller.dice(count, sides)
-    dice_total = sum(faces) + roll_modifier
+    dice_total = sum(faces)
 
     applied: list[Modifier] = []
+
+    if roll_modifier:
+        applied.append(Modifier(f"Roll ({parameters.roll})", roll_modifier))
 
     if difficulty is None:
         difficulty = parameters.default_difficulty()

@@ -1,7 +1,10 @@
 import unicodedata
 from unittest.mock import patch
 
-from cetools.seeds import resolve_seed
+import pytest
+
+from cetools.errors import DiceError
+from cetools.seeds import resolve_seed, rng_seed
 
 
 def test_none_draws_64_bits_from_secrets():
@@ -50,3 +53,70 @@ def test_nfc_and_nfd_forms_resolve_differently():
     nfd = unicodedata.normalize("NFD", "café")
     assert nfc != nfd
     assert resolve_seed(nfc) != resolve_seed(nfd)
+
+
+# --- FR-002: the accepted seed set is an integer, a text string, or None ---
+
+
+@pytest.mark.parametrize("seed", [3.5, [1], {"seed": 1}, object(), b"1"])
+def test_unsupported_seed_type_raises_dice_error_naming_the_parameter(seed):
+    # Without this the value reaches the digit-string regex and comes back as
+    # the regex module's own `TypeError: expected string or bytes-like object`,
+    # which no `except CetoolsError` site catches and which names neither the
+    # argument at fault nor what it should have been (FR-029).
+    with pytest.raises(DiceError, match="seed"):
+        resolve_seed(seed)
+
+
+def test_bool_is_an_int_and_still_resolves_as_a_plain_int():
+    # `bool` is a subclass of `int`, so the type check must stay narrow enough
+    # not to break it — but the result must be a real `int`, not the `bool`
+    # itself. `assert resolve_seed(True) == 1` alone is not enough: `True == 1`
+    # is true, so an unconverted `bool` passes it while rendering its seed as
+    # `"True"`, which does not resolve back to 1 and breaks the SC-004 round
+    # trip. Assert the type, not just the value.
+    for given, expected in ((True, 1), (False, 0)):
+        resolved = resolve_seed(given)
+        assert resolved == expected
+        assert type(resolved) is int
+
+
+def test_a_bool_seed_round_trips_through_its_reported_value():
+    # The round trip is the property the type actually protects, so pin it
+    # end to end rather than trusting the conversion in isolation.
+    from cetools.dice import Roller, throw
+    from cetools.render import as_dict
+
+    result = throw(Roller(True), "2d6")
+    assert result.seed == 1
+    assert as_dict(result)["seed"] == "1"
+    assert throw(Roller(as_dict(result)["seed"]), "2d6") == result
+
+
+# --- rng_seed: the sign-preserving hand-off to `random.Random` (FR-002) ---
+
+
+def test_rng_seed_passes_non_negative_seeds_through_unchanged():
+    # Every published value in contracts/cli.md and every golden file depends on
+    # this branch being the identity, so a fix for the negative case must not
+    # move it.
+    assert rng_seed(0) == 0
+    assert rng_seed(1) == 1
+    assert rng_seed(14333185781139156525) == 14333185781139156525
+
+
+def test_rng_seed_does_not_alias_a_negative_seed_onto_its_positive_counterpart():
+    # `random.Random` seeds an exact integer from its *absolute value*, which
+    # would fold the sign away and halve the usable seed space. FR-002 forbids
+    # that reduction, so the negative branch is folded rather than passed on.
+    assert rng_seed(-5) != rng_seed(5)
+    assert rng_seed(-(2**200 + 7)) != rng_seed(2**200 + 7)
+
+
+def test_rng_seed_is_deterministic_for_the_same_negative_seed():
+    assert rng_seed(-5) == rng_seed(-5)
+    assert rng_seed(-12345678901234567890) == rng_seed(-12345678901234567890)
+
+
+def test_rng_seed_distinguishes_negative_seeds_from_one_another():
+    assert rng_seed(-5) != rng_seed(-6)

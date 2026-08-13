@@ -5,7 +5,13 @@ from cetools.dice import Roller, d66, throw_dice
 from cetools.rules import load_task_parameters
 from cetools.tasks import Modifier, check
 
-seeds = st.one_of(st.integers(min_value=0, max_value=2**64 - 1), st.text(min_size=1, max_size=20))
+# Deliberately unbounded on both sides: FR-002 puts no upper bound on the
+# magnitude of an integer seed and permits a negative sign, so a strategy
+# clamped to `0..2**64-1` would never exercise either half of what the
+# requirement allows.
+seeds = st.one_of(
+    st.integers(min_value=-(2**200), max_value=2**200), st.text(min_size=1, max_size=20)
+)
 counts = st.integers(min_value=1, max_value=20)
 sides = st.integers(min_value=1, max_value=100)
 modifiers = st.integers(min_value=-10, max_value=10)
@@ -67,6 +73,30 @@ def test_check_total_equals_dice_total_plus_sum_of_modifiers(
         modifiers=situational,
     )
     assert result.total == result.dice_total + sum(m.value for m in result.modifiers)
+
+
+@given(
+    seed=seeds,
+    difficulty=difficulty_names,
+    characteristic=characteristics,
+    skill=skills,
+    situational=situational_modifiers,
+)
+def test_same_seed_and_arguments_yield_equal_check(
+    seed, difficulty, characteristic, skill, situational
+):
+    # FR-006 binds programmatic invocation as well as command invocation, and
+    # the throw side of that was already covered; this is the check side.
+    def resolve():
+        return check(
+            Roller(seed),
+            difficulty=difficulty,
+            characteristic=characteristic,
+            skill=skill,
+            modifiers=situational,
+        )
+
+    assert resolve() == resolve()
 
 
 @given(

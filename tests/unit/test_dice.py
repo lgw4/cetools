@@ -30,6 +30,29 @@ def test_parse_notation_rejects(notation):
         parse_notation(notation)
 
 
+# --- parse_notation: unsupported argument types (FR-029) ---
+
+
+@pytest.mark.parametrize("notation", [None, 7, 2.5, ["2d6"], b"2d6"])
+def test_parse_notation_rejects_a_non_string_with_dice_error(notation):
+    # `throw(roller, 6)` — passing a side count where notation belongs — is the
+    # plausible slip. Left unguarded it reaches the `d66` literal's regex and
+    # raises the regex module's own `TypeError`, which the CLI's single
+    # `except CetoolsError` site does not catch.
+    with pytest.raises(DiceError, match="notation"):
+        parse_notation(notation)
+
+
+def test_throw_rejects_a_non_string_notation_with_dice_error():
+    with pytest.raises(DiceError, match="notation"):
+        throw(Roller(1), 6)
+
+
+def test_roller_rejects_an_unsupported_seed_type_with_dice_error():
+    with pytest.raises(DiceError, match="seed"):
+        Roller(3.5)
+
+
 # --- Roller.die / Roller.dice ---
 
 
@@ -84,6 +107,40 @@ def test_seeded_sample_of_d6_faces_covers_all_six_values():
     roller = Roller("session-alpha")
     faces = roller.dice(1000, 6)
     assert set(faces) == {1, 2, 3, 4, 5, 6}
+
+
+# --- FR-002: a seed is used exactly as given, sign included ---
+
+
+def test_roller_reports_a_negative_seed_unchanged():
+    assert Roller(-5).seed == -5
+    assert Roller("-5").seed == -5
+
+
+def test_negative_and_positive_seeds_of_the_same_magnitude_throw_differently():
+    # FR-002 forbids reducing a seed into a narrower range, and `random.Random`
+    # seeds an exact integer from its absolute value, so the sign has to survive
+    # the hand-off or half the seed space is unreachable.
+    assert throw(Roller(-5), "2d6").faces != throw(Roller(5), "2d6").faces
+
+
+def test_negative_and_positive_seeds_above_2_64_throw_differently():
+    huge = 2**200 + 7
+    assert throw(Roller(-huge), "2d6").faces != throw(Roller(huge), "2d6").faces
+
+
+def test_seed_above_2_64_round_trips_through_roller():
+    huge = 2**64 + 12345
+    first = throw(Roller(huge), "2d6")
+    second = throw(Roller(str(huge)), "2d6")
+    assert first.seed == huge
+    assert first == second
+
+
+def test_negative_seed_round_trips_through_its_reported_value():
+    first = throw(Roller(-5), "2d6")
+    second = throw(Roller(str(first.seed)), "2d6")
+    assert first == second
 
 
 # --- FR-008: roller independence ---

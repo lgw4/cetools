@@ -3,7 +3,7 @@ import re
 from dataclasses import dataclass
 
 from cetools.errors import DiceError
-from cetools.seeds import resolve_seed
+from cetools.seeds import resolve_seed, rng_seed
 
 _NOTATION = re.compile(
     r"^\s*(?P<count>\d+)?\s*[dD]\s*(?P<sides>\d+)\s*" r"(?:(?P<sign>[+-])\s*(?P<mod>\d+))?\s*$"
@@ -21,7 +21,10 @@ class Roller:
 
     def __init__(self, seed: int | str | None = None) -> None:
         self.seed = resolve_seed(seed)
-        self._rng = random.Random(self.seed)
+        # `rng_seed`, not `self.seed`: `random.Random` folds an integer's sign
+        # away, which FR-002 forbids. `self.seed` keeps the signed value, since
+        # that is what every rendering reports and what reproduces the result.
+        self._rng = random.Random(rng_seed(self.seed))
 
     def die(self, sides: int) -> int:
         if not isinstance(sides, int) or sides < 1:
@@ -54,9 +57,14 @@ def parse_notation(notation: str) -> tuple[int, int, int] | None:
 
     Returns `None` for the `d66` literal, matched case-insensitively before
     the general grammar so it can never be confused with a 66-sided die.
-    Raises `DiceError` for anything the grammar does not match, and for a
-    count or side count below 1.
+    Raises `DiceError` for anything the grammar does not match, for a count
+    or side count below 1, and for a `notation` that is not a string at all
+    — `throw(roller, 6)`, passing a side count where notation belongs, is the
+    plausible slip, and the regex module's own `TypeError` would name neither
+    the argument at fault nor what it should have been (FR-029).
     """
+    if not isinstance(notation, str):
+        raise DiceError(f"notation must be a string, got {type(notation).__name__}")
     if _D66_LITERAL.match(notation):
         return None
     match = _NOTATION.match(notation)

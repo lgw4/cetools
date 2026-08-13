@@ -1,7 +1,7 @@
 import pytest
 
 from cetools import Band, Modifier, Roller, TaskParameters, check
-from cetools.errors import TaskError
+from cetools.errors import RulesDataError, TaskError
 
 DIFFICULTY_LADDER = {
     "Simple": 6,
@@ -195,3 +195,71 @@ def test_sc010_edited_parameters_change_result_at_the_api_level():
     result = check(Roller(1), skill=0, parameters=edited)
     assert result.target == 999
     assert result.success is False
+
+
+def test_check_rejects_a_task_roll_that_is_not_a_count_and_sides_throw():
+    # The loader guards this, but `parameters=` bypasses the loader entirely and
+    # is the documented way a house-rule consumer supplies its own table, so
+    # `check` owes the same typed failure rather than a bare TypeError (FR-029).
+    with pytest.raises(RulesDataError, match="task.roll"):
+        check(Roller(1), parameters=_parameters(roll="d66"))
+
+
+def test_check_rejects_a_task_roll_that_is_not_dice_notation():
+    with pytest.raises(RulesDataError, match="task.roll"):
+        check(Roller(1), parameters=_parameters(roll="not dice notation"))
+
+
+def test_characteristic_score_in_no_band_raises_rules_data_error():
+    # FR-015: because the table is editable under FR-022, a score falling outside
+    # every band in the data then in force is a rules-data error, never a silent
+    # zero. Gap detection is deliberately deferred to lookup time, which makes
+    # this raise the only thing between a holed table and a wrong answer.
+    gapped = _parameters(
+        characteristic_bands=(
+            Band(minimum=0, maximum=2, dm=-2),
+            Band(minimum=6, maximum=8, dm=0),
+            Band(minimum=9, maximum=None, dm=1),
+        )
+    )
+    with pytest.raises(RulesDataError, match="no characteristic band covers score 4"):
+        gapped.characteristic_dm(4)
+
+
+def test_check_with_a_score_in_no_band_raises_rules_data_error():
+    gapped = _parameters(
+        characteristic_bands=(
+            Band(minimum=0, maximum=2, dm=-2),
+            Band(minimum=6, maximum=8, dm=0),
+            Band(minimum=9, maximum=None, dm=1),
+        )
+    )
+    with pytest.raises(RulesDataError, match="no characteristic band covers score 4"):
+        check(Roller(1), characteristic=4, skill=0, parameters=gapped)
+
+
+# --- FR-018: `dice_total` is `sum(faces)`, and a house-ruled roll modifier
+# --- is itemized like every other applied modifier rather than folded in
+
+
+def test_house_ruled_roll_modifier_is_itemized_and_dice_total_stays_sum_of_faces():
+    parameters = _parameters(roll="2d6+1")
+    result = check(Roller(1), difficulty="Average", skill=0, parameters=parameters)
+    assert result.faces == (2, 5)
+    assert result.dice_total == 7
+    assert result.modifiers[0] == Modifier(label="Roll (2d6+1)", value=1)
+    assert result.total == 8
+
+
+def test_house_ruled_negative_roll_modifier_is_itemized():
+    parameters = _parameters(roll="2d6-2")
+    result = check(Roller(1), difficulty="Average", skill=0, parameters=parameters)
+    assert result.dice_total == 7
+    assert result.modifiers[0] == Modifier(label="Roll (2d6-2)", value=-2)
+    assert result.total == 5
+
+
+def test_roll_without_a_modifier_adds_no_roll_row():
+    parameters = _parameters(roll="2d6")
+    result = check(Roller(1), difficulty="Average", skill=0, parameters=parameters)
+    assert [m.label for m in result.modifiers] == ["Difficulty (Average)", "Skill 0"]

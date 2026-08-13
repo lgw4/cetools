@@ -1,7 +1,8 @@
 import pytest
 
-from cetools.errors import RulesDataError
+from cetools.errors import RulesDataError, TaskError
 from cetools.rules import _task_parameters_from_toml, load_task_parameters
+from cetools.tasks import Band
 
 VALID_TOML = """
 [task]
@@ -223,6 +224,58 @@ def test_sc010_edited_target_difficulty_unskilled_dm_and_band_bound_are_reflecte
     assert parameters.difficulty_dm("Balanced") == 0
     assert parameters.default_difficulty() == "Balanced"
     assert parameters.characteristic_bands[0].maximum == 4
+
+
+def test_fr022_added_difficulty_rung_resolves_through_difficulty_dm():
+    # FR-022 names three structural edits that must be honored: adding,
+    # removing, or renaming a ladder entry. The rename was covered above; a
+    # loader that silently dropped an unknown rung would pass everything else.
+    text = VALID_TOML.replace('"Formidable" = -6', '"Formidable" = -6\n"Impossible" = -8')
+    parameters = _task_parameters_from_toml(text)
+    assert len(parameters.difficulty_dms) == 8
+    assert parameters.difficulty_dm("Impossible") == -8
+    assert list(parameters.difficulty_dms)[-1] == "Impossible"
+
+
+def test_fr022_removed_difficulty_rung_raises_task_error_listing_the_remainder():
+    text = VALID_TOML.replace('"Formidable" = -6\n', "")
+    parameters = _task_parameters_from_toml(text)
+    assert len(parameters.difficulty_dms) == 6
+    with pytest.raises(TaskError) as exc_info:
+        parameters.difficulty_dm("Formidable")
+    message = str(exc_info.value)
+    assert "Formidable" in message
+    for remaining in parameters.difficulty_dms:
+        assert remaining in message
+
+
+def test_fr022_added_characteristic_band_resolves_at_both_bounds():
+    # FR-022 names three structural edits to the characteristic table that must
+    # be honored: adding, removing, or altering the bounds of a band. Only the
+    # third was covered; a loader that dropped a band while sorting, or that
+    # miscounted the unbounded-band check across a longer table, shipped green.
+    text = VALID_TOML.replace('"33+" = 9', '"33-35" = 9\n"36+" = 10')
+    parameters = _task_parameters_from_toml(text)
+    assert len(parameters.characteristic_bands) == 13
+    assert parameters.characteristic_bands[-1] == Band(minimum=36, maximum=None, dm=10)
+    assert parameters.characteristic_dm(33) == 9
+    assert parameters.characteristic_dm(35) == 9
+    assert parameters.characteristic_dm(36) == 10
+    assert parameters.characteristic_dm(4000) == 10
+
+
+def test_fr022_removed_characteristic_band_leaves_a_gap_that_raises():
+    # Removing a band from the middle of the curve leaves a hole, and FR-015
+    # requires a score in that hole to be reported rather than silently
+    # contributing zero or falling into a neighbor.
+    text = VALID_TOML.replace('"15-17" = 3\n', "")
+    parameters = _task_parameters_from_toml(text)
+    assert len(parameters.characteristic_bands) == 11
+    for score in (15, 16, 17):
+        with pytest.raises(RulesDataError, match="no characteristic band covers"):
+            parameters.characteristic_dm(score)
+    assert parameters.characteristic_dm(14) == 2
+    assert parameters.characteristic_dm(18) == 4
 
 
 def test_fr023_decoy_file_in_working_directory_is_ignored(tmp_path, monkeypatch):

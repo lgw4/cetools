@@ -102,7 +102,7 @@ performs no filesystem search (FR-023). Raises `RulesDataError` on missing,
 unreadable, malformed, or incomplete data, with no fallback to built-in values
 (FR-024).
 
-**On the split.** `_task_parameters_from_toml` holds the TOML parse and the whole
+**On the split.** `_task_parameters_from_toml` holds the TOML parse and the
 validation table from [tasks-toml.md](tasks-toml.md); `load_task_parameters` holds
 only "which bytes, and cache them". The split exists because the validation rules
 are the part with many cases and the packaged-file read is the part with one, and a
@@ -111,10 +111,21 @@ fixture. With the seam, every `RulesDataError` path is reachable by passing fixt
 text directly, and a valid edited fixture demonstrates SC-010 through the real
 loader rather than by constructing a `TaskParameters` by hand.
 
-The leading underscore is the contract: it is not in `__all__` and callers outside
-the package must not use it. Only the missing-and-unreadable-file cases need to go
-through the public function, by pointing `importlib.resources` at an absent
-resource.
+**One row of that table lives elsewhere.** The `task.roll` rule — that the value
+must parse as dice notation *and* must describe a count and a side count, so the
+`d66` literal is rejected — is `tasks._check_dice`, which both
+`_task_parameters_from_toml` and `check` call. It sits in `tasks.py` because
+`check` reads `task.roll` too, and `parameters=` lets a caller supply a
+`TaskParameters` the loader never saw; validating in only one of the two places
+left a `TypeError` reachable from a public entry point. Feature 2 replaces
+`rules.py` wholesale and does **not** take this rule with it: the replacement
+loader calls the same helper.
+
+The leading underscore is the contract: neither `_task_parameters_from_toml` nor
+`_check_dice` is in `__all__`, and callers outside the package must not use
+either, even though `_check_dice` is imported across modules within it. Only the
+missing-and-unreadable-file cases need to go through the public function, by
+pointing `importlib.resources` at an absent resource.
 
 `functools.cache` on `load_task_parameters` means tests that do exercise the public
 function must call `load_task_parameters.cache_clear()` afterwards, or they will
@@ -146,14 +157,21 @@ job is `print(..., end="")` rather than any formatting decision of its own.
 ## Errors
 
 ```text
-CetoolsError
-├── DiceError        invalid notation, non-positive count or sides
+CetoolsError        rendering dispatch miss (no leaf describes it)
+├── DiceError        invalid notation, non-positive count or sides,
+│                    unsupported notation or seed type
 ├── RulesDataError   data file missing, unreadable, malformed, incomplete
 └── TaskError        unknown difficulty, negative characteristic, negative skill
 ```
 
 The library **raises** and never prints, never writes to a stream, and never
 exits. `cli.py` holds the only `except CetoolsError` in the codebase.
+
+`as_text` and `as_dict` on an unregistered result type raise the base class
+directly, since no leaf describes a dispatch miss. FR-029 admits no exception —
+the fallback is a condition the code detects — and what the requirement buys a
+caller, one `except CetoolsError` catching everything, holds without a fourth
+leaf for a path no supported caller reaches.
 
 `TaskError` for an unknown difficulty must list the valid names in its message
 (FR-019).
