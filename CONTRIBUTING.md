@@ -114,8 +114,8 @@ uv run flake8
 ```
 
 Line length is 99 for both black and flake8; isort uses the black profile.
-CI (`.github/workflows/ci.yaml`) runs `uv run pytest` on Linux against Python
-3.13 and 3.14. Both jobs must pass.
+CI (`.github/workflows/ci.yaml`) runs `uv run pytest` on Linux, macOS, and
+Windows against Python 3.13 and 3.14. All six jobs must pass.
 
 Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/)
 with a scope naming the area touched:

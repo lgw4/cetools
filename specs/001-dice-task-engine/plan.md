@@ -201,7 +201,7 @@ specs/001-dice-task-engine/
 ```text
 pyproject.toml            # hatchling, requires-python >=3.13, typer, dev group
 .flake8                   # flake8 cannot read pyproject.toml
-.github/workflows/ci.yaml # pytest across the supported Python versions, on Linux
+.github/workflows/ci.yaml # pytest across the supported Python versions and platforms
 README.md                 # states the OGC/GPL split; makes no compatibility claim
 LICENSE                   # GPL-3.0, covers the code
 LICENSE-OGL.txt           # OGL 1.0a + Section 15 chain, covers the OGC data
