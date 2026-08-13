@@ -62,6 +62,10 @@ def test_roll_seed_round_trip_is_byte_identical():
     second = runner.invoke(app, ["roll", "2d6", "--seed", seed])
     third = runner.invoke(app, ["roll", "2d6", "--seed", seed])
 
+    # SC-004 is the promise that the *reported* seed reproduces the result it
+    # was reported with, so the unseeded run is the one that has to match. The
+    # second-against-third comparison only shows a given seed is deterministic.
+    assert first.stdout == second.stdout
     assert second.stdout == third.stdout
 
 
@@ -128,6 +132,8 @@ def test_check_seed_round_trip_is_byte_identical():
     second = runner.invoke(app, ["check", "--seed", seed])
     third = runner.invoke(app, ["check", "--seed", seed])
 
+    # See the roll round trip: the unseeded run is the one SC-004 binds.
+    assert first.stdout == second.stdout
     assert second.stdout == third.stdout
 
 

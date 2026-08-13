@@ -34,9 +34,18 @@ def _task_parameters_from_toml(text: str) -> TaskParameters:
     if not isinstance(roll, str):
         raise RulesDataError("task.roll must be a string")
     try:
-        parse_notation(roll)
+        parsed = parse_notation(roll)
     except DiceError as exc:
         raise RulesDataError(f"task.roll is not valid dice notation: {roll!r}") from exc
+    if parsed is None:
+        # `parse_notation` returns None for the `d66` literal, which composes two
+        # faces into a two-digit table value rather than describing a count and a
+        # side count. A check needs the latter, so accepting it here would fail
+        # later as a TypeError that no CetoolsError handler catches (FR-029).
+        raise RulesDataError(
+            f"task.roll must describe a count and a side count: {roll!r} is a "
+            "two-digit table die and cannot describe a check's dice"
+        )
 
     target = task.get("target")
     if not isinstance(target, int) or isinstance(target, bool):

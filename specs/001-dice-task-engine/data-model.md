@@ -35,7 +35,7 @@ Seed resolution, in one place, used identically by library and CLI:
 | `str` matching `^[+-]?[0-9]+$` | `int(value)` |
 | any other `str` | blake2b-64 fold of the UTF-8 bytes |
 
-**Methods**
+**Methods**:
 
 - `die(sides: int) -> int` - one uniform face in `1..sides` via rejection sampling
   on `getrandbits`.
@@ -65,7 +65,7 @@ composed two-digit value `faces[0] * 10 + faces[1]`, which is deliberately not a
 sum. `notation` is what tells a consumer which rule applies; this is stated in the
 JSON contract because the field is part of a committed interface.
 
-**Invariants**
+**Invariants**:
 
 - `len(faces) == count` and every face is within `1..sides`.
 - For `d66`: `len(faces) == 2`, both faces within `1..6`, `total` within `11..66`
@@ -73,7 +73,7 @@ JSON contract because the field is part of a committed interface.
 
 ## Modifier
 
-A single labelled adjustment to a check. The four kinds (difficulty,
+A single labeled adjustment to a check. The four kinds (difficulty,
 characteristic, skill, situational) are all represented by this one type and are
 itemized identically in output, so a reader sees a flat, auditable list.
 
@@ -92,7 +92,7 @@ itemized identically in output, so a reader sees a flat, auditable list.
 | Skill, untrained | `Unskilled` | `Unskilled` |
 | Situational | caller's own text, verbatim | `cover` |
 
-Characteristics are labelled generically because this feature has no notion of
+Characteristics are labeled generically because this feature has no notion of
 characteristic names; `DEX` and friends arrive with the NPC generator.
 
 ## CheckResult
@@ -111,7 +111,7 @@ characteristic names; `DEX` and friends arrive with the NPC generator.
 given), then skill, then the caller's situational modifiers in the order supplied.
 Golden files depend on this, so it is a contract, not an incidental detail.
 
-**Invariants**
+**Invariants**:
 
 - `total == dice_total + sum(m.value for m in modifiers)` always holds.
 - `success == (total >= target)` always holds, with no special case for a natural
@@ -142,7 +142,7 @@ The parsed contents of `tasks.toml`. Loaded once and cached.
 | `difficulty_dms` | `Mapping[str, int]` | Ladder, in data-file order. |
 | `characteristic_bands` | `tuple[Band, ...]` | Sorted by `minimum`. |
 
-**Methods**
+**Methods**:
 
 - `difficulty_dm(name: str) -> int` - exact match, character for character. Unknown
   name raises `TaskError` whose message lists the valid names, per FR-019.
@@ -172,7 +172,7 @@ every failure path is reachable from a test without a file on disk. See
 
 ## Error hierarchy
 
-```
+```text
 CetoolsError
 ├── DiceError        invalid notation, non-positive count or sides
 ├── RulesDataError   data file missing, unreadable, malformed, or incomplete
@@ -183,7 +183,7 @@ Raised by the library, never caught by it. Only `cli.py` catches `CetoolsError`.
 
 ## Relationships
 
-```
+```text
 Roller ──produces──> ThrowResult
    │
    └──produces──> CheckResult ──contains──> Modifier (ordered)

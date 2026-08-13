@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "cetools"
 version = "2026.08.1"
-description = "Dice and task check engine for the Cepheus Engine SRD"
+description = "Dice and task check engine for SRD-derived 2D6 roleplaying rules"
 readme = "README.md"
 requires-python = ">=3.13"
 license-files = ["LICENSE", "LICENSE-OGL.txt"]
@@ -43,6 +43,12 @@ line-length = 99
 
 [tool.isort]
 profile = "black"
+
+[tool.rumdl]
+flavor = "gfm"
+disable = ["MD013"]
+# Vendored Spec Kit tooling; its markdown is not ours to fix.
+exclude = [".claude", ".specify"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

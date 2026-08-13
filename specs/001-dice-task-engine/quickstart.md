@@ -82,7 +82,7 @@ done
 **Expected**: `target` is `8` in all seven outputs, `faces` are `2, 5` in all seven,
 and `total` decreases by exactly 2 at each step from `Simple` (+6) down to
 `Formidable` (-6): `13, 11, 9, 7, 5, 3, 1`. If `target` moves, difficulty has been
-modelled wrongly.
+modeled wrongly.
 
 ## Scenario 4: Skill 0 differs from untrained
 
@@ -110,7 +110,7 @@ done
 **Expected**: the characteristic modifier follows the twelve bands, and scores of
 33, 99, and 4000 all yield `+9` rather than erroring or falling off the end.
 
-## Scenario 6: Labelled situational modifiers
+## Scenario 6: Labeled situational modifiers
 
 Validates FR-017, FR-018.
 
@@ -187,7 +187,7 @@ print('module state untouched:', random.getstate() == before)
 
 **Expected**: `True`.
 
-## Scenario 11: The distribution carries its licences
+## Scenario 11: The distribution carries its licenses
 
 Validates FR-035, SC-012. Covered automatically by `tests/unit/test_licensing.py`
 and by the build check; by hand:
@@ -218,7 +218,7 @@ package name and the data file both stay clear of them.
 | `tests/unit/test_d66.py` | `d66` specifically (SC-009) |
 | `tests/unit/test_tasks.py` | Ladder, bands, skill states, `TaskError` |
 | `tests/unit/test_rules.py` | Data loading, every `RulesDataError` path, SC-010 through the loader |
-| `tests/unit/test_licensing.py` | OGC designation, absent PI strings, bundled licences (SC-012) |
+| `tests/unit/test_licensing.py` | OGC designation, absent PI strings, bundled licenses (SC-012) |
 | `tests/unit/test_render.py` | Text and dict rendering |
 | `tests/contract/test_json_contract.py` | Committed JSON shape, incl. `seed` is a string |
 | `tests/integration/test_cli.py` | Both subcommands, streams, exit codes |

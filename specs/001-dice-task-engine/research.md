@@ -46,7 +46,7 @@ the standard library reserves the right to revise.
 
 **Decision**: rejection sampling on `getrandbits`:
 
-```
+```text
 bits = (sides - 1).bit_length()
 loop: n = rng.getrandbits(bits); if n < sides: return n + 1
 ```
@@ -66,7 +66,7 @@ sample sequence was identical on CPython 3.10 through 3.14.
 documented-guarantee grounds above.
 
 **Correction to the decisions brief**: the brief justified this choice partly on
-the claim that `random.choice` changed behaviour in 3.11. That did not reproduce.
+the claim that `random.choice` changed behavior in 3.11. That did not reproduce.
 `choice` and `randint` produced identical sequences on 3.10 through 3.14 in a spot
 check. The decision is unchanged and still correct, but it rests on the documented
 guarantee rather than on that specific incident. Recorded so a future reader does
@@ -175,13 +175,13 @@ in R12 needs in order to run the CLI in a subprocess.
 ## R11: Errors and exit codes
 
 **Decision**: `CetoolsError` base with three subclasses: `DiceError`,
-`RulesDataError`, `TaskError`. The library raises and never prints or exits. `cli.py`
-holds the single `except CetoolsError` site, writes the message to stderr, and exits
-1. Usage errors exit 2. A failed check exits 0.
+`RulesDataError`, `TaskError`. The library raises and never prints or exits.
+`cli.py` holds the single `except CetoolsError` site, writes the message to
+stderr, and exits 1. Usage errors exit 2. A failed check exits 0.
 
 **Rationale**: Principle I and II. Exit code 2 comes free: Click's `UsageError` already
 uses `exit_code = 2`, so leaving usage handling to Typer produces the required
-behaviour without custom code. Three subclasses rather than one per condition keeps
+behavior without custom code. Three subclasses rather than one per condition keeps
 the taxonomy small (Principle VI); specifics such as the list of valid difficulty
 names live in the message, which FR-019 requires anyway.
 
@@ -218,9 +218,11 @@ cannot cover.
 backend, Black, isort (`profile = "black"`), and flake8.
 
 **Practical note**: flake8 cannot read configuration from `pyproject.toml`. It needs
-its own `.flake8` file, set to `max-line-length = 88` with `extend-ignore = E203` so
-it agrees with Black rather than fighting it. Black and isort are configured in
-`pyproject.toml` as normal.
+its own `.flake8` file, set to the same line length as Black with
+`extend-ignore = E203` so it agrees with Black rather than fighting it. Black and isort
+are configured in `pyproject.toml` as normal. The line length is `99` in both places,
+not Black's default `88`; see plan.md's Toolchain section for why, and note that the
+constraint the decision actually rests on is that the two values match.
 
 **Constitutional note**: these are quality tooling, which Principle III explicitly
 permits but does not mandate. They are not gates on the definition of done; tests

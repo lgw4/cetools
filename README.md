@@ -1,6 +1,6 @@
 # cetools
 
-A dice and task-check engine for Cepheus Engine SRD-based games: seeded,
+A dice and task-check engine for SRD-derived 2D6 roleplaying rules: seeded,
 reproducible dice throws and 2D6 task resolution, available as a Python
 library and as the `cetools` command-line tool.
 

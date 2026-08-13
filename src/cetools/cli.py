@@ -78,7 +78,7 @@ def check(
         None, "--skill", help="Skill level. Omitted: untrained (unskilled penalty applies)."
     ),
     dm: List[str] = typer.Option(
-        [], "--dm", help='Repeatable labelled situational modifier, "label=value".'
+        [], "--dm", help='Repeatable labeled situational modifier, "label=value".'
     ),
     seed: Optional[str] = typer.Option(None, "--seed", help="Integer or arbitrary text."),
     json_output: bool = typer.Option(

@@ -62,6 +62,6 @@ are intentionally deferred to `/speckit-plan`, where they belong.
 These are resolved as documented assumptions, not blockers, but each is a design
 decision the planning phase should confirm:
 
-- Exact command-line syntax for a labelled situational modifier.
+- Exact command-line syntax for a labeled situational modifier.
 - Exact accepted spelling of a dice description, and whether the dice count may be
   omitted to mean one.

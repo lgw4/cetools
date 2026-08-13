@@ -1,9 +1,31 @@
 import tomllib
 from pathlib import Path
 
+ATTRIBUTION = "Cepheus Engine and Samardan Press are the trademarks of Jason 'Flynn' Kemp"
+NON_AFFILIATION_PHRASES = ("not affiliated", "no affiliation")
+
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
+
+
+def _normalized(text: str) -> str:
+    return " ".join(text.split())
+
+
+def _assert_claim_carries_attribution(text: str, where: str) -> None:
+    """Assert `text` either makes no compatibility claim or attributes it.
+
+    The constitution's Compatibility-Statement clause and FR-035 allow either
+    route; what they forbid is naming the trademark without the attribution
+    and the statement of non-affiliation.
+    """
+    if "Cepheus Engine" not in text:
+        return
+    assert ATTRIBUTION in text, f"{where} names Cepheus Engine without the attribution"
+    assert any(
+        phrase in text.lower() for phrase in NON_AFFILIATION_PHRASES
+    ), f"{where} names Cepheus Engine without a statement of non-affiliation"
 
 
 def test_license_exists_and_is_non_empty():
@@ -37,6 +59,18 @@ def test_readme_contains_ogc_gpl_designation():
     assert "Open Game Content" in text
     assert "Open Game License" in text
     assert "GNU General Public License" in text
+
+
+def test_readme_makes_no_unattributed_compatibility_claim():
+    text = _normalized((_repo_root() / "README.md").read_text(encoding="utf-8"))
+    _assert_claim_carries_attribution(text, "README.md")
+
+
+def test_package_description_makes_no_unattributed_compatibility_claim():
+    pyproject = tomllib.loads((_repo_root() / "pyproject.toml").read_text(encoding="utf-8"))
+    _assert_claim_carries_attribution(
+        _normalized(pyproject["project"]["description"]), "the pyproject description"
+    )
 
 
 def test_packaged_tasks_toml_opens_with_ogc_designation_and_omits_pi_strings():

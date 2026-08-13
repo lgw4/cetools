@@ -23,7 +23,7 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
 - **2D6 task resolution.** `check` resolves a task against a target number,
   applying difficulty, characteristic, and skill modifiers plus any number
   of ad-hoc situational DMs, and returns a `CheckResult` with every modifier
-  itemised and named. An omitted characteristic contributes no modifier
+  itemized and named. An omitted characteristic contributes no modifier
   rather than a silent zero; skill level 0 means trained-but-unpracticed and
   is distinct from no training at all, which takes the unskilled DM.
 - **SRD parameters as data.** Target number, difficulty DMs, characteristic

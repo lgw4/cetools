@@ -51,7 +51,7 @@ class TaskParameters:
 
 @dataclass(frozen=True, slots=True)
 class Modifier:
-    """A single labelled adjustment to a check."""
+    """A single labeled adjustment to a check."""
 
     label: str
     value: int

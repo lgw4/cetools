@@ -65,6 +65,9 @@ def test_difficulty_ladder_steps_by_two_with_fixed_dice_and_target(name, expecte
 @pytest.mark.parametrize(
     "score,expected_dm",
     [
+        # Both bounds of every one of the twelve bands, so the list walks the
+        # whole table rather than its ends (SC-003). A boundary comparison that
+        # slipped by one anywhere in the middle of the curve now fails here.
         (0, -2),
         (2, -2),
         (3, -1),
@@ -74,6 +77,18 @@ def test_difficulty_ladder_steps_by_two_with_fixed_dice_and_target(name, expecte
         (9, 1),
         (11, 1),
         (12, 2),
+        (14, 2),
+        (15, 3),
+        (17, 3),
+        (18, 4),
+        (20, 4),
+        (21, 5),
+        (23, 5),
+        (24, 6),
+        (26, 6),
+        (27, 7),
+        (29, 7),
+        (30, 8),
         (32, 8),
         (33, 9),
         (99, 9),

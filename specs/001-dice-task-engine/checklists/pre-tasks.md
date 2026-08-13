@@ -34,8 +34,8 @@ validates the substance of individual requirements.
   - **Fixed.** FR-004 now requires a source suitable for unpredictable values and rules out deriving a seed from guessable process state such as the clock or process identifier.
 - [x] CHK003 Are the supported runtime versions enumerated in the requirements? Without a stated set, "every supported version of the underlying language runtime" has no boundary and FR-007 cannot be discharged. [Gap, Spec §FR-007]
   - **Fixed.** FR-007 now binds the set the package declares in its own metadata. This keeps the spec language-agnostic while making the requirement dischargeable, since the declared set is a fact about the package rather than an open question.
-- [x] CHK004 Are text-seed normalisation rules specified (character encoding, case, surrounding whitespace, Unicode composition), so it is decided whether two visually identical seeds must fold to the same value? [Gap, Spec §FR-003]
-  - **Fixed.** FR-003 now requires folding from the exact character sequence supplied, with case, whitespace, and composed-versus-decomposed form all significant. Decided in favour of no normalisation: silently unifying two distinct strings would be a surprise in the one place the feature promises there are none.
+- [x] CHK004 Are text-seed normalization rules specified (character encoding, case, surrounding whitespace, Unicode composition), so it is decided whether two visually identical seeds must fold to the same value? [Gap, Spec §FR-003]
+  - **Fixed.** FR-003 now requires folding from the exact character sequence supplied, with case, whitespace, and composed-versus-decomposed form all significant. Decided in favor of no normalization: silently unifying two distinct strings would be a surprise in the one place the feature promises there are none.
 - [x] CHK005 Is it stated whether a negative integer seed is valid input? FR-005 permits a sign in the reported seed, which implies acceptance without requiring it. [Ambiguity, Spec §FR-002, §FR-005]
   - **Fixed.** FR-002 now permits a negative sign explicitly.
 - [x] CHK006 Is an upper bound on an accepted integer seed either specified or explicitly declared unbounded? "Accepted without truncation or overflow" states a prohibition but not a range. [Ambiguity, Spec §Edge Cases]
@@ -50,28 +50,28 @@ validates the substance of individual requirements.
 ## Rules Data and Check Arithmetic
 
 - [x] CHK010 Does FR-013's "throwing two six-sided dice" conflict with FR-021's rule that no engine code may hold rules content? The check's own dice notation is rules content, yet FR-021's enumeration omits it. [Conflict, Spec §FR-013, §FR-021]
-  - **Fixed.** FR-013 now throws the dice described in the rules data (shipping as two six-sided dice) and FR-021's enumeration includes that description. This was a real conflict: `tasks-toml.md` had already resolved it in data's favour with `roll = "2d6"`, but no requirement asked for it, so an implementer reading only the spec would have hard-coded the throw.
+  - **Fixed.** FR-013 now throws the dice described in the rules data (shipping as two six-sided dice) and FR-021's enumeration includes that description. This was a real conflict: `tasks-toml.md` had already resolved it in data's favor with `roll = "2d6"`, but no requirement asked for it, so an implementer reading only the spec would have hard-coded the throw.
 - [x] CHK011 Is the default difficulty defined in a way that survives an edited ladder? FR-014 names "the middle rung" while FR-022 permits the ladder to be edited to any length, leaving the middle undefined for an even number of rungs. [Conflict, Spec §FR-014, §FR-022]
   - **Fixed, and this one carried a design decision.** The default is now identified as the ladder entry whose modifier is zero, not by position and not by name, and FR-024 rejects data that does not hold exactly one such entry. The alternative considered was an explicit `default-difficulty` key in the data file, which is more flexible (it would allow a house rule defaulting to a non-zero rung) but adds a key, a validation rule, and a way to point the default at a rung that does not exist. The zero-modifier rule was chosen because FR-014 already tied the default to a zero modifier, so it formalises the existing intent rather than introducing a new concept.
 - [x] CHK012 Is the default difficulty identified in a data-derived way rather than by a fixed name, so that supplying a default does not reintroduce rules content into code? [Gap, Spec §FR-014, §FR-021]
   - **Fixed by the same amendment.** `contracts/cli.md` had pinned the default to the literal name `Average`, which is a ladder entry name living in code and so a Principle V violation in waiting. That contract row and `data-model.md` were updated: the default is now looked up from the data via `default_difficulty()`.
 - [x] CHK013 Are difficulty-name matching semantics specified (case sensitivity, whitespace tolerance, abbreviation), given FR-019 requires rejecting any name not on the ladder? [Gap, Spec §FR-014, §FR-019]
   - **Fixed.** FR-014 now requires exact character-for-character matching with no case folding, abbreviation, or whitespace tolerance, so a near miss is reported under FR-019 rather than resolved to a neighbouring rung.
-- [x] CHK014 Does FR-015's claim that "every non-negative score yields a modifier" hold once the table is editable, and is the required behaviour specified for a score falling outside every band? [Conflict, Spec §FR-015, §FR-022]
+- [x] CHK014 Does FR-015's claim that "every non-negative score yields a modifier" hold once the table is editable, and is the required behavior specified for a score falling outside every band? [Conflict, Spec §FR-015, §FR-022]
   - **Fixed.** FR-015 now frames total coverage as a property of the shipped data rather than of the engine, and requires a score outside every band in force to be a rules-data error rather than a silent zero. A silent zero was the dangerous reading, because it produces a plausible-looking wrong number.
 - [x] CHK015 Is the rejection of a negative characteristic score or a negative skill level captured in a functional requirement with an assigned error class, or does it appear only as an edge case? [Gap, Spec §FR-015, §FR-016, §Edge Cases]
   - **Fixed.** FR-015 and FR-016 now each require rejection with a clear error. The error class follows from FR-029 and FR-030 without restating it, since these are conditions the library detects.
-- [x] CHK016 Is the scope of "editing the data file changes the arithmetic" bounded? It is unstated which classes of edit must be honoured: changing a value, adding or removing a rung, renaming an entry, or altering band boundaries. [Clarity, Spec §FR-022]
-  - **Fixed.** FR-022 now enumerates the honoured edits and names the two invariants that survive all of them (exactly one zero-modifier rung, exactly one unbounded top band), with violations rejected under FR-024.
+- [x] CHK016 Is the scope of "editing the data file changes the arithmetic" bounded? It is unstated which classes of edit must be honored: changing a value, adding or removing a rung, renaming an entry, or altering band boundaries. [Clarity, Spec §FR-022]
+  - **Fixed.** FR-022 now enumerates the honored edits and names the two invariants that survive all of them (exactly one zero-modifier rung, exactly one unbounded top band), with violations rejected under FR-024.
 - [x] CHK017 Are the parameters that count as "required" enumerated, so FR-024's "missing a required parameter" names a decidable set rather than an open one? [Clarity, Spec §FR-024]
   - **Fixed.** FR-024 now lists all five exactly.
 - [x] CHK018 Is the requirement that the shipped data file carry its Open Game Content designation stated as a requirement? It currently appears only in the Assumptions section, where it is not binding. [Gap, Spec §Assumptions, §FR-021]
   - **Fixed.** FR-021 now requires it, noting that the file is created by this feature even though the wider licensing work belongs to packaging and release.
-  - **Superseded in part (2026-08-12, post-analysis).** The clause about the wider licensing work was too broad. `/speckit-analyze` found that the constitution's bundling obligation is written against *every distribution*, and this feature builds the first distribution containing Open Game Content, so the licence text, its Section 15 chain, and the repository-level OGC/GPL designation land here too. FR-035 now requires them and SC-012 verifies them. What still belongs to packaging and release is only what happens after the artefact is built.
-- [x] CHK019 Are the three skill states distinguishable by input as well as by behaviour? FR-016 defines the states but the distinction between "omitted" and "level zero" is carried only in the Assumptions section. [Clarity, Spec §FR-016, §Assumptions]
+  - **Superseded in part (2026-08-12, post-analysis).** The clause about the wider licensing work was too broad. `/speckit-analyze` found that the constitution's bundling obligation is written against *every distribution*, and this feature builds the first distribution containing Open Game Content, so the license text, its Section 15 chain, and the repository-level OGC/GPL designation land here too. FR-035 now requires them and SC-012 verifies them. What still belongs to packaging and release is only what happens after the artifact is built.
+- [x] CHK019 Are the three skill states distinguishable by input as well as by behavior? FR-016 defines the states but the distinction between "omitted" and "level zero" is carried only in the Assumptions section. [Clarity, Spec §FR-016, §Assumptions]
   - **Fixed.** FR-016 now requires omitted and zero to be distinct inputs producing distinct results. This is the single easiest thing in the feature to implement backwards, so it belonged in a requirement rather than an assumption.
 
-## Command-Line, Output, and Exit Behaviour
+## Command-Line, Output, and Exit Behavior
 
 - [x] CHK020 Are requirements defined for how the two-digit table throw is requested distinctly from a genuine 66-sided die, given both are expressible and FR-010 states only that the throw exists? [Gap, Spec §FR-010, §Assumptions]
   - **Fixed.** FR-010 now requires a name that cannot collide with any count-and-sides description, and requires a genuine sixty-six-sided die to remain expressible.
@@ -83,27 +83,27 @@ validates the substance of individual requirements.
   - **Fixed.** FR-017 now names all three malformations and assigns them to FR-031's usage-error class, with the reason: they are malformed input to the invocation, not something the engine detected.
 - [x] CHK024 Is "usage error" defined by an enumerable set of conditions, so that the boundary between exit status one and exit status two is decidable for any input? [Clarity, Spec §FR-030, §FR-031]
   - **Fixed.** FR-031 now gives the deciding rule rather than only examples: the fault's point of detection, before or after the library is called. The enumeration alone was not decidable for a novel case.
-- [x] CHK025 Can FR-026's "rendered from the same library result rather than assembled separately" be objectively verified from observable behaviour, or is it a structural claim about code that no acceptance criterion can settle? [Measurability, Spec §FR-026]
+- [x] CHK025 Can FR-026's "rendered from the same library result rather than assembled separately" be objectively verified from observable behavior, or is it a structural claim about code that no acceptance criterion can settle? [Measurability, Spec §FR-026]
   - **Fixed.** The structural requirement is kept, since it carries real architectural intent under Principle I, but FR-026 now adds the observable consequence: for the same operation and seed, every value the two modes share must be identical. That is what a test can actually assert.
 - [x] CHK026 Can FR-025's "neither command's help text describes arguments that do not apply" be checked against a stated criterion? [Measurability, Spec §FR-025]
   - **Fixed.** FR-025 now requires each subcommand's help to list exactly the options it accepts and no others.
 - [x] CHK027 Does the spec require the human-readable format to be stable? SC-008 pins rendered output with committed reference files, yet no requirement establishes the text layout as a contract that those files defend. [Gap, Spec §FR-026, §SC-008]
   - **Fixed.** FR-026 now requires the human-readable rendering to be stable within a package version and pinned by SC-008's reference files, while stating explicitly that it is *not* a committed interface across versions the way FR-028's shape is. The asymmetry is deliberate and worth having written down.
 - [x] CHK028 Are the changelog and the version scheme that FR-028 leans on established as requirements, and is "flagged prominently" given a checkable criterion? [Gap, Spec §FR-028]
-  - **Fixed without inventing scope.** FR-028 now defines "prominently" as a changelog heading identifying the change as breaking, and records that this feature establishes the shape and therefore changes nothing: the obligation binds from the first change onward, and the changelog artefact belongs to the packaging and release feature. Adding a changelog requirement to *this* feature was considered and rejected as scope the spec had not claimed.
+  - **Fixed without inventing scope.** FR-028 now defines "prominently" as a changelog heading identifying the change as breaking, and records that this feature establishes the shape and therefore changes nothing: the obligation binds from the first change onward, and the changelog artifact belongs to the packaging and release feature. Adding a changelog requirement to *this* feature was considered and rejected as scope the spec had not claimed.
 - [x] CHK029 Does SC-006's closed set of exit statuses account for every path, including the version option and an error raised while machine-readable output was requested? [Coverage, Spec §SC-006, §FR-025]
   - **Fixed.** SC-006 now names the version option explicitly and states that requesting machine-readable output changes none of the statuses.
 
 ## Verification and Acceptance Criteria Quality
 
 - [x] CHK030 Is FR-012's uniformity requirement quantified with a sample size and a tolerance, so "uniformly distributed" is objectively testable rather than merely assertable? The independent test for User Story 4 says "a large seeded sample" without quantifying it. [Measurability, Spec §FR-012, §US4]
-  - **Fixed, by changing the kind of criterion rather than adding a tolerance.** FR-012 now requires equal probability *by construction* (no face unreachable, none favoured by the derivation), evidenced by exhaustive coverage over a fixed seeded sample of at least a thousand throws. A tolerance-based distributional test was explicitly rejected in the requirement text: it would be flaky and would test something weaker than the claim. User Story 4's independent test was reworded to match.
+  - **Fixed, by changing the kind of criterion rather than adding a tolerance.** FR-012 now requires equal probability *by construction* (no face unreachable, none favored by the derivation), evidenced by exhaustive coverage over a fixed seeded sample of at least a thousand throws. A tolerance-based distributional test was explicitly rejected in the requirement text: it would be flaky and would test something weaker than the claim. User Story 4's independent test was reworded to match.
 - [x] CHK031 Does SC-003's fixed count of seven difficulties and twelve bands contradict SC-010's requirement that the same content be editable? A criterion pinned to counts becomes false the moment the edit SC-010 demands is made. [Conflict, Spec §SC-003, §SC-010]
   - **Fixed.** SC-003 is now stated against the data in force rather than against fixed counts, with the shipped counts noted as the case count for the shipped suite.
 - [x] CHK032 Can SC-008's "expected values were written before the implementation existed" be objectively verified, and is the evidence that would establish it specified? [Measurability, Spec §SC-008]
   - **Fixed.** SC-008 now names the evidence: the expected values committed in a change preceding the implementing change, and the test observed failing before it passes.
 - [x] CHK033 Is the criterion for an acceptable change to a committed reference file defined, so that "reviewed as differences rather than regenerated wholesale" is enforceable rather than aspirational? [Clarity, Spec §SC-008]
-  - **Fixed.** SC-008 now permits a reference-file change only when it accompanies an intended behaviour change described in the same commit, and names wholesale regeneration to green a failing suite as the thing being forbidden.
+  - **Fixed.** SC-008 now permits a reference-file change only when it accompanies an intended behavior change described in the same commit, and names wholesale regeneration to green a failing suite as the thing being forbidden.
 - [x] CHK034 Is there a success criterion covering FR-034's programmatic reachability, or is the library surface exercised only indirectly through the command line? [Gap, Spec §FR-034, §SC-001–SC-010]
   - **Fixed.** SC-011 added: every capability exercised by at least one test that imports the library without invoking the command line. Principle I is load-bearing for this project and had no measurable outcome behind it.
 - [x] CHK035 Is SC-001's "different machines" condition specified concretely enough to be automated? SC-002 and SC-005 explicitly require an automated check and SC-001 does not, leaving its strongest clause unenforced. [Consistency, Spec §SC-001, §SC-002, §SC-005]
@@ -132,7 +132,7 @@ precisely the case Principle V and SC-010 exist to protect. They are now stated
 against "the data in force" throughout.
 
 **Consequential edits outside `spec.md`.** One amendment changed a decision already
-recorded downstream, so three artefacts were updated to match rather than left
+recorded downstream, so three artifacts were updated to match rather than left
 contradicting the spec:
 
 - `contracts/cli.md` - the `--difficulty` default is no longer the literal name
@@ -165,7 +165,7 @@ that changed a decision rather than merely tightening wording:
 
 - **Licensing scope (CRITICAL).** See the note under CHK018. FR-035 and SC-012 are
   new; `tasks.md` T004 now ships `LICENSE-OGL.txt` and the README designation, T008
-  and T031 test them, T065 checks the built artefact. This also repaired a dangling
+  and T031 test them, T065 checks the built artifact. This also repaired a dangling
   reference: `tasks.toml`'s opening comment pointed at `LICENSE-OGL.txt`, which
   nothing created.
 - **Loader seam (HIGH).** `tests/unit/test_rules.py` was specified to exercise every
@@ -189,7 +189,7 @@ that changed a decision rather than merely tightening wording:
 
 Six smaller gaps were closed inside existing tasks rather than as new ones: FR-008
 roller independence (T014), the SC-004 seed round trip (T016, T034), FR-023's
-no-search behaviour (T029), and the FR-021 Product Identity assertions (T031).
+no-search behavior (T029), and the FR-021 Product Identity assertions (T031).
 `contracts/library-api.md`'s stale `difficulty: str = "Average"` default was
 corrected in place, which removed a polish-phase task that existed only to fix it
 later than it needed fixing.

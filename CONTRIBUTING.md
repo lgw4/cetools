@@ -47,7 +47,7 @@ That installs the package in editable form along with the dev group
 ## How work is planned
 
 cetools is developed with [Spec Kit](https://github.com/github/spec-kit).
-Features are specified before they are written, and the artefacts live in
+Features are specified before they are written, and the artifacts live in
 `specs/<NNN>-<slug>/` alongside the code. The usual arc for a non-trivial
 change is:
 
@@ -66,12 +66,12 @@ that adds a capability, changes output, or touches the rules data does.
 
 **Tests first.** Principle III is marked non-negotiable and is enforced in
 review: write the test, run it, watch it fail for the right reason, then
-implement. The suite is organised by kind, and new tests belong in the
+implement. The suite is organized by kind, and new tests belong in the
 matching directory:
 
 | Directory            | Purpose                                            |
 | -------------------- | -------------------------------------------------- |
-| `tests/unit/`        | One module's behaviour in isolation                |
+| `tests/unit/`        | One module's behavior in isolation                 |
 | `tests/integration/` | CLI invocations end to end, and golden-file output |
 | `tests/contract/`    | The stability of the `--json` shape                |
 | `tests/property/`    | Hypothesis invariants over generated input         |
@@ -120,7 +120,7 @@ Windows against Python 3.13 and 3.14. All six jobs must pass.
 Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/)
 with a scope naming the area touched:
 
-```
+```text
 feat(dice): add d66 two-digit table die
 docs(cetools): finish Phase 7 polish with docstrings and README usage
 ```

@@ -145,7 +145,7 @@ job is `print(..., end="")` rather than any formatting decision of its own.
 
 ## Errors
 
-```
+```text
 CetoolsError
 ├── DiceError        invalid notation, non-positive count or sides
 ├── RulesDataError   data file missing, unreadable, malformed, incomplete

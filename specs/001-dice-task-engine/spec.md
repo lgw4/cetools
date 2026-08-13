@@ -249,7 +249,7 @@ throws all thirty-six values occur.
 - **FR-011**: The system MUST reject a dice count or a side count that is not a
   positive whole number, with a clear error, and MUST NOT produce a result.
 - **FR-012**: Each die face MUST be equally probable across its range by
-  construction, with no face unreachable and none favoured by the derivation,
+  construction, with no face unreachable and none favored by the derivation,
   rather than merely appearing uniform under sampling; the same holds for all
   thirty-six values of the two-digit table throw. For the six-sided die and for the
   two-digit throw this MUST additionally be evidenced by exhaustive coverage over a
@@ -322,22 +322,22 @@ throws all thirty-six values occur.
 - **FR-035**: Because this feature is the one that first produces a distributable
   package containing Open Game Content, that distribution MUST satisfy the
   project's licensing constraints as they apply to a distribution: it MUST bundle
-  the full text of the licence the rules data is released under together with the
-  complete verbatim copyright-notice chain that licence requires, and the
+  the full text of the license the rules data is released under together with the
+  complete verbatim copyright-notice chain that license requires, and the
   repository MUST state plainly which files are Open Game Content and which are
-  under the source-code licence. This is not the whole of the licensing work.
+  under the source-code license. This is not the whole of the licensing work.
   Publishing, the compatibility statement, and the package description belong to
   the packaging and release feature; what belongs here is only what an installable
-  artefact containing Open Game Content cannot be built without. Where any text
+  artifact containing Open Game Content cannot be built without. Where any text
   this feature writes claims compatibility with the source rules, it MUST carry
   the trademark attribution and non-affiliation statement the project's licensing
   constraints require, or else make no such claim.
 - **FR-022**: Editing the shipped data file MUST change the engine's arithmetic
   correspondingly, with no code change required, so a referee's house rule is a
-  data edit. The edits that MUST be honoured are: changing any value; adding,
+  data edit. The edits that MUST be honored are: changing any value; adding,
   removing, or renaming a difficulty ladder entry; and adding, removing, or
   altering the bounds of a characteristic band. Two constraints survive every edit,
-  because the engine has no defined behaviour without them: the ladder MUST retain
+  because the engine has no defined behavior without them: the ladder MUST retain
   exactly one entry whose modifier is zero (FR-014), and the characteristic table
   MUST retain exactly one unbounded top band. Data violating either is rejected
   under FR-024 rather than accepted and worked around.
@@ -387,7 +387,7 @@ throws all thirty-six values occur.
   change onward, and the changelog itself is created by the packaging and release
   feature rather than this one.
 
-#### Errors and exit behaviour
+#### Errors and exit behavior
 
 - **FR-029**: The library MUST signal every error condition it detects by raising a
   typed error descending from a single project-wide base error type, and MUST NOT
@@ -423,7 +423,7 @@ throws all thirty-six values occur.
   so ownership of a random sequence is always visible in the call.
 - **Dice throw result**: The outcome of throwing dice. Carries the individual
   faces, any flat modifier, the total, and the seed.
-- **Modifier**: A single labelled signed adjustment to a check. Comes from a named
+- **Modifier**: A single labeled signed adjustment to a check. Comes from a named
   difficulty, a characteristic score, a skill state, or the caller directly; all
   four kinds are itemized identically in output.
 - **Check result**: The outcome of resolving a task. Carries the dice faces, the
@@ -464,12 +464,12 @@ throws all thirty-six values occur.
 - **SC-007**: A referee can obtain a resolved check, with every modifier itemized
   and explained, in a single command invocation without consulting the rulebook for
   any modifier value.
-- **SC-008**: Every behaviour in the functional requirements has a test whose
+- **SC-008**: Every behavior in the functional requirements has a test whose
   expected values were written before the implementation existed, evidenced by
   those values being committed in a change that precedes the implementing change
   and by the test being observed to fail before it passes. Rendered command output
   is additionally pinned by committed reference files. A change to a reference file
-  is acceptable only when it accompanies an intended change of behaviour described
+  is acceptable only when it accompanies an intended change of behavior described
   in that same commit; regenerating the files wholesale to make a failing suite
   pass is not, and that is the difference the phrase "reviewed as differences"
   names.
@@ -485,7 +485,7 @@ throws all thirty-six values occur.
 - **SC-012**: The licensing obligations that attach to the shipped rules data are
   verified by automated check rather than by inspection: the data file as read
   from the installed package carries its Open Game Content designation and
-  contains neither Product Identity string, and the licence text and its
+  contains neither Product Identity string, and the license text and its
   copyright-notice chain are present in the built distribution. A later edit that
   drops any of these fails the suite instead of shipping quietly.
 
@@ -506,11 +506,11 @@ determine what later features must add.
   their trade-off of one point of modifier per row moved on the time frames table
   is genuine design work deserving its own feature.
 - **Multiple-actions penalty and Jack of All Trades**: excluded, because both are
-  labelled numbers a caller can already pass as situational modifiers.
+  labeled numbers a caller can already pass as situational modifiers.
 - **Law-level base difficulty**: excluded; it belongs to a legal-affairs feature
   that does not exist yet.
 - **A target-number override option**: excluded. With opposed checks out of scope
-  nothing needs it, and offering it would invite modelling difficulty as a shift in
+  nothing needs it, and offering it would invite modeling difficulty as a shift in
   the target, which produces wrong numbers while looking reasonable.
 - **Rules data override and search precedence**: excluded. The validated data
   loader owns loading and should design search precedence once, in the next
@@ -535,10 +535,10 @@ determine what later features must add.
 - **Characteristic is given as a score**: when a characteristic is involved at all,
   checks take the score and derive the modifier from the shipped table. Passing a
   pre-computed characteristic modifier directly is not offered, since a caller
-  wanting that can use a labelled situational modifier. Omitting the characteristic
+  wanting that can use a labeled situational modifier. Omitting the characteristic
   entirely is a valid check, not an error, because not every roll at the table hangs
   off a characteristic.
-- **Situational modifiers are labelled pairs**: each is supplied as a label and a
+- **Situational modifiers are labeled pairs**: each is supplied as a label and a
   signed value together, repeatable within one invocation. The exact command-line
   syntax for expressing the pair is a design detail for the planning phase; the
   requirement is that the label survives into both output modes.
@@ -560,8 +560,8 @@ determine what later features must add.
   consumed by all four remaining MVP features.
 - **Licensing**: the shipped rules data file is Open Game Content and carries the
   designation required by the project's licensing constraints. Because this
-  feature also builds the first installable artefact containing that content, the
-  licence text, its copyright-notice chain, and the repository-level statement of
+  feature also builds the first installable artifact containing that content, the
+  license text, its copyright-notice chain, and the repository-level statement of
   which files are Open Game Content travel with it (FR-035) rather than waiting
   for the packaging and release feature. What still waits for that feature is
   everything to do with publishing: the package description, the compatibility

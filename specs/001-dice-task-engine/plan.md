@@ -62,8 +62,15 @@ criteria.
 
 **Toolchain**: uv for environment and dependency management, hatchling as build
 backend, Black + isort (`profile = "black"`) + flake8 as non-gating quality tooling.
-flake8 cannot read `pyproject.toml`, so it needs a separate `.flake8` set to
-`max-line-length = 88` with `extend-ignore = E203` to agree with Black.
+flake8 cannot read `pyproject.toml`, so it needs a separate `.flake8` set to the same
+line length as Black with `extend-ignore = E203` to agree with it rather than fight it.
+That length is **99**, not Black's default of 88: this codebase's signal-carrying lines
+are long single expressions (`importlib.resources` reads, Typer option declarations,
+keyword-only `check` signatures) that 88 splits across lines without making them
+clearer. Both `.flake8` and `[tool.black]` carry `99`; what matters to the decision is
+that the two agree, and the specific figure was settled at implementation time.
+Amended 2026-08-12 per T075, which found the artifact recording 88 while the repository
+shipped 99.
 
 ## Constitution Check
 
@@ -96,12 +103,12 @@ copyright line) and a README section naming `src/cetools/data/tasks.toml` as the
 Open Game Content file with everything else under GPL-3.0. Both are included in the
 wheel and the sdist.
 
-This is a deliberate correction to the original scoping, which deferred all licence
+This is a deliberate correction to the original scoping, which deferred all license
 bundling to `packaging-release`. The constitution's bundling clause is written
 against *every distribution*, and this feature is the one that first builds a
 distribution containing Open Game Content, so the obligation lands here whether or
 not a release is cut. What genuinely does belong to `packaging-release` is
-everything downstream of building the artefact: the PyPI description, the
+everything downstream of building the artifact: the PyPI description, the
 compatibility statement as published, and the release process. `README.md` therefore
 either carries the trademark attribution and non-affiliation statement or makes no
 compatibility claim at all; this feature takes the second route and says only what
@@ -121,6 +128,37 @@ and the README designation, and SC-012 guards both. No principle row changed. Th
 repair adds two files and one test module and introduces no dependency, so Principle VI
 is untouched. The other analysis findings were traceability and coverage gaps in
 `tasks.md` and the contracts, not design changes.
+
+**Post-convergence re-check (2026-08-12)**: **PASS**, after two repairs and one
+scope decision, all recorded as Phase 8 in `tasks.md`.
+
+1. `README.md` opened by claiming compatibility with the named source rules while
+   carrying neither the Compatibility-Statement attribution nor a statement of
+   non-affiliation, contradicting the second route this plan committed to above.
+   The claim is now dropped from both `README.md` and the `pyproject.toml`
+   `description`, and `tests/unit/test_licensing.py` guards both: naming the
+   trademark without the attribution and the non-affiliation statement now fails
+   the suite. The published compatibility statement remains `packaging-release`'s.
+2. The loader accepted a `task.roll` of `d66`, which parses but describes a
+   two-digit table die rather than a count and a side count, so the failure
+   surfaced as an uncaught `TypeError` out of `check` instead of a
+   `CetoolsError` (FR-029). `_task_parameters_from_toml` now raises
+   `RulesDataError` for it.
+
+**`CHANGELOG.md` and `CONTRIBUTING.md` are a deliberate early delivery.** FR-028
+assigns the changelog to `packaging-release`, and no task in Phases 1-7 called for
+either file, but both now exist and `README.md` links to them. They are kept here
+rather than deferred, because `CONTRIBUTING.md` carries the licensing constraints
+on new files that repair 1 above depends on contributors knowing. `packaging-release`
+therefore inherits both files and should extend them rather than create them; its
+spec must not restate them as new deliverables.
+
+Packaging is now checked against the built artifact rather than the working tree.
+The `src/` layout's justification below — that a wheel omitting `tasks.toml` fails
+the suite — was nominal under an editable install, since `importlib.resources`
+resolved into the source tree either way. `tests/guards/test_packaging.py` builds
+the wheel and inspects it, which is what discharges SC-012 automatically instead of
+by the manual T065 inspection.
 
 ## Project Structure
 
@@ -172,8 +210,8 @@ tests/
 ├── conftest.py
 ├── unit/                # seeds, dice, d66, tasks, rules, render
 ├── contract/            # committed JSON shape
-├── integration/         # CLI behaviour and golden files
-├── guards/              # seed-contract defence
+├── integration/         # CLI behavior and golden files
+├── guards/              # seed-contract defense
 ├── property/            # hypothesis invariants
 └── golden/              # committed rendered output, reviewed as diffs
 ```

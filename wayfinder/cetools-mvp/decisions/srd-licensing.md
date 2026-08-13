@@ -8,7 +8,7 @@ blocked-by: []
 ## Question
 
 What license governs the Cepheus Engine SRD content published at
-https://evolvedexperiment.github.io/cepheus-srd/, and what obligations
+<https://evolvedexperiment.github.io/cepheus-srd/>, and what obligations
 does it impose on shipping SRD-derived table data (careers, skills,
 equipment, task rules) inside an open-source Python package distributed
 on PyPI? Specifically: required attribution and license text, any

@@ -7,7 +7,7 @@ test). One Typer app with two subcommands.
 
 ## `cetools roll`
 
-```
+```text
 cetools roll NOTATION [--seed TEXT] [--json]
 ```
 
@@ -19,7 +19,7 @@ cetools roll NOTATION [--seed TEXT] [--json]
 
 ### Notation grammar
 
-```
+```text
 NOTATION := "d66"                        (case-insensitive, matched first)
           | [COUNT] ("d" | "D") SIDES [SIGN MOD]
 
@@ -40,7 +40,7 @@ string the grammar does not match.
 
 ### Examples
 
-```
+```console
 $ cetools roll 2d6+1 --seed session-alpha
 2d6+1 = 7
   Dice:     1, 5 (sum 6)
@@ -84,7 +84,7 @@ A one-sided die yields face `1` on every seed, since `getrandbits(0)` is `0`.
 
 ## `cetools check`
 
-```
+```text
 cetools check [--difficulty NAME] [--characteristic N] [--skill N]
               [--dm "label=value"]... [--seed TEXT] [--json]
 ```
@@ -94,7 +94,7 @@ cetools check [--difficulty NAME] [--characteristic N] [--skill N]
 | `--difficulty` | no | the zero-modifier rung (`Average` as shipped) | Name from the ladder. Matched exactly, character for character: case-sensitive, no abbreviation, no whitespace tolerance. |
 | `--characteristic` | no | omitted | Characteristic **score**, not a modifier. Omitted means no characteristic modifier is applied. |
 | `--skill` | no | omitted | Skill **level**. Omitted means untrained and applies the unskilled penalty. `0` means trained at level 0 and applies nothing. |
-| `--dm` | no | none | Repeatable labelled situational modifier. |
+| `--dm` | no | none | Repeatable labeled situational modifier. |
 | `--seed` | no | fresh | Integer or arbitrary text. |
 | `--json` | no | off | Machine-readable output. |
 
@@ -111,7 +111,7 @@ separator or `=`-attachment is needed for negative modifiers.
 
 ### Example
 
-```
+```console
 $ cetools check --difficulty Difficult --characteristic 9 --skill 2 \
     --dm "cover=-2" --seed session-alpha
 Check: FAILURE
@@ -131,7 +131,7 @@ Note the exit status here is **0**. A reported failure is the tool working.
 
 Pinned by golden files, so these are contract, not incidental formatting.
 
-**Throw**
+### Throw
 
 1. Header: `{notation} = {total}`.
 2. Indented two spaces: `Dice:` with faces joined by `, `.
@@ -142,7 +142,7 @@ Pinned by golden files, so these are contract, not incidental formatting.
 6. Labels are padded to the width of the longest label actually present in that
    output.
 
-**Check**
+### Check
 
 1. Header: `Check: SUCCESS` or `Check: FAILURE`.
 2. `Dice:` line, always with `(sum N)` since modifiers are always present.

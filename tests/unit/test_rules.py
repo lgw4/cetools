@@ -66,6 +66,26 @@ def test_load_task_parameters_reads_the_packaged_file():
     assert len(parameters.characteristic_bands) == 12
 
 
+def test_packaged_bands_match_the_published_table_in_full():
+    # SC-003 asks for every band the data contains, not just its ends: without
+    # this, a transcription slip in the middle of the shipped ladder ships green.
+    parameters = load_task_parameters()
+    assert [(band.minimum, band.maximum, band.dm) for band in parameters.characteristic_bands] == [
+        (0, 2, -2),
+        (3, 5, -1),
+        (6, 8, 0),
+        (9, 11, 1),
+        (12, 14, 2),
+        (15, 17, 3),
+        (18, 20, 4),
+        (21, 23, 5),
+        (24, 26, 6),
+        (27, 29, 7),
+        (30, 32, 8),
+        (33, None, 9),
+    ]
+
+
 def test_missing_task_table_raises_rules_data_error():
     text = VALID_TOML.replace("[task]", "[not-task]")
     with pytest.raises(RulesDataError):
@@ -99,6 +119,16 @@ def test_non_integer_unskilled_dm_raises_rules_data_error():
 def test_unparseable_roll_raises_rules_data_error():
     text = VALID_TOML.replace('roll = "2d6"', 'roll = "not dice notation"')
     with pytest.raises(RulesDataError):
+        _task_parameters_from_toml(text)
+
+
+def test_d66_roll_raises_rules_data_error():
+    # `d66` parses, but it describes a two-digit table die rather than a count
+    # and a side count, so it cannot describe a check's dice. Accepting it here
+    # would surface later as a TypeError out of `check`, which the CLI's single
+    # `except CetoolsError` site does not catch (FR-029).
+    text = VALID_TOML.replace('roll = "2d6"', 'roll = "d66"')
+    with pytest.raises(RulesDataError, match="task.roll"):
         _task_parameters_from_toml(text)
 
 

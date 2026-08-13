@@ -72,7 +72,7 @@ at `15+`; that is corrected here.
 
 ## Key grammar for band keys
 
-```
+```text
 BAND := digits "-" digits     inclusive range
       | digits "+"            unbounded upper end
 ```
@@ -110,10 +110,10 @@ with this project's own game-data copyright line, shipped in both the wheel and 
 sdist. The README names this file as the sole Open Game Content in the repository,
 with everything else under GPL-3.0. All of it is verified by SC-012 rather than by
 inspection, so a later edit that drops the designation, reintroduces a Product
-Identity string, or unships the licence text fails the suite.
+Identity string, or unships the license text fails the suite.
 
 What remains the `packaging-release` feature's job is everything downstream of the
-built artefact: the PyPI description, the published compatibility statement, and the
+built artifact: the PyPI description, the published compatibility statement, and the
 release process.
 
 ## Packaging
