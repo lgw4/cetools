@@ -13,7 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      # Exact tag, not @v10: astral-sh stopped publishing floating major tags
+      # after v7, so @v10 does not resolve.
+      - uses: astral-sh/setup-uv@v10.0.0
         with:
           python-version: ${{ matrix.python-version }}
       - run: uv sync
