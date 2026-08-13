@@ -34,8 +34,8 @@ Single project: `src/cetools/` and `tests/` at repository root, per plan.md.
 **Purpose**: Preserve the evidence SC-009 depends on, and add the test helper the
 version placeholder needs, before any behavior changes.
 
-- [ ] T001 Copy `tests/golden/check_difficult.txt`, `tests/golden/check_unskilled.txt`, `tests/golden/roll_1d6.txt`, `tests/golden/roll_2d6_plus1.txt`, and `tests/golden/roll_d66.txt` verbatim into `tests/golden/pre-loader/` and commit them before any other change; this directory is never regenerated (plan.md Implementation Notes, research R12, SC-009)
-- [ ] T002 Add a package-version placeholder constant and a normalization helper fixture to `tests/conftest.py` so golden files and JSON fixtures can hold the version as a placeholder substituted at comparison time (SC-009)
+- [X] T001 Copy `tests/golden/check_difficult.txt`, `tests/golden/check_unskilled.txt`, `tests/golden/roll_1d6.txt`, `tests/golden/roll_2d6_plus1.txt`, and `tests/golden/roll_d66.txt` verbatim into `tests/golden/pre-loader/` and commit them before any other change; this directory is never regenerated (plan.md Implementation Notes, research R12, SC-009)
+- [X] T002 Add a package-version placeholder constant and a normalization helper fixture to `tests/conftest.py` so golden files and JSON fixtures can hold the version as a placeholder substituted at comparison time (SC-009)
 
 **Checkpoint**: The pre-loader evidence is committed and cannot be destroyed by a later regeneration.
 

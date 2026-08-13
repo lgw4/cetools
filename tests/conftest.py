@@ -4,6 +4,12 @@ import pytest
 
 SEEDED_LITERAL = "session-alpha"
 
+# Golden files and JSON fixtures hold the installed package version as this
+# placeholder rather than the literal, so a release rewrites none of them
+# (SC-009). The `normalize_version` fixture substitutes it back in at
+# comparison time.
+VERSION_PLACEHOLDER = "{VERSION}"
+
 # The SRD's Section 15 copyright-notice chain, whitespace-normalized, in the
 # order it must appear. The constitution requires it "verbatim" and "complete",
 # so these are literals: deriving them from `LICENSE-OGL.txt` would only assert
@@ -87,3 +93,16 @@ def read_golden():
         return (golden_dir / name).read_text(encoding="utf-8")
 
     return _read
+
+
+@pytest.fixture
+def normalize_version():
+    """Substitute VERSION_PLACEHOLDER in golden/fixture text with the installed version."""
+    from importlib.metadata import version
+
+    installed = version("cetools")
+
+    def _normalize(text: str) -> str:
+        return text.replace(VERSION_PLACEHOLDER, installed)
+
+    return _normalize
