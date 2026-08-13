@@ -272,7 +272,7 @@ throws all thirty-six values occur.
   modifier to the roll rather than as a change to the target number. A difficulty
   name MUST be matched exactly, character for character, with no case folding, no
   abbreviation, and no whitespace tolerance, so that a near miss is reported under
-  FR-019 rather than silently resolved to a neighbouring rung. Difficulty is
+  FR-019 rather than silently resolved to a neighboring rung. Difficulty is
   optional: when none is named the check MUST use the ladder entry whose modifier
   is zero, and MUST still name that difficulty in the itemized output so the
   assumption is visible rather than silent. That entry is identified by its

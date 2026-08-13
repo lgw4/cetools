@@ -3,7 +3,7 @@ import re
 from dataclasses import dataclass
 
 from cetools.errors import DiceError
-from cetools.seeds import resolve_seed
+from cetools.seeds import resolve_seed, rng_seed
 
 _NOTATION = re.compile(
     r"^\s*(?P<count>\d+)?\s*[dD]\s*(?P<sides>\d+)\s*" r"(?:(?P<sign>[+-])\s*(?P<mod>\d+))?\s*$"
@@ -21,7 +21,10 @@ class Roller:
 
     def __init__(self, seed: int | str | None = None) -> None:
         self.seed = resolve_seed(seed)
-        self._rng = random.Random(self.seed)
+        # `rng_seed`, not `self.seed`: `random.Random` folds an integer's sign
+        # away, which FR-002 forbids. `self.seed` keeps the signed value, since
+        # that is what every rendering reports and what reproduces the result.
+        self._rng = random.Random(rng_seed(self.seed))
 
     def die(self, sides: int) -> int:
         if not isinstance(sides, int) or sides < 1:

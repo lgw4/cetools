@@ -143,6 +143,29 @@ def test_as_text_check_ends_with_trailing_newline():
     assert not text.endswith("\n\n")
 
 
+def test_as_text_check_with_no_modifiers_renders_an_empty_modifier_list():
+    # `check` always applies at least a difficulty and a skill-or-unskilled row,
+    # so the CLI cannot reach this. `CheckResult` and `as_text` are both public,
+    # though, so a library caller can construct one, and a heading with no rows
+    # under it is not malformed — it is simply a check with nothing applied.
+    result = CheckResult(
+        faces=(2, 5),
+        dice_total=7,
+        modifiers=(),
+        total=7,
+        target=8,
+        success=False,
+        seed=1,
+    )
+    assert as_text(result) == (
+        "Check: FAILURE\n"
+        "  Dice:  2, 5 (sum 7)\n"
+        "  Modifiers:\n"
+        "  Total: 7 vs target 8\n"
+        "  Seed:  1\n"
+    )
+
+
 def test_as_dict_throw_matches_json_contract_shape():
     result = ThrowResult(
         notation="2d6+1",

@@ -31,6 +31,21 @@ in one small module that feature 2 will replace rather than extend.
 **Language/Version**: Python 3.13+ (verified against 3.13 and 3.14; the seeded-RNG
 recipe additionally verified stable on 3.10 through 3.12)
 
+**Declared support is intentionally open-ended.** `requires-python` is `">=3.13"`
+with no upper bound, and the CI matrix tracks the released versions inside that
+range rather than the package narrowing its declaration to match the matrix. FR-007
+binds every version in the declared set, so an unbounded declaration only stays
+dischargeable if something notices when the matrix falls behind the range: that is
+`tests/guards/test_python_support.py`, which fails when a Python inside
+`requires-python` that the suite is actually running on is absent from the matrix in
+`.github/workflows/ci.yml`. The guard keys off the running interpreter rather than a
+hard-coded list of releases, so it needs no network and no periodic maintenance: the
+first run on a new Python — a developer's local upgrade, or a matrix entry added
+without the other jobs following — is what fires it. Recorded 2026-08-12 per T084,
+which offered an upper bound as the alternative; the open declaration was chosen
+deliberately so that a new Python is usable the day it ships rather than after a
+metadata bump.
+
 **Primary Dependencies**: Typer (runtime, sole third-party dependency, ratified in a
 prior decision). Standard library otherwise: `random`, `secrets`, `hashlib`,
 `tomllib`, `importlib.resources`, `functools`, `dataclasses`, `json`, `re`.

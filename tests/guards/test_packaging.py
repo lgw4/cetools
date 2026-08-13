@@ -48,10 +48,23 @@ def sdist(tmp_path_factory) -> tarfile.TarFile:
     return tarfile.open(_build(tmp_path_factory, "--sdist", ".tar.gz"))
 
 
+def _assert_shipped_rules_data(text: str, where: str) -> None:
+    """Assert the rules data as *shipped* satisfies SC-012, both halves.
+
+    SC-012 binds the file "as read from the installed package". The
+    designation half was already checked here; the Product Identity half
+    lived only in a test reading through `importlib.resources`, which under
+    an editable install resolves into the working tree and so verifies
+    nothing about a distribution.
+    """
+    assert "Open Game Content" in text, f"{where} lost its Open Game Content designation"
+    assert "Cepheus Engine" not in text, f"{where} carries a Product Identity string"
+    assert "Samardan Press" not in text, f"{where} carries a Product Identity string"
+
+
 def test_wheel_contains_the_packaged_rules_data(wheel):
     assert "cetools/data/tasks.toml" in wheel.namelist()
-    text = wheel.read("cetools/data/tasks.toml").decode("utf-8")
-    assert "Open Game Content" in text
+    _assert_shipped_rules_data(wheel.read("cetools/data/tasks.toml").decode("utf-8"), "the wheel")
 
 
 def _license_in_wheel(wheel: zipfile.ZipFile, name: str) -> str:
@@ -64,10 +77,10 @@ def test_wheel_carries_the_source_code_license(wheel):
     assert _license_in_wheel(wheel, "LICENSE").strip()
 
 
-def test_wheel_carries_the_ogl_text_with_its_section_15_chain(wheel):
+def test_wheel_carries_the_ogl_text_with_its_section_15_chain(wheel, assert_section_15_chain):
     text = _license_in_wheel(wheel, "LICENSE-OGL.txt")
     assert "OPEN GAME LICENSE Version 1.0a" in text
-    assert "Section 15" in text or "COPYRIGHT NOTICE" in text
+    assert_section_15_chain(text, "the wheel's LICENSE-OGL.txt")
 
 
 def _read_from_sdist(sdist: tarfile.TarFile, relative: str) -> str:
@@ -80,15 +93,14 @@ def _read_from_sdist(sdist: tarfile.TarFile, relative: str) -> str:
 
 
 def test_sdist_contains_the_packaged_rules_data(sdist):
-    text = _read_from_sdist(sdist, "src/cetools/data/tasks.toml")
-    assert "Open Game Content" in text
+    _assert_shipped_rules_data(_read_from_sdist(sdist, "src/cetools/data/tasks.toml"), "the sdist")
 
 
 def test_sdist_carries_the_source_code_license(sdist):
     assert _read_from_sdist(sdist, "LICENSE").strip()
 
 
-def test_sdist_carries_the_ogl_text_with_its_section_15_chain(sdist):
+def test_sdist_carries_the_ogl_text_with_its_section_15_chain(sdist, assert_section_15_chain):
     text = _read_from_sdist(sdist, "LICENSE-OGL.txt")
     assert "OPEN GAME LICENSE Version 1.0a" in text
-    assert "Section 15" in text or "COPYRIGHT NOTICE" in text
+    assert_section_15_chain(text, "the sdist's LICENSE-OGL.txt")

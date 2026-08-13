@@ -41,7 +41,11 @@ def _(result: ThrowResult) -> str:
 @as_text.register
 def _(result: CheckResult) -> str:
     outer_width = max(len(label) for label in ("Dice:", "Total:", "Seed:")) + 1
-    mod_width = max(len(modifier.label) for modifier in result.modifiers)
+    # `check` always applies at least a difficulty and a skill-or-unskilled row,
+    # so the CLI never sees an empty list. `CheckResult` is public, though, and a
+    # heading with no rows under it is a check with nothing applied rather than a
+    # malformed one, so it renders rather than raising.
+    mod_width = max((len(modifier.label) for modifier in result.modifiers), default=0)
 
     dice_value = ", ".join(str(face) for face in result.faces) + f" (sum {result.dice_total})"
 
