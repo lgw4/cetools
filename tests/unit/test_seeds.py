@@ -68,11 +68,29 @@ def test_unsupported_seed_type_raises_dice_error_naming_the_parameter(seed):
         resolve_seed(seed)
 
 
-def test_bool_is_an_int_and_still_resolves():
-    # `bool` is a subclass of `int`, and the type check must stay narrow enough
-    # not to break it.
-    assert resolve_seed(True) == 1
-    assert resolve_seed(False) == 0
+def test_bool_is_an_int_and_still_resolves_as_a_plain_int():
+    # `bool` is a subclass of `int`, so the type check must stay narrow enough
+    # not to break it — but the result must be a real `int`, not the `bool`
+    # itself. `assert resolve_seed(True) == 1` alone is not enough: `True == 1`
+    # is true, so an unconverted `bool` passes it while rendering its seed as
+    # `"True"`, which does not resolve back to 1 and breaks the SC-004 round
+    # trip. Assert the type, not just the value.
+    for given, expected in ((True, 1), (False, 0)):
+        resolved = resolve_seed(given)
+        assert resolved == expected
+        assert type(resolved) is int
+
+
+def test_a_bool_seed_round_trips_through_its_reported_value():
+    # The round trip is the property the type actually protects, so pin it
+    # end to end rather than trusting the conversion in isolation.
+    from cetools.dice import Roller, throw
+    from cetools.render import as_dict
+
+    result = throw(Roller(True), "2d6")
+    assert result.seed == 1
+    assert as_dict(result)["seed"] == "1"
+    assert throw(Roller(as_dict(result)["seed"]), "2d6") == result
 
 
 # --- rng_seed: the sign-preserving hand-off to `random.Random` (FR-002) ---

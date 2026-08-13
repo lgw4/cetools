@@ -35,9 +35,13 @@ def resolve_seed(seed: int | str | None) -> int:
     if seed is None:
         return secrets.randbits(64)
     if isinstance(seed, int):
-        # `bool` is an `int` and resolves as 0 or 1, deliberately: the check is
-        # about unsupported types, not about narrowing the integer case.
-        return seed
+        # `int(...)`, not `seed`: `bool` is an `int`, so `Roller(True)` would
+        # otherwise carry `True` all the way into the result and render its
+        # seed as `"True"` — which is not a decimal integer and does not
+        # resolve back to 1, breaking the round trip SC-004 promises. The
+        # conversion is a no-op for a real `int` and normalizes any other
+        # `int` subclass (`IntEnum`, `IntFlag`) the same way.
+        return int(seed)
     if not isinstance(seed, str):
         raise DiceError(f"seed must be an integer, a string, or None, got {type(seed).__name__}")
     if _DIGIT_STRING.match(seed):

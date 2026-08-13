@@ -19,8 +19,14 @@ _CLAIM_BEFORE = re.compile(
 )
 _CLAIM_AFTER = re.compile(r"^\s*-\s*(?:based|compatible|ready|native)\b", re.IGNORECASE)
 # Rich draws the help screens inside a box and wraps inside it, so the borders
-# have to go before the text can be read as prose.
-_BOX_DRAWING = re.compile(r"[─-╿|]")
+# have to go before the text can be read as prose. Spelled as an explicit
+# codepoint range: written literally as `[─-╿|]` it reads like three separate
+# characters including an ASCII hyphen, and a reviewer took it for one. It is
+# the Box Drawing block (U+2500-U+257F) plus the pipe, and it must NOT touch
+# U+002D, or the hyphen in "Cepheus Engine-based" would vanish and the claim
+# would stop being detected. `test_normalizing_preserves_the_hyphen_a_claim_
+# suffix_needs` pins that.
+_BOX_DRAWING = re.compile(r"[\u2500-\u257F|]")
 
 
 def _repo_root() -> Path:
@@ -154,6 +160,19 @@ def test_the_guard_reads_provenance_and_quoted_mentions_as_mentions_not_claims()
     assert not _claims_compatibility("content derived from the Cepheus Engine SRD is also OGC")
     assert not _claims_compatibility('The strings "Cepheus Engine" and "Samardan Press"')
     assert not _claims_compatibility(ATTRIBUTION)
+
+
+def test_normalizing_preserves_the_hyphen_a_claim_suffix_needs():
+    # `_BOX_DRAWING` strips the Box Drawing block, and it must not reach the
+    # ASCII hyphen: a reviewer read `[─-╿|]` as three literals including `-`
+    # and concluded the `-based` form could slip through unattributed. It
+    # cannot, and this pins that it stays so — the guard runs on normalized
+    # text, so a class that widened to U+002D would silently disarm the
+    # hyphen-suffix half of the rule on every surface.
+    assert _BOX_DRAWING.match("-") is None
+    claim = "│ A Cepheus Engine-based toolkit │"
+    assert "-based" in _normalized(claim)
+    assert _claims_compatibility(_normalized(claim))
 
 
 def test_the_guard_reads_a_compatibility_claim_as_a_claim():
