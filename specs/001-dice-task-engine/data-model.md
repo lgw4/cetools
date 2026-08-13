@@ -173,13 +173,17 @@ every failure path is reachable from a test without a file on disk. See
 ## Error hierarchy
 
 ```text
-CetoolsError
-├── DiceError        invalid notation, non-positive count or sides
+CetoolsError        rendering dispatch miss (no leaf describes it)
+├── DiceError        invalid notation, non-positive count or sides,
+│                    unsupported notation or seed type
 ├── RulesDataError   data file missing, unreadable, malformed, or incomplete
 └── TaskError        unknown difficulty, negative characteristic, negative skill
 ```
 
 Raised by the library, never caught by it. Only `cli.py` catches `CetoolsError`.
+The base is raised directly for one condition, an `as_text`/`as_dict` call on an
+unregistered result type: FR-029 admits no exception, and a fourth public leaf for
+a path no supported caller reaches is the speculative surface Principle VI rejects.
 
 ## Relationships
 

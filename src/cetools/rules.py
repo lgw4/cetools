@@ -4,7 +4,7 @@ from functools import cache
 from importlib import resources
 
 from cetools.errors import RulesDataError
-from cetools.tasks import Band, TaskParameters, check_dice
+from cetools.tasks import Band, TaskParameters, _check_dice
 
 _BAND_RANGE = re.compile(r"^(\d+)-(\d+)$")
 _BAND_UNBOUNDED = re.compile(r"^(\d+)\+$")
@@ -32,7 +32,10 @@ def _task_parameters_from_toml(text: str) -> TaskParameters:
     roll = task.get("roll")
     if not isinstance(roll, str):
         raise RulesDataError("task.roll must be a string")
-    check_dice(roll)
+    # The one validation rule that does not live here: `_check_dice` is shared
+    # with `check`, so the loader and the public `parameters=` entry point
+    # cannot drift apart about what `task.roll` may hold (T076).
+    _check_dice(roll)
 
     target = task.get("target")
     if not isinstance(target, int) or isinstance(target, bool):

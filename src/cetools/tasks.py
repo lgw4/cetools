@@ -5,11 +5,14 @@ from cetools.dice import Roller, parse_notation
 from cetools.errors import DiceError, RulesDataError, TaskError
 
 
-def check_dice(roll: str) -> tuple[int, int, int]:
+def _check_dice(roll: str) -> tuple[int, int, int]:
     """Parse a `task.roll` value into `(count, sides, modifier)`.
 
     The single place a check's dice are read, so the loader and `check`
-    itself cannot disagree about what `task.roll` may hold. Raises
+    itself cannot disagree about what `task.roll` may hold. Package-internal
+    despite being imported by `rules.py`: the leading underscore is the
+    convention contracts/library-api.md states for a seam callers outside
+    the package must not use. Raises
     `RulesDataError` for notation the grammar rejects and for the `d66`
     literal, which composes two faces into a two-digit table value rather
     than describing a count and a side count: a check needs the latter, and
@@ -122,7 +125,7 @@ def check(
 
         parameters = load_task_parameters()
 
-    count, sides, roll_modifier = check_dice(parameters.roll)
+    count, sides, roll_modifier = _check_dice(parameters.roll)
     faces = roller.dice(count, sides)
     dice_total = sum(faces)
 

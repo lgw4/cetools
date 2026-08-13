@@ -1,6 +1,9 @@
 import unicodedata
 from unittest.mock import patch
 
+import pytest
+
+from cetools.errors import DiceError
 from cetools.seeds import resolve_seed, rng_seed
 
 
@@ -50,6 +53,26 @@ def test_nfc_and_nfd_forms_resolve_differently():
     nfd = unicodedata.normalize("NFD", "café")
     assert nfc != nfd
     assert resolve_seed(nfc) != resolve_seed(nfd)
+
+
+# --- FR-002: the accepted seed set is an integer, a text string, or None ---
+
+
+@pytest.mark.parametrize("seed", [3.5, [1], {"seed": 1}, object(), b"1"])
+def test_unsupported_seed_type_raises_dice_error_naming_the_parameter(seed):
+    # Without this the value reaches the digit-string regex and comes back as
+    # the regex module's own `TypeError: expected string or bytes-like object`,
+    # which no `except CetoolsError` site catches and which names neither the
+    # argument at fault nor what it should have been (FR-029).
+    with pytest.raises(DiceError, match="seed"):
+        resolve_seed(seed)
+
+
+def test_bool_is_an_int_and_still_resolves():
+    # `bool` is a subclass of `int`, and the type check must stay narrow enough
+    # not to break it.
+    assert resolve_seed(True) == 1
+    assert resolve_seed(False) == 0
 
 
 # --- rng_seed: the sign-preserving hand-off to `random.Random` (FR-002) ---

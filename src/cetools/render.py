@@ -2,6 +2,7 @@ import json
 from functools import singledispatch
 
 from cetools.dice import ThrowResult
+from cetools.errors import CetoolsError
 from cetools.tasks import CheckResult
 
 
@@ -13,8 +14,17 @@ def as_text(result) -> str:
     `tests/golden/`: labels padded to the longest present, values signed,
     a trailing newline, and no `Modifier:`/sum noise when there is no
     modifier to show.
+
+    An unregistered type raises `CetoolsError`. Unlike an empty modifier
+    list, which renders because it is a check with nothing applied rather
+    than a condition the library detects, this fallback exists precisely to
+    detect the miss, and FR-029 admits no exception. The base class is
+    raised rather than a fourth leaf: no existing leaf describes a dispatch
+    miss, and a new public error type for a path no supported caller reaches
+    is the speculative surface Principle VI rejects. What FR-029 buys a
+    caller — one `except CetoolsError` catches everything — holds either way.
     """
-    raise TypeError(f"no as_text rendering registered for {type(result).__name__}")
+    raise CetoolsError(f"no as_text rendering registered for {type(result).__name__}")
 
 
 @as_text.register
@@ -67,8 +77,12 @@ def as_dict(result) -> dict:
     `seed` is emitted as a decimal string, since 64-bit seeds exceed
     2^53 and would be silently corrupted by a JavaScript consumer; every
     other numeric field is a JSON number.
+
+    An unregistered type raises `CetoolsError`, for the reasons recorded on
+    `as_text`. `as_json` reaches this fallback rather than carrying its own,
+    since it renders through `as_dict`.
     """
-    raise TypeError(f"no as_dict rendering registered for {type(result).__name__}")
+    raise CetoolsError(f"no as_dict rendering registered for {type(result).__name__}")
 
 
 @as_dict.register

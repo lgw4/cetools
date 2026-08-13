@@ -30,6 +30,29 @@ def test_parse_notation_rejects(notation):
         parse_notation(notation)
 
 
+# --- parse_notation: unsupported argument types (FR-029) ---
+
+
+@pytest.mark.parametrize("notation", [None, 7, 2.5, ["2d6"], b"2d6"])
+def test_parse_notation_rejects_a_non_string_with_dice_error(notation):
+    # `throw(roller, 6)` — passing a side count where notation belongs — is the
+    # plausible slip. Left unguarded it reaches the `d66` literal's regex and
+    # raises the regex module's own `TypeError`, which the CLI's single
+    # `except CetoolsError` site does not catch.
+    with pytest.raises(DiceError, match="notation"):
+        parse_notation(notation)
+
+
+def test_throw_rejects_a_non_string_notation_with_dice_error():
+    with pytest.raises(DiceError, match="notation"):
+        throw(Roller(1), 6)
+
+
+def test_roller_rejects_an_unsupported_seed_type_with_dice_error():
+    with pytest.raises(DiceError, match="seed"):
+        Roller(3.5)
+
+
 # --- Roller.die / Roller.dice ---
 
 

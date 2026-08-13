@@ -2,6 +2,8 @@ import hashlib
 import re
 import secrets
 
+from cetools.errors import DiceError
+
 _DIGIT_STRING = re.compile(r"^[+-]?[0-9]+$")
 
 
@@ -22,11 +24,22 @@ def resolve_seed(seed: int | str | None) -> int:
     back by a previous run round-trips exactly. Any other string is folded
     with a blake2b-64 digest over its UTF-8 bytes, never handed to
     `random.Random` directly (see research.md R1, R2).
+
+    Anything else raises `DiceError`. FR-002 defines the accepted set as a
+    decimal integer or an arbitrary text string, so another type is a
+    condition this function detects and FR-029 requires a typed error for it;
+    left unguarded the value reaches the digit-string regex and raises the
+    regex module's own `TypeError`, which no `except CetoolsError` site
+    catches and which names neither the argument nor what it should be.
     """
     if seed is None:
         return secrets.randbits(64)
     if isinstance(seed, int):
+        # `bool` is an `int` and resolves as 0 or 1, deliberately: the check is
+        # about unsupported types, not about narrowing the integer case.
         return seed
+    if not isinstance(seed, str):
+        raise DiceError(f"seed must be an integer, a string, or None, got {type(seed).__name__}")
     if _DIGIT_STRING.match(seed):
         return int(seed)
     return _fold(seed)

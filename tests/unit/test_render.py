@@ -1,6 +1,9 @@
 import json
 
+import pytest
+
 from cetools.dice import ThrowResult
+from cetools.errors import CetoolsError
 from cetools.render import as_dict, as_json, as_text
 from cetools.tasks import CheckResult, Modifier
 
@@ -236,3 +239,16 @@ def test_as_json_ends_with_trailing_newline():
     result = ThrowResult(notation="1d6", faces=(1,), modifier=0, total=1, seed=1)
     assert as_json(result).endswith("\n")
     assert json.loads(as_json(result)) == as_dict(result)
+
+
+# --- singledispatch fallbacks: an unregistered type is a detected condition ---
+
+
+@pytest.mark.parametrize("render", [as_text, as_dict, as_json])
+def test_rendering_an_unregistered_type_raises_a_cetools_error(render):
+    # `as_text`, `as_dict`, and `as_json` are all public, so a caller can reach
+    # the fallback. FR-029 is unconditional and each fallback is a condition the
+    # code explicitly detects, so the miss is signaled through the base class
+    # every other library error descends from.
+    with pytest.raises(CetoolsError, match="object"):
+        render(object())

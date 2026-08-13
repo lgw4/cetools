@@ -57,9 +57,14 @@ def parse_notation(notation: str) -> tuple[int, int, int] | None:
 
     Returns `None` for the `d66` literal, matched case-insensitively before
     the general grammar so it can never be confused with a 66-sided die.
-    Raises `DiceError` for anything the grammar does not match, and for a
-    count or side count below 1.
+    Raises `DiceError` for anything the grammar does not match, for a count
+    or side count below 1, and for a `notation` that is not a string at all
+    — `throw(roller, 6)`, passing a side count where notation belongs, is the
+    plausible slip, and the regex module's own `TypeError` would name neither
+    the argument at fault nor what it should have been (FR-029).
     """
+    if not isinstance(notation, str):
+        raise DiceError(f"notation must be a string, got {type(notation).__name__}")
     if _D66_LITERAL.match(notation):
         return None
     match = _NOTATION.match(notation)
