@@ -188,7 +188,7 @@ src/
 
 tests/
 ├── conftest.py          # + rules fixtures; SECTION_15_NOTICES updated
-├── unit/                # + notation, registries, careers, rules, provenance
+├── unit/                # + notation, registries, careers, rules, composition, provenance
 ├── contract/            # + validation payload; check payload gains provenance
 ├── integration/         # + validate CLI, override composition, golden files
 ├── guards/              # + no-outside-reads audit hook; packaging guard widened

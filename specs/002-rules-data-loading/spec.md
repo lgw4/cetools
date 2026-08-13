@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-13
 
-**Status**: Draft
+**Status**: Ready for implementation
 
 **Input**: User description: "Decisions brief: rules-data-loading. The second of five MVP
 features for cetools. Replaces the minimal, single-purpose data reading the dice/task
@@ -79,6 +79,24 @@ Raised by `checklists/rules-data.md` after planning, and resolved before task ge
   that handled? (raised while amending) → A: Reference outputs hold the version as a
   placeholder substituted at comparison time, so a release changes none of them, and the
   reported version is asserted against the installed package version directly instead.
+
+### Session 2026-08-13 (cross-artifact analysis)
+
+Raised by `/speckit-analyze` after task generation, and resolved before implementation.
+
+- Q: FR-022 requires every reported problem to carry a location within its file, but SC-002
+  exempts problems that are about the file as a whole and the rendered form drops the location
+  for them. Which governs? (I2) → A: SC-002 governs. FR-022 is amended to require a location
+  only where the problem is not about the file as a whole, and to require that such a problem
+  omit the location rather than invent one. Requiring a location unconditionally would have
+  forced a fabricated line number onto an unreadable file, which points an author at a place
+  the mistake is not.
+- Q: A supplied override location that does not exist is answered as a usage error in Edge
+  Cases, but no requirement says so, leaving the behavior tested and unrequired. Should it be a
+  requirement? (U1) → A: Yes, stated in FR-028 beside the empty-location case it is easily
+  confused with. The two look alike and behave oppositely, so leaving the distinction to an
+  edge case left the more dangerous of them, a mistyped path that appears to succeed,
+  unbacked by anything a test could trace to.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -458,8 +476,14 @@ location and confirming the reported provenance changes.
   unrecognized entry form.
 - **FR-021**: The system MUST collect every problem it finds across the whole data set and
   report them together, rather than stopping at the first.
-- **FR-022**: Every reported problem MUST identify the file it occurred in and its location
-  within that file, and MUST state what was expected as well as what was found.
+- **FR-022**: Every reported problem MUST identify the file it occurred in, MUST identify its
+  location within that file where the problem is not about the file as a whole, and MUST state
+  what was expected as well as what was found. A problem about the file as a whole, such as the
+  unreadable or malformed file of FR-020a or the version mismatch of FR-002, has no location
+  within the file to report, and the system MUST report it as having none rather than
+  fabricate one, since a fabricated location sends an author to a place the mistake is not.
+  How "none" is represented in each output mode is a rendering matter the contracts settle.
+  SC-002 draws the same line from the testing side.
 - **FR-023**: Validation performed when loading for use and validation performed on demand
   MUST be the same, so that a data set reported as valid always loads and a data set
   reported as invalid never does.
@@ -486,7 +510,13 @@ location and confirming the reported provenance changes.
   MUST be the only way content that did not ship with the package enters a data set. An
   override location MAY be either a directory or a single file, and both compose by the
   same rule (FR-029), so that what the library accepts and what the validation command
-  accepts are the same thing rather than two similar things.
+  accepts are the same thing rather than two similar things. A supplied override location
+  that does not exist MUST be refused as a usage error naming the location, and MUST NOT be
+  treated as an empty override: a mistyped path that quietly loaded the packaged data set
+  would put none of the author's house rules in force while appearing to succeed, which is
+  the silent failure this feature exists to remove. A location that does exist and is empty
+  is not an error, and composes to the packaged data set whose provenance reports as packaged
+  because no file was overridden.
 - **FR-029**: An override location MAY be partial. Every file in it is positioned by its
   basename alone, whatever directory within the override it sits in: a file whose basename
   matches a packaged file replaces that file in its entirety, and a packaged file with no
