@@ -2,7 +2,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from cetools.dice import Roller, d66, throw_dice
-from cetools.rules import load_task_parameters
+from cetools.rules import load_rules
 from cetools.tasks import Modifier, check
 
 # Deliberately unbounded on both sides: FR-002 puts no upper bound on the
@@ -16,7 +16,7 @@ counts = st.integers(min_value=1, max_value=20)
 sides = st.integers(min_value=1, max_value=100)
 modifiers = st.integers(min_value=-10, max_value=10)
 
-_PARAMETERS = load_task_parameters()
+_PARAMETERS = load_rules().task_parameters
 
 difficulty_names = st.sampled_from(list(_PARAMETERS.difficulty_dms))
 characteristics = st.none() | st.integers(min_value=0, max_value=50)

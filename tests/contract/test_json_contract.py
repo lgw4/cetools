@@ -1,8 +1,13 @@
 import json
+from importlib.metadata import version
 
 from cetools.dice import ThrowResult
+from cetools.provenance import Provenance
 from cetools.render import as_dict
 from cetools.tasks import CheckResult, Modifier
+
+_VERSION = version("cetools")
+_PACKAGED_PROVENANCE = Provenance(version=_VERSION, files=(), ignored=())
 
 _ROLL = ThrowResult(
     notation="2d6+1",
@@ -33,6 +38,7 @@ _CHECK = CheckResult(
     target=8,
     success=False,
     seed=14333185781139156525,
+    provenance=_PACKAGED_PROVENANCE,
 )
 
 
@@ -93,6 +99,7 @@ def test_check_payload_key_set_and_order_matches_contract():
         "target",
         "success",
         "seed",
+        "provenance",
     ]
 
 
@@ -114,6 +121,7 @@ def test_check_payload_value_types():
     assert isinstance(payload["target"], int)
     assert isinstance(payload["success"], bool)
     assert isinstance(payload["seed"], str)
+    assert isinstance(payload["provenance"], dict)
 
 
 def test_check_payload_matches_contract_example():
@@ -131,7 +139,20 @@ def test_check_payload_matches_contract_example():
         "target": 8,
         "success": False,
         "seed": "14333185781139156525",
+        "provenance": {
+            "source": "packaged",
+            "version": _VERSION,
+            "files": [],
+            "ignored": [],
+        },
     }
+
+
+def test_check_payload_provenance_matches_json_output_contract_shape():
+    payload = as_dict(_CHECK)
+    assert list(payload["provenance"]) == ["source", "version", "files", "ignored"]
+    assert payload["provenance"]["source"] == "packaged"
+    assert payload["provenance"]["version"] == _VERSION
 
 
 def test_check_payload_total_arithmetic_invariant():

@@ -1,103 +1,619 @@
+"""Discovery, composition, and validation of the whole rules data set
+(contracts/data-files.md, data-model.md).
+
+Validation is a function, not a control flow: `_validate` composes the
+packaged data set with an optional override, checks every file, and returns
+a `RulesData` (if the whole set is clean) alongside a `ValidationReport`.
+`load_rules` and `validate_rules` call it and differ only in what they do
+with the result (research R7).
+"""
+
 import re
 import tomllib
+from collections import defaultdict
+from collections.abc import Mapping
+from dataclasses import dataclass
 from functools import cache
 from importlib import resources
+from pathlib import Path
+from types import MappingProxyType
 
-from cetools.errors import RulesDataError
+from cetools.careers import CareerDefinition
+from cetools.careers import parse_career as _parse_career
+from cetools.errors import RulesDataError, ValidationProblem
+from cetools.provenance import (
+    Disposition,
+    FileProvenance,
+    Provenance,
+    fingerprint,
+    package_version,
+)
+from cetools.registries import (
+    BenefitRegistry,
+    CharacteristicRegistry,
+    SkillRegistry,
+    parse_benefits,
+    parse_characteristics,
+    parse_skills,
+)
 from cetools.tasks import Band, TaskParameters, _check_dice
 
+_HEADER_KEYS = frozenset({"schema", "schema-version"})
 _BAND_RANGE = re.compile(r"^(\d+)-(\d+)$")
 _BAND_UNBOUNDED = re.compile(r"^(\d+)\+$")
 
+_SUPPORTED_VERSION = {
+    "task-parameters": 1,
+    "characteristics": 1,
+    "skills": 1,
+    "benefits": 1,
+    "career": 1,
+}
+_SINGLETON_KINDS = ("task-parameters", "characteristics", "skills", "benefits")
+_CANONICAL_FILE = {
+    "task-parameters": "tasks.toml",
+    "characteristics": "characteristics.toml",
+    "skills": "skills.toml",
+    "benefits": "benefits.toml",
+}
 
-def _task_parameters_from_toml(text: str) -> TaskParameters:
-    """Parse and validate `tasks.toml` text into `TaskParameters`.
 
-    Holds the entire validation table from contracts/tasks-toml.md. Raises
-    `RulesDataError` on any failure, with no fallback to built-in values
-    (FR-024). Kept separate from `load_task_parameters` so every failure
-    path is reachable from a test without a file on disk.
+@dataclass(frozen=True, slots=True)
+class RulesData:
+    """The loaded, fully validated rules data set (data-model.md)."""
+
+    task_parameters: TaskParameters
+    characteristics: CharacteristicRegistry
+    skills: SkillRegistry
+    benefits: BenefitRegistry
+    careers: Mapping[str, CareerDefinition]
+    provenance: Provenance
+
+
+@dataclass(frozen=True, slots=True)
+class ValidationReport:
+    """Every problem found composing and checking a data set, plus its
+    provenance, known even when validation fails because composition
+    precedes validation.
     """
-    try:
-        data = tomllib.loads(text)
-    except tomllib.TOMLDecodeError as exc:
-        raise RulesDataError(f"invalid TOML: {exc}") from exc
 
-    for table in ("task", "difficulty-dms", "characteristic-dms"):
-        if table not in data:
-            raise RulesDataError(f"missing required table [{table}]")
+    provenance: Provenance
+    file_count: int
+    problems: tuple[ValidationProblem, ...]
 
-    task = data["task"]
+    @property
+    def valid(self) -> bool:
+        return not self.problems
 
-    roll = task.get("roll")
-    if not isinstance(roll, str):
-        raise RulesDataError("task.roll must be a string")
-    # The one validation rule that does not live here: `_check_dice` is shared
-    # with `check`, so the loader and the public `parameters=` entry point
-    # cannot drift apart about what `task.roll` may hold (T076).
-    _check_dice(roll)
 
-    target = task.get("target")
-    if not isinstance(target, int) or isinstance(target, bool):
-        raise RulesDataError("task.target must be an integer")
+# --- task-parameters schema (contracts/data-files.md) ----------------------
 
-    unskilled_dm = task.get("unskilled-dm")
-    if not isinstance(unskilled_dm, int) or isinstance(unskilled_dm, bool):
-        raise RulesDataError("task.unskilled-dm must be an integer")
+
+def _unrecognized_key_problems(
+    data: Mapping[str, object], allowed: frozenset[str], file: str, prefix: str = ""
+) -> list[ValidationProblem]:
+    extra = sorted(set(data) - allowed)
+    return [
+        ValidationProblem(
+            file=file,
+            location=f"{prefix}{key}",
+            found=f"unrecognized key {key!r}",
+            expected=f"one of: {', '.join(sorted(allowed))}",
+        )
+        for key in extra
+    ]
+
+
+def parse_task_parameters(
+    data: Mapping[str, object], file: str
+) -> tuple[TaskParameters | None, tuple[ValidationProblem, ...]]:
+    """Validate one already-parsed `task-parameters` TOML dict, collecting
+    every problem rather than raising on the first (research R7). Restates
+    every rule the previous single-purpose reader enforced.
+    """
+    problems: list[ValidationProblem] = []
+    problems.extend(
+        _unrecognized_key_problems(
+            data, _HEADER_KEYS | {"task", "difficulty-dms", "characteristic-dms"}, file
+        )
+    )
+
+    task = data.get("task")
+    if not isinstance(task, dict):
+        problems.append(
+            ValidationProblem(
+                file=file,
+                location="task",
+                found="missing" if task is None else type(task).__name__,
+                expected="a [task] table",
+            )
+        )
+        task = {}
+    else:
+        problems.extend(
+            _unrecognized_key_problems(task, {"roll", "target", "unskilled-dm"}, file, "task.")
+        )
+
+    roll: str | None = None
+    if "roll" not in task:
+        problems.append(
+            ValidationProblem(
+                file=file, location="task.roll", found="missing", expected="a string"
+            )
+        )
+    elif not isinstance(task["roll"], str):
+        problems.append(
+            ValidationProblem(
+                file=file,
+                location="task.roll",
+                found=type(task["roll"]).__name__,
+                expected="a string",
+            )
+        )
+    else:
+        try:
+            _check_dice(task["roll"])
+            roll = task["roll"]
+        except RulesDataError as exc:
+            problems.append(
+                ValidationProblem(
+                    file=file, location="task.roll", found=repr(task["roll"]), expected=str(exc)
+                )
+            )
+
+    target = _require_int(task, "target", file, "task.target", problems)
+    unskilled_dm = _require_int(task, "unskilled-dm", file, "task.unskilled-dm", problems)
 
     difficulty_dms: dict[str, int] = {}
-    zero_count = 0
-    for name, value in data["difficulty-dms"].items():
-        if not isinstance(value, int) or isinstance(value, bool):
-            raise RulesDataError(f"difficulty-dms.{name!r} must be an integer")
-        if value == 0:
-            zero_count += 1
-        difficulty_dms[name] = value
-    if zero_count != 1:
-        raise RulesDataError(
-            f"exactly one difficulty rung must have a modifier of 0, found {zero_count}"
+    dd = data.get("difficulty-dms")
+    if not isinstance(dd, dict) or not dd:
+        problems.append(
+            ValidationProblem(
+                file=file,
+                location="difficulty-dms",
+                found=(
+                    "missing"
+                    if dd is None
+                    else ("an empty table" if dd == {} else type(dd).__name__)
+                ),
+                expected="a [difficulty-dms] table with at least one entry",
+            )
         )
+    else:
+        zero_count = 0
+        ok = True
+        for name, value in dd.items():
+            if not isinstance(value, int) or isinstance(value, bool):
+                problems.append(
+                    ValidationProblem(
+                        file=file,
+                        location=f"difficulty-dms.{name}",
+                        found=type(value).__name__,
+                        expected="an integer",
+                    )
+                )
+                ok = False
+                continue
+            if value == 0:
+                zero_count += 1
+            difficulty_dms[name] = value
+        if ok and zero_count != 1:
+            problems.append(
+                ValidationProblem(
+                    file=file,
+                    location="difficulty-dms",
+                    found=f"{zero_count} rungs at modifier 0",
+                    expected="exactly one rung at modifier 0",
+                )
+            )
 
     bands: list[Band] = []
-    unbounded_count = 0
-    for key, value in data["characteristic-dms"].items():
-        if not isinstance(value, int) or isinstance(value, bool):
-            raise RulesDataError(f"characteristic-dms.{key!r} must be an integer")
-        range_match = _BAND_RANGE.match(key)
-        unbounded_match = _BAND_UNBOUNDED.match(key)
-        if range_match:
-            minimum, maximum = int(range_match.group(1)), int(range_match.group(2))
-        elif unbounded_match:
-            minimum, maximum = int(unbounded_match.group(1)), None
-            unbounded_count += 1
-        else:
-            raise RulesDataError(f"malformed characteristic band key: {key!r}")
-        bands.append(Band(minimum=minimum, maximum=maximum, dm=value))
-    if unbounded_count != 1:
-        raise RulesDataError(
-            f"exactly one characteristic band must be unbounded, found {unbounded_count}"
+    cd = data.get("characteristic-dms")
+    if not isinstance(cd, dict) or not cd:
+        problems.append(
+            ValidationProblem(
+                file=file,
+                location="characteristic-dms",
+                found=(
+                    "missing"
+                    if cd is None
+                    else ("an empty table" if cd == {} else type(cd).__name__)
+                ),
+                expected="a [characteristic-dms] table with at least one entry",
+            )
         )
+    else:
+        unbounded_count = 0
+        ok = True
+        for key, value in cd.items():
+            if not isinstance(value, int) or isinstance(value, bool):
+                problems.append(
+                    ValidationProblem(
+                        file=file,
+                        location=f"characteristic-dms.{key}",
+                        found=type(value).__name__,
+                        expected="an integer",
+                    )
+                )
+                ok = False
+                continue
+            range_match = _BAND_RANGE.match(key)
+            unbounded_match = _BAND_UNBOUNDED.match(key)
+            if range_match:
+                minimum, maximum = int(range_match.group(1)), int(range_match.group(2))
+            elif unbounded_match:
+                minimum, maximum = int(unbounded_match.group(1)), None
+                unbounded_count += 1
+            else:
+                problems.append(
+                    ValidationProblem(
+                        file=file,
+                        location=f"characteristic-dms.{key}",
+                        found=repr(key),
+                        expected="a key of the form N-M or N+",
+                    )
+                )
+                ok = False
+                continue
+            bands.append(Band(minimum=minimum, maximum=maximum, dm=value))
+        if ok and unbounded_count != 1:
+            problems.append(
+                ValidationProblem(
+                    file=file,
+                    location="characteristic-dms",
+                    found=f"{unbounded_count} unbounded bands",
+                    expected="exactly one unbounded band",
+                )
+            )
     bands.sort(key=lambda band: band.minimum)
 
-    return TaskParameters(
-        roll=roll,
-        target=target,
-        unskilled_dm=unskilled_dm,
-        difficulty_dms=difficulty_dms,
-        characteristic_bands=tuple(bands),
+    if problems:
+        return None, tuple(problems)
+    return (
+        TaskParameters(
+            roll=roll,
+            target=target,
+            unskilled_dm=unskilled_dm,
+            difficulty_dms=difficulty_dms,
+            characteristic_bands=tuple(bands),
+        ),
+        (),
     )
 
 
-@cache
-def load_task_parameters() -> TaskParameters:
-    """Read the packaged `tasks.toml` through `importlib.resources` and parse it.
+def _require_int(
+    container: Mapping[str, object],
+    key: str,
+    file: str,
+    location: str,
+    problems: list[ValidationProblem],
+) -> int | None:
+    if key not in container:
+        problems.append(
+            ValidationProblem(file=file, location=location, found="missing", expected="an integer")
+        )
+        return None
+    value = container[key]
+    if not isinstance(value, int) or isinstance(value, bool):
+        problems.append(
+            ValidationProblem(
+                file=file, location=location, found=type(value).__name__, expected="an integer"
+            )
+        )
+        return None
+    return value
 
-    Performs no filesystem search (FR-023). Cached because the file never
-    changes within a process; tests that exercise this function must call
-    `load_task_parameters.cache_clear()` afterwards.
+
+# --- discovery ---------------------------------------------------------------
+
+
+def _walk_toml(traversable):
+    for entry in sorted(traversable.iterdir(), key=lambda t: t.name):
+        if entry.is_dir():
+            yield from _walk_toml(entry)
+        elif entry.name.endswith(".toml"):
+            yield entry
+
+
+def _discover_packaged() -> dict[str, bytes]:
+    root = resources.files("cetools.data")
+    return {entry.name: entry.read_bytes() for entry in _walk_toml(root)}
+
+
+def _packaged_kind_map(packaged: dict[str, bytes]) -> dict[str, str]:
+    kinds: dict[str, str] = {}
+    for basename, data in packaged.items():
+        try:
+            parsed = tomllib.loads(data.decode("utf-8"))
+        except (UnicodeDecodeError, tomllib.TOMLDecodeError):
+            continue
+        kind = parsed.get("schema")
+        if isinstance(kind, str) and kind in _SUPPORTED_VERSION:
+            kinds[basename] = kind
+    return kinds
+
+
+# --- composition ---------------------------------------------------------------
+
+
+def _collect_entry(path: Path, relative: str, candidates: dict, ignored: set) -> None:
+    basename = path.name
+    if basename.startswith("."):
+        return
+    if not basename.endswith(".toml"):
+        ignored.add(basename)
+        return
+    candidates[basename].append((relative, path.read_bytes()))
+
+
+def _compose(
+    override: Path | str | None,
+) -> tuple[dict[str, bytes], Provenance, tuple[ValidationProblem, ...]]:
+    packaged = _discover_packaged()
+
+    if override is None:
+        provenance = Provenance(version=package_version(), files=(), ignored=())
+        return packaged, provenance, ()
+
+    override_path = Path(override)
+    if not override_path.exists():
+        raise RulesDataError(f"override location does not exist: {override_path}")
+
+    candidates: dict[str, list[tuple[str, bytes]]] = defaultdict(list)
+    ignored: set[str] = set()
+
+    if override_path.is_file():
+        _collect_entry(override_path, override_path.name, candidates, ignored)
+    else:
+        for entry in sorted(override_path.rglob("*")):
+            if entry.is_file():
+                relative = str(entry.relative_to(override_path))
+                _collect_entry(entry, relative, candidates, ignored)
+
+    problems: list[ValidationProblem] = []
+    accepted: dict[str, bytes] = {}
+    for basename, items in sorted(candidates.items()):
+        if len(items) > 1:
+            paths = ", ".join(sorted(p for p, _ in items))
+            problems.append(
+                ValidationProblem(
+                    file=basename,
+                    found=f"two override files share this basename: {paths}",
+                    expected="a single file at this basename",
+                )
+            )
+            continue
+        accepted[basename] = items[0][1]
+
+    composed = dict(packaged)
+    file_provenance: list[FileProvenance] = []
+    for basename, data in accepted.items():
+        disposition = Disposition.REPLACED if basename in packaged else Disposition.ADDED
+        composed[basename] = data
+        file_provenance.append(
+            FileProvenance(file=basename, disposition=disposition, fingerprint=fingerprint(data))
+        )
+    file_provenance.sort(key=lambda fp: fp.file)
+
+    provenance = Provenance(
+        version=package_version(),
+        files=tuple(file_provenance),
+        ignored=tuple(sorted(ignored)),
+    )
+    return composed, provenance, tuple(problems)
+
+
+# --- the validation driver ---------------------------------------------------
+
+
+def _validate(override: Path | str | None) -> tuple[RulesData | None, ValidationReport]:
+    composed, provenance, problems = _compose(override)
+    problems = list(problems)
+    packaged_kind = _packaged_kind_map(_discover_packaged())
+
+    parsed: dict[str, tuple[str, dict]] = {}
+    for basename in sorted(composed):
+        data = composed[basename]
+        try:
+            text = data.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            problems.append(
+                ValidationProblem(
+                    file=basename,
+                    found=f"could not decode as UTF-8: {exc}",
+                    expected="a UTF-8 encoded file",
+                )
+            )
+            continue
+        try:
+            toml_data = tomllib.loads(text)
+        except tomllib.TOMLDecodeError as exc:
+            problems.append(
+                ValidationProblem(
+                    file=basename,
+                    found=f"invalid TOML: {exc}",
+                    expected="a well-formed TOML document",
+                )
+            )
+            continue
+
+        kind = toml_data.get("schema")
+        if not isinstance(kind, str) or kind not in _SUPPORTED_VERSION:
+            problems.append(
+                ValidationProblem(
+                    file=basename,
+                    found=(
+                        "missing" if "schema" not in toml_data else f"unrecognized kind {kind!r}"
+                    ),
+                    expected=f"one of: {', '.join(sorted(_SUPPORTED_VERSION))}",
+                )
+            )
+            continue
+
+        declared_version = toml_data.get("schema-version")
+        supported = _SUPPORTED_VERSION[kind]
+        if declared_version != supported:
+            problems.append(
+                ValidationProblem(
+                    file=basename,
+                    found=(
+                        "missing"
+                        if "schema-version" not in toml_data
+                        else f"version {declared_version!r}"
+                    ),
+                    expected=f"version {supported}",
+                )
+            )
+            continue
+
+        original_kind = packaged_kind.get(basename)
+        if original_kind is not None and original_kind != kind:
+            problems.append(
+                ValidationProblem(
+                    file=basename,
+                    found=f"declared kind {kind!r}",
+                    expected=(
+                        f"kind {original_kind!r}, the kind of the packaged file at this position"
+                    ),
+                )
+            )
+            continue
+
+        parsed[basename] = (kind, toml_data)
+
+    resolved_singleton: dict[str, str] = {}
+    for kind in _SINGLETON_KINDS:
+        declarers = sorted(name for name, (k, _) in parsed.items() if k == kind)
+        if not declarers:
+            problems.append(
+                ValidationProblem(
+                    file=_CANONICAL_FILE[kind],
+                    found="no file",
+                    expected=f"exactly one file declaring kind {kind!r}",
+                )
+            )
+        elif len(declarers) > 1:
+            problems.append(
+                ValidationProblem(
+                    file=", ".join(declarers),
+                    found=f"kind {kind!r} declared by {len(declarers)} files",
+                    expected=f"exactly one file declaring kind {kind!r}",
+                )
+            )
+        else:
+            resolved_singleton[kind] = declarers[0]
+
+    task_parameters: TaskParameters | None = None
+    if "task-parameters" in resolved_singleton:
+        basename = resolved_singleton["task-parameters"]
+        task_parameters, sub_problems = parse_task_parameters(parsed[basename][1], basename)
+        problems.extend(sub_problems)
+
+    characteristics: CharacteristicRegistry | None = None
+    if "characteristics" in resolved_singleton:
+        basename = resolved_singleton["characteristics"]
+        characteristics, sub_problems = parse_characteristics(parsed[basename][1], basename)
+        problems.extend(sub_problems)
+
+    skills: SkillRegistry | None = None
+    if "skills" in resolved_singleton:
+        basename = resolved_singleton["skills"]
+        skills, sub_problems = parse_skills(parsed[basename][1], basename)
+        problems.extend(sub_problems)
+
+    benefits: BenefitRegistry | None = None
+    if "benefits" in resolved_singleton:
+        basename = resolved_singleton["benefits"]
+        benefits, sub_problems = parse_benefits(parsed[basename][1], basename)
+        problems.extend(sub_problems)
+
+    # Career validation proceeds even when a registry is missing or invalid,
+    # against an empty substitute, so every reference cascades into its own
+    # problem rather than being silently skipped (research R13).
+    career_characteristics = characteristics or CharacteristicRegistry(names=MappingProxyType({}))
+    career_skills = skills or SkillRegistry(skills=MappingProxyType({}))
+    career_benefits = benefits or BenefitRegistry(items=())
+
+    careers: dict[str, CareerDefinition] = {}
+    career_names_seen: dict[str, str] = {}
+    for basename, (kind, toml_data) in sorted(parsed.items()):
+        if kind != "career":
+            continue
+        career, sub_problems = _parse_career(
+            toml_data, basename, career_characteristics, career_skills, career_benefits
+        )
+        problems.extend(sub_problems)
+        if career is None:
+            continue
+        if career.name in career_names_seen:
+            other = career_names_seen[career.name]
+            problems.append(
+                ValidationProblem(
+                    file=", ".join(sorted((basename, other))),
+                    found=f"both declare the name {career.name!r}",
+                    expected="a name distinct across careers in force",
+                )
+            )
+            continue
+        career_names_seen[career.name] = basename
+        careers[basename.removesuffix(".toml")] = career
+
+    problems.sort()
+    report = ValidationReport(
+        provenance=provenance, file_count=len(composed), problems=tuple(problems)
+    )
+
+    if (
+        problems
+        or task_parameters is None
+        or characteristics is None
+        or skills is None
+        or benefits is None
+    ):
+        return None, report
+
+    return (
+        RulesData(
+            task_parameters=task_parameters,
+            characteristics=characteristics,
+            skills=skills,
+            benefits=benefits,
+            careers=MappingProxyType(careers),
+            provenance=provenance,
+        ),
+        report,
+    )
+
+
+def validate_rules(override: Path | str | None = None) -> ValidationReport:
+    """The same composition and validation `load_rules` performs, returning
+    the report instead of raising (FR-023).
     """
-    try:
-        text = resources.files("cetools.data").joinpath("tasks.toml").read_text(encoding="utf-8")
-    except OSError as exc:
-        raise RulesDataError(f"could not read packaged tasks.toml: {exc}") from exc
-    return _task_parameters_from_toml(text)
+    _, report = _validate(override)
+    return report
+
+
+@cache
+def _load_packaged() -> RulesData:
+    rules_data, report = _validate(None)
+    if rules_data is None:
+        raise RulesDataError("packaged rules data is invalid", problems=report.problems)
+    return rules_data
+
+
+def load_rules(override: Path | str | None = None) -> RulesData:
+    """Compose the packaged data set with `override` if given, validate all
+    of it, and return the loaded set. Raises `RulesDataError` carrying
+    `.problems` if anything is wrong. The no-override call is cached; an
+    override call is not, since a caller may edit a file and reload in the
+    same process.
+    """
+    if override is None:
+        return _load_packaged()
+    rules_data, report = _validate(override)
+    if rules_data is None:
+        raise RulesDataError("rules data is invalid", problems=report.problems)
+    return rules_data
+
+
+load_rules.cache_clear = _load_packaged.cache_clear

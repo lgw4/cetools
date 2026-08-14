@@ -1,0 +1,8 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# Mustering-out benefit item names.
+
+schema = "benefits"
+schema-version = 1
+
+benefits = ["Low Passage", "Middle Passage", "High Passage", "Blade", "Gun", "Ship Share"]

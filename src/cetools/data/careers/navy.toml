@@ -1,0 +1,60 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# The reference career: a commission, a second rank ladder, at least one
+# rank bonus, and a characteristic-gated table (FR-018).
+
+schema = "career"
+schema-version = 1
+
+name = "Navy"
+
+[throws.qualification]
+characteristic = "INT"
+target = 6
+
+[throws.survival]
+characteristic = "END"
+target = 5
+
+[throws.commission]
+characteristic = "SOC"
+target = 9
+
+[throws.promotion]
+characteristic = "EDU"
+target = 8
+
+[throws.re-enlistment]
+target = 6
+
+[tables.personal]
+entries = ["STR +1", "DEX +1", "END +1", "INT +1", "EDU +1", "SOC +1"]
+
+[tables.service]
+entries = ["Ship's Boat", "Vacc Suit", "Forward Observer", "Gunnery", "Engineering", "Gun Combat"]
+
+[tables.advanced]
+entries = ["Vacc Suit", "Mechanical", "Electronics", "Engineering", "Gunnery", "Computer"]
+
+[tables.advanced-education]
+requires = "EDU 8+"
+entries = ["Medical", "Navigation", "Electronics", "Computer", "Pilot", "Admin"]
+
+[[ladders]]
+name = "enlisted"
+ranks = [
+  { rank = 1, title = "Recruit" },
+  { rank = 5, title = "Petty Officer", bonus = "Gunnery 1" },
+]
+
+[[ladders]]
+name = "officer"
+ranks = [
+  { rank = 1, title = "Ensign", bonus = "SOC +1" },
+  { rank = 2, title = "Lieutenant" },
+  { rank = 4, title = "Lieutenant Commander", bonus = "Blade (Cutlass) 1" },
+]
+
+[mustering-out]
+cash = [2000, 5000, 5000, 10000, 20000, 30000, 50000]
+benefits = ["Low Passage", "INT +1", "EDU +1", "Blade", "High Passage", "Ship Share", "SOC +1"]

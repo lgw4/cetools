@@ -5,3 +5,4 @@ Check: FAILURE
     Unskilled            -3
   Total: 4 vs target 8
   Seed:  1
+  Rules: packaged (cetools {VERSION})

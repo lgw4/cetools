@@ -38,8 +38,7 @@ SECTION_15_NOTICES = (
     "Publishing Ltd Authorized User.",
     "Cepheus Engine System Reference Document, Copyright © 2016 Samardan Press; "
     'Author Jason "Flynn" Kemp.',
-    "cetools task-resolution data (src/cetools/data/tasks.toml), Copyright 2026, "
-    "the cetools contributors.",
+    "cetools rules data (src/cetools/data/), Copyright 2026, the cetools " "contributors.",
 )
 
 
@@ -64,13 +63,18 @@ def assert_section_15_chain():
     return _assert_section_15_chain
 
 
-@pytest.fixture(autouse=True)
-def _clear_task_parameters_cache():
-    from cetools.rules import load_task_parameters
+@pytest.fixture
+def section_15_notices() -> tuple[str, ...]:
+    return SECTION_15_NOTICES
 
-    load_task_parameters.cache_clear()
+
+@pytest.fixture(autouse=True)
+def _clear_rules_cache():
+    from cetools.rules import load_rules
+
+    load_rules.cache_clear()
     yield
-    load_task_parameters.cache_clear()
+    load_rules.cache_clear()
 
 
 @pytest.fixture

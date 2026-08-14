@@ -3,7 +3,53 @@ from functools import singledispatch
 
 from cetools.dice import ThrowResult
 from cetools.errors import CetoolsError
+from cetools.provenance import Provenance
 from cetools.tasks import CheckResult
+
+
+def _provenance_lines(provenance: Provenance) -> list[str]:
+    """The shared `Rules:` block, appended after a result's `Seed:` line.
+
+    The file column is padded to the longest basename present and the
+    disposition column to the longest disposition present (`"ignored"`
+    counts as one), matching the padding rule the `Modifiers` block already
+    uses. Files that took effect are listed first, already sorted by name,
+    then ignored files, already sorted by name. An ignored file's line ends
+    at the disposition: it carries no fingerprint to pad toward.
+    """
+    source = "packaged" if provenance.is_packaged else "overridden"
+    lines = [f"  Rules: {source} (cetools {provenance.version})"]
+
+    names = [fp.file for fp in provenance.files] + list(provenance.ignored)
+    if not names:
+        return lines
+
+    basename_width = max(len(name) for name in names)
+    dispositions = [fp.disposition.value for fp in provenance.files]
+    if provenance.ignored:
+        dispositions.append("ignored")
+    disposition_width = max(len(d) for d in dispositions)
+
+    for fp in provenance.files:
+        lines.append(
+            f"    {fp.file.ljust(basename_width)}   "
+            f"{fp.disposition.value.ljust(disposition_width)}  {fp.fingerprint}"
+        )
+    for name in provenance.ignored:
+        lines.append(f"    {name.ljust(basename_width)}   ignored")
+    return lines
+
+
+def _provenance_dict(provenance: Provenance) -> dict:
+    return {
+        "source": "packaged" if provenance.is_packaged else "overridden",
+        "version": provenance.version,
+        "files": [
+            {"file": fp.file, "disposition": fp.disposition.value, "fingerprint": fp.fingerprint}
+            for fp in provenance.files
+        ],
+        "ignored": list(provenance.ignored),
+    }
 
 
 @singledispatch
@@ -50,7 +96,7 @@ def _(result: ThrowResult) -> str:
 
 @as_text.register
 def _(result: CheckResult) -> str:
-    outer_width = max(len(label) for label in ("Dice:", "Total:", "Seed:")) + 1
+    outer_width = max(len(label) for label in ("Dice:", "Total:", "Seed:", "Rules:")) + 1
     # `check` always applies at least a difficulty and a skill-or-unskilled row,
     # so the CLI never sees an empty list. `CheckResult` is public, though, and a
     # heading with no rows under it is a check with nothing applied rather than a
@@ -67,6 +113,7 @@ def _(result: CheckResult) -> str:
         lines.append(f"    {modifier.label.ljust(mod_width)} {sign}{abs(modifier.value)}")
     lines.append(f"  {'Total:'.ljust(outer_width)}{result.total} vs target {result.target}")
     lines.append(f"  {'Seed:'.ljust(outer_width)}{result.seed}")
+    lines.extend(_provenance_lines(result.provenance))
     return "\n".join(lines) + "\n"
 
 
@@ -110,6 +157,7 @@ def _(result: CheckResult) -> dict:
         "target": result.target,
         "success": result.success,
         "seed": str(result.seed),
+        "provenance": _provenance_dict(result.provenance),
     }
 
 

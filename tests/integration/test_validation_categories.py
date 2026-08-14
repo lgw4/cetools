@@ -1,0 +1,177 @@
+"""One case per category in SC-002's closed list. The list is closed and
+every category must be covered, or a category could regress into silent
+acceptance. Whole-file categories assert an empty location (FR-022).
+
+A file in an override that is not rules data is deliberately absent from
+this list: FR-032a reports it rather than rejecting it (see
+tests/unit/test_composition.py).
+"""
+
+from pathlib import Path
+
+from cetools.rules import validate_rules
+
+_DATA = Path(__file__).resolve().parents[2] / "src" / "cetools" / "data"
+NAVY = (_DATA / "careers" / "navy.toml").read_text(encoding="utf-8")
+CHARACTERISTICS = (_DATA / "registries" / "characteristics.toml").read_text(encoding="utf-8")
+
+
+def _write(tmp_path: Path, name: str, text: str) -> Path:
+    path = tmp_path / name
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+def test_unrecognized_name(tmp_path):
+    text = NAVY.replace('"Vacc Suit"', '"Vac Suit"', 1)
+    _write(tmp_path, "navy.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any("Vac Suit" in p.found for p in report.problems)
+
+
+def test_unrecognized_key(tmp_path):
+    text = NAVY.replace("[mustering-out]\n", "[mustering-out]\nchash = 5\n")
+    _write(tmp_path, "navy.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(p.location == "mustering-out.chash" for p in report.problems)
+
+
+def test_malformed_entry(tmp_path):
+    text = NAVY.replace('"Vacc Suit"', '"Vacc Suit 2x"', 1)
+    _write(tmp_path, "navy.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any("Vacc Suit 2x" in p.found for p in report.problems)
+
+
+def test_well_formed_entry_of_a_form_its_field_does_not_admit(tmp_path):
+    # "INT 4+" is a well-formed characteristic check, but tables.service.entries
+    # is a skill-table context, which does not admit the check form.
+    text = NAVY.replace('"Vacc Suit"', '"INT 4+"', 1)
+    _write(tmp_path, "navy.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any("INT 4+" in p.found for p in report.problems)
+
+
+def test_missing_required_element(tmp_path):
+    text = NAVY.replace('[throws.survival]\ncharacteristic = "END"\ntarget = 5\n\n', "")
+    assert text != NAVY
+    _write(tmp_path, "navy.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(p.location == "throws.survival" for p in report.problems)
+
+
+def test_wrong_value_type(tmp_path):
+    text = NAVY.replace(
+        '[throws.survival]\ncharacteristic = "END"\ntarget = 5\n',
+        '[throws.survival]\ncharacteristic = "END"\ntarget = "five"\n',
+    )
+    assert text != NAVY
+    _write(tmp_path, "navy.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        p.location == "throws.survival.target" and p.found == "str" for p in report.problems
+    )
+
+
+def test_unsupported_schema_version_reports_nothing_else_from_that_file(tmp_path):
+    text = NAVY.replace("schema-version = 1", "schema-version = 2", 1)
+    _write(tmp_path, "navy.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    from_navy = [p for p in report.problems if p.file == "navy.toml"]
+    assert len(from_navy) == 1
+    assert "2" in from_navy[0].found
+
+
+def test_missing_kind_declaration(tmp_path):
+    text = NAVY.replace('schema = "career"\n', "", 1)
+    _write(tmp_path, "navy.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(p.file == "navy.toml" and p.found == "missing" for p in report.problems)
+
+
+def test_replacement_declared_kind_does_not_match_the_kind_it_replaces(tmp_path):
+    text = NAVY.replace('schema = "career"', 'schema = "benefits"', 1)
+    _write(tmp_path, "navy.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        p.file == "navy.toml" and "career" in p.expected and "benefits" in p.found
+        for p in report.problems
+    )
+
+
+def test_file_not_well_formed_toml_at_all(tmp_path):
+    _write(tmp_path, "navy.toml", "this is not [valid toml")
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    navy_problems = [p for p in report.problems if p.file == "navy.toml"]
+    assert len(navy_problems) == 1
+    assert navy_problems[0].location == ""
+
+
+def test_two_careers_in_force_declare_the_same_name(tmp_path):
+    _write(tmp_path, "scouts.toml", NAVY)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        "Navy" in p.found and "navy.toml" in p.file and "scouts.toml" in p.file
+        for p in report.problems
+    )
+
+
+def test_two_files_declare_the_same_single_instance_kind(tmp_path):
+    _write(tmp_path, "characteristics2.toml", CHARACTERISTICS)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        "characteristics" in p.found
+        and "characteristics.toml" in p.file
+        and "characteristics2.toml" in p.file
+        for p in report.problems
+    )
+
+
+def test_a_single_instance_kind_is_absent(tmp_path):
+    text = CHARACTERISTICS.replace('schema = "characteristics"\n', "", 1)
+    _write(tmp_path, "characteristics.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        "characteristics" in p.expected and "exactly one" in p.expected for p in report.problems
+    )
+
+
+def test_two_override_files_share_a_basename(tmp_path):
+    (tmp_path / "a").mkdir()
+    (tmp_path / "b").mkdir()
+    _write(tmp_path / "a", "navy.toml", NAVY)
+    _write(tmp_path / "b", "navy.toml", NAVY)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any("navy.toml" in p.found for p in report.problems)
+
+
+def test_sc003_four_distinct_problems_in_one_file_report_together(tmp_path):
+    text = (
+        NAVY.replace('"Vacc Suit"', '"Vac Suit"', 1)
+        .replace("[mustering-out]\n", "[mustering-out]\nchash = 5\n")
+        .replace(
+            '[throws.survival]\ncharacteristic = "END"\ntarget = 5\n',
+            '[throws.survival]\ncharacteristic = "END"\ntarget = "five"\n',
+        )
+        .replace('"Gunnery", "Computer"', '"Gunnery (Turret)", "Computer"', 1)
+    )
+    assert text.count('"Gunnery (Turret)"') == 1
+    _write(tmp_path, "navy.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    navy_problems = [p for p in report.problems if p.file == "navy.toml"]
+    assert len(navy_problems) >= 4

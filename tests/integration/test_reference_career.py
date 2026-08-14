@@ -1,0 +1,125 @@
+"""SC-004: the reference career exercises every element of the career schema,
+evidenced by removing each required element in turn from a copy of the
+shipped file and observing a specific rejection naming what is missing.
+"""
+
+from pathlib import Path
+
+from cetools.rules import validate_rules
+
+NAVY = (
+    Path(__file__).resolve().parents[2] / "src" / "cetools" / "data" / "careers" / "navy.toml"
+).read_text(encoding="utf-8")
+
+
+def _removed(*fragments: str) -> str:
+    text = NAVY
+    for fragment in fragments:
+        assert fragment in text, f"fixture assumption broken: {fragment!r} not found in navy.toml"
+        text = text.replace(fragment, "", 1)
+    assert text != NAVY
+    return text
+
+
+def _validate_missing(tmp_path, *fragments: str, location: str):
+    (tmp_path / "navy.toml").write_text(_removed(*fragments), encoding="utf-8")
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        p.file == "navy.toml" and p.location == location for p in report.problems
+    ), report.problems
+
+
+def test_removing_the_name_is_rejected(tmp_path):
+    _validate_missing(tmp_path, 'name = "Navy"\n\n', location="name")
+
+
+def test_removing_the_qualification_throw_is_rejected(tmp_path):
+    _validate_missing(
+        tmp_path,
+        '[throws.qualification]\ncharacteristic = "INT"\ntarget = 6\n\n',
+        location="throws.qualification",
+    )
+
+
+def test_removing_the_survival_throw_is_rejected(tmp_path):
+    _validate_missing(
+        tmp_path,
+        '[throws.survival]\ncharacteristic = "END"\ntarget = 5\n\n',
+        location="throws.survival",
+    )
+
+
+def test_removing_the_promotion_throw_is_rejected(tmp_path):
+    _validate_missing(
+        tmp_path,
+        '[throws.promotion]\ncharacteristic = "EDU"\ntarget = 8\n\n',
+        location="throws.promotion",
+    )
+
+
+def test_removing_the_re_enlistment_throw_is_rejected(tmp_path):
+    _validate_missing(
+        tmp_path, "[throws.re-enlistment]\ntarget = 6\n\n", location="throws.re-enlistment"
+    )
+
+
+def test_removing_the_personal_table_is_rejected(tmp_path):
+    _validate_missing(
+        tmp_path,
+        '[tables.personal]\nentries = ["STR +1", "DEX +1", "END +1", "INT +1", "EDU +1", '
+        '"SOC +1"]\n\n',
+        location="tables.personal",
+    )
+
+
+def test_removing_the_service_table_is_rejected(tmp_path):
+    _validate_missing(
+        tmp_path,
+        '[tables.service]\nentries = ["Ship\'s Boat", "Vacc Suit", "Forward Observer", '
+        '"Gunnery", "Engineering", "Gun Combat"]\n\n',
+        location="tables.service",
+    )
+
+
+def test_removing_the_advanced_table_is_rejected(tmp_path):
+    _validate_missing(
+        tmp_path,
+        '[tables.advanced]\nentries = ["Vacc Suit", "Mechanical", "Electronics", '
+        '"Engineering", "Gunnery", "Computer"]\n\n',
+        location="tables.advanced",
+    )
+
+
+def test_removing_every_rank_ladder_is_rejected(tmp_path):
+    _validate_missing(
+        tmp_path,
+        '[[ladders]]\nname = "enlisted"\nranks = [\n  { rank = 1, title = "Recruit" },\n  '
+        '{ rank = 5, title = "Petty Officer", bonus = "Gunnery 1" },\n]\n\n',
+        '[[ladders]]\nname = "officer"\nranks = [\n  { rank = 1, title = "Ensign", '
+        'bonus = "SOC +1" },\n  { rank = 2, title = "Lieutenant" },\n  '
+        '{ rank = 4, title = "Lieutenant Commander", bonus = "Blade (Cutlass) 1" },\n]\n\n',
+        location="ladders",
+    )
+
+
+def test_removing_mustering_out_cash_is_rejected(tmp_path):
+    _validate_missing(
+        tmp_path,
+        "cash = [2000, 5000, 5000, 10000, 20000, 30000, 50000]\n",
+        location="mustering-out.cash",
+    )
+
+
+def test_removing_mustering_out_benefits_is_rejected(tmp_path):
+    _validate_missing(
+        tmp_path,
+        'benefits = ["Low Passage", "INT +1", "EDU +1", "Blade", "High Passage", '
+        '"Ship Share", "SOC +1"]\n',
+        location="mustering-out.benefits",
+    )
+
+
+def test_the_packaged_reference_career_itself_validates_cleanly():
+    report = validate_rules()
+    assert report.valid

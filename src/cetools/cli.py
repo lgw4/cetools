@@ -7,6 +7,7 @@ import typer
 from cetools.dice import Roller, throw
 from cetools.errors import CetoolsError
 from cetools.render import as_json, as_text
+from cetools.rules import load_rules
 from cetools.tasks import Modifier
 from cetools.tasks import check as check_task
 
@@ -87,12 +88,14 @@ def check(
 ) -> None:
     modifiers = tuple(_parse_dm(raw) for raw in dm)
     try:
+        rules = load_rules()
         result = check_task(
             Roller(seed),
             difficulty=difficulty,
             characteristic=characteristic,
             skill=skill,
             modifiers=modifiers,
+            rules=rules,
         )
     except CetoolsError as exc:
         typer.echo(str(exc), err=True)

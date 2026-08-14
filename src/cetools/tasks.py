@@ -1,8 +1,15 @@
+from __future__ import annotations
+
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from cetools.dice import Roller, parse_notation
 from cetools.errors import DiceError, RulesDataError, TaskError
+
+if TYPE_CHECKING:
+    from cetools.provenance import Provenance
+    from cetools.rules import RulesData
 
 
 def _check_dice(roll: str) -> tuple[int, int, int]:
@@ -94,6 +101,7 @@ class CheckResult:
     target: int
     success: bool
     seed: int
+    provenance: Provenance
 
 
 def check(
@@ -103,15 +111,15 @@ def check(
     characteristic: int | None = None,
     skill: int | None = None,
     modifiers: Sequence[Modifier] = (),
-    parameters: TaskParameters | None = None,
+    rules: RulesData | None = None,
 ) -> CheckResult:
-    """Resolve a 2D6 task check against `parameters` (the packaged rules by default).
+    """Resolve a 2D6 task check against `rules` (the packaged rules by default).
 
     Modifiers are applied in fixed order: difficulty, characteristic (if
     given), skill, then the caller's `modifiers` in the order supplied.
     `difficulty=None` resolves through `parameters.default_difficulty()`;
     `skill=None` applies the unskilled penalty, while `skill=0` is trained
-    at level 0.
+    at level 0. The returned `CheckResult` carries `rules.provenance` (FR-037).
 
     A `task.roll` carrying a flat modifier (a house rule under FR-022, since
     the shipped `2d6` has none) is itemized like every other modifier rather
@@ -120,10 +128,11 @@ def check(
     modifier to be itemized, and a `dice_total` that silently included one
     would make the rendered `(sum N)` false.
     """
-    if parameters is None:
-        from cetools.rules import load_task_parameters
+    if rules is None:
+        from cetools.rules import load_rules
 
-        parameters = load_task_parameters()
+        rules = load_rules()
+    parameters = rules.task_parameters
 
     count, sides, roll_modifier = _check_dice(parameters.roll)
     faces = roller.dice(count, sides)
@@ -163,4 +172,5 @@ def check(
         target=parameters.target,
         success=total >= parameters.target,
         seed=roller.seed,
+        provenance=rules.provenance,
     )

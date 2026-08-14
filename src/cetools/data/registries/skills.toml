@@ -1,0 +1,24 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# Skills referenced by the shipped career data. Each entry declares its
+# permitted specialties explicitly, empty when it has none.
+
+schema = "skills"
+schema-version = 1
+
+[skills]
+"Admin" = []
+"Blade" = ["Cutlass", "Dagger", "Sword"]
+"Computer" = []
+"Electronics" = []
+"Engineering" = []
+"Forward Observer" = []
+"Gun Combat" = []
+"Gunnery" = []
+"Jack-of-all-Trades" = []
+"Mechanical" = []
+"Medical" = []
+"Navigation" = []
+"Pilot" = []
+"Ship's Boat" = []
+"Vacc Suit" = []

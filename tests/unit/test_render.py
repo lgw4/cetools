@@ -4,8 +4,28 @@ import pytest
 
 from cetools.dice import ThrowResult
 from cetools.errors import CetoolsError
+from cetools.provenance import Disposition, FileProvenance, Provenance
 from cetools.render import as_dict, as_json, as_text
 from cetools.tasks import CheckResult, Modifier
+
+_PACKAGED = Provenance(version="2026.08.1", files=(), ignored=())
+_OVERRIDDEN_WITH_IGNORED = Provenance(
+    version="2026.08.1",
+    files=(
+        FileProvenance(
+            file="navy.toml",
+            disposition=Disposition.REPLACED,
+            fingerprint="sha256:" + "3b1f" + "c0" * 30,
+        ),
+        FileProvenance(
+            file="scouts.toml",
+            disposition=Disposition.ADDED,
+            fingerprint="sha256:" + "9ad4" + "71" * 30,
+        ),
+    ),
+    ignored=("notes.md",),
+)
+_PACKAGED_WITH_IGNORED = Provenance(version="2026.08.1", files=(), ignored=("notes.md",))
 
 
 def test_as_text_throw_with_modifier_matches_contract_example():
@@ -73,6 +93,7 @@ def test_as_text_check_matches_contract_difficult_example():
         target=8,
         success=False,
         seed=14333185781139156525,
+        provenance=_PACKAGED,
     )
     assert as_text(result) == (
         "Check: FAILURE\n"
@@ -84,6 +105,7 @@ def test_as_text_check_matches_contract_difficult_example():
         "    cover                  -2\n"
         "  Total: 5 vs target 8\n"
         "  Seed:  14333185781139156525\n"
+        "  Rules: packaged (cetools 2026.08.1)\n"
     )
 
 
@@ -96,6 +118,7 @@ def test_as_text_check_success_header():
         target=8,
         success=True,
         seed=1,
+        provenance=_PACKAGED,
     )
     assert as_text(result).startswith("Check: SUCCESS\n")
 
@@ -112,6 +135,7 @@ def test_as_text_check_modifier_values_are_signed_including_zero():
         target=8,
         success=False,
         seed=1,
+        provenance=_PACKAGED,
     )
     text = as_text(result)
     assert "Difficulty (Average) +0" in text
@@ -127,6 +151,7 @@ def test_as_text_check_dice_line_always_carries_sum():
         target=8,
         success=False,
         seed=1,
+        provenance=_PACKAGED,
     )
     assert "Dice:  2, 5 (sum 7)" in as_text(result)
 
@@ -140,6 +165,7 @@ def test_as_text_check_ends_with_trailing_newline():
         target=8,
         success=False,
         seed=1,
+        provenance=_PACKAGED,
     )
     text = as_text(result)
     assert text.endswith("\n")
@@ -159,6 +185,7 @@ def test_as_text_check_with_no_modifiers_renders_an_empty_modifier_list():
         target=8,
         success=False,
         seed=1,
+        provenance=_PACKAGED,
     )
     assert as_text(result) == (
         "Check: FAILURE\n"
@@ -166,7 +193,91 @@ def test_as_text_check_with_no_modifiers_renders_an_empty_modifier_list():
         "  Modifiers:\n"
         "  Total: 7 vs target 8\n"
         "  Seed:  1\n"
+        "  Rules: packaged (cetools 2026.08.1)\n"
     )
+
+
+# --- provenance block: packaged, overridden, ignored-only ---
+
+
+def _check_with(provenance):
+    return CheckResult(
+        faces=(2, 5),
+        dice_total=7,
+        modifiers=(Modifier(label="Difficulty (Average)", value=0),),
+        total=7,
+        target=8,
+        success=False,
+        seed=1,
+        provenance=provenance,
+    )
+
+
+def test_as_text_provenance_block_reports_packaged():
+    text = as_text(_check_with(_PACKAGED))
+    assert text.endswith("  Rules: packaged (cetools 2026.08.1)\n")
+
+
+def test_as_text_provenance_block_reports_overridden_with_files_first_then_ignored():
+    text = as_text(_check_with(_OVERRIDDEN_WITH_IGNORED))
+    lines = text.splitlines()
+    rules_index = lines.index("  Rules: overridden (cetools 2026.08.1)")
+    assert lines[rules_index + 1].startswith("    navy.toml")
+    assert "replaced" in lines[rules_index + 1]
+    assert lines[rules_index + 2].startswith("    scouts.toml")
+    assert "added" in lines[rules_index + 2]
+    assert lines[rules_index + 3] == "    notes.md      ignored"
+
+
+def test_as_text_provenance_block_columns_are_padded_to_the_longest_present():
+    text = as_text(_check_with(_OVERRIDDEN_WITH_IGNORED))
+    lines = text.splitlines()
+    rules_index = lines.index("  Rules: overridden (cetools 2026.08.1)")
+    provenance_lines = lines[rules_index + 1 :]
+    # "scouts.toml" (11 chars) is the longest basename; "replaced" (8 chars)
+    # is the longest disposition. Both shorter entries pad out to match.
+    assert provenance_lines[0].startswith("    navy.toml     replaced  ")
+    assert provenance_lines[1].startswith("    scouts.toml   added     ")
+    assert provenance_lines[2] == "    notes.md      ignored"
+
+
+def test_as_text_provenance_block_an_override_with_only_ignored_files_still_reads_packaged():
+    text = as_text(_check_with(_PACKAGED_WITH_IGNORED))
+    lines = text.splitlines()
+    rules_index = lines.index("  Rules: packaged (cetools 2026.08.1)")
+    # A single ignored file pads to its own width; nothing else is present.
+    assert lines[rules_index + 1] == "    notes.md   ignored"
+
+
+def test_as_dict_check_provenance_packaged_shape():
+    payload = as_dict(_check_with(_PACKAGED))
+    assert payload["provenance"] == {
+        "source": "packaged",
+        "version": "2026.08.1",
+        "files": [],
+        "ignored": [],
+    }
+
+
+def test_as_dict_check_provenance_overridden_shape():
+    payload = as_dict(_check_with(_OVERRIDDEN_WITH_IGNORED))
+    assert payload["provenance"] == {
+        "source": "overridden",
+        "version": "2026.08.1",
+        "files": [
+            {
+                "file": "navy.toml",
+                "disposition": "replaced",
+                "fingerprint": "sha256:3b1f" + "c0" * 30,
+            },
+            {
+                "file": "scouts.toml",
+                "disposition": "added",
+                "fingerprint": "sha256:9ad4" + "71" * 30,
+            },
+        ],
+        "ignored": ["notes.md"],
+    }
 
 
 def test_as_dict_throw_matches_json_contract_shape():
@@ -199,6 +310,7 @@ def test_as_dict_check_matches_json_contract_shape():
         target=8,
         success=False,
         seed=14333185781139156525,
+        provenance=_PACKAGED,
     )
     assert as_dict(result) == {
         "kind": "check",
@@ -212,6 +324,12 @@ def test_as_dict_check_matches_json_contract_shape():
         "target": 8,
         "success": False,
         "seed": "14333185781139156525",
+        "provenance": {
+            "source": "packaged",
+            "version": "2026.08.1",
+            "files": [],
+            "ignored": [],
+        },
     }
 
 
@@ -230,6 +348,7 @@ def test_as_json_check_uses_indent_two_and_unescaped_unicode():
         target=8,
         success=False,
         seed=1,
+        provenance=_PACKAGED,
     )
     text = as_json(result)
     assert text == json.dumps(as_dict(result), indent=2, ensure_ascii=False) + "\n"

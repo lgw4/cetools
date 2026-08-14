@@ -62,9 +62,35 @@ def _assert_shipped_rules_data(text: str, where: str) -> None:
     assert "Samardan Press" not in text, f"{where} carries a Product Identity string"
 
 
-def test_wheel_contains_the_packaged_rules_data(wheel):
-    assert "cetools/data/tasks.toml" in wheel.namelist()
-    _assert_shipped_rules_data(wheel.read("cetools/data/tasks.toml").decode("utf-8"), "the wheel")
+def _wheel_data_files(wheel: zipfile.ZipFile) -> list[str]:
+    return sorted(
+        name
+        for name in wheel.namelist()
+        if name.startswith("cetools/data/") and name.endswith(".toml")
+    )
+
+
+def test_wheel_contains_every_packaged_data_file(wheel, repo_root):
+    source_basenames = {p.name for p in (repo_root / "src" / "cetools" / "data").rglob("*.toml")}
+    wheel_basenames = {name.rsplit("/", 1)[-1] for name in _wheel_data_files(wheel)}
+    assert wheel_basenames == source_basenames
+
+
+def test_every_data_file_in_the_wheel_carries_its_ogc_designation(wheel):
+    data_files = _wheel_data_files(wheel)
+    assert data_files
+    for name in data_files:
+        _assert_shipped_rules_data(wheel.read(name).decode("utf-8"), f"the wheel's {name}")
+
+
+def test_the_data_set_read_from_the_wheel_validates_without_a_problem(wheel, tmp_path):
+    from cetools.rules import validate_rules
+
+    for name in _wheel_data_files(wheel):
+        basename = name.rsplit("/", 1)[-1]
+        (tmp_path / basename).write_bytes(wheel.read(name))
+    report = validate_rules(tmp_path)
+    assert report.valid, report.problems
 
 
 def _license_in_wheel(wheel: zipfile.ZipFile, name: str) -> str:
@@ -92,8 +118,36 @@ def _read_from_sdist(sdist: tarfile.TarFile, relative: str) -> str:
     return handle.read().decode("utf-8")
 
 
-def test_sdist_contains_the_packaged_rules_data(sdist):
-    _assert_shipped_rules_data(_read_from_sdist(sdist, "src/cetools/data/tasks.toml"), "the sdist")
+def _sdist_data_files(sdist: tarfile.TarFile) -> list[str]:
+    return sorted(
+        name.split("/", 1)[-1]
+        for name in sdist.getnames()
+        if name.split("/", 1)[-1].startswith("src/cetools/data/")
+        and name.split("/", 1)[-1].endswith(".toml")
+    )
+
+
+def test_sdist_contains_every_packaged_data_file(sdist, repo_root):
+    source_basenames = {p.name for p in (repo_root / "src" / "cetools" / "data").rglob("*.toml")}
+    sdist_basenames = {name.rsplit("/", 1)[-1] for name in _sdist_data_files(sdist)}
+    assert sdist_basenames == source_basenames
+
+
+def test_every_data_file_in_the_sdist_carries_its_ogc_designation(sdist):
+    data_files = _sdist_data_files(sdist)
+    assert data_files
+    for relative in data_files:
+        _assert_shipped_rules_data(_read_from_sdist(sdist, relative), f"the sdist's {relative}")
+
+
+def test_the_data_set_read_from_the_sdist_validates_without_a_problem(sdist, tmp_path):
+    from cetools.rules import validate_rules
+
+    for relative in _sdist_data_files(sdist):
+        basename = relative.rsplit("/", 1)[-1]
+        (tmp_path / basename).write_text(_read_from_sdist(sdist, relative), encoding="utf-8")
+    report = validate_rules(tmp_path)
+    assert report.valid, report.problems
 
 
 def test_sdist_carries_the_source_code_license(sdist):

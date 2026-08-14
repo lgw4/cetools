@@ -186,6 +186,31 @@ def test_the_guard_reads_a_compatibility_claim_as_a_claim():
             _assert_claim_carries_attribution(claim, "a synthetic claim")
 
 
+def test_section_15_game_data_line_covers_every_data_file_actually_present(
+    repo_root, section_15_notices
+):
+    # FR-047, SC-016: derive what the game-data notice must cover from the data
+    # files actually present rather than comparing the chain against a fixed
+    # expected text. A check written the latter way passes unchanged when a
+    # file is added, which is exactly the failure this test exists to catch.
+    game_data_line = section_15_notices[-1]
+    covered_prefix = "src/cetools/data/"
+    assert (
+        covered_prefix in game_data_line
+    ), "the game-data notice must name the directory every shipped data file lives under"
+
+    data_dir = repo_root / "src" / "cetools" / "data"
+    data_files = sorted(p.relative_to(repo_root) for p in data_dir.rglob("*.toml"))
+    assert data_files, "no data files found to derive coverage from"
+    for data_file in data_files:
+        assert str(data_file).startswith(
+            covered_prefix
+        ), f"{data_file} is not under the directory the game-data notice covers"
+
+    text = " ".join((repo_root / "LICENSE-OGL.txt").read_text(encoding="utf-8").split())
+    assert game_data_line in text
+
+
 def test_packaged_tasks_toml_opens_with_ogc_designation_and_omits_pi_strings():
     from importlib import resources
 
