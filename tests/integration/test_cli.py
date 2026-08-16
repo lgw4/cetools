@@ -196,6 +196,7 @@ def test_check_help_lists_exactly_its_own_options():
         "--skill",
         "--dm",
         "--seed",
+        "--rules-data",
         "--json",
         "--help",
     }

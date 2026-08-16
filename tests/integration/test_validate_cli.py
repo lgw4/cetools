@@ -1,9 +1,8 @@
 """`cetools validate` with no argument (contracts/cli.md, SC-003, SC-010).
 
-The `PATH` argument lands in User Story 3 (T048); until then `validate`
-always checks the packaged data set, so an invalid outcome here is produced
-by substituting `cetools.cli.validate_rules` rather than by corrupting an
-installed file.
+An invalid outcome here is produced by substituting `cetools.cli.validate_rules`
+rather than by corrupting an installed file. The `PATH` argument itself is
+covered separately in `tests/integration/test_overrides.py` (T045, T048).
 """
 
 import json
@@ -51,11 +50,11 @@ _FOUR_PROBLEMS = (
 )
 
 
-def _invalid_report() -> ValidationReport:
+def _invalid_report(path=None) -> ValidationReport:
     return ValidationReport(provenance=_PACKAGED, file_count=5, problems=_FOUR_PROBLEMS)
 
 
-def _valid_report() -> ValidationReport:
+def _valid_report(path=None) -> ValidationReport:
     return ValidationReport(provenance=_PACKAGED, file_count=5, problems=())
 
 

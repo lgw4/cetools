@@ -1,5 +1,6 @@
 import re
 from importlib.metadata import version
+from pathlib import Path
 from typing import List, Optional
 
 import typer
@@ -26,6 +27,13 @@ def _parse_dm(raw: str) -> Modifier:
     if not _DM_VALUE.match(value):
         raise typer.BadParameter(f"--dm value must be an integer, got {raw!r}")
     return Modifier(label=label, value=int(value))
+
+
+def _check_override_location(path: Optional[str], param_hint: str) -> Optional[str]:
+    if path is not None and not Path(path).exists():
+        message = f"override location does not exist: {path}"
+        raise typer.BadParameter(message, param_hint=param_hint)
+    return path
 
 
 def _version_callback(show_version: bool) -> None:
@@ -82,13 +90,19 @@ def check(
         [], "--dm", help='Repeatable labeled situational modifier, "label=value".'
     ),
     seed: Optional[str] = typer.Option(None, "--seed", help="Integer or arbitrary text."),
+    rules_data: Optional[str] = typer.Option(
+        None,
+        "--rules-data",
+        help="Override location, a directory or a single file, composed over the packaged data.",
+    ),
     json_output: bool = typer.Option(
         False, "--json", help="Emit machine-readable output instead of text."
     ),
 ) -> None:
     modifiers = tuple(_parse_dm(raw) for raw in dm)
+    rules_data = _check_override_location(rules_data, "--rules-data")
     try:
-        rules = load_rules()
+        rules = load_rules(rules_data)
         result = check_task(
             Roller(seed),
             difficulty=difficulty,
@@ -109,11 +123,18 @@ def check(
 
 @app.command()
 def validate(
+    path: Optional[str] = typer.Argument(
+        None,
+        metavar="PATH",
+        help="Optional override location, a directory or a single file, composed over the "
+        "packaged data. Omitted: validate the packaged data set.",
+    ),
     json_output: bool = typer.Option(
         False, "--json", help="Emit machine-readable output instead of text."
     ),
 ) -> None:
-    report = validate_rules()
+    path = _check_override_location(path, "PATH")
+    report = validate_rules(path)
     typer.echo(as_json(report) if json_output else as_text(report), nl=False)
     if not report.valid:
         raise typer.Exit(code=1)

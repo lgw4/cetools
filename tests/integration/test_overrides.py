@@ -1,0 +1,110 @@
+"""A house rule reaching a result: an overridden career throw reaches the
+loaded data and the command line alike, a value the override omits is
+absent rather than inherited from the packaged file it replaces, every file
+the override does not contain still comes from the packaged data, an
+unrecognized name in an override file fails exactly as it would in a shipped
+file, and an override file carries no licensing obligation (SC-005, SC-006,
+FR-030, FR-031, FR-046).
+"""
+
+import json
+from pathlib import Path
+
+import pytest
+from typer.testing import CliRunner
+
+from cetools.cli import app
+from cetools.errors import RulesDataError
+from cetools.rules import load_rules, validate_rules
+
+runner = CliRunner()
+
+NAVY = (
+    Path(__file__).resolve().parents[2] / "src" / "cetools" / "data" / "careers" / "navy.toml"
+).read_text(encoding="utf-8")
+
+_COMMISSION_BLOCK = '[throws.commission]\ncharacteristic = "SOC"\ntarget = 9\n\n'
+
+
+def test_an_overridden_survival_throw_reaches_the_loaded_career(tmp_path):
+    override = tmp_path / "navy.toml"
+    override.write_text(NAVY.replace("target = 5", "target = 9", 1), encoding="utf-8")
+    rules = load_rules(override)
+    assert rules.careers["navy"].throws["survival"].target == 9
+
+
+def test_an_overridden_survival_throw_reaches_the_check_command(tmp_path):
+    override = tmp_path / "navy.toml"
+    override.write_text(NAVY.replace("target = 5", "target = 9", 1), encoding="utf-8")
+    result = runner.invoke(app, ["check", "--rules-data", str(tmp_path), "--seed", "1", "--json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["provenance"]["source"] == "overridden"
+    files = payload["provenance"]["files"]
+    assert len(files) == 1
+    assert files[0]["file"] == "navy.toml"
+    assert files[0]["disposition"] == "replaced"
+    assert files[0]["fingerprint"].startswith("sha256:")
+
+
+def test_validate_accepts_the_same_override_location(tmp_path):
+    override = tmp_path / "navy.toml"
+    override.write_text(NAVY.replace("target = 5", "target = 9", 1), encoding="utf-8")
+    result = runner.invoke(app, ["validate", str(tmp_path), "--json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["valid"] is True
+    assert payload["provenance"]["files"][0]["disposition"] == "replaced"
+
+
+@pytest.mark.parametrize("command", [["check", "--rules-data"], ["validate"]])
+def test_a_missing_override_location_is_a_usage_error(tmp_path, command):
+    missing = tmp_path / "nope"
+    result = runner.invoke(app, [*command, str(missing)])
+    assert result.exit_code == 2
+    assert result.stdout == ""
+
+
+def test_a_value_omitted_from_the_override_is_absent_not_inherited(tmp_path):
+    assert _COMMISSION_BLOCK in NAVY
+    override = tmp_path / "navy.toml"
+    override.write_text(NAVY.replace(_COMMISSION_BLOCK, "", 1), encoding="utf-8")
+    rules = load_rules(override)
+    assert "commission" not in rules.careers["navy"].throws
+    assert "survival" in rules.careers["navy"].throws
+
+
+def test_every_file_the_override_does_not_contain_still_comes_from_the_packaged_data(tmp_path):
+    override = tmp_path / "navy.toml"
+    override.write_text(NAVY.replace("target = 5", "target = 9", 1), encoding="utf-8")
+    packaged = load_rules()
+    overridden = load_rules(override)
+    assert overridden.characteristics == packaged.characteristics
+    assert overridden.skills == packaged.skills
+    assert overridden.benefits == packaged.benefits
+    assert overridden.task_parameters == packaged.task_parameters
+    assert len(overridden.provenance.files) == 1
+    assert overridden.provenance.files[0].file == "navy.toml"
+
+
+def test_an_unrecognized_name_in_an_override_fails_like_a_shipped_file_would(tmp_path):
+    override = tmp_path / "navy.toml"
+    override.write_text(NAVY.replace('"Vacc Suit"', '"Vac Suit"', 1), encoding="utf-8")
+    with pytest.raises(RulesDataError) as excinfo:
+        load_rules(override)
+    problems = excinfo.value.problems
+    assert any(
+        p.file == "navy.toml" and p.found == "Vac Suit" and p.expected == "a known skill name"
+        for p in problems
+    )
+
+
+def test_an_override_file_carries_no_licensing_obligation(tmp_path):
+    without_header_comment = "\n".join(
+        line for line in NAVY.splitlines() if not line.startswith("#")
+    ).lstrip("\n")
+    assert "Open Game Content" not in without_header_comment
+    override = tmp_path / "navy.toml"
+    override.write_text(without_header_comment, encoding="utf-8")
+    report = validate_rules(tmp_path)
+    assert report.valid

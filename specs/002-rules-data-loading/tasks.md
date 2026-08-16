@@ -157,13 +157,13 @@ as a shipped file and to no more than that, and that both commands accept a loca
 
 ### Tests for User Story 3 ⚠️ Write first, observe failing
 
-- [ ] T045 [P] [US3] Write `tests/integration/test_overrides.py` for a house rule reaching a result: an overridden survival throw changes what a resolved check produces, a value present in the packaged file and omitted from the override that replaces it is absent rather than inherited, every file the override does not contain still comes from the packaged data, an unrecognized name in an override file fails the load with the same diagnostics a shipped file would produce, and an override file carrying no Open Game Content designation loads without complaint because FR-046 binds shipped files only (SC-005, SC-006, FR-030, FR-031, FR-046)
-- [ ] T046 [P] [US3] Write `tests/integration/test_data_driven.py` demonstrating a behavior change with no code edit for a career throw, a skill table entry, a rank bonus, and a registry entry, the last by removing a skill name and observing every career reference to it fail (SC-011, FR-013)
+- [X] T045 [P] [US3] Write `tests/integration/test_overrides.py` for a house rule reaching a result: an overridden survival throw changes what a resolved check produces, a value present in the packaged file and omitted from the override that replaces it is absent rather than inherited, every file the override does not contain still comes from the packaged data, an unrecognized name in an override file fails the load with the same diagnostics a shipped file would produce, and an override file carrying no Open Game Content designation loads without complaint because FR-046 binds shipped files only (SC-005, SC-006, FR-030, FR-031, FR-046)
+- [X] T046 [P] [US3] Write `tests/integration/test_data_driven.py` demonstrating a behavior change with no code edit for a career throw, a skill table entry, a rank bonus, and a registry entry, the last by removing a skill name and observing every career reference to it fail (SC-011, FR-013)
 
 ### Implementation for User Story 3
 
-- [ ] T047 [US3] Add `--rules-data PATH` to the `check` command in `src/cetools/cli.py` (FR-042)
-- [ ] T048 [US3] Add the optional `PATH` argument to the `validate` command in `src/cetools/cli.py`, accepting a directory or a single file and positioning it by basename alone (FR-040, FR-040a)
+- [X] T047 [US3] Add `--rules-data PATH` to the `check` command in `src/cetools/cli.py` (FR-042)
+- [X] T048 [US3] Add the optional `PATH` argument to the `validate` command in `src/cetools/cli.py`, accepting a directory or a single file and positioning it by basename alone (FR-040, FR-040a)
 
 **Checkpoint**: House rules take effect through data alone, and a misspelled filename is visible rather than silent.
 
