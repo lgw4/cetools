@@ -5,9 +5,9 @@ from typing import List, Optional
 import typer
 
 from cetools.dice import Roller, throw
-from cetools.errors import CetoolsError
-from cetools.render import as_json, as_text
-from cetools.rules import load_rules
+from cetools.errors import CetoolsError, RulesDataError
+from cetools.render import _problem_line, as_json, as_text
+from cetools.rules import load_rules, validate_rules
 from cetools.tasks import Modifier
 from cetools.tasks import check as check_task
 
@@ -98,9 +98,25 @@ def check(
             rules=rules,
         )
     except CetoolsError as exc:
-        typer.echo(str(exc), err=True)
+        if isinstance(exc, RulesDataError) and exc.problems:
+            for problem in exc.problems:
+                typer.echo(_problem_line(problem), err=True)
+        else:
+            typer.echo(str(exc), err=True)
         raise typer.Exit(code=1)
     typer.echo(as_json(result) if json_output else as_text(result), nl=False)
+
+
+@app.command()
+def validate(
+    json_output: bool = typer.Option(
+        False, "--json", help="Emit machine-readable output instead of text."
+    ),
+) -> None:
+    report = validate_rules()
+    typer.echo(as_json(report) if json_output else as_text(report), nl=False)
+    if not report.valid:
+        raise typer.Exit(code=1)
 
 
 def main() -> None:

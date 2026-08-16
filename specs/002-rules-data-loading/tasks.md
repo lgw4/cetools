@@ -127,15 +127,15 @@ it against a file seeded with four distinct mistakes and see all four reported i
 
 ### Tests for User Story 2 ⚠️ Write first, observe failing
 
-- [ ] T039 [P] [US2] Write `tests/integration/test_validate_cli.py` for `cetools validate` with no argument: exit 0 on the packaged set, exit 1 when any problem is found, exit 2 for a usage error, the same outcome in both output modes, and four distinct problems reported from a single run (SC-003, SC-010, FR-038, FR-039, FR-041)
-- [ ] T040 [P] [US2] Add `ValidationReport` rendering expectations to `tests/unit/test_render.py` for the valid summary, the one-problem-per-line form, the file-as-a-whole form that drops `:LOCATION`, and the `(file, location)` sort order (contracts/cli.md, FR-022)
-- [ ] T041 [P] [US2] Add the `validation` payload expectations to `tests/contract/test_json_contract.py` with key order `kind`, `valid`, `file_count`, `provenance`, `problems`, and `problems[].location` present but empty for a problem about a file as a whole rather than absent or null (contracts/json-output.md, FR-022)
+- [X] T039 [P] [US2] Write `tests/integration/test_validate_cli.py` for `cetools validate` with no argument: exit 0 on the packaged set, exit 1 when any problem is found, exit 2 for a usage error, the same outcome in both output modes, and four distinct problems reported from a single run (SC-003, SC-010, FR-038, FR-039, FR-041)
+- [X] T040 [P] [US2] Add `ValidationReport` rendering expectations to `tests/unit/test_render.py` for the valid summary, the one-problem-per-line form, the file-as-a-whole form that drops `:LOCATION`, and the `(file, location)` sort order (contracts/cli.md, FR-022)
+- [X] T041 [P] [US2] Add the `validation` payload expectations to `tests/contract/test_json_contract.py` with key order `kind`, `valid`, `file_count`, `provenance`, `problems`, and `problems[].location` present but empty for a problem about a file as a whole rather than absent or null (contracts/json-output.md, FR-022)
 
 ### Implementation for User Story 2
 
-- [ ] T042 [US2] Register `ValidationReport` with `as_text`, `as_dict`, and `as_json` in `src/cetools/render.py` (FR-041, FR-043)
-- [ ] T043 [US2] Add the `cetools validate` command to `src/cetools/cli.py` with `--json`, problems on stdout, usage errors on stderr, and exit codes 0/1/2 (FR-038, FR-039, FR-041)
-- [ ] T044 [US2] Print the problems of a failed load to stderr in the same one-line form and exit 1 at the existing single catch site in `src/cetools/cli.py` (contracts/cli.md, FR-025)
+- [X] T042 [US2] Register `ValidationReport` with `as_text`, `as_dict`, and `as_json` in `src/cetools/render.py` (FR-041, FR-043)
+- [X] T043 [US2] Add the `cetools validate` command to `src/cetools/cli.py` with `--json`, problems on stdout, usage errors on stderr, and exit codes 0/1/2 (FR-038, FR-039, FR-041)
+- [X] T044 [US2] Print the problems of a failed load to stderr in the same one-line form and exit 1 at the existing single catch site in `src/cetools/cli.py` (contracts/cli.md, FR-025)
 
 **Checkpoint**: Authoring feedback is complete and one run per file is always enough.
 

@@ -2,8 +2,10 @@ import json
 from importlib.metadata import version
 
 from cetools.dice import ThrowResult
+from cetools.errors import ValidationProblem
 from cetools.provenance import Provenance
 from cetools.render import as_dict
+from cetools.rules import ValidationReport
 from cetools.tasks import CheckResult, Modifier
 
 _VERSION = version("cetools")
@@ -177,4 +179,92 @@ def test_seed_type_is_str_not_int():
 def test_payloads_are_json_serializable_round_trip():
     for result in (_ROLL, _D66, _CHECK):
         payload = as_dict(result)
+        assert json.loads(json.dumps(payload)) == payload
+
+
+# --- validation payload (contracts/json-output.md) ---
+
+_WHOLE_FILE_PROBLEM = ValidationProblem(
+    file="navy.toml",
+    location="",
+    found="invalid TOML at line 12, column 3",
+    expected="a well-formed TOML document",
+)
+
+_VALID_REPORT = ValidationReport(provenance=_PACKAGED_PROVENANCE, file_count=5, problems=())
+
+_INVALID_REPORT = ValidationReport(
+    provenance=_PACKAGED_PROVENANCE,
+    file_count=5,
+    problems=(
+        ValidationProblem(
+            file="navy.toml",
+            location="tables.service.entries[2]",
+            found="unrecognized skill name 'Vac Suit'",
+            expected="a name in the skills registry",
+        ),
+    ),
+)
+
+
+def test_validation_payload_key_set_and_order_matches_contract():
+    payload = as_dict(_VALID_REPORT)
+    assert list(payload) == ["kind", "valid", "file_count", "provenance", "problems"]
+
+
+def test_validation_payload_kind_is_validation():
+    assert as_dict(_VALID_REPORT)["kind"] == "validation"
+
+
+def test_validation_payload_valid_true_iff_problems_empty():
+    assert as_dict(_VALID_REPORT)["valid"] is True
+    assert as_dict(_INVALID_REPORT)["valid"] is False
+
+
+def test_validation_payload_matches_contract_example():
+    assert as_dict(_INVALID_REPORT) == {
+        "kind": "validation",
+        "valid": False,
+        "file_count": 5,
+        "provenance": {
+            "source": "packaged",
+            "version": _VERSION,
+            "files": [],
+            "ignored": [],
+        },
+        "problems": [
+            {
+                "file": "navy.toml",
+                "location": "tables.service.entries[2]",
+                "found": "unrecognized skill name 'Vac Suit'",
+                "expected": "a name in the skills registry",
+            }
+        ],
+    }
+
+
+def test_validation_payload_problem_location_is_present_but_empty_for_a_whole_file_problem():
+    report = ValidationReport(
+        provenance=_PACKAGED_PROVENANCE, file_count=5, problems=(_WHOLE_FILE_PROBLEM,)
+    )
+    problem = as_dict(report)["problems"][0]
+    assert "location" in problem
+    assert problem["location"] == ""
+
+
+def test_validation_payload_value_types():
+    payload = as_dict(_INVALID_REPORT)
+    assert isinstance(payload["valid"], bool)
+    assert isinstance(payload["file_count"], int)
+    assert isinstance(payload["provenance"], dict)
+    assert isinstance(payload["problems"], list)
+    for problem in payload["problems"]:
+        assert list(problem) == ["file", "location", "found", "expected"]
+        for key in problem:
+            assert isinstance(problem[key], str)
+
+
+def test_validation_payloads_are_json_serializable_round_trip():
+    for report in (_VALID_REPORT, _INVALID_REPORT):
+        payload = as_dict(report)
         assert json.loads(json.dumps(payload)) == payload

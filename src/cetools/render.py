@@ -2,23 +2,31 @@ import json
 from functools import singledispatch
 
 from cetools.dice import ThrowResult
-from cetools.errors import CetoolsError
+from cetools.errors import CetoolsError, ValidationProblem
 from cetools.provenance import Provenance
+from cetools.rules import ValidationReport
 from cetools.tasks import CheckResult
 
+_RULES_LABEL_WIDTH = len("Rules:") + 1
 
-def _provenance_lines(provenance: Provenance) -> list[str]:
-    """The shared `Rules:` block, appended after a result's `Seed:` line.
 
-    The file column is padded to the longest basename present and the
-    disposition column to the longest disposition present (`"ignored"`
-    counts as one), matching the padding rule the `Modifiers` block already
-    uses. Files that took effect are listed first, already sorted by name,
-    then ignored files, already sorted by name. An ignored file's line ends
-    at the disposition: it carries no fingerprint to pad toward.
+def _provenance_lines(provenance: Provenance, label_width: int = _RULES_LABEL_WIDTH) -> list[str]:
+    """The shared `Rules:` block, appended after a result's `Seed:` line and
+    after a `validate` report's summary (contracts/cli.md).
+
+    `label_width` lets a caller line the `Rules:` label up with sibling
+    summary labels of different lengths (`Files:`, `Problems:`); it defaults
+    to `Rules:`'s own width, which is what `CheckResult` needs since `Rules:`
+    is its widest label. The file column is padded to the longest basename
+    present and the disposition column to the longest disposition present
+    (`"ignored"` counts as one), matching the padding rule the `Modifiers`
+    block already uses. Files that took effect are listed first, already
+    sorted by name, then ignored files, already sorted by name. An ignored
+    file's line ends at the disposition: it carries no fingerprint to pad
+    toward.
     """
     source = "packaged" if provenance.is_packaged else "overridden"
-    lines = [f"  Rules: {source} (cetools {provenance.version})"]
+    lines = [f"  {'Rules:'.ljust(label_width)}{source} (cetools {provenance.version})"]
 
     names = [fp.file for fp in provenance.files] + list(provenance.ignored)
     if not names:
@@ -50,6 +58,16 @@ def _provenance_dict(provenance: Provenance) -> dict:
         ],
         "ignored": list(provenance.ignored),
     }
+
+
+def _problem_line(problem: ValidationProblem) -> str:
+    """One `validate` report line: `FILE:LOCATION: found F; expected E`,
+    dropping `:LOCATION` for a problem about the file as a whole
+    (contracts/cli.md). Also what `cli.py` prints to stderr when a `check`
+    load fails, so the two surfaces never disagree on the form.
+    """
+    location = f":{problem.location}" if problem.location else ""
+    return f"{problem.file}{location}: found {problem.found}; expected {problem.expected}"
 
 
 @singledispatch
@@ -117,6 +135,25 @@ def _(result: CheckResult) -> str:
     return "\n".join(lines) + "\n"
 
 
+@as_text.register
+def _(result: ValidationReport) -> str:
+    problem_lines = [_problem_line(p) for p in result.problems]
+
+    if result.problems:
+        labels = ("Files:", "Problems:", "Rules:")
+        width = max(len(label) for label in labels) + 1
+        lines = [*problem_lines, "", "Rules data is invalid."]
+        lines.append(f"  {'Files:'.ljust(width)}{result.file_count}")
+        lines.append(f"  {'Problems:'.ljust(width)}{len(result.problems)}")
+    else:
+        labels = ("Files:", "Rules:")
+        width = max(len(label) for label in labels) + 1
+        lines = ["Rules data is valid.", f"  {'Files:'.ljust(width)}{result.file_count}"]
+
+    lines.extend(_provenance_lines(result.provenance, label_width=width))
+    return "\n".join(lines) + "\n"
+
+
 @singledispatch
 def as_dict(result) -> dict:
     """Render a result (`ThrowResult` or `CheckResult`) as the committed JSON shape.
@@ -158,6 +195,25 @@ def _(result: CheckResult) -> dict:
         "success": result.success,
         "seed": str(result.seed),
         "provenance": _provenance_dict(result.provenance),
+    }
+
+
+@as_dict.register
+def _(result: ValidationReport) -> dict:
+    return {
+        "kind": "validation",
+        "valid": result.valid,
+        "file_count": result.file_count,
+        "provenance": _provenance_dict(result.provenance),
+        "problems": [
+            {
+                "file": p.file,
+                "location": p.location,
+                "found": p.found,
+                "expected": p.expected,
+            }
+            for p in result.problems
+        ],
     }
 
 

@@ -3,9 +3,10 @@ import json
 import pytest
 
 from cetools.dice import ThrowResult
-from cetools.errors import CetoolsError
+from cetools.errors import CetoolsError, ValidationProblem
 from cetools.provenance import Disposition, FileProvenance, Provenance
 from cetools.render import as_dict, as_json, as_text
+from cetools.rules import ValidationReport
 from cetools.tasks import CheckResult, Modifier
 
 _PACKAGED = Provenance(version="2026.08.1", files=(), ignored=())
@@ -358,6 +359,145 @@ def test_as_json_ends_with_trailing_newline():
     result = ThrowResult(notation="1d6", faces=(1,), modifier=0, total=1, seed=1)
     assert as_json(result).endswith("\n")
     assert json.loads(as_json(result)) == as_dict(result)
+
+
+# --- ValidationReport rendering (contracts/cli.md, contracts/json-output.md) ---
+
+_WHOLE_FILE_PROBLEM = ValidationProblem(
+    file="navy.toml",
+    location="",
+    found="invalid TOML at line 12, column 3",
+    expected="a well-formed TOML document",
+)
+
+# Already in (file, location) order, as `validate_rules` guarantees.
+_SORTED_PROBLEMS = (
+    ValidationProblem(
+        file="navy.toml",
+        location="mustering-out.chash",
+        found="an unrecognized key 'chash'",
+        expected="one of: benefits, cash",
+    ),
+    ValidationProblem(
+        file="navy.toml",
+        location="tables.service.entries[2]",
+        found="unrecognized skill name 'Vac Suit'",
+        expected="a name in the skills registry",
+    ),
+    ValidationProblem(
+        file="navy.toml",
+        location="throws.survival.target",
+        found="a string",
+        expected="an integer",
+    ),
+    ValidationProblem(
+        file="skills.toml",
+        location="skills",
+        found="no entries",
+        expected="at least one",
+    ),
+)
+
+
+def test_as_text_validation_report_valid_summary():
+    report = ValidationReport(provenance=_PACKAGED, file_count=5, problems=())
+    assert as_text(report) == (
+        "Rules data is valid.\n" "  Files: 5\n" "  Rules: packaged (cetools 2026.08.1)\n"
+    )
+
+
+def test_as_text_validation_report_one_problem_per_line():
+    report = ValidationReport(provenance=_PACKAGED, file_count=5, problems=_SORTED_PROBLEMS)
+    text = as_text(report)
+    lines = text.splitlines()
+    assert (
+        lines[0] == "navy.toml:mustering-out.chash: found an unrecognized key 'chash'; "
+        "expected one of: benefits, cash"
+    )
+    assert (
+        lines[1] == "navy.toml:tables.service.entries[2]: "
+        "found unrecognized skill name 'Vac Suit'; expected a name in the skills registry"
+    )
+    assert lines[2] == "navy.toml:throws.survival.target: found a string; expected an integer"
+    assert lines[3] == "skills.toml:skills: found no entries; expected at least one"
+
+
+def test_as_text_validation_report_problems_precede_a_blank_line_then_the_summary():
+    report = ValidationReport(provenance=_PACKAGED, file_count=5, problems=_SORTED_PROBLEMS)
+    lines = as_text(report).splitlines()
+    assert lines[4] == ""
+    assert lines[5] == "Rules data is invalid."
+    assert lines[6] == "  Files:    5"
+    assert lines[7] == "  Problems: 4"
+    assert lines[8] == "  Rules:    packaged (cetools 2026.08.1)"
+
+
+def test_as_text_validation_report_file_as_a_whole_drops_location():
+    report = ValidationReport(provenance=_PACKAGED, file_count=5, problems=(_WHOLE_FILE_PROBLEM,))
+    lines = as_text(report).splitlines()
+    assert lines[0] == (
+        "navy.toml: found invalid TOML at line 12, column 3; "
+        "expected a well-formed TOML document"
+    )
+
+
+def test_as_text_validation_report_preserves_the_given_problem_order():
+    # The loader guarantees (file, location) order; rendering must not resort.
+    reversed_problems = tuple(reversed(_SORTED_PROBLEMS))
+    report = ValidationReport(provenance=_PACKAGED, file_count=5, problems=reversed_problems)
+    lines = as_text(report).splitlines()
+    assert lines[0].startswith("skills.toml:skills:")
+    assert lines[1].startswith("navy.toml:throws.survival.target:")
+
+
+def test_as_text_validation_report_ends_with_trailing_newline():
+    report = ValidationReport(provenance=_PACKAGED, file_count=5, problems=())
+    text = as_text(report)
+    assert text.endswith("\n")
+    assert not text.endswith("\n\n")
+
+
+def test_as_dict_validation_report_valid_shape():
+    report = ValidationReport(provenance=_PACKAGED, file_count=5, problems=())
+    assert as_dict(report) == {
+        "kind": "validation",
+        "valid": True,
+        "file_count": 5,
+        "provenance": {
+            "source": "packaged",
+            "version": "2026.08.1",
+            "files": [],
+            "ignored": [],
+        },
+        "problems": [],
+    }
+
+
+def test_as_dict_validation_report_invalid_shape_and_key_order():
+    report = ValidationReport(provenance=_PACKAGED, file_count=5, problems=_SORTED_PROBLEMS)
+    payload = as_dict(report)
+    assert payload["valid"] is False
+    assert list(payload) == ["kind", "valid", "file_count", "provenance", "problems"]
+    assert payload["problems"][0] == {
+        "file": "navy.toml",
+        "location": "mustering-out.chash",
+        "found": "an unrecognized key 'chash'",
+        "expected": "one of: benefits, cash",
+    }
+    assert [p["location"] for p in payload["problems"]] == [p.location for p in _SORTED_PROBLEMS]
+
+
+def test_as_dict_validation_report_whole_file_problem_location_is_empty_string_not_absent():
+    report = ValidationReport(provenance=_PACKAGED, file_count=5, problems=(_WHOLE_FILE_PROBLEM,))
+    payload = as_dict(report)
+    assert "location" in payload["problems"][0]
+    assert payload["problems"][0]["location"] == ""
+
+
+def test_as_json_validation_report_round_trips_through_json():
+    report = ValidationReport(provenance=_PACKAGED, file_count=5, problems=_SORTED_PROBLEMS)
+    text = as_json(report)
+    assert json.loads(text) == as_dict(report)
 
 
 # --- singledispatch fallbacks: an unregistered type is a detected condition ---
