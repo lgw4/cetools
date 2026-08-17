@@ -6,7 +6,6 @@ itself rather than a value only ever checked through a placeholder
 (SC-008, FR-036).
 """
 
-import shutil
 import subprocess
 from importlib.metadata import version
 from pathlib import Path
@@ -50,20 +49,26 @@ def test_differing_content_fingerprints_differently(tmp_path):
     assert one_fingerprint != other_fingerprint
 
 
-# SC-008 is about an *outside* tool agreeing with the reported value, so it
-# cannot be checked where that tool does not exist; Windows runners ship no
-# `shasum`. The fingerprint is still covered there by the two tests above,
-# which pin content-addressing without leaving the process.
-@pytest.mark.skipif(shutil.which("shasum") is None, reason="shasum is not on PATH")
 def test_the_reported_fingerprint_is_reproducible_with_shasum(tmp_path):
     override = tmp_path / "scouts.toml"
     override.write_bytes(NAVY.read_bytes().replace(b'name = "Navy"', b'name = "Scouts"'))
 
     reported = load_rules(tmp_path).provenance.files[0].fingerprint
 
-    shasum = subprocess.run(
-        ["shasum", "-a", "256", str(override)], capture_output=True, text=True, check=True
-    )
+    # SC-008 is about an *outside* tool agreeing with the reported value, so it
+    # cannot be checked where that tool cannot be run. Skipping on the attempt
+    # rather than on `shutil.which` is deliberate: Git for Windows puts an
+    # extensionless Perl `shasum` on PATH, so `which` finds one the OS then
+    # refuses to execute. Only `OSError` is caught, so a `shasum` that does run
+    # and disagrees still fails; the two tests above keep content-addressing
+    # covered wherever this is skipped.
+    try:
+        shasum = subprocess.run(
+            ["shasum", "-a", "256", str(override)], capture_output=True, text=True, check=True
+        )
+    except OSError as exc:
+        pytest.skip(f"shasum cannot be executed here: {exc}")
+
     expected_hex = shasum.stdout.split()[0]
     assert reported == f"sha256:{expected_hex}"
 
