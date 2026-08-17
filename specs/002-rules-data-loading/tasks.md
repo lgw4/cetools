@@ -180,13 +180,13 @@ reported fingerprint changes.
 
 ### Tests for User Story 4 ⚠️ Write first, observe failing
 
-- [ ] T049 [P] [US4] Write `tests/unit/test_provenance_reporting.py` asserting identical content at two different locations fingerprints identically, differing content fingerprints differently, the reported value is reproducible with `shasum -a 256`, and the reported version equals the installed package version asserted directly rather than through a placeholder (SC-008, FR-036)
-- [ ] T050 [P] [US4] Write `tests/integration/test_provenance_cli.py` for the overridden text block in both `check` and `validate`: file column padded to the longest basename, disposition column to the longest disposition, effective files first sorted by name then ignored files sorted by name, an ignored line ending at the disposition, and an override holding only ignored files still reading `packaged` while listing them (contracts/cli.md, FR-032a, FR-035)
+- [X] T049 [P] [US4] Write `tests/unit/test_provenance_reporting.py` asserting identical content at two different locations fingerprints identically, differing content fingerprints differently, the reported value is reproducible with `shasum -a 256`, and the reported version equals the installed package version asserted directly rather than through a placeholder (SC-008, FR-036)
+- [X] T050 [P] [US4] Write `tests/integration/test_provenance_cli.py` for the overridden text block in both `check` and `validate`: file column padded to the longest basename, disposition column to the longest disposition, effective files first sorted by name then ignored files sorted by name, an ignored line ending at the disposition, and an override holding only ignored files still reading `packaged` while listing them (contracts/cli.md, FR-032a, FR-035)
 
 ### Implementation for User Story 4
 
-- [ ] T051 [US4] Render the overridden provenance text block with its per-file disposition, fingerprint, and ignored lines in `src/cetools/render.py` (FR-035, FR-037)
-- [ ] T052 [US4] Emit the provenance JSON object with key order `source`, `version`, `files`, `ignored` and `files[]` sorted by `file` in `src/cetools/render.py` (contracts/json-output.md) (depends on T051)
+- [X] T051 [US4] Render the overridden provenance text block with its per-file disposition, fingerprint, and ignored lines in `src/cetools/render.py` (FR-035, FR-037)
+- [X] T052 [US4] Emit the provenance JSON object with key order `source`, `version`, `files`, `ignored` and `files[]` sorted by `file` in `src/cetools/render.py` (contracts/json-output.md) (depends on T051)
 
 **Checkpoint**: All four stories are independently functional.
 
