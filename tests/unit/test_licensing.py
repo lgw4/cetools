@@ -132,7 +132,9 @@ def _cli_help() -> str:
     from cetools.cli import app
 
     runner = CliRunner()
-    screens = (["--help"], ["roll", "--help"], ["check", "--help"])
+    # Every command's help, not a hand-kept subset: a new subcommand's help is
+    # a new claim surface, and `validate` shipped without reaching this guard.
+    screens = (["--help"], ["roll", "--help"], ["check", "--help"], ["validate", "--help"])
     return "\n".join(runner.invoke(app, args).stdout for args in screens)
 
 
@@ -149,8 +151,12 @@ CLAIM_SURFACES = {
 
 
 @pytest.mark.parametrize("where", sorted(CLAIM_SURFACES))
-def test_no_surface_makes_an_unattributed_compatibility_claim(where):
-    _assert_claim_carries_attribution(_normalized(CLAIM_SURFACES[where]()), where)
+def test_no_surface_makes_an_unattributed_compatibility_claim(where, strip_ansi):
+    # `strip_ansi` before normalizing: the help screens arrive styled under CI,
+    # and Rich splits a phrase with escapes, so a claim could sit in the output
+    # while the search for it found nothing. A guard that colour codes can
+    # disarm is worse than no guard, because it reports success.
+    _assert_claim_carries_attribution(_normalized(strip_ansi(CLAIM_SURFACES[where]())), where)
 
 
 def test_the_guard_reads_provenance_and_quoted_mentions_as_mentions_not_claims():

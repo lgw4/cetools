@@ -12,14 +12,6 @@ runner = CliRunner()
 # Signed, because a seed may carry a minus sign (FR-002) and an unsigned pattern
 # would silently stop matching the moment one did.
 _REPORTED_SEED = r"Seed:\s+([+-]?\d+)"
-_OPTION_TOKEN = re.compile(r"--[a-z][a-z0-9-]*")
-# Typer forces Rich's color mode on whenever GITHUB_ACTIONS, FORCE_COLOR, or
-# PY_COLORS is set, and Rich styles an option's first dash separately from the
-# rest: `\x1b[1;36m-\x1b[0m\x1b[1;36m-seed\x1b[0m`. The escape codes land
-# *between* the dashes, so `--seed` is never contiguous text and the token
-# pattern finds nothing at all. Strip them before matching, or this passes
-# locally and fails on every CI runner.
-_ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
 ROLL_AND_CHECK = pytest.mark.parametrize(
     "command", [["roll", "2d6"], ["check"]], ids=["roll", "check"]
@@ -33,18 +25,6 @@ def _reported_seed(stdout: str, json_mode: bool) -> str:
     match = re.search(_REPORTED_SEED, stdout)
     assert match is not None, f"no seed in output: {stdout!r}"
     return match.group(1)
-
-
-def _options_in_help(command: list[str]) -> set[str]:
-    result = runner.invoke(app, command + ["--help"])
-    assert result.exit_code == 0
-    plain = _ANSI.sub("", result.stdout)
-    found = set(_OPTION_TOKEN.findall(plain))
-    # An empty set means the help screen was not parsed, not that the command
-    # has no options; without this the assertion below reports a confusing
-    # "set() != {...}" instead of showing what the runner actually returned.
-    assert found, f"no option tokens found in help output: {plain!r}"
-    return found
 
 
 def test_roll_successful_throw_exits_zero_with_stdout():
@@ -91,12 +71,12 @@ def test_version_prints_package_version_and_exits_zero():
     assert version("cetools") in result.stdout
 
 
-def test_roll_help_lists_exactly_its_own_options():
+def test_roll_help_lists_exactly_its_own_options(help_text, options_in_help):
     # FR-025 asks for "exactly the options that subcommand accepts and no
     # others", stated as something checkable: an allowlist plus a denylist would
     # pass with a spurious option added, so the whole set is compared.
-    assert "NOTATION" in runner.invoke(app, ["roll", "--help"]).stdout
-    assert _options_in_help(["roll"]) == {"--seed", "--json", "--help"}
+    assert "NOTATION" in help_text(["roll"])
+    assert options_in_help(["roll"]) == {"--seed", "--json", "--help"}
 
 
 def test_roll_seed_round_trip_is_byte_identical():
@@ -188,9 +168,9 @@ def test_check_repeated_dm_preserves_supplied_order():
     assert cover_index < ally_index
 
 
-def test_check_help_lists_exactly_its_own_options():
-    assert "NOTATION" not in runner.invoke(app, ["check", "--help"]).stdout
-    assert _options_in_help(["check"]) == {
+def test_check_help_lists_exactly_its_own_options(help_text, options_in_help):
+    assert "NOTATION" not in help_text(["check"])
+    assert options_in_help(["check"]) == {
         "--difficulty",
         "--characteristic",
         "--skill",

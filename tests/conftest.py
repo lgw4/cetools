@@ -1,8 +1,22 @@
+import re
 from pathlib import Path
 
 import pytest
 
 SEEDED_LITERAL = "session-alpha"
+
+# Typer forces Rich's color mode on whenever GITHUB_ACTIONS, FORCE_COLOR, or
+# PY_COLORS is set, and Rich styles an option's first dash separately from the
+# rest: `\x1b[1;36m-\x1b[0m\x1b[1;36m-seed\x1b[0m`. The escape codes land
+# *between* the dashes, so `--seed` is never contiguous text and a plain
+# `"--seed" in stdout` finds nothing at all. Any assertion against captured CLI
+# output has to strip them first, or it passes locally and fails on every CI
+# runner. These live here, rather than in the module that first needed them,
+# because that trap has now caught out two test modules and silently weakened a
+# third: the licensing guard searches help screens for a trademark, and styling
+# that split the phrase would hide it from the search.
+_ANSI = re.compile(r"\x1b\[[0-9;]*m")
+_OPTION_TOKEN = re.compile(r"--[a-z][a-z0-9-]*")
 
 # Golden files and JSON fixtures hold the installed package version as this
 # placeholder rather than the literal, so a release rewrites none of them
@@ -75,6 +89,53 @@ def _clear_rules_cache():
     load_rules.cache_clear()
     yield
     load_rules.cache_clear()
+
+
+@pytest.fixture
+def strip_ansi():
+    """Remove Rich's styling escapes from captured CLI output."""
+
+    def _strip(text: str) -> str:
+        return _ANSI.sub("", text)
+
+    return _strip
+
+
+@pytest.fixture
+def help_text(strip_ansi):
+    """A command's `--help` screen as plain text, escapes already stripped.
+
+    Takes the command as a list, so `help_text([])` is the top-level screen
+    and `help_text(["check"])` is a subcommand's.
+    """
+    from typer.testing import CliRunner
+
+    from cetools.cli import app
+
+    runner = CliRunner()
+
+    def _help(command: list[str]) -> str:
+        result = runner.invoke(app, [*command, "--help"])
+        assert result.exit_code == 0, f"{command} --help exited {result.exit_code}"
+        return strip_ansi(result.stdout)
+
+    return _help
+
+
+@pytest.fixture
+def options_in_help(help_text):
+    """The set of long options a command's `--help` lists."""
+
+    def _options(command: list[str]) -> set[str]:
+        plain = help_text(command)
+        found = set(_OPTION_TOKEN.findall(plain))
+        # An empty set means the help screen was not parsed, not that the
+        # command has no options; without this the caller's comparison reports
+        # a confusing "set() != {...}" instead of what the runner returned.
+        assert found, f"no option tokens found in help output: {plain!r}"
+        return found
+
+    return _options
 
 
 @pytest.fixture

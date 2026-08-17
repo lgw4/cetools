@@ -6,7 +6,6 @@ covered separately in `tests/integration/test_overrides.py` (T045, T048).
 """
 
 import json
-import re
 
 import pytest
 from typer.testing import CliRunner
@@ -19,13 +18,6 @@ from cetools.rules import ValidationReport
 runner = CliRunner()
 
 BOTH_OUTPUT_MODES = pytest.mark.parametrize("mode", [[], ["--json"]], ids=["text", "json"])
-
-# Typer forces Rich's color mode on under CI and styles an option's first dash
-# separately from the rest, so `--json` is never contiguous text in the help
-# output. The same trap, with the same fix, is documented at length in
-# `tests/integration/test_cli.py`.
-_OPTION_TOKEN = re.compile(r"--[a-z][a-z0-9-]*")
-_ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
 _PACKAGED = Provenance(version="2026.08.1", files=(), ignored=())
 
@@ -126,14 +118,6 @@ def test_validate_outcome_is_the_same_across_both_output_modes(monkeypatch, mode
     assert invalid_result.exit_code == 1
 
 
-def test_validate_help_lists_exactly_its_own_options():
-    result = runner.invoke(app, ["validate", "--help"])
-    assert result.exit_code == 0
-    plain = _ANSI.sub("", result.stdout)
-    found = set(_OPTION_TOKEN.findall(plain))
-    # An empty set means the help screen was not parsed rather than that the
-    # command has no options, which would otherwise report as a confusing
-    # "set() != {...}"; this is the sibling of the check in test_cli.py.
-    assert found, f"no option tokens found in help output: {plain!r}"
-    assert "PATH" in plain
-    assert found == {"--json", "--help"}
+def test_validate_help_lists_exactly_its_own_options(help_text, options_in_help):
+    assert "PATH" in help_text(["validate"])
+    assert options_in_help(["validate"]) == {"--json", "--help"}
