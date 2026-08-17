@@ -168,6 +168,28 @@ class TestMalformedEntries:
         result = parse_entry("2", EntryContext.SKILL_TABLE)
         assert isinstance(result, NotationProblem)
 
+    def test_specialty_on_a_characteristic_check(self):
+        # A specialty belongs to a skill or a benefit item. A characteristic
+        # never carries one, and building the check from the base name alone
+        # would let text an author wrote have no effect and no diagnostic,
+        # while evading the exact registry match FR-013 requires: the name as
+        # written is "INT (Foo)", which no characteristics registry holds.
+        result = parse_entry("INT (Foo) 4+", EntryContext.GATE)
+        assert isinstance(result, NotationProblem)
+        assert result.found == "INT (Foo) 4+"
+        assert "characteristic check" in result.expected
+
+    def test_specialty_on_a_characteristic_adjustment(self):
+        result = parse_entry("STR (Foo) +1", EntryContext.SKILL_TABLE)
+        assert isinstance(result, NotationProblem)
+        assert result.found == "STR (Foo) +1"
+        assert "characteristic adjustment" in result.expected
+
+    def test_specialty_on_a_characteristic_adjustment_in_a_benefit_table(self):
+        result = parse_entry("SOC (Foo) -1", EntryContext.BENEFIT_TABLE)
+        assert isinstance(result, NotationProblem)
+        assert result.found == "SOC (Foo) -1"
+
     def test_negative_level_reads_as_adjustment_not_routed_to_registry(self):
         # "Pilot -1" is grammatically a well-formed adjustment; whether "Pilot"
         # is a real characteristic is a registry question, out of scope here.

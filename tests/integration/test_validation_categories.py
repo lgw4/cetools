@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from cetools import rules
 from cetools.rules import validate_rules
 
 _DATA = Path(__file__).resolve().parents[2] / "src" / "cetools" / "data"
@@ -93,6 +94,37 @@ def test_unsupported_schema_version_reports_nothing_else_from_that_file(tmp_path
     assert len(from_navy) == 1
     assert "2" in from_navy[0].found
     assert from_navy[0].location == ""
+
+
+def test_unsupported_schema_version_on_a_single_instance_kind_reports_nothing_else(tmp_path):
+    # The same assertion as the case above, for a single-instance kind rather
+    # than a career: a career is the one kind the absent-kind check cannot
+    # reach, so it cannot show that a file rejected at the header stage is
+    # then also reported missing (contracts/data-files.md rule 2, FR-002).
+    text = CHARACTERISTICS.replace("schema-version = 1", "schema-version = 99", 1)
+    assert text != CHARACTERISTICS
+    _write(tmp_path, "characteristics.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    from_file = [p for p in report.problems if p.file == "characteristics.toml"]
+    assert len(from_file) == 1
+    assert "99" in from_file[0].found
+    assert from_file[0].location == ""
+
+
+def test_a_rejected_single_instance_file_is_not_also_reported_as_absent(tmp_path):
+    # The kind is misspelled, so the file is rejected before its contents are
+    # interpreted, but it is sitting in the composed data set: naming it and
+    # then saying there is no such file states something false (FR-002).
+    text = CHARACTERISTICS.replace('schema = "characteristics"', 'schema = "charactristics"', 1)
+    assert text != CHARACTERISTICS
+    _write(tmp_path, "characteristics.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    from_file = [p for p in report.problems if p.file == "characteristics.toml"]
+    assert len(from_file) == 1
+    assert "charactristics" in from_file[0].found
+    assert from_file[0].location == ""
 
 
 def test_missing_kind_declaration(tmp_path):
@@ -195,9 +227,20 @@ def test_two_files_declare_the_same_single_instance_kind(tmp_path):
     )
 
 
-def test_a_single_instance_kind_is_absent(tmp_path):
-    text = CHARACTERISTICS.replace('schema = "characteristics"\n', "", 1)
-    _write(tmp_path, "characteristics.toml", text)
+def test_a_single_instance_kind_is_absent(tmp_path, monkeypatch):
+    # Absence has to be produced at the packaged set, not through an override.
+    # An override can only replace a file or add one, so the only way to break
+    # a shipped registry from outside is to have it rejected at the header
+    # stage — and a file that is present but rejected is not absent, which is
+    # what the two tests above forbid reporting.
+    real_discover = rules._discover_packaged
+
+    def without_characteristics():
+        files, problems = real_discover()
+        del files["characteristics.toml"]
+        return files, problems
+
+    monkeypatch.setattr(rules, "_discover_packaged", without_characteristics)
     report = validate_rules(tmp_path)
     assert not report.valid
     assert any(
