@@ -206,7 +206,7 @@ def _notation_field(
                     file=file,
                     location=location,
                     found=code,
-                    expected="a known characteristic code",
+                    expected="a code in the characteristics registry",
                 )
         case SkillGrant(skill=reference):
             problem = _skill_problem(skills.resolve(reference), reference, file, location)
@@ -219,7 +219,10 @@ def _notation_field(
         case BenefitItem(name=name):
             if name not in benefits:
                 return ValidationProblem(
-                    file=file, location=location, found=name, expected="a known benefit item"
+                    file=file,
+                    location=location,
+                    found=name,
+                    expected="a name in the benefits registry",
                 )
 
     return parsed
@@ -228,24 +231,30 @@ def _notation_field(
 def _skill_problem(
     resolution: SkillResolution, reference: SkillReference, file: str, location: str
 ) -> ValidationProblem | None:
+    """Every outcome but `VALID` names the skills registry, because FR-013
+    asks a rejected name to report which registry it was checked against.
+    """
     if resolution is SkillResolution.VALID:
         return None
     if resolution is SkillResolution.UNRECOGNIZED_SKILL:
         return ValidationProblem(
-            file=file, location=location, found=reference.name, expected="a known skill name"
+            file=file,
+            location=location,
+            found=reference.name,
+            expected="a name in the skills registry",
         )
     if resolution is SkillResolution.SPECIALTY_NOT_ALLOWED:
         return ValidationProblem(
             file=file,
             location=location,
             found=f"{reference.name} ({reference.specialty})",
-            expected=f"{reference.name} has no specialties",
+            expected=f"a bare {reference.name}: the skills registry gives it no specialties",
         )
     return ValidationProblem(
         file=file,
         location=location,
         found=f"{reference.name} ({reference.specialty})",
-        expected=f"a specialty {reference.name} recognizes",
+        expected=f"a specialty the skills registry gives {reference.name}",
     )
 
 
@@ -282,7 +291,7 @@ def _parse_throw(
                     file=file,
                     location=f"{location}.characteristic",
                     found=code,
-                    expected="a known characteristic code",
+                    expected="a code in the characteristics registry",
                 )
             )
         else:

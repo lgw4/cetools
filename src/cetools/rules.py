@@ -315,9 +315,28 @@ def _walk_toml(traversable):
             yield entry
 
 
-def _discover_packaged() -> dict[str, bytes]:
+def _unreadable(file: str, exc: OSError) -> ValidationProblem:
+    """A file that is present but cannot be read is a problem about the file
+    as a whole, so it carries no location (FR-020a, FR-022). It contributes
+    no content and the remaining files are still checked.
+    """
+    return ValidationProblem(
+        file=file,
+        found=f"a file that could not be read: {exc.strerror or exc}",
+        expected="a readable file",
+    )
+
+
+def _discover_packaged() -> tuple[dict[str, bytes], tuple[ValidationProblem, ...]]:
     root = resources.files("cetools.data")
-    return {entry.name: entry.read_bytes() for entry in _walk_toml(root)}
+    files: dict[str, bytes] = {}
+    problems: list[ValidationProblem] = []
+    for entry in _walk_toml(root):
+        try:
+            files[entry.name] = entry.read_bytes()
+        except OSError as exc:
+            problems.append(_unreadable(entry.name, exc))
+    return files, tuple(problems)
 
 
 def _packaged_kind_map(packaged: dict[str, bytes]) -> dict[str, str]:
@@ -336,41 +355,62 @@ def _packaged_kind_map(packaged: dict[str, bytes]) -> dict[str, str]:
 # --- composition ---------------------------------------------------------------
 
 
-def _collect_entry(path: Path, relative: str, candidates: dict, ignored: set) -> None:
+def _collect_entry(
+    path: Path,
+    relative: str,
+    candidates: dict,
+    ignored: set,
+    problems: list[ValidationProblem],
+) -> None:
     basename = path.name
     if basename.startswith("."):
         return
     if not basename.endswith(".toml"):
         ignored.add(basename)
         return
-    candidates[basename].append((relative, path.read_bytes()))
+    try:
+        data = path.read_bytes()
+    except OSError as exc:
+        problems.append(_unreadable(basename, exc))
+        return
+    candidates[basename].append((relative, data))
 
 
 def _compose(
     override: Path | str | None,
+    packaged: dict[str, bytes],
 ) -> tuple[dict[str, bytes], Provenance, tuple[ValidationProblem, ...]]:
-    packaged = _discover_packaged()
-
     if override is None:
         provenance = Provenance(version=package_version(), files=(), ignored=())
-        return packaged, provenance, ()
+        return dict(packaged), provenance, ()
 
     override_path = Path(override)
     if not override_path.exists():
         raise RulesDataError(f"override location does not exist: {override_path}")
+    # A location that exists but can hold no rules data, a device node or a
+    # named pipe, is the same silent failure a mistyped path is: composing it
+    # as packaged would put none of the author's house rules in force while
+    # appearing to succeed (FR-028).
+    if not override_path.is_file() and not override_path.is_dir():
+        raise RulesDataError(
+            f"override location is neither a file nor a directory: {override_path}"
+        )
 
+    problems: list[ValidationProblem] = []
     candidates: dict[str, list[tuple[str, bytes]]] = defaultdict(list)
     ignored: set[str] = set()
 
     if override_path.is_file():
-        _collect_entry(override_path, override_path.name, candidates, ignored)
+        _collect_entry(override_path, override_path.name, candidates, ignored, problems)
     else:
         for entry in sorted(override_path.rglob("*")):
-            if entry.is_file():
+            # Not `is_file()`: a broken symlink is neither a file nor a
+            # directory, and passing it over would leave a misnamed house rule
+            # silently out of force. Reading it reports it instead.
+            if not entry.is_dir():
                 relative = str(entry.relative_to(override_path))
-                _collect_entry(entry, relative, candidates, ignored)
+                _collect_entry(entry, relative, candidates, ignored, problems)
 
-    problems: list[ValidationProblem] = []
     accepted: dict[str, bytes] = {}
     for basename, items in sorted(candidates.items()):
         if len(items) > 1:
@@ -407,9 +447,10 @@ def _compose(
 
 
 def _validate(override: Path | str | None) -> tuple[RulesData | None, ValidationReport]:
-    composed, provenance, problems = _compose(override)
-    problems = list(problems)
-    packaged_kind = _packaged_kind_map(_discover_packaged())
+    packaged, read_problems = _discover_packaged()
+    composed, provenance, compose_problems = _compose(override, packaged)
+    problems = [*read_problems, *compose_problems]
+    packaged_kind = _packaged_kind_map(packaged)
 
     parsed: dict[str, tuple[str, dict]] = {}
     for basename in sorted(composed):

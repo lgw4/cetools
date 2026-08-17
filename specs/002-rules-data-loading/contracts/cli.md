@@ -41,7 +41,7 @@ subcommand of its own rather than renaming this one.
 |---|---|
 | 0 | No problem found |
 | 1 | One or more problems found |
-| 2 | Usage error, including a `PATH` that does not exist |
+| 2 | Usage error, including a `PATH` that does not exist, or that exists but is neither a file nor a directory |
 
 The choice of output mode changes neither the code nor the outcome (FR-041, SC-010).
 No code outside `{0, 1, 2}` is used, which is the set the project already had.

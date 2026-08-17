@@ -31,9 +31,11 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   discover every `.toml` file under `cetools/data/`, compose it with an
   optional override, and validate the whole set on every load: a data set
   loads only when all of it is well-formed, or refuses, naming every problem
-  it finds in one run rather than the first. `RulesData` carries the loaded
-  set; `ValidationReport` carries a report of what is wrong, if anything, and
-  the two agree on every input.
+  it finds in one run rather than the first. A file that is present but
+  cannot be read is reported like any other problem, naming the file, and the
+  remaining files are still checked rather than masked by it. `RulesData`
+  carries the loaded set; `ValidationReport` carries a report of what is
+  wrong, if anything, and the two agree on every input.
 - **The compact table notation.** `parse_entry` reads a career table cell in
   any of its four forms — a characteristic check, a characteristic
   adjustment, a skill grant, or a bare name — governed by the `EntryContext`
@@ -44,7 +46,9 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   shipped registries (`CharacteristicRegistry`, `SkillRegistry`,
   `BenefitRegistry`) resolve the names a career file's entries use, the skill
   registry reporting which of the four `SkillResolution` outcomes a reference
-  produces; `CareerDefinition` and its parts (`Throw`, `SkillTable`,
+  produces. A name no registry contains is reported with the registry it was
+  checked against, so an author knows which file to correct.
+  `CareerDefinition` and its parts (`Throw`, `SkillTable`,
   `RankLadder`, `Rank`, `MusteringOut`) are the schema a career file
   validates against.
   The Navy ships as the reference career, exercising every element of that
@@ -53,7 +57,9 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   `validate_rules(override)` accept a directory or a single file, composed
   over the packaged data set by basename: a file that matches a packaged
   name replaces it, one that does not is an addition, and everything the
-  override does not touch still comes from the packaged data.
+  override does not touch still comes from the packaged data. A location that
+  does not exist, or that is neither a file nor a directory, is refused as a
+  usage error naming it, never quietly composed as the packaged set.
 - **Provenance.** Every `CheckResult` and `ValidationReport` carries a
   `Provenance`: the installed package version, and, for an overridden load,
   each file's disposition and a reproducible SHA-256 fingerprint over its
