@@ -3,6 +3,7 @@ at library level and before any command exists (FR-028, FR-029, FR-032,
 FR-032a, FR-032b).
 """
 
+import os
 import shutil
 from pathlib import Path
 
@@ -79,6 +80,26 @@ def test_a_location_that_does_not_exist_is_a_usage_error_naming_it(tmp_path):
     missing = tmp_path / "nope"
     with pytest.raises(RulesDataError, match="nope"):
         validate_rules(missing)
+
+
+def test_a_location_that_is_neither_a_file_nor_a_directory_is_a_usage_error_naming_it(tmp_path):
+    # The same silent failure FR-028 removes for a mistyped path: a location
+    # that cannot hold rules data must not compose to the packaged set while
+    # appearing to have put the author's house rules in force.
+    fifo = tmp_path / "pipe"
+    os.mkfifo(fifo)
+    with pytest.raises(RulesDataError, match="pipe"):
+        validate_rules(fifo)
+
+
+def test_a_broken_symlink_in_an_override_is_reported_rather_than_passed_over(tmp_path):
+    (tmp_path / "navy.toml").symlink_to(tmp_path / "nowhere.toml")
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    navy_problems = [p for p in report.problems if p.file == "navy.toml"]
+    assert len(navy_problems) == 1
+    assert navy_problems[0].location == ""
+    assert "read" in navy_problems[0].found
 
 
 def test_two_override_files_sharing_a_basename_is_a_problem_naming_both(tmp_path):

@@ -7,7 +7,10 @@ this list: FR-032a reports it rather than rejecting it (see
 tests/unit/test_composition.py).
 """
 
+import os
 from pathlib import Path
+
+import pytest
 
 from cetools.rules import validate_rules
 
@@ -27,7 +30,9 @@ def test_unrecognized_name(tmp_path):
     _write(tmp_path, "navy.toml", text)
     report = validate_rules(tmp_path)
     assert not report.valid
-    assert any("Coms" in p.found for p in report.problems)
+    # FR-013 asks for the registry the name was checked against, not merely
+    # that some registry rejected it.
+    assert any("Coms" in p.found and "skills registry" in p.expected for p in report.problems)
 
 
 def test_unrecognized_key(tmp_path):
@@ -135,6 +140,33 @@ def test_file_not_well_formed_toml_at_all(tmp_path):
     navy_problems = [p for p in report.problems if p.file == "navy.toml"]
     assert len(navy_problems) == 1
     assert navy_problems[0].location == ""
+
+
+@pytest.mark.skipif(
+    hasattr(os, "geteuid") and os.geteuid() == 0,
+    reason="root reads a mode-000 file regardless of its mode",
+)
+def test_file_cannot_be_read(tmp_path):
+    # The other half of SC-002's "not well-formed at all, or cannot be read".
+    # A second override file carries its own mistake, because FR-020a requires
+    # the remaining files to be checked rather than masked by the unreadable one.
+    unreadable = _write(tmp_path, "navy.toml", NAVY)
+    _write(
+        tmp_path,
+        "scouts.toml",
+        NAVY.replace('name = "Navy"', 'name = "Scouts"', 1).replace('"Comms"', '"Coms"', 1),
+    )
+    unreadable.chmod(0o000)
+    try:
+        report = validate_rules(tmp_path)
+    finally:
+        unreadable.chmod(0o600)
+    assert not report.valid
+    navy_problems = [p for p in report.problems if p.file == "navy.toml"]
+    assert len(navy_problems) == 1
+    assert navy_problems[0].location == ""
+    assert "read" in navy_problems[0].found
+    assert any(p.file == "scouts.toml" and "Coms" in p.found for p in report.problems)
 
 
 def test_two_careers_in_force_declare_the_same_name(tmp_path):

@@ -8,6 +8,7 @@ FR-030, FR-031, FR-046).
 """
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -65,6 +66,17 @@ def test_a_missing_override_location_is_a_usage_error(tmp_path, command):
     assert result.stdout == ""
 
 
+@pytest.mark.parametrize("command", [["check", "--rules-data"], ["validate"]])
+def test_an_override_location_that_is_neither_file_nor_directory_is_a_usage_error(
+    tmp_path, command
+):
+    fifo = tmp_path / "pipe"
+    os.mkfifo(fifo)
+    result = runner.invoke(app, [*command, str(fifo)])
+    assert result.exit_code == 2
+    assert result.stdout == ""
+
+
 def test_a_value_omitted_from_the_override_is_absent_not_inherited(tmp_path):
     assert _COMMISSION_BLOCK in NAVY
     override = tmp_path / "navy.toml"
@@ -94,7 +106,9 @@ def test_an_unrecognized_name_in_an_override_fails_like_a_shipped_file_would(tmp
         load_rules(override)
     problems = excinfo.value.problems
     assert any(
-        p.file == "navy.toml" and p.found == "Coms" and p.expected == "a known skill name"
+        p.file == "navy.toml"
+        and p.found == "Coms"
+        and p.expected == "a name in the skills registry"
         for p in problems
     )
 
