@@ -37,12 +37,16 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
 - **The compact table notation.** `parse_entry` reads a career table cell in
   any of its four forms — a characteristic check, a characteristic
   adjustment, a skill grant, or a bare name — governed by the `EntryContext`
-  the field it came from admits.
+  the field it came from admits. It returns a `NotationProblem` rather than
+  raising for a malformed entry or a form its context does not admit, so a
+  caller can collect every problem in one pass.
 - **The reference career, and the registries that give it meaning.** Three
   shipped registries (`CharacteristicRegistry`, `SkillRegistry`,
-  `BenefitRegistry`) resolve the names a career file's entries use;
-  `CareerDefinition` and its parts (`Throw`, `SkillTable`, `RankLadder`,
-  `Rank`, `MusteringOut`) are the schema a career file validates against.
+  `BenefitRegistry`) resolve the names a career file's entries use, the skill
+  registry reporting which of the four `SkillResolution` outcomes a reference
+  produces; `CareerDefinition` and its parts (`Throw`, `SkillTable`,
+  `RankLadder`, `Rank`, `MusteringOut`) are the schema a career file
+  validates against.
   The Navy ships as the reference career, exercising every element of that
   schema.
 - **House rules without forking code.** `load_rules(override)` and

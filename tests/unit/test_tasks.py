@@ -211,7 +211,7 @@ def test_check_rejects_a_task_roll_that_is_not_a_count_and_sides_throw():
     # The loader guards this, but a synthetic `rules=` bypasses the loader
     # entirely and is the documented way a house-rule consumer supplies its
     # own table, so `check` owes the same typed failure rather than a bare
-    # TypeError (FR-029).
+    # TypeError (001-dice-task-engine FR-029).
     with pytest.raises(RulesDataError, match="task.roll"):
         check(Roller(1), rules=_rules(roll="d66"))
 
@@ -222,10 +222,11 @@ def test_check_rejects_a_task_roll_that_is_not_dice_notation():
 
 
 def test_characteristic_score_in_no_band_raises_rules_data_error():
-    # FR-015: because the table is editable under FR-022, a score falling outside
-    # every band in the data then in force is a rules-data error, never a silent
-    # zero. Gap detection is deliberately deferred to lookup time, which makes
-    # this raise the only thing between a holed table and a wrong answer.
+    # 001-dice-task-engine FR-015: because the table is editable under that
+    # feature's FR-022, a score falling outside every band in the data then in
+    # force is a rules-data error, never a silent zero. Gap detection is
+    # deliberately deferred to lookup time, which makes this raise the only
+    # thing between a holed table and a wrong answer.
     gapped = _parameters(
         characteristic_bands=(
             Band(minimum=0, maximum=2, dm=-2),
@@ -249,8 +250,9 @@ def test_check_with_a_score_in_no_band_raises_rules_data_error():
         check(Roller(1), characteristic=4, skill=0, rules=rules)
 
 
-# --- FR-018: `dice_total` is `sum(faces)`, and a house-ruled roll modifier
-# --- is itemized like every other applied modifier rather than folded in
+# --- 001-dice-task-engine FR-018: `dice_total` is `sum(faces)`, and a house-
+# --- ruled roll modifier is itemized like every other applied modifier rather
+# --- than folded in
 
 
 def test_house_ruled_roll_modifier_is_itemized_and_dice_total_stays_sum_of_faces():

@@ -17,9 +17,9 @@ from cetools import (
     # provenance
     Provenance, FileProvenance, Disposition,
     # registries
-    CharacteristicRegistry, SkillRegistry, BenefitRegistry,
+    CharacteristicRegistry, SkillRegistry, BenefitRegistry, SkillResolution,
     # notation
-    parse_entry, SkillReference, SkillGrant,
+    parse_entry, EntryContext, NotationProblem, SkillReference, SkillGrant,
     CharacteristicCheck, CharacteristicAdjustment, BenefitItem,
     # careers
     CareerDefinition, Throw, SkillTable, RankLadder, Rank, MusteringOut,
@@ -115,17 +115,38 @@ Field-by-field detail for the registry, career, and notation types is in
 ## Notation
 
 ```python
-def parse_entry(text: str, context: EntryContext) -> TableEntry: ...
+def parse_entry(text: str, context: EntryContext) -> Entry | NotationProblem: ...
+
+@dataclass(frozen=True, slots=True)
+class NotationProblem:
+    found: str
+    expected: str
 ```
 
-`EntryContext` is a `StrEnum` with `SKILL_TABLE`, `BENEFIT_TABLE`, and `GATE`.
-`TableEntry` is the union of the five notation types. Raises `RulesDataError` for a
-malformed entry or a form the context does not admit; the loader catches it and
-records a `ValidationProblem` rather than letting it escape.
+`EntryContext` is a plain `Enum` of `auto()` members with `SKILL_TABLE`,
+`BENEFIT_TABLE`, and `GATE`. `Entry` is the union of the five notation types.
+
+`parse_entry` **returns** a `NotationProblem` for a malformed entry or a form the
+context does not admit; it raises nothing. That is the "validation is a function,
+not a control flow" decision in plan.md's Summary applied one level down: the
+caller, which knows the field the text came from, turns the problem into a located
+`ValidationProblem`, and a parser that raised would make collecting every problem
+in one run (FR-021) a matter of discipline instead of structure. `NotationProblem`
+carries no file or location for the same reason: the parser does not know them.
+
+`EntryContext` is deliberately not a `StrEnum`, unlike `Disposition`. Nothing reads
+or writes an `EntryContext` value as text: it is a dict key and an identity
+comparison inside the library, never rendered, never serialized, and never read
+from a data file. `Disposition` earns its `StrEnum` base because `"replaced"` and
+`"added"` are the strings both output modes emit. Adding string behavior to
+`EntryContext` would be surface with no caller, which Principle VI rejects.
+`SkillResolution` is a plain `Enum` for the same reason.
 
 Registry validation is separate from parsing: `parse_entry` produces a
 `SkillReference` for `Vac Suit` and the registry is what rejects it, so a caller
-can parse an entry without a data set in hand.
+can parse an entry without a data set in hand. `SkillRegistry.resolve` returns a
+`SkillResolution` — `VALID`, `UNRECOGNIZED_SKILL`, `SPECIALTY_NOT_ALLOWED`, or
+`UNRECOGNIZED_SPECIALTY` (FR-007) — rather than raising, on the same reasoning.
 
 ## Changed: `check`
 

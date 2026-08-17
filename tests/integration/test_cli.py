@@ -9,8 +9,8 @@ from cetools.cli import app
 
 runner = CliRunner()
 
-# Signed, because a seed may carry a minus sign (FR-002) and an unsigned pattern
-# would silently stop matching the moment one did.
+# Signed, because a seed may carry a minus sign (001-dice-task-engine FR-002)
+# and an unsigned pattern would silently stop matching the moment one did.
 _REPORTED_SEED = r"Seed:\s+([+-]?\d+)"
 
 ROLL_AND_CHECK = pytest.mark.parametrize(
@@ -56,9 +56,10 @@ def test_roll_unknown_option_exits_two():
 
 
 def test_roll_missing_required_argument_exits_two_with_empty_stdout():
-    # FR-031 names "missing required arguments" as a usage error in its own
-    # right, and FR-027's "nothing at all is written to the output stream"
-    # binds every error, not only the ones the library raises.
+    # 001-dice-task-engine FR-031 names "missing required arguments" as a usage
+    # error in its own right, and that feature's FR-027, "nothing at all is
+    # written to the output stream", binds every error, not only the ones the
+    # library raises.
     result = runner.invoke(app, ["roll"])
     assert result.exit_code == 2
     assert result.stdout == ""
@@ -72,9 +73,10 @@ def test_version_prints_package_version_and_exits_zero():
 
 
 def test_roll_help_lists_exactly_its_own_options(help_text, options_in_help):
-    # FR-025 asks for "exactly the options that subcommand accepts and no
-    # others", stated as something checkable: an allowlist plus a denylist would
-    # pass with a spurious option added, so the whole set is compared.
+    # 001-dice-task-engine FR-025 asks for "exactly the options that subcommand
+    # accepts and no others", stated as something checkable: an allowlist plus a
+    # denylist would pass with a spurious option added, so the whole set is
+    # compared.
     assert "NOTATION" in help_text(["roll"])
     assert options_in_help(["roll"]) == {"--seed", "--json", "--help"}
 
@@ -143,8 +145,9 @@ def test_check_unknown_difficulty_exits_one_with_empty_stdout():
     "raw", ["cover", "label=x", "=-2"], ids=["missing-equals", "non-numeric", "empty-label"]
 )
 def test_check_malformed_dm_exits_two_with_empty_stdout(raw, mode):
-    # SC-006: `--json` changes none of the exit statuses, and FR-027's empty-
-    # stdout rule holds for a usage error exactly as it does for a library one.
+    # 001-dice-task-engine SC-006: `--json` changes none of the exit statuses,
+    # and that feature's FR-027 empty-stdout rule holds for a usage error
+    # exactly as it does for a library one.
     result = runner.invoke(app, ["check", "--dm", raw, "--seed", "1"] + mode)
     assert result.exit_code == 2
     assert result.stdout == ""

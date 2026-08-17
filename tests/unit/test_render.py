@@ -506,8 +506,8 @@ def test_as_json_validation_report_round_trips_through_json():
 @pytest.mark.parametrize("render", [as_text, as_dict, as_json])
 def test_rendering_an_unregistered_type_raises_a_cetools_error(render):
     # `as_text`, `as_dict`, and `as_json` are all public, so a caller can reach
-    # the fallback. FR-029 is unconditional and each fallback is a condition the
-    # code explicitly detects, so the miss is signaled through the base class
-    # every other library error descends from.
+    # the fallback. 001-dice-task-engine FR-029 is unconditional and each
+    # fallback is a condition the code explicitly detects, so the miss is
+    # signaled through the base class every other library error descends from.
     with pytest.raises(CetoolsError, match="object"):
         render(object())

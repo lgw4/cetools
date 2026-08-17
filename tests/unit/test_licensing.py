@@ -68,9 +68,9 @@ def _claims_compatibility(text: str) -> bool:
 def _assert_claim_carries_attribution(text: str, where: str) -> None:
     """Assert `text` either makes no compatibility claim or attributes it.
 
-    The constitution's Compatibility-Statement clause and FR-035 allow either
-    route; what they forbid is claiming compatibility without the attribution
-    and the statement of non-affiliation.
+    The constitution's Compatibility-Statement clause and 001-dice-task-engine
+    FR-035 allow either route; what they forbid is claiming compatibility
+    without the attribution and the statement of non-affiliation.
     """
     if not _claims_compatibility(text):
         return
@@ -138,9 +138,10 @@ def _cli_help() -> str:
     return "\n".join(runner.invoke(app, args).stdout for args in screens)
 
 
-# FR-035 binds "any text this feature writes", and CONTRIBUTING.md tells
-# contributors the rule applies "anywhere (README, PyPI description, CLI help)".
-# Guarding two of those surfaces left the other two documented and unenforced.
+# 001-dice-task-engine FR-035 binds "any text this feature writes", and
+# CONTRIBUTING.md tells contributors the rule applies "anywhere (README, PyPI
+# description, CLI help)". Guarding two of those surfaces left the other two
+# documented and unenforced.
 CLAIM_SURFACES = {
     "README.md": lambda: (_repo_root() / "README.md").read_text(encoding="utf-8"),
     "CHANGELOG.md": lambda: (_repo_root() / "CHANGELOG.md").read_text(encoding="utf-8"),
@@ -195,10 +196,11 @@ def test_the_guard_reads_a_compatibility_claim_as_a_claim():
 def test_section_15_game_data_line_covers_every_data_file_actually_present(
     repo_root, section_15_notices
 ):
-    # FR-047, SC-016: derive what the game-data notice must cover from the data
-    # files actually present rather than comparing the chain against a fixed
-    # expected text. A check written the latter way passes unchanged when a
-    # file is added, which is exactly the failure this test exists to catch.
+    # 002-rules-data-loading FR-047 and SC-016: derive what the game-data notice
+    # must cover from the data files actually present rather than comparing the
+    # chain against a fixed expected text. A check written the latter way passes
+    # unchanged when a file is added, which is exactly the failure this test
+    # exists to catch.
     game_data_line = section_15_notices[-1]
     covered_prefix = "src/cetools/data/"
     assert (

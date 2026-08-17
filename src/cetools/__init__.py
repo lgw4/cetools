@@ -19,12 +19,18 @@ from cetools.notation import (
     CharacteristicAdjustment,
     CharacteristicCheck,
     EntryContext,
+    NotationProblem,
     SkillGrant,
     SkillReference,
     parse_entry,
 )
 from cetools.provenance import Disposition, FileProvenance, Provenance
-from cetools.registries import BenefitRegistry, CharacteristicRegistry, SkillRegistry
+from cetools.registries import (
+    BenefitRegistry,
+    CharacteristicRegistry,
+    SkillRegistry,
+    SkillResolution,
+)
 from cetools.render import as_dict, as_json, as_text
 from cetools.rules import RulesData, ValidationReport, load_rules, validate_rules
 from cetools.tasks import Band, CheckResult, Modifier, TaskParameters, check
@@ -58,9 +64,11 @@ __all__ = [
     "Disposition",
     "CharacteristicRegistry",
     "SkillRegistry",
+    "SkillResolution",
     "BenefitRegistry",
     "parse_entry",
     "EntryContext",
+    "NotationProblem",
     "SkillReference",
     "SkillGrant",
     "CharacteristicCheck",

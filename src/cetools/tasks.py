@@ -24,7 +24,7 @@ def _check_dice(roll: str) -> tuple[int, int, int]:
     literal, which composes two faces into a two-digit table value rather
     than describing a count and a side count: a check needs the latter, and
     accepting it would surface as a `TypeError` that no `CetoolsError`
-    handler catches (FR-029).
+    handler catches (001-dice-task-engine FR-029).
     """
     try:
         parsed = parse_notation(roll)
@@ -117,16 +117,18 @@ def check(
 
     Modifiers are applied in fixed order: difficulty, characteristic (if
     given), skill, then the caller's `modifiers` in the order supplied.
-    `difficulty=None` resolves through `parameters.default_difficulty()`;
+    `difficulty=None` resolves through `rules.task_parameters.default_difficulty()`;
     `skill=None` applies the unskilled penalty, while `skill=0` is trained
-    at level 0. The returned `CheckResult` carries `rules.provenance` (FR-037).
+    at level 0. The returned `CheckResult` carries `rules.provenance`
+    (002-rules-data-loading FR-037).
 
-    A `task.roll` carrying a flat modifier (a house rule under FR-022, since
-    the shipped `2d6` has none) is itemized like every other modifier rather
-    than folded into `dice_total`, which stays `sum(faces)` as data-model.md
-    and contracts/json-output.md define it. FR-018 requires every applied
-    modifier to be itemized, and a `dice_total` that silently included one
-    would make the rendered `(sum N)` false.
+    A `task.roll` carrying a flat modifier (a house rule under
+    001-dice-task-engine FR-022, since the shipped `2d6` has none) is itemized
+    like every other modifier rather than folded into `dice_total`, which stays
+    `sum(faces)` as data-model.md and contracts/json-output.md define it.
+    001-dice-task-engine FR-018 requires every applied modifier to be itemized,
+    and a `dice_total` that silently included one would make the rendered
+    `(sum N)` false.
     """
     if rules is None:
         from cetools.rules import load_rules

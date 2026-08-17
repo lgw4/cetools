@@ -82,11 +82,12 @@ def as_text(result) -> str:
     An unregistered type raises `CetoolsError`. Unlike an empty modifier
     list, which renders because it is a check with nothing applied rather
     than a condition the library detects, this fallback exists precisely to
-    detect the miss, and FR-029 admits no exception. The base class is
-    raised rather than a fourth leaf: no existing leaf describes a dispatch
-    miss, and a new public error type for a path no supported caller reaches
-    is the speculative surface Principle VI rejects. What FR-029 buys a
-    caller — one `except CetoolsError` catches everything — holds either way.
+    detect the miss, and 001-dice-task-engine FR-029 admits no exception. The
+    base class is raised rather than a fourth leaf: no existing leaf describes a
+    dispatch miss, and a new public error type for a path no supported caller
+    reaches is the speculative surface Principle VI rejects. What that
+    requirement buys a caller — one `except CetoolsError` catches everything —
+    holds either way.
     """
     raise CetoolsError(f"no as_text rendering registered for {type(result).__name__}")
 

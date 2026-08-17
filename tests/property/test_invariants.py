@@ -16,10 +16,10 @@ from cetools.notation import (
 from cetools.rules import load_rules
 from cetools.tasks import Modifier, check
 
-# Deliberately unbounded on both sides: FR-002 puts no upper bound on the
-# magnitude of an integer seed and permits a negative sign, so a strategy
-# clamped to `0..2**64-1` would never exercise either half of what the
-# requirement allows.
+# Deliberately unbounded on both sides: 001-dice-task-engine FR-002 puts no
+# upper bound on the magnitude of an integer seed and permits a negative sign,
+# so a strategy clamped to `0..2**64-1` would never exercise either half of what
+# the requirement allows.
 seeds = st.one_of(
     st.integers(min_value=-(2**200), max_value=2**200), st.text(min_size=1, max_size=20)
 )
@@ -96,8 +96,9 @@ def test_check_total_equals_dice_total_plus_sum_of_modifiers(
 def test_same_seed_and_arguments_yield_equal_check(
     seed, difficulty, characteristic, skill, situational
 ):
-    # FR-006 binds programmatic invocation as well as command invocation, and
-    # the throw side of that was already covered; this is the check side.
+    # 001-dice-task-engine FR-006 binds programmatic invocation as well as
+    # command invocation, and the throw side of that was already covered; this
+    # is the check side.
     def resolve():
         return check(
             Roller(seed),

@@ -40,7 +40,7 @@ def test_rules_data_exposes_every_component():
     assert "INT" in rules.characteristics
     assert "Low Passage" in rules.benefits
     resolution = rules.skills.resolve(cetools.SkillReference(name="Piloting", specialty=None))
-    assert resolution.name == "VALID"
+    assert resolution is cetools.SkillResolution.VALID
 
 
 def test_career_definition_exposes_throws_tables_ladders_and_mustering_out():
@@ -68,6 +68,39 @@ def test_parse_entry_covers_all_four_notation_forms():
     assert cetools.parse_entry(
         "Low Passage", cetools.EntryContext.BENEFIT_TABLE
     ) == cetools.BenefitItem(name="Low Passage")
+
+
+def test_parse_entry_reports_a_malformed_entry_as_a_notation_problem():
+    """The failure path of `parse_entry`, named through the package.
+
+    `parse_entry` returns rather than raises (plan.md: validation is a
+    function, not a control flow), so a library-only caller has to be able
+    to name the type it gets back.
+    """
+    malformed = cetools.parse_entry("Piloting +", cetools.EntryContext.SKILL_TABLE)
+    assert isinstance(malformed, cetools.NotationProblem)
+    assert malformed.found == "Piloting +"
+    assert malformed.expected
+
+    inadmissible = cetools.parse_entry("Piloting 2", cetools.EntryContext.BENEFIT_TABLE)
+    assert isinstance(inadmissible, cetools.NotationProblem)
+    assert inadmissible.found == "Piloting 2"
+
+
+def test_skill_resolution_covers_all_four_outcomes():
+    """Every outcome of `SkillRegistry.resolve`, compared against the
+    exported enum rather than against a member's name.
+    """
+    skills = cetools.load_rules().skills
+
+    def resolve(name: str, specialty: str | None) -> cetools.SkillResolution:
+        return skills.resolve(cetools.SkillReference(name=name, specialty=specialty))
+
+    assert resolve("Gun Combat", "Slug Rifle") is cetools.SkillResolution.VALID
+    assert resolve("Gun Combat", None) is cetools.SkillResolution.VALID
+    assert resolve("Vac Suit", None) is cetools.SkillResolution.UNRECOGNIZED_SKILL
+    assert resolve("Piloting", "Small Craft") is cetools.SkillResolution.SPECIALTY_NOT_ALLOWED
+    assert resolve("Gun Combat", "Boomerang") is cetools.SkillResolution.UNRECOGNIZED_SPECIALTY
 
 
 def test_an_invalid_override_load_raises_with_located_problems(tmp_path):
