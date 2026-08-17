@@ -14,7 +14,7 @@ Packaged:
 ```json
 {
   "source": "packaged",
-  "version": "2026.08.1",
+  "version": "2026.8.1",
   "files": [],
   "ignored": []
 }
@@ -25,7 +25,7 @@ Overridden:
 ```json
 {
   "source": "overridden",
-  "version": "2026.08.1",
+  "version": "2026.8.1",
   "files": [
     {
       "file": "navy.toml",
@@ -81,7 +81,7 @@ One key appended; every existing key, its position, and its type are unchanged.
   "seed": "14333185781139156525",
   "provenance": {
     "source": "packaged",
-    "version": "2026.08.1",
+    "version": "2026.8.1",
     "files": [],
     "ignored": []
   }
@@ -109,7 +109,7 @@ New. Produced by `cetools validate --json` and by `as_dict(ValidationReport)`.
   "file_count": 5,
   "provenance": {
     "source": "packaged",
-    "version": "2026.08.1",
+    "version": "2026.8.1",
     "files": [],
     "ignored": []
   },

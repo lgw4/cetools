@@ -23,7 +23,7 @@ NAVY = (
     Path(__file__).resolve().parents[2] / "src" / "cetools" / "data" / "careers" / "navy.toml"
 ).read_text(encoding="utf-8")
 
-_COMMISSION_BLOCK = '[throws.commission]\ncharacteristic = "SOC"\ntarget = 9\n\n'
+_COMMISSION_BLOCK = '[throws.commission]\ncharacteristic = "SOC"\ntarget = 7\n\n'
 
 
 def test_an_overridden_survival_throw_reaches_the_loaded_career(tmp_path):
@@ -89,12 +89,12 @@ def test_every_file_the_override_does_not_contain_still_comes_from_the_packaged_
 
 def test_an_unrecognized_name_in_an_override_fails_like_a_shipped_file_would(tmp_path):
     override = tmp_path / "navy.toml"
-    override.write_text(NAVY.replace('"Vacc Suit"', '"Vac Suit"', 1), encoding="utf-8")
+    override.write_text(NAVY.replace('"Comms"', '"Coms"', 1), encoding="utf-8")
     with pytest.raises(RulesDataError) as excinfo:
         load_rules(override)
     problems = excinfo.value.problems
     assert any(
-        p.file == "navy.toml" and p.found == "Vac Suit" and p.expected == "a known skill name"
+        p.file == "navy.toml" and p.found == "Coms" and p.expected == "a known skill name"
         for p in problems
     )
 

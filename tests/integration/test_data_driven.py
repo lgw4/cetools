@@ -14,43 +14,50 @@ NAVY = (_DATA / "careers" / "navy.toml").read_text(encoding="utf-8")
 SKILLS = (_DATA / "registries" / "skills.toml").read_text(encoding="utf-8")
 
 
+_PROMOTION_BLOCK = '[throws.promotion]\ncharacteristic = "EDU"\ntarget = 6\n'
+_TACTICS_ENTRY = '"Tactics" = []\n'
+
+
 def test_a_career_throw_takes_effect_with_no_code_edit(tmp_path):
+    assert _PROMOTION_BLOCK in NAVY
     override = tmp_path / "navy.toml"
-    override.write_text(NAVY.replace("target = 8", "target = 11", 1), encoding="utf-8")
+    override.write_text(
+        NAVY.replace(_PROMOTION_BLOCK, _PROMOTION_BLOCK.replace("target = 6", "target = 11"), 1),
+        encoding="utf-8",
+    )
     rules = load_rules(override)
     assert rules.careers["navy"].throws["promotion"].target == 11
 
 
 def test_a_skill_table_entry_takes_effect_with_no_code_edit(tmp_path):
     override = tmp_path / "navy.toml"
-    override.write_text(NAVY.replace('"Ship\'s Boat"', '"Admin"', 1), encoding="utf-8")
+    override.write_text(NAVY.replace('"Comms"', '"Advocate"', 1), encoding="utf-8")
     rules = load_rules(override)
     entries = rules.careers["navy"].tables["service"].entries
-    assert entries[0].name == "Admin"
+    assert entries[0].name == "Advocate"
 
 
 def test_a_rank_bonus_takes_effect_with_no_code_edit(tmp_path):
     override = tmp_path / "navy.toml"
     override.write_text(
-        NAVY.replace('bonus = "Gunnery 1"', 'bonus = "Gunnery 3"', 1), encoding="utf-8"
+        NAVY.replace('bonus = "Zero-G 1"', 'bonus = "Zero-G 3"', 1), encoding="utf-8"
     )
     rules = load_rules(override)
     (enlisted,) = (ladder for ladder in rules.careers["navy"].ladders if ladder.name == "enlisted")
-    (petty_officer,) = (rank for rank in enlisted.ranks if rank.title == "Petty Officer")
-    assert petty_officer.bonus.level == 3
+    (starman,) = (rank for rank in enlisted.ranks if rank.title == "Starman")
+    assert starman.bonus.level == 3
 
 
 def test_removing_a_registry_entry_breaks_every_career_reference_to_it(tmp_path):
-    assert '"Gunnery" = []\n' in SKILLS
+    assert _TACTICS_ENTRY in SKILLS
     override = tmp_path / "skills.toml"
-    override.write_text(SKILLS.replace('"Gunnery" = []\n', "", 1), encoding="utf-8")
+    override.write_text(SKILLS.replace(_TACTICS_ENTRY, "", 1), encoding="utf-8")
 
     report = validate_rules(tmp_path)
 
     assert not report.valid
-    gunnery_locations = {p.location for p in report.problems if "Gunnery" in p.found}
-    assert gunnery_locations == {
-        "tables.service.entries[3]",
-        "tables.advanced.entries[4]",
-        "ladders[0].ranks[1].bonus",
+    tactics_locations = {p.location for p in report.problems if "Tactics" in p.found}
+    assert tactics_locations == {
+        "tables.advanced-education.entries[5]",
+        "ladders[1].ranks[2].bonus",
     }

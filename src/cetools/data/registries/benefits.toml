@@ -1,8 +1,8 @@
 # Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
 #
-# Mustering-out benefit item names.
+# Mustering-out benefit item names referenced by the shipped career data.
 
 schema = "benefits"
 schema-version = 1
 
-benefits = ["Low Passage", "Middle Passage", "High Passage", "Blade", "Gun", "Ship Share"]
+benefits = ["Low Passage", "Mid Passage", "High Passage", "Weapon", "Explorers' Society"]

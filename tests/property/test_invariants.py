@@ -135,7 +135,12 @@ def test_check_success_equals_total_at_least_target(
 # `_words` excludes digits, signs, and parentheses so a generated name never
 # collides with a suffix token or a specialty delimiter; contracts/notation.md
 # reserves those to the grammar's suffix and specialty positions, not the name.
-_words = st.text(alphabet=string.ascii_letters + "'-/", min_size=1, max_size=8)
+# A hyphen is admitted inside a word, for names like `Zero-G`, but a word that
+# is nothing but a hyphen is excluded: as the trailing token it is the bare
+# sign the grammar reports as malformed, not part of a name.
+_words = st.text(alphabet=string.ascii_letters + "'-/", min_size=1, max_size=8).filter(
+    lambda word: word != "-"
+)
 names = st.lists(_words, min_size=1, max_size=3).map(" ".join)
 uints = st.integers(min_value=0, max_value=999)
 signs = st.sampled_from(["+", "-"])

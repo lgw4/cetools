@@ -23,11 +23,11 @@ def _write(tmp_path: Path, name: str, text: str) -> Path:
 
 
 def test_unrecognized_name(tmp_path):
-    text = NAVY.replace('"Vacc Suit"', '"Vac Suit"', 1)
+    text = NAVY.replace('"Comms"', '"Coms"', 1)
     _write(tmp_path, "navy.toml", text)
     report = validate_rules(tmp_path)
     assert not report.valid
-    assert any("Vac Suit" in p.found for p in report.problems)
+    assert any("Coms" in p.found for p in report.problems)
 
 
 def test_unrecognized_key(tmp_path):
@@ -39,17 +39,17 @@ def test_unrecognized_key(tmp_path):
 
 
 def test_malformed_entry(tmp_path):
-    text = NAVY.replace('"Vacc Suit"', '"Vacc Suit 2x"', 1)
+    text = NAVY.replace('"Comms"', '"Comms 2x"', 1)
     _write(tmp_path, "navy.toml", text)
     report = validate_rules(tmp_path)
     assert not report.valid
-    assert any("Vacc Suit 2x" in p.found for p in report.problems)
+    assert any("Comms 2x" in p.found for p in report.problems)
 
 
 def test_well_formed_entry_of_a_form_its_field_does_not_admit(tmp_path):
     # "INT 4+" is a well-formed characteristic check, but tables.service.entries
     # is a skill-table context, which does not admit the check form.
-    text = NAVY.replace('"Vacc Suit"', '"INT 4+"', 1)
+    text = NAVY.replace('"Comms"', '"INT 4+"', 1)
     _write(tmp_path, "navy.toml", text)
     report = validate_rules(tmp_path)
     assert not report.valid
@@ -57,7 +57,7 @@ def test_well_formed_entry_of_a_form_its_field_does_not_admit(tmp_path):
 
 
 def test_missing_required_element(tmp_path):
-    text = NAVY.replace('[throws.survival]\ncharacteristic = "END"\ntarget = 5\n\n', "")
+    text = NAVY.replace('[throws.survival]\ncharacteristic = "INT"\ntarget = 5\n\n', "")
     assert text != NAVY
     _write(tmp_path, "navy.toml", text)
     report = validate_rules(tmp_path)
@@ -67,8 +67,8 @@ def test_missing_required_element(tmp_path):
 
 def test_wrong_value_type(tmp_path):
     text = NAVY.replace(
-        '[throws.survival]\ncharacteristic = "END"\ntarget = 5\n',
-        '[throws.survival]\ncharacteristic = "END"\ntarget = "five"\n',
+        '[throws.survival]\ncharacteristic = "INT"\ntarget = 5\n',
+        '[throws.survival]\ncharacteristic = "INT"\ntarget = "five"\n',
     )
     assert text != NAVY
     _write(tmp_path, "navy.toml", text)
@@ -87,6 +87,7 @@ def test_unsupported_schema_version_reports_nothing_else_from_that_file(tmp_path
     from_navy = [p for p in report.problems if p.file == "navy.toml"]
     assert len(from_navy) == 1
     assert "2" in from_navy[0].found
+    assert from_navy[0].location == ""
 
 
 def test_missing_kind_declaration(tmp_path):
@@ -94,7 +95,23 @@ def test_missing_kind_declaration(tmp_path):
     _write(tmp_path, "navy.toml", text)
     report = validate_rules(tmp_path)
     assert not report.valid
-    assert any(p.file == "navy.toml" and p.found == "missing" for p in report.problems)
+    assert any(
+        p.file == "navy.toml" and p.found == "missing" and p.location == ""
+        for p in report.problems
+    )
+
+
+def test_unrecognized_kind_declaration(tmp_path):
+    # The other half of SC-002's "missing or unrecognized kind declaration":
+    # a file that declares a kind nothing in the schema set answers to.
+    text = NAVY.replace('schema = "career"', 'schema = "starships"', 1)
+    _write(tmp_path, "navy.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        p.file == "navy.toml" and "starships" in p.found and p.location == ""
+        for p in report.problems
+    )
 
 
 def test_replacement_declared_kind_does_not_match_the_kind_it_replaces(tmp_path):
@@ -103,7 +120,10 @@ def test_replacement_declared_kind_does_not_match_the_kind_it_replaces(tmp_path)
     report = validate_rules(tmp_path)
     assert not report.valid
     assert any(
-        p.file == "navy.toml" and "career" in p.expected and "benefits" in p.found
+        p.file == "navy.toml"
+        and "career" in p.expected
+        and "benefits" in p.found
+        and p.location == ""
         for p in report.problems
     )
 
@@ -122,7 +142,10 @@ def test_two_careers_in_force_declare_the_same_name(tmp_path):
     report = validate_rules(tmp_path)
     assert not report.valid
     assert any(
-        "Navy" in p.found and "navy.toml" in p.file and "scouts.toml" in p.file
+        "Navy" in p.found
+        and "navy.toml" in p.file
+        and "scouts.toml" in p.file
+        and p.location == ""
         for p in report.problems
     )
 
@@ -135,6 +158,7 @@ def test_two_files_declare_the_same_single_instance_kind(tmp_path):
         "characteristics" in p.found
         and "characteristics.toml" in p.file
         and "characteristics2.toml" in p.file
+        and p.location == ""
         for p in report.problems
     )
 
@@ -145,7 +169,8 @@ def test_a_single_instance_kind_is_absent(tmp_path):
     report = validate_rules(tmp_path)
     assert not report.valid
     assert any(
-        "characteristics" in p.expected and "exactly one" in p.expected for p in report.problems
+        "characteristics" in p.expected and "exactly one" in p.expected and p.location == ""
+        for p in report.problems
     )
 
 
@@ -156,18 +181,18 @@ def test_two_override_files_share_a_basename(tmp_path):
     _write(tmp_path / "b", "navy.toml", NAVY)
     report = validate_rules(tmp_path)
     assert not report.valid
-    assert any("navy.toml" in p.found for p in report.problems)
+    assert any("navy.toml" in p.found and p.location == "" for p in report.problems)
 
 
 def test_sc003_four_distinct_problems_in_one_file_report_together(tmp_path):
     text = (
-        NAVY.replace('"Vacc Suit"', '"Vac Suit"', 1)
+        NAVY.replace('"Comms"', '"Coms"', 1)
         .replace("[mustering-out]\n", "[mustering-out]\nchash = 5\n")
         .replace(
-            '[throws.survival]\ncharacteristic = "END"\ntarget = 5\n',
-            '[throws.survival]\ncharacteristic = "END"\ntarget = "five"\n',
+            '[throws.survival]\ncharacteristic = "INT"\ntarget = 5\n',
+            '[throws.survival]\ncharacteristic = "INT"\ntarget = "five"\n',
         )
-        .replace('"Gunnery", "Computer"', '"Gunnery (Turret)", "Computer"', 1)
+        .replace('"Gunnery", "Melee Combat"', '"Gunnery (Turret)", "Melee Combat"', 1)
     )
     assert text.count('"Gunnery (Turret)"') == 1
     _write(tmp_path, "navy.toml", text)

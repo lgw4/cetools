@@ -39,7 +39,7 @@ def test_rules_data_exposes_every_component():
     assert rules.provenance.is_packaged
     assert "INT" in rules.characteristics
     assert "Low Passage" in rules.benefits
-    resolution = rules.skills.resolve(cetools.SkillReference(name="Pilot", specialty=None))
+    resolution = rules.skills.resolve(cetools.SkillReference(name="Piloting", specialty=None))
     assert resolution.name == "VALID"
 
 
@@ -59,12 +59,12 @@ def test_parse_entry_covers_all_four_notation_forms():
     assert cetools.parse_entry(
         "STR +1", cetools.EntryContext.SKILL_TABLE
     ) == cetools.CharacteristicAdjustment(characteristic="STR", amount=1)
-    assert cetools.parse_entry("Pilot 2", cetools.EntryContext.SKILL_TABLE) == cetools.SkillGrant(
-        skill=cetools.SkillReference(name="Pilot", specialty=None), level=2
-    )
     assert cetools.parse_entry(
-        "Vacc Suit", cetools.EntryContext.SKILL_TABLE
-    ) == cetools.SkillReference(name="Vacc Suit", specialty=None)
+        "Piloting 2", cetools.EntryContext.SKILL_TABLE
+    ) == cetools.SkillGrant(skill=cetools.SkillReference(name="Piloting", specialty=None), level=2)
+    assert cetools.parse_entry(
+        "Melee Combat", cetools.EntryContext.SKILL_TABLE
+    ) == cetools.SkillReference(name="Melee Combat", specialty=None)
     assert cetools.parse_entry(
         "Low Passage", cetools.EntryContext.BENEFIT_TABLE
     ) == cetools.BenefitItem(name="Low Passage")

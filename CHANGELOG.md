@@ -8,6 +8,11 @@ release cut in August 2026, `2026.08.2` the second. Because CalVer says
 nothing about compatibility, breaking changes get their own **Breaking
 changes** heading in the entry that ships them.
 
+PEP 440 normalizes the zero-padded month away, so the version installed
+metadata reports — and therefore the version `cetools` prints in its
+provenance block — drops it: `2026.08.1` here is `2026.8.1` there. The two
+name the same release.
+
 ## 2026.08.1 (unreleased)
 
 First release: the dice and 2D6 task-check engine, as a library and a CLI.

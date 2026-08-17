@@ -319,3 +319,18 @@ through a loader that catches a bad edit to the data instead of absorbing it.
   `:LOCATION` while the JSON keeps the key with an empty value.
 - Consult the `fluent-python:*` skills plan.md names when writing each module.
 - [P] tasks touch different files and have no dependency on incomplete tasks.
+
+---
+
+## Phase 8: Convergence
+
+Appended by `/speckit-converge` after assessing the codebase against spec.md, plan.md,
+and this file. Everything else converged: the suite passes, the shipped data set
+validates, all thirteen SC-002 categories are rejected, provenance renders in both
+modes, and `tests/golden/pre-loader/` is intact.
+
+- [ ] T059 **CRITICAL, not done, deliberately**: restore the test-first evidence Constitution Principle III and SC-012 require, which the branch history does not carry: `22bcbb2` lands `notation.py`, `registries.py`, `careers.py`, and `provenance.py` together with `test_notation.py`, `test_registries.py`, `test_careers.py`, and `test_provenance.py`, and `8ffc9a0`, `a7ed647`, and `11cb32b` do the same for `rules.py`, `tasks.py`, `render.py`, `cli.py`, and the data files, so no test commit precedes any implementing commit; the branch history is left as it stands and the gap is recorded instead, under **Recorded Deviation** in plan.md, so a reviewer sees that SC-012 is open on this branch rather than assuming it satisfied; rewriting the history was declined because a reconstructed red state asserts test-first exactly as much as the present history does (Constitution III, SC-012)
+- [X] T060 Author `src/cetools/data/careers/navy.toml` from the source material rather than from the illustrative values in `contracts/data-files.md`, which is what currently ships: the enlisted ladder holds only ranks 1 and 5 and titles rank 1 `Recruit`, the officer ladder only ranks 1, 2, and 4, and the mustering-out cash and benefits rows do not match the source; a career with gaps in both rank ladders is not the complete, SRD-faithful reference FR-018 requires, and every element the schema exercises must survive the rewrite so `tests/integration/test_reference_career.py` still proves SC-004 per FR-018 and plan.md Implementation Notes (partial)
+- [X] T061 Add a case for an *unrecognized* kind declaration to `tests/integration/test_validation_categories.py` beside `test_missing_kind_declaration`: SC-002's closed list names "a missing or unrecognized kind declaration", and only the missing half has a case, so the unrecognized half can regress into silent acceptance untested per SC-002 and FR-001a (partial)
+- [X] T062 Assert `problem.location == ""` on every whole-file category in `tests/integration/test_validation_categories.py`, not only on `test_file_not_well_formed_toml_at_all`: the unsupported schema version, the missing and unrecognized kind, the replacement kind mismatch, two careers declaring one name, a duplicate or absent single-instance kind, and two override files sharing a basename all report about the file as a whole and none of them currently pins the empty location, which is what T016 asked for per FR-022 and SC-002 (partial)
+- [X] T063 Reconcile the package version the tool reports with the one the project declares and documents: `pyproject.toml` declares `2026.08.1`, PEP 440 normalization makes `importlib.metadata.version("cetools")` return `2026.8.1`, and every rendered result therefore reads `Rules: packaged (cetools 2026.8.1)` while `README.md`, `specs/002-rules-data-loading/quickstart.md`, and `contracts/cli.md` all document `2026.08.1`; either render the declared form or correct the documented outputs, and add the assertion that keeps the two from drifting again, per FR-033a and the constitution's CalVer `YYYY.0M.INC1` scheme (contradicts)

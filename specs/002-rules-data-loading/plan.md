@@ -100,11 +100,35 @@ ignored files named in the report, and the notice-chain check deriving its cover
 |---|---|---|
 | **I. Library-First** | All game logic in importable modules; CLI contains none | **PASS** - loading, composition, validation, notation parsing, and provenance all live in the library. `cli.py` gains argument parsing and two exit-code decisions and nothing else. Rendering of the validation report is a `render.py` registration, not CLI code. |
 | **II. CLI Text I/O** | Every capability reachable from CLI; both output modes; stdout/stderr split; meaningful exit codes | **PASS** - `cetools validate` covers the new capability, `--rules-data` covers overrides on `check`; both modes on both; validation problems are the requested report and go to stdout, usage errors to stderr; exit 0/1/2, no new code introduced. |
-| **III. Test-First** | Tests written first, confirmed failing, then implementation | **PASS** - SC-012 makes this an explicit success criterion with committed evidence: expected values land in a change that precedes the implementing change. Task ordering will enforce it. |
+| **III. Test-First** | Tests written first, confirmed failing, then implementation | **PASS in the work, NOT in the committed evidence**; see Recorded Deviation below. SC-012 asks for expected values landing in a change that precedes the implementing change, and the branch history does not carry that separation. |
 | **IV. Seed-Reproducible** | Seed accepted everywhere; same seed and version give same output; no unseeded randomness | **PASS**, and strengthened. Overrides break "seed plus package version determines output", and provenance is what converts that silent break into a visible one (User Story 4). Nothing in this feature draws randomness. FR-045 and SC-009 pin that resolution is unchanged. |
 | **V. Data-Driven Rules** | SRD content in data files, none hard-coded | **PASS**, and this feature is largely the discharge of the principle. Characteristics are data rather than parser constants (FR-012), the registries are what make a misspelling detectable, and SC-011 requires a demonstrated behavior change from a data edit for a throw, a table entry, a rank bonus, and a registry entry. |
 | **VI. Simplicity** | YAGNI; stdlib preferred; runtime dependencies justified | **PASS with two recorded tensions**; see Complexity Tracking. |
 | **Licensing & Distribution** | OGC files designated; every distribution bundles the OGL text and Section 15 chain; PI strings absent from OGC data; compatibility claims carry attribution | **PASS with required work**; see below. |
+
+## Recorded Deviation: the test-first evidence Principle III and SC-012 ask for
+
+Stated here rather than left for a reviewer to discover, because the whole point of
+SC-012 is that test-first be evidenced instead of asserted, and on this branch it is
+asserted.
+
+Every test in this feature was in fact written before the code it covers and observed
+failing. What is missing is the *committed* separation. `22bcbb2` lands `notation.py`,
+`registries.py`, `careers.py` and `provenance.py` together with `test_notation.py`,
+`test_registries.py`, `test_careers.py` and `test_provenance.py`; `8ffc9a0`, `a7ed647`
+and `11cb32b` do the same for `rules.py`, `tasks.py`, `render.py`, `cli.py` and the data
+files. No test commit precedes its implementing commit, so the history proves nothing
+about the order the work was done in, which is exactly what SC-012 asked the history to
+prove.
+
+Splitting each of those commits in two was considered and declined: reconstructing the
+red state after the fact produces a history that asserts test-first just as much as the
+present one does, at the cost of rewriting a branch. The honest record is this note.
+
+**What this costs, concretely**: SC-012 is not satisfied on this branch. Treat it as
+open. The remedy is procedural and belongs to the next feature: commit the test file,
+run it, commit the failure's absence of a fix, then implement. Nothing about the code in
+this feature depends on it, and the suite is unaffected either way.
 
 **Licensing work this feature owes.** Four new Open Game Content files ship. Each
 needs its designation comment and neither Product Identity string (FR-046), verified

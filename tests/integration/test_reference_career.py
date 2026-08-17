@@ -45,7 +45,7 @@ def test_removing_the_qualification_throw_is_rejected(tmp_path):
 def test_removing_the_survival_throw_is_rejected(tmp_path):
     _validate_missing(
         tmp_path,
-        '[throws.survival]\ncharacteristic = "END"\ntarget = 5\n\n',
+        '[throws.survival]\ncharacteristic = "INT"\ntarget = 5\n\n',
         location="throws.survival",
     )
 
@@ -53,14 +53,14 @@ def test_removing_the_survival_throw_is_rejected(tmp_path):
 def test_removing_the_promotion_throw_is_rejected(tmp_path):
     _validate_missing(
         tmp_path,
-        '[throws.promotion]\ncharacteristic = "EDU"\ntarget = 8\n\n',
+        '[throws.promotion]\ncharacteristic = "EDU"\ntarget = 6\n\n',
         location="throws.promotion",
     )
 
 
 def test_removing_the_re_enlistment_throw_is_rejected(tmp_path):
     _validate_missing(
-        tmp_path, "[throws.re-enlistment]\ntarget = 6\n\n", location="throws.re-enlistment"
+        tmp_path, "[throws.re-enlistment]\ntarget = 5\n\n", location="throws.re-enlistment"
     )
 
 
@@ -68,7 +68,7 @@ def test_removing_the_personal_table_is_rejected(tmp_path):
     _validate_missing(
         tmp_path,
         '[tables.personal]\nentries = ["STR +1", "DEX +1", "END +1", "INT +1", "EDU +1", '
-        '"SOC +1"]\n\n',
+        '"Melee Combat"]\n\n',
         location="tables.personal",
     )
 
@@ -76,8 +76,8 @@ def test_removing_the_personal_table_is_rejected(tmp_path):
 def test_removing_the_service_table_is_rejected(tmp_path):
     _validate_missing(
         tmp_path,
-        '[tables.service]\nentries = ["Ship\'s Boat", "Vacc Suit", "Forward Observer", '
-        '"Gunnery", "Engineering", "Gun Combat"]\n\n',
+        '[tables.service]\nentries = ["Comms", "Engineering", "Gun Combat", '
+        '"Gunnery", "Melee Combat", "Vehicle"]\n\n',
         location="tables.service",
     )
 
@@ -85,8 +85,8 @@ def test_removing_the_service_table_is_rejected(tmp_path):
 def test_removing_the_advanced_table_is_rejected(tmp_path):
     _validate_missing(
         tmp_path,
-        '[tables.advanced]\nentries = ["Vacc Suit", "Mechanical", "Electronics", '
-        '"Engineering", "Gunnery", "Computer"]\n\n',
+        '[tables.advanced]\nentries = ["Gravitics", "Jack-of-All-Trades", "Melee Combat", '
+        '"Navigation", "Leadership", "Piloting"]\n\n',
         location="tables.advanced",
     )
 
@@ -94,11 +94,13 @@ def test_removing_the_advanced_table_is_rejected(tmp_path):
 def test_removing_every_rank_ladder_is_rejected(tmp_path):
     _validate_missing(
         tmp_path,
-        '[[ladders]]\nname = "enlisted"\nranks = [\n  { rank = 1, title = "Recruit" },\n  '
-        '{ rank = 5, title = "Petty Officer", bonus = "Gunnery 1" },\n]\n\n',
-        '[[ladders]]\nname = "officer"\nranks = [\n  { rank = 1, title = "Ensign", '
-        'bonus = "SOC +1" },\n  { rank = 2, title = "Lieutenant" },\n  '
-        '{ rank = 4, title = "Lieutenant Commander", bonus = "Blade (Cutlass) 1" },\n]\n\n',
+        '[[ladders]]\nname = "enlisted"\nranks = [\n  '
+        '{ rank = 0, title = "Starman", bonus = "Zero-G 1" },\n]\n\n',
+        '[[ladders]]\nname = "officer"\nranks = [\n  { rank = 1, title = "Midshipman" },\n  '
+        '{ rank = 2, title = "Lieutenant" },\n  '
+        '{ rank = 3, title = "Lt Commander", bonus = "Tactics 1" },\n  '
+        '{ rank = 4, title = "Commander" },\n  { rank = 5, title = "Captain" },\n  '
+        '{ rank = 6, title = "Commodore" },\n]\n\n',
         location="ladders",
     )
 
@@ -106,7 +108,7 @@ def test_removing_every_rank_ladder_is_rejected(tmp_path):
 def test_removing_mustering_out_cash_is_rejected(tmp_path):
     _validate_missing(
         tmp_path,
-        "cash = [2000, 5000, 5000, 10000, 20000, 30000, 50000]\n",
+        "cash = [1000, 5000, 10000, 10000, 20000, 50000, 50000]\n",
         location="mustering-out.cash",
     )
 
@@ -114,8 +116,8 @@ def test_removing_mustering_out_cash_is_rejected(tmp_path):
 def test_removing_mustering_out_benefits_is_rejected(tmp_path):
     _validate_missing(
         tmp_path,
-        'benefits = ["Low Passage", "INT +1", "EDU +1", "Blade", "High Passage", '
-        '"Ship Share", "SOC +1"]\n',
+        'benefits = ["Low Passage", "EDU +1", "Weapon", "Mid Passage", "SOC +1", '
+        '"High Passage", "Explorers\' Society"]\n',
         location="mustering-out.benefits",
     )
 

@@ -22,9 +22,7 @@ def test_a_valid_data_set_reported_valid_always_loads():
 
 
 def test_an_invalid_data_set_reported_invalid_never_loads(tmp_path):
-    (tmp_path / "navy.toml").write_text(
-        NAVY.replace('"Vacc Suit"', '"Vac Suit"', 1), encoding="utf-8"
-    )
+    (tmp_path / "navy.toml").write_text(NAVY.replace('"Comms"', '"Coms"', 1), encoding="utf-8")
     report = validate_rules(tmp_path)
     assert not report.valid
     with pytest.raises(RulesDataError) as exc_info:

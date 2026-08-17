@@ -59,7 +59,7 @@ problem it finds in one run:
 $ cetools validate
 Rules data is valid.
   Files: 5
-  Rules: packaged (cetools 2026.08.1)
+  Rules: packaged (cetools 2026.8.1)
 ```
 
 A house rule is a directory or a single file, named on the command line and
@@ -68,7 +68,7 @@ composed over the packaged data by filename; nothing else changes:
 ```sh
 $ cetools check --seed session-alpha --rules-data ./house-rules
 ...
-  Rules: overridden (cetools 2026.08.1)
+  Rules: overridden (cetools 2026.8.1)
     navy.toml   replaced  sha256:3b1f...c0
 ```
 
