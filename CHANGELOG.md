@@ -33,7 +33,10 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   loads only when all of it is well-formed, or refuses, naming every problem
   it finds in one run rather than the first. A file that is present but
   cannot be read is reported like any other problem, naming the file, and the
-  remaining files are still checked rather than masked by it. `RulesData`
+  remaining files are still checked rather than masked by it. A file rejected
+  on its header — an unsupported `schema-version`, an unrecognized kind — is
+  reported once and its contents left uninterpreted, and it is never then also
+  reported absent, because it is sitting in the data set. `RulesData`
   carries the loaded set; `ValidationReport` carries a report of what is
   wrong, if anything, and the two agree on every input.
 - **The compact table notation.** `parse_entry` reads a career table cell in
@@ -41,7 +44,9 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   adjustment, a skill grant, or a bare name — governed by the `EntryContext`
   the field it came from admits. It returns a `NotationProblem` rather than
   raising for a malformed entry or a form its context does not admit, so a
-  caller can collect every problem in one pass.
+  caller can collect every problem in one pass. A parenthesized specialty
+  belongs to a skill or a benefit item, so one written on a characteristic —
+  `INT (Foo) 4+` — is reported rather than quietly discarded.
 - **The reference career, and the registries that give it meaning.** Three
   shipped registries (`CharacteristicRegistry`, `SkillRegistry`,
   `BenefitRegistry`) resolve the names a career file's entries use, the skill

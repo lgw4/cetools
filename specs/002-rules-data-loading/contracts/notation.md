@@ -10,22 +10,31 @@ values and never reach the parser (FR-004a).
 ## Grammar
 
 ```text
-entry       := check | adjustment | grant | bare
-check       := name WS uint "+"
-adjustment  := name WS sign uint
-grant       := name WS uint
-bare        := name
+entry          := check | adjustment | grant | bare
+check          := characteristic WS uint "+"
+adjustment     := characteristic WS sign uint
+grant          := name WS uint
+bare           := name
 
-name        := text [ WS "(" text ")" ]
-sign        := "+" | "-"
-uint        := one or more ASCII digits
-WS          := one or more spaces
+name           := text [ WS "(" text ")" ]
+characteristic := text
+sign           := "+" | "-"
+uint           := one or more ASCII digits
+WS             := one or more spaces
 ```
 
 `text` is any run of characters other than parentheses, with leading and trailing
 spaces trimmed. Skill names contain spaces, apostrophes, slashes and hyphens
 (`Ship's Boat`, `Vacc Suit`, `Air/Raft`, `Jack-of-all-Trades`), so a name is never
 tokenized on whitespace.
+
+A specialty belongs to a skill or a benefit item, and a characteristic never carries
+one, which is why `check` and `adjustment` take a `characteristic` rather than a
+`name`. `INT (Foo) 4+` and `STR (Foo) +1` are malformed (FR-009) rather than gates on
+`INT` and adjustments to `STR` with the parenthesized text discarded: dropping it
+would leave content an author wrote with no effect and no diagnostic, and would evade
+the exact registry match FR-013 requires, since the name as written is `INT (Foo)` and
+the characteristics registry holds only `INT`.
 
 ## Parsing
 
@@ -108,6 +117,8 @@ Each is a problem carrying the entry as written, its location, and what was expe
 | `Pilot ()` | empty specialty |
 | `Pilot (A) (B)` | more than one specialty group |
 | `INT +4+` | not one of the four forms |
+| `INT (Foo) 4+` | specialty on a characteristic check |
+| `STR (Foo) +1` | specialty on a characteristic adjustment |
 | `2` | empty name |
 | `Pilot -1` | negative level, in a context where the adjustment form is admissible but `Pilot` is not a characteristic; reported as an unrecognized characteristic |
 

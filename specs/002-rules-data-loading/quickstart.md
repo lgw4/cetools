@@ -69,7 +69,15 @@ version-mismatch problem and *no other* problem from that file), a missing or wr
 SC-004), a well-formed entry in a context that does not admit it (`INT 4+` in a service
 table), a file that is not well-formed TOML at all (expect one problem naming the file and
 the parse position), two careers declaring one name, two files declaring one
-single-instance kind or such a kind absent, and two override files sharing a basename.
+single-instance kind, and two override files sharing a basename.
+
+The remaining category, a single-instance kind *absent*, cannot be reached from an
+override: an override only replaces a file or adds one, and a file rejected on its
+header is present rather than absent, so breaking a shipped registry from outside
+produces its header problem and nothing more. Copy `characteristics.toml` into the
+override with an unsupported `schema-version` to see that: one problem from that file,
+not two, with the careers that can no longer resolve a characteristic reporting their
+own. The absent case is exercised against the packaged set in the suite instead.
 
 A file in an override that is not rules data is deliberately *not* in that list: it is
 reported rather than rejected, and Scenario 4b covers it.

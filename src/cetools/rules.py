@@ -56,6 +56,7 @@ _CANONICAL_FILE = {
     "skills": "skills.toml",
     "benefits": "benefits.toml",
 }
+_KIND_AT_CANONICAL_FILE = {file: kind for kind, file in _CANONICAL_FILE.items()}
 
 
 @dataclass(frozen=True, slots=True)
@@ -446,11 +447,40 @@ def _compose(
 # --- the validation driver ---------------------------------------------------
 
 
+def _singleton_slots(
+    basename: str, declared: object, packaged_kind: Mapping[str, str]
+) -> set[str]:
+    """Which single-instance kinds a file stands for, by what it declared, by
+    the packaged file it replaces, and by the basename it carries (FR-029).
+
+    A file rejected before its contents were interpreted still occupies its
+    slot, so the absent-kind check must not go on to report it missing: a
+    report that names a file and then says there is no such file states
+    something false, and rule 2 of contracts/data-files.md asks for no
+    further problem from a file rejected on its header (FR-002).
+    """
+    slots = set()
+    if isinstance(declared, str) and declared in _SINGLETON_KINDS:
+        slots.add(declared)
+    if (original := packaged_kind.get(basename)) in _SINGLETON_KINDS:
+        slots.add(original)
+    if (canonical := _KIND_AT_CANONICAL_FILE.get(basename)) is not None:
+        slots.add(canonical)
+    return slots
+
+
 def _validate(override: Path | str | None) -> tuple[RulesData | None, ValidationReport]:
     packaged, read_problems = _discover_packaged()
     composed, provenance, compose_problems = _compose(override, packaged)
     problems = [*read_problems, *compose_problems]
     packaged_kind = _packaged_kind_map(packaged)
+
+    # Every file rejected before its contents were interpreted, by the
+    # single-instance kinds it stands for, so the presence check below can
+    # tell a kind no file declares from one whose file was rejected (FR-002).
+    rejected_slots: set[str] = set()
+    for read_problem in read_problems:
+        rejected_slots |= _singleton_slots(read_problem.file, None, packaged_kind)
 
     parsed: dict[str, tuple[str, dict]] = {}
     for basename in sorted(composed):
@@ -465,6 +495,7 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
                     expected="a UTF-8 encoded file",
                 )
             )
+            rejected_slots |= _singleton_slots(basename, None, packaged_kind)
             continue
         try:
             toml_data = tomllib.loads(text)
@@ -476,6 +507,7 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
                     expected="a well-formed TOML document",
                 )
             )
+            rejected_slots |= _singleton_slots(basename, None, packaged_kind)
             continue
 
         kind = toml_data.get("schema")
@@ -489,6 +521,7 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
                     expected=f"one of: {', '.join(sorted(_SUPPORTED_VERSION))}",
                 )
             )
+            rejected_slots |= _singleton_slots(basename, kind, packaged_kind)
             continue
 
         declared_version = toml_data.get("schema-version")
@@ -505,6 +538,7 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
                     expected=f"version {supported}",
                 )
             )
+            rejected_slots |= _singleton_slots(basename, kind, packaged_kind)
             continue
 
         original_kind = packaged_kind.get(basename)
@@ -518,6 +552,7 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
                     ),
                 )
             )
+            rejected_slots |= _singleton_slots(basename, kind, packaged_kind)
             continue
 
         parsed[basename] = (kind, toml_data)
@@ -526,13 +561,14 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
     for kind in _SINGLETON_KINDS:
         declarers = sorted(name for name, (k, _) in parsed.items() if k == kind)
         if not declarers:
-            problems.append(
-                ValidationProblem(
-                    file=_CANONICAL_FILE[kind],
-                    found="no file",
-                    expected=f"exactly one file declaring kind {kind!r}",
+            if kind not in rejected_slots:
+                problems.append(
+                    ValidationProblem(
+                        file=_CANONICAL_FILE[kind],
+                        found="no file",
+                        expected=f"exactly one file declaring kind {kind!r}",
+                    )
                 )
-            )
         elif len(declarers) > 1:
             problems.append(
                 ValidationProblem(

@@ -305,7 +305,7 @@ time:
 |---|---|
 | No two careers in force declare the same `name` | FR-019b. The problem names both files. |
 | No two files in force declare the same single-instance kind | FR-010a. The problem names both files. Catches a misspelled registry filename, which would otherwise be admitted as an addition and leave the real registry silently in force. |
-| Every single-instance kind is present | FR-010a. A data set missing its skills registry cannot validate careers. |
+| Every single-instance kind is present | FR-010a. A data set missing its skills registry cannot validate careers. A kind whose file was rejected at the header stage is present, not absent, so only a kind no composed file stands for is reported: naming a file and then saying there is no such file would state something false, and rule 2 above asks for no further problem from a file rejected on its header. |
 | Every name resolves against its registry, matched exactly and case sensitively | FR-013. |
 
 ## Failure

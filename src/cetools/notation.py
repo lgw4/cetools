@@ -169,9 +169,19 @@ def parse_entry(text: str, context: EntryContext) -> Entry | NotationProblem:
     if not base:
         return NotationProblem(found=stripped, expected="a non-empty name")
 
-    if kind == "check":
-        return CharacteristicCheck(characteristic=base, target=target)
-    if kind == "adjustment":
+    if kind in ("check", "adjustment"):
+        # A specialty belongs to a skill or a benefit item. Building the entry
+        # from the base name alone would drop text the author wrote with no
+        # effect and no diagnostic, and would evade FR-013's exact registry
+        # match, since the name as written is `INT (Foo)` and the
+        # characteristics registry holds only `INT`.
+        if specialty is not None:
+            return NotationProblem(
+                found=stripped,
+                expected=(f"{_ADMISSIBLE_FORMS[context]}; a characteristic carries no specialty"),
+            )
+        if kind == "check":
+            return CharacteristicCheck(characteristic=base, target=target)
         return CharacteristicAdjustment(characteristic=base, amount=amount)
     if kind == "grant":
         return SkillGrant(skill=SkillReference(name=base, specialty=specialty), level=level)
