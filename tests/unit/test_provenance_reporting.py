@@ -6,9 +6,12 @@ itself rather than a value only ever checked through a placeholder
 (SC-008, FR-036).
 """
 
+import shutil
 import subprocess
 from importlib.metadata import version
 from pathlib import Path
+
+import pytest
 
 from cetools.rules import load_rules
 
@@ -47,6 +50,11 @@ def test_differing_content_fingerprints_differently(tmp_path):
     assert one_fingerprint != other_fingerprint
 
 
+# SC-008 is about an *outside* tool agreeing with the reported value, so it
+# cannot be checked where that tool does not exist; Windows runners ship no
+# `shasum`. The fingerprint is still covered there by the two tests above,
+# which pin content-addressing without leaving the process.
+@pytest.mark.skipif(shutil.which("shasum") is None, reason="shasum is not on PATH")
 def test_the_reported_fingerprint_is_reproducible_with_shasum(tmp_path):
     override = tmp_path / "scouts.toml"
     override.write_bytes(NAVY.read_bytes().replace(b'name = "Navy"', b'name = "Scouts"'))

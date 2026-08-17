@@ -203,7 +203,10 @@ def test_section_15_game_data_line_covers_every_data_file_actually_present(
     data_files = sorted(p.relative_to(repo_root) for p in data_dir.rglob("*.toml"))
     assert data_files, "no data files found to derive coverage from"
     for data_file in data_files:
-        assert str(data_file).startswith(
+        # `as_posix`, not `str`: the notice names a POSIX path, and a Windows
+        # `str()` renders separators as backslashes, so this compares the
+        # notice against the same shape on every platform.
+        assert data_file.as_posix().startswith(
             covered_prefix
         ), f"{data_file} is not under the directory the game-data notice covers"
 

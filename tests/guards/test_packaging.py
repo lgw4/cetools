@@ -145,7 +145,14 @@ def test_the_data_set_read_from_the_sdist_validates_without_a_problem(sdist, tmp
 
     for relative in _sdist_data_files(sdist):
         basename = relative.rsplit("/", 1)[-1]
-        (tmp_path / basename).write_text(_read_from_sdist(sdist, relative), encoding="utf-8")
+        # `newline=""`: the sdist's bytes are already whatever they are, and the
+        # default translation rewrites every "\n" to os.linesep. On Windows a
+        # file that already carried CRLF comes back out as "\r\r\n", which is
+        # not valid TOML, so the guard would fail on the write rather than on
+        # anything the sdist actually contains.
+        (tmp_path / basename).write_text(
+            _read_from_sdist(sdist, relative), encoding="utf-8", newline=""
+        )
     report = validate_rules(tmp_path)
     assert report.valid, report.problems
 

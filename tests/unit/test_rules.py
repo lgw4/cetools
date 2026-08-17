@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from cetools.errors import RulesDataError, TaskError
@@ -225,13 +227,15 @@ def test_validate_rules_file_count_counts_every_composed_toml():
 
 def test_load_rules_rejects_a_nonexistent_override_location_as_a_usage_error(tmp_path):
     missing = tmp_path / "does-not-exist"
-    with pytest.raises(RulesDataError, match=str(missing)):
+    # `re.escape`: `match` is a regex, and a Windows path's backslashes would
+    # otherwise be read as escape sequences (`C:\Users` fails to compile).
+    with pytest.raises(RulesDataError, match=re.escape(str(missing))):
         load_rules(missing)
 
 
 def test_validate_rules_rejects_a_nonexistent_override_location_as_a_usage_error(tmp_path):
     missing = tmp_path / "does-not-exist"
-    with pytest.raises(RulesDataError, match=str(missing)):
+    with pytest.raises(RulesDataError, match=re.escape(str(missing))):
         validate_rules(missing)
 
 
