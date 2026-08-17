@@ -12,8 +12,50 @@ changes** heading in the entry that ships them.
 
 First release: the dice and 2D6 task-check engine, as a library and a CLI.
 
+### Breaking changes
+
+- **`load_task_parameters` is removed.** Read `load_rules().task_parameters`
+  instead. `check`'s `parameters=` keyword is removed too, replaced by
+  `rules=`, which takes a `RulesData` rather than a bare `TaskParameters`.
+  Package version `2026.08.1` is unreleased, so no published consumer is
+  affected.
+
 ### Added
 
+- **Validated rules data loading.** `load_rules` and `validate_rules`
+  discover every `.toml` file under `cetools/data/`, compose it with an
+  optional override, and validate the whole set on every load: a data set
+  loads only when all of it is well-formed, or refuses, naming every problem
+  it finds in one run rather than the first. `RulesData` carries the loaded
+  set; `ValidationReport` carries a report of what is wrong, if anything, and
+  the two agree on every input.
+- **The compact table notation.** `parse_entry` reads a career table cell in
+  any of its four forms — a characteristic check, a characteristic
+  adjustment, a skill grant, or a bare name — governed by the `EntryContext`
+  the field it came from admits.
+- **The reference career, and the registries that give it meaning.** Three
+  shipped registries (`CharacteristicRegistry`, `SkillRegistry`,
+  `BenefitRegistry`) resolve the names a career file's entries use;
+  `CareerDefinition` and its parts (`Throw`, `SkillTable`, `RankLadder`,
+  `Rank`, `MusteringOut`) are the schema a career file validates against.
+  The Navy ships as the reference career, exercising every element of that
+  schema.
+- **House rules without forking code.** `load_rules(override)` and
+  `validate_rules(override)` accept a directory or a single file, composed
+  over the packaged data set by basename: a file that matches a packaged
+  name replaces it, one that does not is an addition, and everything the
+  override does not touch still comes from the packaged data.
+- **Provenance.** Every `CheckResult` and `ValidationReport` carries a
+  `Provenance`: the installed package version, and, for an overridden load,
+  each file's disposition and a reproducible SHA-256 fingerprint over its
+  raw bytes.
+- **`cetools validate`.** Reports every problem in the packaged data set, or
+  an override composed over it, with exit codes 0 (valid), 1 (invalid), and
+  2 (usage error), in both text and `--json` output.
+- **`--rules-data PATH` on `cetools check`.** Composes an override location
+  over the packaged data set exactly as a library load does; the rendered
+  and JSON output both gain a `Rules:` / `provenance` block reporting what
+  produced the result.
 - **Seeded dice rolling.** `Roller` wraps a seeded generator; `throw`,
   `throw_dice`, and `parse_notation` handle `NdN`, `NdN+M`, and `NdN-M`
   notation, returning a frozen `ThrowResult` carrying the individual dice,
@@ -28,8 +70,8 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   is distinct from no training at all, which takes the unskilled DM.
 - **SRD parameters as data.** Target number, difficulty DMs, characteristic
   DM bands, and the unskilled DM live in `src/cetools/data/tasks.toml` and
-  are read at runtime by `load_task_parameters`. The engine hard-codes no
-  table content, so house rules are a data edit.
+  are read at runtime through `load_rules().task_parameters`. The engine
+  hard-codes no table content, so house rules are a data edit.
 - **`cetools roll` and `cetools check`.** Both accept `--seed`, print the
   seed they used (freshly generated if none was given), and accept `--json`
   for machine-readable output. `cetools --version` reports the version.

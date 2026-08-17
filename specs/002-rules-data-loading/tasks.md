@@ -194,12 +194,12 @@ reported fingerprint changes.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T053 [P] Add notation round-trip invariants to `tests/property/test_invariants.py`: a rendered entry parses back to an equal value for each of the four forms (plan.md Testing)
-- [ ] T054 [P] Add `tests/unit/test_library_api.py` exercising every capability in this feature through `import cetools` without invoking the command line (SC-013, FR-043)
-- [ ] T055 [P] Record the removal of `load_task_parameters` and the `parameters=` keyword under **Breaking changes**, and the added surface under additions, in `CHANGELOG.md` (contracts/library-api.md)
-- [ ] T056 [P] Document `cetools validate` and `--rules-data` in `README.md`, with no help or prose text naming the trademark as something this tool works with (contracts/cli.md)
-- [ ] T057 Walk every scenario in `specs/002-rules-data-loading/quickstart.md` by hand and confirm each expected outcome
-- [ ] T058 Run the full suite plus the project's lint and type checks and resolve anything outstanding
+- [X] T053 [P] Add notation round-trip invariants to `tests/property/test_invariants.py`: a rendered entry parses back to an equal value for each of the four forms (plan.md Testing)
+- [X] T054 [P] Add `tests/unit/test_library_api.py` exercising every capability in this feature through `import cetools` without invoking the command line (SC-013, FR-043)
+- [X] T055 [P] Record the removal of `load_task_parameters` and the `parameters=` keyword under **Breaking changes**, and the added surface under additions, in `CHANGELOG.md` (contracts/library-api.md)
+- [X] T056 [P] Document `cetools validate` and `--rules-data` in `README.md`, with no help or prose text naming the trademark as something this tool works with (contracts/cli.md)
+- [X] T057 Walk every scenario in `specs/002-rules-data-loading/quickstart.md` by hand and confirm each expected outcome
+- [X] T058 Run the full suite plus the project's lint and type checks and resolve anything outstanding
 
 ---
 
