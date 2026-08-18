@@ -122,7 +122,8 @@ uv run cetools validate /tmp/ce-house
 Expected: exit 1. `navvy.toml` is an **addition**, not a replacement, so the data set
 now holds two careers declaring the name `Navy`, and the report names both files
 (FR-019b). Change the declared `name` inside `navvy.toml` and rerun: exit 0, with
-`navvy.toml` reported as `added` and `navy.toml` still packaged.
+`navvy.toml` reported as `added` and `navy.toml` reported as `replaced`, since
+`/tmp/ce-house/navy.toml` still holds the edit Scenario 3 made to it.
 
 ## Scenario 4b: A wrong extension is visible too, without failing (FR-032a, FR-032b)
 

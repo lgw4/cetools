@@ -140,6 +140,25 @@ def test_a_schema_version_of_the_wrong_type_is_a_type_problem(tmp_path, literal,
     assert "integer" in from_navy[0].expected
 
 
+def test_a_missing_schema_version_is_rejected_like_a_mismatched_one(tmp_path):
+    # FR-001's other half: a file declaring no version at all, not merely the
+    # wrong one. Every existing version-mismatch case replaces the value;
+    # none omits the key, so `declared_version != supported` could be guarded
+    # with `declared_version is not None and ...` and still pass every one of
+    # them, silently accepting an undeclared version — exactly the upgrade
+    # story FR-001 exists to close off.
+    text = NAVY.replace("schema-version = 1\n", "", 1)
+    assert "schema-version" not in text
+    _write(tmp_path, "navy.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    from_navy = [p for p in report.problems if p.file == "navy.toml"]
+    assert len(from_navy) == 1
+    assert from_navy[0].found == "missing"
+    assert from_navy[0].expected == "version 1"
+    assert from_navy[0].location == ""
+
+
 def test_unsupported_schema_version_reports_nothing_else_from_that_file(tmp_path):
     text = NAVY.replace("schema-version = 1", "schema-version = 2", 1)
     _write(tmp_path, "navy.toml", text)
@@ -253,6 +272,52 @@ def test_file_not_well_formed_toml_at_all(tmp_path):
     navy_problems = [p for p in report.problems if p.file == "navy.toml"]
     assert len(navy_problems) == 1
     assert navy_problems[0].location == ""
+    # FR-020a asks for the malformation "located as precisely as the format
+    # allows"; dropping tomllib's own exception text would leave a bare
+    # category string here with nothing to show for that clause.
+    assert "line" in navy_problems[0].found
+    assert "column" in navy_problems[0].found
+
+
+def test_malformed_toml_leaves_the_remaining_files_checked(tmp_path):
+    # FR-020a's second sentence: the malformed file's own `continue` must not
+    # become a `break`, or an independent mistake in a second, later-sorted
+    # file vanishes from the report along with it (SC-002's "the remaining
+    # files ... MUST still be checked"). Asserting only the *absence* of a
+    # problem from the second file would be vacuous under a `break`, since an
+    # unprocessed file also reports nothing; the second file must carry a
+    # deliberate mistake of its own that only a real check catches.
+    _write(tmp_path, "navy.toml", "this is not [valid toml")
+    _write(
+        tmp_path,
+        "scouts.toml",
+        NAVY.replace('name = "Navy"', 'name = "Scouts"', 1).replace('"Comms"', '"Coms"', 1),
+    )
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    navy_problems = [p for p in report.problems if p.file == "navy.toml"]
+    assert len(navy_problems) == 1
+    assert navy_problems[0].location == ""
+    assert any(p.file == "scouts.toml" and "Coms" in p.found for p in report.problems)
+
+
+def test_undecodable_utf8_leaves_the_remaining_files_checked(tmp_path):
+    # The UTF-8 decode branch's own `continue`, isolated from the TOML decode
+    # branch above: dropping the problem and keeping the `continue` is
+    # covered elsewhere, but turning the `continue` into a `break` — which
+    # would mask every file discovered after this one in sorted order — is
+    # not.
+    (tmp_path / "navy.toml").write_bytes(NAVY.encode("utf-8").replace(b"Navy", b"Na\xffvy", 1))
+    _write(tmp_path, "zzz-scouts.toml", NAVY.replace('"Comms"', '"Coms"', 1))
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    navy_problems = [p for p in report.problems if p.file == "navy.toml"]
+    assert len(navy_problems) == 1
+    assert navy_problems[0].location == ""
+    # FR-020a's "located as precisely as the format allows": Python's own
+    # `UnicodeDecodeError` text names the byte and the position.
+    assert "position" in navy_problems[0].found
+    assert any(p.file == "zzz-scouts.toml" and "Coms" in p.found for p in report.problems)
 
 
 @pytest.mark.skipif(
@@ -279,6 +344,40 @@ def test_file_cannot_be_read(tmp_path):
     assert len(navy_problems) == 1
     assert navy_problems[0].location == ""
     assert "read" in navy_problems[0].found
+    # FR-020a's precision clause: the OS's own errno text, not a bare
+    # category string.
+    assert "permission" in navy_problems[0].found.lower()
+    assert any(p.file == "scouts.toml" and "Coms" in p.found for p in report.problems)
+
+
+@pytest.mark.skipif(
+    hasattr(os, "geteuid") and os.geteuid() == 0,
+    reason="root lists a mode-000 directory regardless of its mode",
+)
+def test_directory_within_an_override_cannot_be_listed(tmp_path):
+    # The directory-walk analogue of `test_file_cannot_be_read`: a
+    # subdirectory the process cannot list is a collected problem naming it,
+    # not a subtree passed over in silence (FR-020a, FR-022,
+    # contracts/data-files.md). A second, sibling file carries its own
+    # mistake so the remaining files are proved still checked.
+    unlistable = tmp_path / "locked"
+    unlistable.mkdir()
+    (unlistable / "navy.toml").write_text(NAVY, encoding="utf-8")
+    _write(
+        tmp_path,
+        "scouts.toml",
+        NAVY.replace('name = "Navy"', 'name = "Scouts"', 1).replace('"Comms"', '"Coms"', 1),
+    )
+    unlistable.chmod(0o000)
+    try:
+        report = validate_rules(tmp_path)
+    finally:
+        unlistable.chmod(0o700)
+    assert not report.valid
+    locked_problems = [p for p in report.problems if p.file == "locked"]
+    assert len(locked_problems) == 1
+    assert locked_problems[0].location == ""
+    assert "permission" in locked_problems[0].found.lower()
     assert any(p.file == "scouts.toml" and "Coms" in p.found for p in report.problems)
 
 

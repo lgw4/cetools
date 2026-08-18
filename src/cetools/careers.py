@@ -240,7 +240,11 @@ def _skill_problem(
         return ValidationProblem(
             file=file,
             location=location,
-            found=reference.name,
+            found=(
+                f"{reference.name} ({reference.specialty})"
+                if reference.specialty is not None
+                else reference.name
+            ),
             expected="a name in the skills registry",
         )
     if resolution is SkillResolution.SPECIALTY_NOT_ALLOWED:

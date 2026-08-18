@@ -82,6 +82,23 @@ class TestCharacteristicRegistry:
         assert registry is None
         assert any(p.location == "extra" for p in problems)
 
+    def test_two_unrecognized_top_level_keys_are_both_reported(self):
+        # `_unrecognized_key_problems` is shared by all three registry
+        # parsers; truncating `extra = sorted(set(data) - allowed)` to its
+        # first element would leave a file with two misspelled top-level
+        # keys reporting only one, hiding the mistake FR-020 exists for
+        # (FR-021, SC-003).
+        data = {
+            "schema": "characteristics",
+            "schema-version": 1,
+            "characteristics": {"STR": "Strength"},
+            "extra": "nope",
+            "other": "also nope",
+        }
+        registry, problems = parse_characteristics(data, "characteristics.toml")
+        assert registry is None
+        assert {p.location for p in problems} >= {"extra", "other"}
+
 
 class TestSkillRegistry:
     def test_parses_valid_file(self):

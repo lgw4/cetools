@@ -12,6 +12,7 @@ from cetools.rules import load_rules, validate_rules
 _DATA = Path(__file__).resolve().parents[2] / "src" / "cetools" / "data"
 NAVY = (_DATA / "careers" / "navy.toml").read_text(encoding="utf-8")
 SKILLS = (_DATA / "registries" / "skills.toml").read_text(encoding="utf-8")
+CHARACTERISTICS = (_DATA / "registries" / "characteristics.toml").read_text(encoding="utf-8")
 
 
 _PROMOTION_BLOCK = '[throws.promotion]\ncharacteristic = "EDU"\ntarget = 6\n'
@@ -60,4 +61,32 @@ def test_removing_a_registry_entry_breaks_every_career_reference_to_it(tmp_path)
     assert tactics_locations == {
         "tables.advanced-education.entries[5]",
         "ladders[1].ranks[2].bonus",
+    }
+
+
+def test_removing_a_characteristic_from_the_registry_breaks_every_career_reference_to_it(
+    tmp_path,
+):
+    # The skills case above is SC-011's "sharpest" registry demonstration but
+    # proves only the skills registry; a characteristic code hard-coded into
+    # `CharacteristicRegistry.__contains__` as a fallback would pass every
+    # other test in the suite while making this one requirement — that a
+    # characteristic is known from data, not from the parsing code (FR-012,
+    # Constitution V) — false. One problem per characteristic-bearing
+    # position in the shipped career: a throw's characteristic, a skill
+    # table's characteristic adjustment entry, a table's gate, and a
+    # mustering-out benefit's characteristic adjustment.
+    assert 'EDU = "Education"\n' in CHARACTERISTICS
+    override = tmp_path / "characteristics.toml"
+    override.write_text(CHARACTERISTICS.replace('EDU = "Education"\n', "", 1), encoding="utf-8")
+
+    report = validate_rules(tmp_path)
+
+    assert not report.valid
+    edu_locations = {p.location for p in report.problems if p.found == "EDU"}
+    assert edu_locations == {
+        "throws.promotion.characteristic",
+        "tables.personal.entries[4]",
+        "tables.advanced-education.requires",
+        "mustering-out.benefits[1]",
     }

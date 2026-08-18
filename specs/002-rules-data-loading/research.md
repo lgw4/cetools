@@ -121,8 +121,13 @@ returned both `sub/probe.toml` and `tasks.toml`. No `__init__.py` is needed in
 **Rationale**: FR-027 forbids searching any location the caller did not name, and
 `resources.files` reads the installed package rather than the working directory,
 which is what makes the `src/` layout's guarantee honest (the packaging guard test
-would catch a wheel that dropped a data file). Sorting the walk makes problem reports
-stable across platforms, which SC-002 and SC-003 depend on to assert content.
+would catch a wheel that dropped a data file). Report stability across platforms,
+which SC-002 and SC-003 depend on to assert content, does not in fact come from this
+walk order: `_discover_packaged` returns a basename-keyed dict, `_validate` re-iterates
+`sorted(composed)`, and every collected problem passes through `problems.sort()` before
+a report is built. Those two sorts are what earn the guarantee; this one is normalized
+downstream and could be dropped without changing report order (`rules.py` `_walk_toml`,
+`_validate`).
 
 ## R6: Proving that no outside location is opened (SC-007)
 

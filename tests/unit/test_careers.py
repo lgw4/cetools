@@ -659,6 +659,20 @@ class TestBooleansAreNotIntegers:
         assert len(matching) == 1
         assert matching[0].found == "a boolean"
 
+    def test_two_bad_cash_amounts_are_both_reported(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        # The cash loop must report every offending amount, not stop at the
+        # first (FR-021, SC-003) — the sibling `tables.*.entries` loop already
+        # does, and an author who fixes one string cash amount deserves to
+        # see the second on the same run rather than the next.
+        data = copy.deepcopy(valid_data)
+        data["mustering-out"]["cash"][0] = "1000"
+        data["mustering-out"]["cash"][1] = "5000"
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert {"mustering-out.cash[0]", "mustering-out.cash[1]"} <= _problem_locations(problems)
+
 
 class TestNonStringInANotationBearingFieldIsATypeProblem:
     """contracts/notation.md: "Non-string content in a notation-bearing field
@@ -704,6 +718,22 @@ class TestNonStringInANotationBearingFieldIsATypeProblem:
         assert career is None
         self._assert_typed(problems, "mustering-out.benefits[0]")
 
+    def test_two_bad_mustering_out_benefits_are_both_reported(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        # Structurally the same loop as `tables.*.entries`, which is killed by
+        # a truncation mutation; this one was not, so a file carrying two
+        # malformed benefits could report one and hide the other (FR-021,
+        # SC-003).
+        data = copy.deepcopy(valid_data)
+        data["mustering-out"]["benefits"][0] = 5
+        data["mustering-out"]["benefits"][1] = 7
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert {"mustering-out.benefits[0]", "mustering-out.benefits[1]"} <= _problem_locations(
+            problems
+        )
+
 
 class TestKeyClosureWithinEachObject:
     """FR-020 exists because a misspelled key "would otherwise leave the throw
@@ -721,6 +751,20 @@ class TestKeyClosureWithinEachObject:
         career, problems = parse_career(data, FILE, characteristics, skills, benefits)
         assert career is None
         assert "laders" in _problem_locations(problems)
+
+    def test_two_unrecognized_keys_at_the_career_top_level_are_both_reported(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        # `extra = sorted(set(data) - allowed)` is what makes every key
+        # closure site in this module report every offender; truncating it
+        # to one would hide the second misspelling in a file carrying two
+        # (FR-020, FR-021, SC-003).
+        data = copy.deepcopy(valid_data)
+        data["laders"] = []
+        data["muster"] = []
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert {"laders", "muster"} <= _problem_locations(problems)
 
     def test_an_unrecognized_key_inside_a_throw(
         self, valid_data, characteristics, skills, benefits
@@ -851,6 +895,21 @@ class TestThreeDistinguishableSkillProblems:
             data, characteristics, skills, benefits, "tables.service.entries[0]"
         )
         assert problem.found == "Vac Suit"
+        assert problem.expected == "a name in the skills registry"
+
+    def test_an_unrecognized_skill_name_carrying_a_specialty_reports_the_entry_as_written(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        # FR-013 requires "the name as written"; the two sibling branches
+        # (specialty not allowed, unrecognized specialty) already report the
+        # reassembled written form, and an unrecognized name must not be the
+        # one branch that drops the specialty the author wrote.
+        data = copy.deepcopy(valid_data)
+        data["tables"]["service"]["entries"][0] = "Vac Suit (Foo)"
+        problem = self._problem(
+            data, characteristics, skills, benefits, "tables.service.entries[0]"
+        )
+        assert problem.found == "Vac Suit (Foo)"
         assert problem.expected == "a name in the skills registry"
 
     def test_the_three_are_pairwise_distinguishable(

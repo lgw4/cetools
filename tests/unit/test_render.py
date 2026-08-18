@@ -27,6 +27,17 @@ _OVERRIDDEN_WITH_IGNORED = Provenance(
     ignored=("notes.md",),
 )
 _PACKAGED_WITH_IGNORED = Provenance(version="2026.08.1", files=(), ignored=("notes.md",))
+_OVERRIDDEN_WITH_LONGER_IGNORED_PATH = Provenance(
+    version="2026.08.1",
+    files=(
+        FileProvenance(
+            file="navy.toml",
+            disposition=Disposition.REPLACED,
+            fingerprint="sha256:" + "3b1f" + "c0" * 30,
+        ),
+    ),
+    ignored=("deep/subdir/notes.md",),
+)
 
 
 def test_as_text_throw_with_modifier_matches_contract_example():
@@ -240,6 +251,26 @@ def test_as_text_provenance_block_columns_are_padded_to_the_longest_present():
     assert provenance_lines[0].startswith("    navy.toml     replaced  ")
     assert provenance_lines[1].startswith("    scouts.toml   added     ")
     assert provenance_lines[2] == "    notes.md      ignored"
+
+
+def test_as_text_provenance_block_pads_to_the_longest_name_even_when_it_is_ignored():
+    # The file column is padded to the longest name across BOTH lists — a
+    # composition key for an effective file or a path within the override
+    # for an ignored one (contracts/cli.md) — not to the longest effective
+    # file alone. Changing `[fp.file for fp in provenance.files] + list(
+    # provenance.ignored)` to use `or` in place of `+` would silently drop
+    # the ignored list from the width calculation whenever any file took
+    # effect, which no existing fixture catches: "scouts.toml" (11 chars) is
+    # already the longest name in `_OVERRIDDEN_WITH_IGNORED`, so `or` would
+    # coincidentally compute the same width there.
+    text = as_text(_check_with(_OVERRIDDEN_WITH_LONGER_IGNORED_PATH))
+    lines = text.splitlines()
+    rules_index = lines.index("  Rules: overridden (cetools 2026.08.1)")
+    provenance_lines = lines[rules_index + 1 :]
+    width = len("deep/subdir/notes.md")
+    assert len("navy.toml") < width
+    assert provenance_lines[0].startswith(f"    {'navy.toml'.ljust(width)}   replaced  ")
+    assert provenance_lines[1] == f"    {'deep/subdir/notes.md'.ljust(width)}   ignored"
 
 
 def test_as_text_provenance_block_an_override_with_only_ignored_files_still_reads_packaged():

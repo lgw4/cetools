@@ -52,9 +52,13 @@ package (FR-027).
 A file in an override that is not a `.toml` file does not raise: its path within the
 override lands in `provenance.ignored` and the load proceeds (FR-032a). The path rather
 than the basename, so two `notes.md` in different directories are both named. A file or
-directory whose name begins with a dot is passed over without appearing anywhere
-(FR-032b), so a `.DS_Store` beside a house rule neither fails the load nor clutters the
-report, and pointing the loader at a git checkout reports nothing from `.git/`.
+directory *found by walking an override directory* whose name begins with a dot is
+passed over without appearing anywhere (FR-032b), so a `.DS_Store` beside a house rule
+neither fails the load nor clutters the report, and pointing the loader at a git
+checkout reports nothing from `.git/`. The carve-out does not apply to `override` itself:
+a dot-prefixed path the caller names composes by its basename if it is a `.toml` file,
+or is ignored and named in `provenance.ignored` otherwise — the same treatment any other
+named path gets, because a path typed on the command line was written by the author.
 
 A directory within the override that cannot be listed is a collected `ValidationProblem`
 naming it, not a subtree passed over in silence; symlinked directories are followed.

@@ -113,6 +113,29 @@ def test_an_unrecognized_name_in_an_override_fails_like_a_shipped_file_would(tmp
     )
 
 
+def test_provenance_detail_survives_on_a_failing_report(tmp_path):
+    """FR-032a's bargain is that admitting an unrecognized filename, or
+    letting a house rule take effect, is paid for by naming it in provenance
+    — and that bargain must hold on a run that fails, not only on one that
+    succeeds. Composition (`_compose`) runs before validation, so
+    `provenance` is fixed before any problem is known; this pins that a
+    failing `ValidationReport` still carries the files that took effect and
+    the files that were passed over, which is exactly what an author
+    debugging a rejected data set needs to see (FR-035, FR-032a, FR-021).
+    """
+    override = tmp_path / "navy.toml"
+    override.write_text(NAVY.replace('"Comms"', '"Coms"', 1), encoding="utf-8")
+    (tmp_path / "notes.md").write_text("not rules data", encoding="utf-8")
+
+    report = validate_rules(tmp_path)
+
+    assert not report.valid
+    assert len(report.provenance.files) == 1
+    assert report.provenance.files[0].file == "navy.toml"
+    assert report.provenance.files[0].disposition.value == "replaced"
+    assert report.provenance.ignored == ("notes.md",)
+
+
 @pytest.mark.parametrize("mode", [[], ["--json"]], ids=["text", "json"])
 def test_check_reports_every_problem_of_a_failed_load_on_stderr(tmp_path, mode):
     """The failed-load reporting path of `check`, which nothing exercised: the

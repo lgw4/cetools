@@ -127,6 +127,20 @@ def test_a_location_that_does_not_exist_is_a_usage_error_naming_it(tmp_path):
         validate_rules(missing)
 
 
+def test_a_nonexistent_location_is_distinguishable_from_neither_file_nor_directory(tmp_path):
+    # FR-028 and T067 separate a mistyped path from a location such as
+    # `/dev/null` that exists but can hold no rules data; both raise
+    # `RulesDataError` naming the path, and the two branches in `_compose`
+    # are only genuinely distinct if their wording is, not merely if the
+    # path string happens to appear in both. Deleting the nonexistent-path
+    # branch would let this input fall into the neither-file-nor-directory
+    # branch (or a bare OS error) and still name the path, so match on the
+    # wording specific to non-existence rather than the path alone.
+    missing = tmp_path / "nope"
+    with pytest.raises(RulesDataError, match="does not exist"):
+        validate_rules(missing)
+
+
 def test_a_location_that_is_neither_a_file_nor_a_directory_is_a_usage_error_naming_it(tmp_path):
     # The same silent failure FR-028 removes for a mistyped path: a location
     # that cannot hold rules data must not compose to the packaged set while
@@ -134,6 +148,16 @@ def test_a_location_that_is_neither_a_file_nor_a_directory_is_a_usage_error_nami
     fifo = tmp_path / "pipe"
     os.mkfifo(fifo)
     with pytest.raises(RulesDataError, match="pipe"):
+        validate_rules(fifo)
+
+
+def test_neither_file_nor_directory_is_distinguishable_from_nonexistent(tmp_path):
+    # The mirror of the nonexistent-path case above: this branch's wording
+    # must be specific to "exists but is unusable", not merely reachable by
+    # any bad-location input (FR-028).
+    fifo = tmp_path / "pipe"
+    os.mkfifo(fifo)
+    with pytest.raises(RulesDataError, match="neither a file nor a directory"):
         validate_rules(fifo)
 
 
@@ -246,7 +270,11 @@ def test_an_override_root_that_cannot_be_listed_is_reported(tmp_path):
     finally:
         root.chmod(0o700)
     assert not report.valid
-    assert any(p.location == "" and "listed" in p.found for p in report.problems)
+    matching = [p for p in report.problems if p.location == "" and "listed" in p.found]
+    assert matching
+    # "listed" alone survives a bare category with the OS error's own detail
+    # dropped; pin the interpolated `exc.strerror` too (FR-020a, T129).
+    assert any("Permission denied" in p.found for p in matching)
 
 
 def test_a_dot_prefixed_directory_is_passed_over_with_everything_under_it(tmp_path):
@@ -290,6 +318,20 @@ def test_every_ignored_file_is_named_not_every_distinct_basename(tmp_path):
     report = validate_rules(tmp_path)
     assert report.valid
     assert report.provenance.ignored == ("a/notes.md", "b/notes.md")
+
+
+def test_ignored_files_are_reported_sorted_rather_than_in_set_iteration_order(tmp_path):
+    # `ignored` is accumulated as a `set[str]` and only sorted on the way
+    # out into `Provenance`; a set's iteration order is hash-based, not
+    # insertion order, so a two-element case can hold "sorted" by
+    # coincidence. Five names, none already adjacent to its sorted neighbour
+    # by construction, make that coincidence implausible.
+    names = ["zebra.txt", "mango.txt", "apple.txt", "walnut.txt", "banana.txt"]
+    for name in names:
+        (tmp_path / name).write_text("junk", encoding="utf-8")
+    report = validate_rules(tmp_path)
+    assert report.valid
+    assert report.provenance.ignored == tuple(sorted(names))
 
 
 def test_two_override_files_sharing_a_basename_is_a_problem_naming_both(tmp_path):

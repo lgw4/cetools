@@ -78,6 +78,35 @@ def test_valid_toml_parses_expected_target_dm_roll_ladder_and_bands():
     assert parameters.characteristic_bands[-1] == Band(minimum=33, maximum=None, dm=9)
 
 
+def test_characteristic_bands_sort_by_minimum_regardless_of_file_order():
+    # `Band`'s own docstring states the unbounded band "sorts last" as an
+    # invariant `characteristic_dm`'s linear first-match scan depends on;
+    # nothing forbids overlapping bands, so file order — not declaration
+    # order — must decide which of two overlapping bands a shadowed score
+    # resolves to (FR-026, plan.md trap list).
+    text = """
+schema = "task-parameters"
+schema-version = 1
+
+[task]
+roll = "2d6"
+target = 8
+unskilled-dm = -3
+
+[difficulty-dms]
+"Average" = 0
+
+[characteristic-dms]
+"5-15" = 5
+"0-10" = -2
+"33+" = 9
+"""
+    parameters = _parsed(text)
+    minimums = [band.minimum for band in parameters.characteristic_bands]
+    assert minimums == [0, 5, 33]
+    assert parameters.characteristic_dm(7) == -2
+
+
 def test_missing_task_table_reports_a_problem():
     import tomllib
 
@@ -86,6 +115,54 @@ def test_missing_task_table_reports_a_problem():
     parameters, problems = parse_task_parameters(data, "tasks.toml")
     assert parameters is None
     assert any(p.location == "task" for p in problems)
+
+
+def test_missing_difficulty_dms_table_refuses_rather_than_falling_back():
+    # FR-026 forbids a data set with a hole resolving quietly against a
+    # built-in default: a literal fallback for a missing `[difficulty-dms]`
+    # table, inserted before this check, would satisfy every existing
+    # difficulty-dms test, none of which removes the table.
+    import tomllib
+
+    text = """
+schema = "task-parameters"
+schema-version = 1
+
+[task]
+roll = "2d6"
+target = 8
+unskilled-dm = -3
+
+[characteristic-dms]
+"0-10" = -2
+"11+" = 0
+"""
+    data = tomllib.loads(text)
+    parameters, problems = parse_task_parameters(data, "tasks.toml")
+    assert parameters is None
+    assert any(p.location == "difficulty-dms" and p.found == "missing" for p in problems)
+
+
+def test_missing_characteristic_dms_table_refuses_rather_than_falling_back():
+    # The same guarantee, the other required top-level table (FR-026).
+    import tomllib
+
+    text = """
+schema = "task-parameters"
+schema-version = 1
+
+[task]
+roll = "2d6"
+target = 8
+unskilled-dm = -3
+
+[difficulty-dms]
+"Average" = 0
+"""
+    data = tomllib.loads(text)
+    parameters, problems = parse_task_parameters(data, "tasks.toml")
+    assert parameters is None
+    assert any(p.location == "characteristic-dms" and p.found == "missing" for p in problems)
 
 
 def test_non_integer_target_reports_a_problem_locating_the_field():
@@ -130,6 +207,28 @@ def test_zero_zero_modifier_rungs_reports_a_problem():
     assert any(p.location == "difficulty-dms" for p in problems)
 
 
+def test_two_zero_modifier_rungs_reports_a_problem():
+    # contracts/data-files.md: "Exactly one rung must be `0`". The sibling
+    # rule one field over, `unbounded_count != 1`, is tested on both the
+    # zero-unbounded-bands and the several-unbounded-bands sides; this rule
+    # was tested only on the zero-rungs side, so weakening `zero_count != 1`
+    # to `zero_count < 1` — which would let two rungs both at modifier 0
+    # through — went unnoticed. It matters because
+    # `TaskParameters.default_difficulty()` returns the *first* zero rung, so
+    # two of them make the default difficulty depend on file order
+    # (FR-026, FR-020b).
+    import tomllib
+
+    text = VALID_TOML.replace('"Easy" = 4', '"Easy" = 0')
+    data = tomllib.loads(text)
+    parameters, problems = parse_task_parameters(data, "tasks.toml")
+    assert parameters is None
+    matching = [p for p in problems if p.location == "difficulty-dms"]
+    assert len(matching) == 1
+    assert matching[0].found == "2 rungs at modifier 0"
+    assert matching[0].expected == "exactly one rung at modifier 0"
+
+
 def test_several_unbounded_bands_reports_a_problem():
     import tomllib
 
@@ -160,6 +259,19 @@ def test_unrecognized_key_reports_a_problem():
     parameters, problems = parse_task_parameters(data, "tasks.toml")
     assert parameters is None
     assert any(p.location == "nonsense" for p in problems)
+
+
+def test_two_unrecognized_top_level_keys_are_both_reported():
+    import tomllib
+
+    # `_unrecognized_key_problems`'s `extra = sorted(set(data) - allowed)`
+    # must not stop at the first offender, or a file misspelling two keys
+    # would report one and hide the other (FR-021, SC-003).
+    text = VALID_TOML.replace("[task]", 'nonsense = "value"\nmore-nonsense = "value"\n\n[task]', 1)
+    data = tomllib.loads(text)
+    parameters, problems = parse_task_parameters(data, "tasks.toml")
+    assert parameters is None
+    assert {"nonsense", "more-nonsense"} <= {p.location for p in problems}
 
 
 def test_fr022_edited_target_difficulty_unskilled_dm_and_band_bound_are_reflected():
@@ -229,6 +341,21 @@ def test_validate_rules_reports_the_packaged_data_set_as_valid():
 def test_validate_rules_file_count_counts_every_composed_toml():
     report = validate_rules()
     assert report.file_count == 5
+
+
+def test_file_count_counts_an_override_addition_not_only_the_packaged_set(tmp_path):
+    # `Files:` is documented (data-model.md, contracts/json-output.md) as the
+    # files composed and checked, not the files that shipped; every existing
+    # assertion on `file_count` happens to equal 5 under either reading,
+    # because none of them composes an addition. `scouts.toml` matches no
+    # packaged basename, so it is an addition rather than a replacement
+    # (FR-032), and is left invalid on purpose — `file_count` is checked
+    # before validity, exactly as it is known even on a failing report.
+    (tmp_path / "scouts.toml").write_text(
+        'schema = "career"\nschema-version = 1\n', encoding="utf-8"
+    )
+    report = validate_rules(tmp_path)
+    assert report.file_count == 6
 
 
 def test_load_rules_rejects_a_nonexistent_override_location_as_a_usage_error(tmp_path):
@@ -349,6 +476,12 @@ class TestCollectedRatherThanRaisedOrDropped:
         assert len(navy_problems) == 1
         assert navy_problems[0].location == ""
         assert "UTF-8" in navy_problems[0].found
+        # FR-020a asks for the malformation "located as precisely as the
+        # format allows"; "UTF-8" alone would still appear in a bare
+        # category string with the codec's own interpolated detail dropped,
+        # so pin the position detail too (T129).
+        assert "byte" in navy_problems[0].found
+        assert "position" in navy_problems[0].found
 
     def test_a_non_string_roll_is_collected_rather_than_sent_into_the_dice_parser(self, tmp_path):
         # Losing the type check sends a non-string into `_check_dice`, which
@@ -406,6 +539,10 @@ class TestCollectedRatherThanRaisedOrDropped:
         assert len(skills_problems) == 1
         assert skills_problems[0].location == ""
         assert "read" in skills_problems[0].found
+        # "read" alone survives a bare category with the OS error's own
+        # detail dropped; pin the interpolated `exc.strerror` too (FR-020a,
+        # T129).
+        assert "Permission denied" in skills_problems[0].found
         assert not [p for p in report.problems if "exactly one file declaring" in p.expected]
 
     def test_a_rejected_file_declaring_a_kind_at_any_basename_occupies_that_slot(
@@ -434,6 +571,47 @@ class TestCollectedRatherThanRaisedOrDropped:
         version_problems = [p for p in report.problems if p.expected == "version 1"]
         assert [p.file for p in version_problems] == ["house-skills.toml"]
         assert not [p for p in report.problems if "declaring kind 'skills'" in p.expected]
+
+
+class TestRegistrySubProblemsAllReachTheReport:
+    """`_validate` funnels each registry parser's own problems into the
+    report with `problems.extend(sub_problems)`. Each parser already loops
+    over every offending entry, but nothing proved that funnel forwards more
+    than one of them: truncating any of the three `problems.extend` calls to
+    `sub_problems[:1]` would leave a file with two mistakes reporting one,
+    which FR-021 and SC-003 forbid, and no test reaching `_validate` supplies
+    more than one mistake per registry file.
+    """
+
+    def test_two_bad_characteristic_labels(self, tmp_path):
+        (tmp_path / "characteristics.toml").write_text(
+            'schema = "characteristics"\nschema-version = 1\n\n'
+            "[characteristics]\nSTR = 5\nDEX = 7\n",
+            encoding="utf-8",
+        )
+        report = validate_rules(tmp_path)
+        assert not report.valid
+        locations = {p.location for p in report.problems if p.file == "characteristics.toml"}
+        assert {"characteristics.STR", "characteristics.DEX"} <= locations
+
+    def test_two_bad_skill_specialty_arrays(self, tmp_path):
+        (tmp_path / "skills.toml").write_text(
+            'schema = "skills"\nschema-version = 1\n\n[skills]\nFoo = 5\nBar = 7\n',
+            encoding="utf-8",
+        )
+        report = validate_rules(tmp_path)
+        assert not report.valid
+        locations = {p.location for p in report.problems if p.file == "skills.toml"}
+        assert {"skills.Foo", "skills.Bar"} <= locations
+
+    def test_two_bad_benefit_items(self, tmp_path):
+        (tmp_path / "benefits.toml").write_text(
+            'schema = "benefits"\nschema-version = 1\n\nbenefits = [5, 7]\n', encoding="utf-8"
+        )
+        report = validate_rules(tmp_path)
+        assert not report.valid
+        locations = {p.location for p in report.problems if p.file == "benefits.toml"}
+        assert {"benefits[0]", "benefits[1]"} <= locations
 
 
 def test_canonical_file_names_the_packaged_declarer_of_every_single_instance_kind():

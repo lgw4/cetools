@@ -113,6 +113,22 @@ class TestEntryContexts:
         result = parse_entry("Vacc Suit", EntryContext.GATE)
         assert isinstance(result, NotationProblem)
 
+    def test_adjustment_not_admitted_in_gate(self):
+        # FR-009a: the gate admits "a check and nothing else". A gate with
+        # `requires = "EDU +1"` would silently become a `CharacteristicAdjustment`
+        # assigned to `SkillTable.requires` (typed `CharacteristicCheck | None`)
+        # if this exclusion regressed.
+        result = parse_entry("EDU +1", EntryContext.GATE)
+        assert isinstance(result, NotationProblem)
+        assert result.found == "EDU +1"
+        assert result.expected.startswith("a characteristic check")
+
+    def test_grant_not_admitted_in_gate(self):
+        result = parse_entry("Pilot 2", EntryContext.GATE)
+        assert isinstance(result, NotationProblem)
+        assert result.found == "Pilot 2"
+        assert result.expected.startswith("a characteristic check")
+
     def test_adjustment_admitted_in_skill_table(self):
         assert isinstance(
             parse_entry("STR +1", EntryContext.SKILL_TABLE), CharacteristicAdjustment
