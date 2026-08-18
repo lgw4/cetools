@@ -52,7 +52,15 @@ def fingerprint(data: bytes) -> str:
 
 
 def package_version() -> str:
-    """The installed `cetools` version, read once from package metadata so a
-    result cannot report a version other than the one that produced it.
+    """The installed `cetools` version, read from package metadata rather
+    than declared anywhere in code, so a result cannot report a version other
+    than the one that produced it.
+
+    "Read from metadata" rather than "read once": this is not memoized, and
+    each call goes to the metadata afresh. Its two call sites are one per
+    load, plan.md records no performance goal that constrains the design, and
+    a second process-lifetime cache would be a second thing every test that
+    reloads has to remember to clear — which the one on `load_rules` already
+    proved is easy to forget.
     """
     return version("cetools")
