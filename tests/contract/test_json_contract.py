@@ -1,8 +1,15 @@
 import json
+from importlib.metadata import version
 
 from cetools.dice import ThrowResult
-from cetools.render import as_dict
+from cetools.errors import ValidationProblem
+from cetools.provenance import Disposition, FileProvenance, Provenance
+from cetools.render import as_dict, as_json
+from cetools.rules import ValidationReport
 from cetools.tasks import CheckResult, Modifier
+
+_VERSION = version("cetools")
+_PACKAGED_PROVENANCE = Provenance(version=_VERSION, files=(), ignored=())
 
 _ROLL = ThrowResult(
     notation="2d6+1",
@@ -33,6 +40,7 @@ _CHECK = CheckResult(
     target=8,
     success=False,
     seed=14333185781139156525,
+    provenance=_PACKAGED_PROVENANCE,
 )
 
 
@@ -93,6 +101,7 @@ def test_check_payload_key_set_and_order_matches_contract():
         "target",
         "success",
         "seed",
+        "provenance",
     ]
 
 
@@ -114,6 +123,7 @@ def test_check_payload_value_types():
     assert isinstance(payload["target"], int)
     assert isinstance(payload["success"], bool)
     assert isinstance(payload["seed"], str)
+    assert isinstance(payload["provenance"], dict)
 
 
 def test_check_payload_matches_contract_example():
@@ -131,7 +141,20 @@ def test_check_payload_matches_contract_example():
         "target": 8,
         "success": False,
         "seed": "14333185781139156525",
+        "provenance": {
+            "source": "packaged",
+            "version": _VERSION,
+            "files": [],
+            "ignored": [],
+        },
     }
+
+
+def test_check_payload_provenance_matches_json_output_contract_shape():
+    payload = as_dict(_CHECK)
+    assert list(payload["provenance"]) == ["source", "version", "files", "ignored"]
+    assert payload["provenance"]["source"] == "packaged"
+    assert payload["provenance"]["version"] == _VERSION
 
 
 def test_check_payload_total_arithmetic_invariant():
@@ -157,3 +180,183 @@ def test_payloads_are_json_serializable_round_trip():
     for result in (_ROLL, _D66, _CHECK):
         payload = as_dict(result)
         assert json.loads(json.dumps(payload)) == payload
+
+
+# --- validation payload (contracts/json-output.md) ---
+
+_WHOLE_FILE_PROBLEM = ValidationProblem(
+    file="navy.toml",
+    location="",
+    # The `tomllib` message as the loader passes it through, not a paraphrase:
+    # the contract's own worked example used to show one no run could produce.
+    found="invalid TOML: Expected ']' at the end of a table declaration (at line 4, column 8)",
+    expected="a well-formed TOML document",
+)
+
+_VALID_REPORT = ValidationReport(provenance=_PACKAGED_PROVENANCE, file_count=5, problems=())
+
+_INVALID_REPORT = ValidationReport(
+    provenance=_PACKAGED_PROVENANCE,
+    file_count=5,
+    problems=(
+        ValidationProblem(
+            file="navy.toml",
+            location="tables.service.entries[2]",
+            found="Vac Suit",
+            expected="a name in the skills registry",
+        ),
+    ),
+)
+
+
+def test_validation_payload_key_set_and_order_matches_contract():
+    payload = as_dict(_VALID_REPORT)
+    assert list(payload) == ["kind", "valid", "file_count", "provenance", "problems"]
+
+
+def test_validation_payload_kind_is_validation():
+    assert as_dict(_VALID_REPORT)["kind"] == "validation"
+
+
+def test_validation_payload_valid_true_iff_problems_empty():
+    assert as_dict(_VALID_REPORT)["valid"] is True
+    assert as_dict(_INVALID_REPORT)["valid"] is False
+
+
+def test_validation_payload_matches_contract_example():
+    assert as_dict(_INVALID_REPORT) == {
+        "kind": "validation",
+        "valid": False,
+        "file_count": 5,
+        "provenance": {
+            "source": "packaged",
+            "version": _VERSION,
+            "files": [],
+            "ignored": [],
+        },
+        "problems": [
+            {
+                "file": "navy.toml",
+                "location": "tables.service.entries[2]",
+                "found": "Vac Suit",
+                "expected": "a name in the skills registry",
+            }
+        ],
+    }
+
+
+def test_validation_payload_problem_location_is_present_but_empty_for_a_whole_file_problem():
+    report = ValidationReport(
+        provenance=_PACKAGED_PROVENANCE, file_count=5, problems=(_WHOLE_FILE_PROBLEM,)
+    )
+    problem = as_dict(report)["problems"][0]
+    assert "location" in problem
+    assert problem["location"] == ""
+
+
+def test_validation_payload_value_types():
+    payload = as_dict(_INVALID_REPORT)
+    assert isinstance(payload["valid"], bool)
+    assert isinstance(payload["file_count"], int)
+    assert isinstance(payload["provenance"], dict)
+    assert isinstance(payload["problems"], list)
+    for problem in payload["problems"]:
+        assert list(problem) == ["file", "location", "found", "expected"]
+        for key in problem:
+            assert isinstance(problem[key], str)
+
+
+def test_validation_payloads_are_json_serializable_round_trip():
+    for report in (_VALID_REPORT, _INVALID_REPORT):
+        payload = as_dict(report)
+        assert json.loads(json.dumps(payload)) == payload
+
+
+# --- overridden provenance (contracts/json-output.md) ---
+
+_OVERRIDDEN_PROVENANCE = Provenance(
+    version=_VERSION,
+    files=(
+        FileProvenance(
+            file="navy.toml",
+            disposition=Disposition.REPLACED,
+            fingerprint="sha256:" + "3b" * 32,
+        ),
+        FileProvenance(
+            file="scouts.toml",
+            disposition=Disposition.ADDED,
+            fingerprint="sha256:" + "9a" * 32,
+        ),
+    ),
+    ignored=("notes.md",),
+)
+
+_OVERRIDDEN_REPORT = ValidationReport(provenance=_OVERRIDDEN_PROVENANCE, file_count=6, problems=())
+
+
+def test_overridden_provenance_matches_the_contract_example():
+    # Every fixture in this module built *packaged* provenance, so no test
+    # ever saw a populated `files` entry: the inner keys could be reordered
+    # with the suite green, although contracts/json-output.md states that key
+    # order is part of the contract (FR-041).
+    assert as_dict(_OVERRIDDEN_REPORT)["provenance"] == {
+        "source": "overridden",
+        "version": _VERSION,
+        "files": [
+            {
+                "file": "navy.toml",
+                "disposition": "replaced",
+                "fingerprint": "sha256:" + "3b" * 32,
+            },
+            {
+                "file": "scouts.toml",
+                "disposition": "added",
+                "fingerprint": "sha256:" + "9a" * 32,
+            },
+        ],
+        "ignored": ["notes.md"],
+    }
+
+
+def test_overridden_provenance_file_entry_key_order_matches_contract():
+    for entry in as_dict(_OVERRIDDEN_REPORT)["provenance"]["files"]:
+        assert list(entry) == ["file", "disposition", "fingerprint"]
+
+
+def test_disposition_serializes_as_its_string_not_its_repr():
+    for entry in as_dict(_OVERRIDDEN_REPORT)["provenance"]["files"]:
+        assert type(entry["disposition"]) is str
+        assert entry["disposition"] in ("replaced", "added")
+
+
+# --- rendering invariants that hold across every payload ---
+
+
+def test_json_is_emitted_with_indent_two_and_a_trailing_newline():
+    text = as_json(_VALID_REPORT)
+    assert text.endswith("}\n")
+    assert '\n  "kind": "validation"' in text
+
+
+def test_non_ascii_content_is_emitted_literally_not_escaped():
+    # `ensure_ascii=False` is the one clause of the `as_json` invariant whose
+    # siblings — `indent=2` and the trailing newline — are both killed. A
+    # report naming a benefit item spelled with a typographic apostrophe came
+    # back as `’`, which is valid JSON and is not what the contract says
+    # is emitted, and nothing could tell the difference.
+    report = ValidationReport(
+        provenance=_PACKAGED_PROVENANCE,
+        file_count=5,
+        problems=(
+            ValidationProblem(
+                file="navy.toml",
+                location="mustering-out.benefits[0]",
+                found="Explorers’ Society",
+                expected="a name in the benefits registry",
+            ),
+        ),
+    )
+    text = as_json(report)
+    assert "Explorers’ Society" in text
+    assert "\\u2019" not in text
+    assert json.loads(text)["problems"][0]["found"] == "Explorers’ Society"

@@ -75,12 +75,24 @@ matching directory:
 | `tests/integration/` | CLI invocations end to end, and golden-file output |
 | `tests/contract/`    | The stability of the `--json` shape                |
 | `tests/property/`    | Hypothesis invariants over generated input         |
-| `tests/guards/`      | The seed-reproducibility contract                  |
+| `tests/guards/`      | Whole-repository invariants nothing else can check |
 | `tests/golden/`      | Expected CLI text output, byte for byte            |
+
+**The suite runs on Windows too.** CI covers it, so a test may not assume
+POSIX. Two facilities the override tests need are unavailable there — FIFOs
+and device nodes, and a `chmod(0o000)` that actually denies access — and a
+test that needs either carries `@pytest.mark.needs_posix_special_files` or
+`@pytest.mark.needs_enforced_chmod`. `tests/conftest.py` probes for the
+facility and skips; do not hand-roll a `skipif` on `os.name` or `geteuid`.
+Reading a shipped file as bytes is the other trap: a Windows checkout
+translates line endings, so normalize before asserting on them.
 
 If your change alters human-readable CLI output, the golden files in
 `tests/golden/` change with it in the same commit, and the diff should show
-the new output plainly enough to be reviewed on sight.
+the new output plainly enough to be reviewed on sight. The worked examples
+in `README.md` are reference output too — the README is the description PyPI
+renders — and `tests/integration/test_golden.py` runs each of them and
+compares.
 
 **Anything new is reachable from both sides.** A new library function needs
 a CLI path to it (Principle II), and a new CLI flag needs to be a thin call
@@ -94,9 +106,9 @@ integer, or `None`, into the integer seed a `Roller` uses, and every command
 prints the seed it used so any result can be regenerated.
 
 **Rules content goes in the data files.** New difficulty bands, tables, or
-task parameters are edits to `src/cetools/data/*.toml`, not new branches in
-the engine. If the engine cannot express the rule from data, say so in the
-spec and change the data format deliberately.
+task parameters are edits to the `.toml` files under `src/cetools/data/`, at
+any depth, not new branches in the engine. If the engine cannot express the
+rule from data, say so in the spec and change the data format deliberately.
 
 **Public API.** Anything exported from `cetools/__init__.py`'s `__all__`
 carries a docstring; that is a requirement of Principle I, and
@@ -105,17 +117,32 @@ carries a docstring; that is a requirement of Principle I, and
 ## Style and tooling
 
 Formatting and linting are configured but, per Principle III, are not
-constitutional gates. Run them anyway:
+constitutional gates. Run them anyway, scoped to this project's own code:
 
 ```sh
-uv run black .
-uv run isort .
-uv run flake8
+uv run black src tests
+uv run isort src tests
+uv run flake8 src tests
 ```
+
+Neither `black` nor `flake8` is configured to exclude `.venv` or the vendored
+`.claude`/`.specify` trees, so running any of the three unscoped reports
+thousands of errors from the virtualenv and six files under `.specify` that
+are not this project's to reformat. `isort` needs no such scoping; it already
+reports clean at repository scope.
 
 Line length is 99 for both black and flake8; isort uses the black profile.
 CI (`.github/workflows/ci.yaml`) runs `uv run pytest` on Linux, macOS, and
 Windows against Python 3.13 and 3.14. All six jobs must pass.
+
+`pyproject.toml` also carries a `[tool.rumdl]` section, configuring the
+[rumdl](https://github.com/rvben/rumdl) markdown linter for this repository:
+GitHub-flavored markdown, line length off, and the vendored `.claude` and
+`.specify` trees excluded because their markdown is not ours to fix. It is
+deliberately neither a dependency nor a CI gate — install it yourself if you
+want it (`rumdl check .`), and note that nothing fails if you do not. It is
+recorded here so the configuration is accounted for rather than sitting in
+`pyproject.toml` unexplained.
 
 Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/)
 with a scope naming the area touched:
@@ -133,11 +160,18 @@ line it sits on.
 
 - **Code, tests, packaging, and docs are GPL-3.0** (`LICENSE`). By
   contributing them you agree to license them that way.
-- **`src/cetools/data/tasks.toml` is Open Game Content under OGL 1.0a**
-  (`LICENSE-OGL.txt`). It cannot be sublicensed under the GPL. Any new file
-  containing content derived from the Cepheus Engine SRD is also OGC, must
-  carry the OGC designation in a header comment the way `tasks.toml` does,
-  and must be named as OGC in the README's licensing section.
+- **Every `.toml` file under `src/cetools/data/` is Open Game Content under
+  OGL 1.0a** (`LICENSE-OGL.txt`). It cannot be sublicensed under the GPL. Any
+  new file containing content derived from the Cepheus Engine SRD is also
+  OGC, must carry the OGC designation in a header comment the way
+  `tasks.toml` does, and must be a `.toml` under `src/cetools/data/`, which
+  is what the README's licensing section and the Section 15 game-data notice
+  both designate. The extension is part of the designation and not an
+  accident of the current contents: `src/cetools/data/__init__.py` ships
+  there to make the directory importable and is GPL-3.0 code like every other
+  Python file. Putting a data file anywhere else, or shipping OGC in another
+  format, means widening that notice in the same change; the guard below will
+  tell you so.
 - **Section 15 is verbatim.** Every distribution bundles the full OGL 1.0a
   text and reproduces the SRD's complete Section 15 copyright-notice chain
   exactly as received, extended with this project's own game-data copyright
@@ -154,8 +188,18 @@ line it sits on.
 
 `tests/unit/test_licensing.py` checks the mechanical parts of this: that
 both license files exist and are non-empty, that `LICENSE-OGL.txt` still has
-its Section 15, that `pyproject.toml` lists both under `license-files`, and
-that the README carries the OGC/GPL designation.
+its Section 15 chain complete and in order, that `pyproject.toml` lists both
+under `license-files` and declares the code's licence as the SPDX expression
+`GPL-3.0-only`, that the README carries the OGC/GPL designation, that no
+documented surface makes a compatibility claim without its attribution, and
+that the chain's game-data notice covers every file carrying the OGC
+designation — a check that reads the covered paths *and* the covered
+extension out of the notice itself, so narrowing the notice fails rather than
+passing unnoticed. Its scope is every file a source distribution would ship,
+read out of the `include` list in `pyproject.toml`, so a designated file
+outside `src/` or in another format is caught rather than filtered away.
+`tests/guards/test_packaging.py` runs the same coverage check against the
+built wheel and sdist, which is what SC-014 binds.
 
 ## Changelog and releases
 

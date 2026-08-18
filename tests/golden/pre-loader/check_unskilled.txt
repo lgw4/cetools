@@ -1,0 +1,7 @@
+Check: FAILURE
+  Dice:  2, 5 (sum 7)
+  Modifiers:
+    Difficulty (Average) +0
+    Unskilled            -3
+  Total: 4 vs target 8
+  Seed:  1

@@ -2,6 +2,9 @@
 #
 # Core task resolution parameters.
 
+schema = "task-parameters"
+schema-version = 1
+
 [task]
 roll = "2d6"
 target = 8

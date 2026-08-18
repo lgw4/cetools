@@ -1,7 +1,12 @@
+from types import MappingProxyType
+
 import pytest
 
 from cetools import Band, Modifier, Roller, TaskParameters, check
 from cetools.errors import RulesDataError, TaskError
+from cetools.provenance import Provenance
+from cetools.registries import BenefitRegistry, CharacteristicRegistry, SkillRegistry
+from cetools.rules import RulesData
 
 DIFFICULTY_LADDER = {
     "Simple": 6,
@@ -28,6 +33,8 @@ CHARACTERISTIC_BANDS = (
     Band(minimum=33, maximum=None, dm=9),
 )
 
+_EMPTY_PROVENANCE = Provenance(version="test", files=(), ignored=())
+
 
 def _parameters(**overrides):
     fields = dict(
@@ -39,6 +46,21 @@ def _parameters(**overrides):
     )
     fields.update(overrides)
     return TaskParameters(**fields)
+
+
+def _rules(**overrides):
+    """A synthetic `RulesData` wrapping `_parameters(**overrides)`, for tests
+    that exercise `check`'s task-resolution logic without a data set on disk
+    (contracts/library-api.md).
+    """
+    return RulesData(
+        task_parameters=_parameters(**overrides),
+        characteristics=CharacteristicRegistry(names=MappingProxyType({})),
+        skills=SkillRegistry(skills=MappingProxyType({})),
+        benefits=BenefitRegistry(items=()),
+        careers=MappingProxyType({}),
+        provenance=_EMPTY_PROVENANCE,
+    )
 
 
 @pytest.mark.parametrize(
@@ -54,8 +76,7 @@ def _parameters(**overrides):
     ],
 )
 def test_difficulty_ladder_steps_by_two_with_fixed_dice_and_target(name, expected_total):
-    parameters = _parameters()
-    result = check(Roller(1), difficulty=name, skill=0, parameters=parameters)
+    result = check(Roller(1), difficulty=name, skill=0, rules=_rules())
     assert result.faces == (2, 5)
     assert result.dice_total == 7
     assert result.target == 8
@@ -106,115 +127,106 @@ def test_default_difficulty_is_the_sole_zero_modifier_rung_by_value():
 
 
 def test_check_with_no_difficulty_uses_default_difficulty():
-    parameters = _parameters()
-    result = check(Roller(1), skill=0, parameters=parameters)
+    result = check(Roller(1), skill=0, rules=_rules())
     difficulty_modifier = result.modifiers[0]
     assert difficulty_modifier.label == "Difficulty (Average)"
     assert difficulty_modifier.value == 0
 
 
 def test_untrained_skill_applies_unskilled_penalty():
-    parameters = _parameters()
-    result = check(Roller(1), parameters=parameters)
+    result = check(Roller(1), rules=_rules())
     skill_modifier = [m for m in result.modifiers if m.label in ("Unskilled",)][0]
     assert skill_modifier.label == "Unskilled"
     assert skill_modifier.value == -3
 
 
 def test_skill_zero_is_trained_and_applies_nothing():
-    parameters = _parameters()
-    result = check(Roller(1), skill=0, parameters=parameters)
+    result = check(Roller(1), skill=0, rules=_rules())
     skill_modifier = result.modifiers[-1]
     assert skill_modifier.label == "Skill 0"
     assert skill_modifier.value == 0
 
 
 def test_trained_skill_applies_its_level():
-    parameters = _parameters()
-    result = check(Roller(1), skill=3, parameters=parameters)
+    result = check(Roller(1), skill=3, rules=_rules())
     skill_modifier = result.modifiers[-1]
     assert skill_modifier.label == "Skill 3"
     assert skill_modifier.value == 3
 
 
 def test_modifier_order_is_difficulty_characteristic_skill_situational():
-    parameters = _parameters()
     result = check(
         Roller(1),
         difficulty="Difficult",
         characteristic=9,
         skill=2,
         modifiers=(Modifier(label="cover", value=-2),),
-        parameters=parameters,
+        rules=_rules(),
     )
     labels = [m.label for m in result.modifiers]
     assert labels == ["Difficulty (Difficult)", "Characteristic 9", "Skill 2", "cover"]
 
 
 def test_unknown_difficulty_raises_task_error_listing_valid_names():
-    parameters = _parameters()
     with pytest.raises(TaskError) as exc_info:
-        check(Roller(1), difficulty="Trivial", parameters=parameters)
+        check(Roller(1), difficulty="Trivial", rules=_rules())
     message = str(exc_info.value)
     for name in DIFFICULTY_LADDER:
         assert name in message
 
 
 def test_negative_characteristic_raises_task_error():
-    parameters = _parameters()
     with pytest.raises(TaskError):
-        check(Roller(1), characteristic=-1, parameters=parameters)
+        check(Roller(1), characteristic=-1, rules=_rules())
 
 
 def test_negative_skill_raises_task_error():
-    parameters = _parameters()
     with pytest.raises(TaskError):
-        check(Roller(1), skill=-1, parameters=parameters)
+        check(Roller(1), skill=-1, rules=_rules())
 
 
 def test_no_automatic_success_on_natural_high_roll():
     # session-alpha throws 1, 5 (sum 6); a heavy negative ladder still fails.
-    parameters = _parameters(target=100)
-    result = check(
-        Roller("session-alpha"), difficulty="Formidable", skill=0, parameters=parameters
-    )
-    assert result.total < parameters.target
+    rules = _rules(target=100)
+    result = check(Roller("session-alpha"), difficulty="Formidable", skill=0, rules=rules)
+    assert result.total < rules.task_parameters.target
     assert result.success is False
 
 
 def test_no_automatic_failure_on_natural_low_roll():
     # seed 1 throws 2, 5 (sum 7); enough modifiers still succeed.
-    parameters = _parameters(target=1)
-    result = check(Roller(1), difficulty="Simple", skill=0, parameters=parameters)
-    assert result.total >= parameters.target
+    rules = _rules(target=1)
+    result = check(Roller(1), difficulty="Simple", skill=0, rules=rules)
+    assert result.total >= rules.task_parameters.target
     assert result.success is True
 
 
 def test_sc010_edited_parameters_change_result_at_the_api_level():
-    edited = _parameters(target=999)
-    result = check(Roller(1), skill=0, parameters=edited)
+    result = check(Roller(1), skill=0, rules=_rules(target=999))
     assert result.target == 999
     assert result.success is False
 
 
 def test_check_rejects_a_task_roll_that_is_not_a_count_and_sides_throw():
-    # The loader guards this, but `parameters=` bypasses the loader entirely and
-    # is the documented way a house-rule consumer supplies its own table, so
-    # `check` owes the same typed failure rather than a bare TypeError (FR-029).
+    # The loader guards this, but a synthetic `rules=` bypasses the loader
+    # entirely and is the documented way a house-rule consumer supplies its
+    # own table, so `check` owes the same typed failure rather than a bare
+    # TypeError (001-dice-task-engine FR-029).
     with pytest.raises(RulesDataError, match="task.roll"):
-        check(Roller(1), parameters=_parameters(roll="d66"))
+        check(Roller(1), rules=_rules(roll="d66"))
 
 
 def test_check_rejects_a_task_roll_that_is_not_dice_notation():
     with pytest.raises(RulesDataError, match="task.roll"):
-        check(Roller(1), parameters=_parameters(roll="not dice notation"))
+        check(Roller(1), rules=_rules(roll="not dice notation"))
 
 
 def test_characteristic_score_in_no_band_raises_rules_data_error():
-    # FR-015: because the table is editable under FR-022, a score falling outside
-    # every band in the data then in force is a rules-data error, never a silent
-    # zero. Gap detection is deliberately deferred to lookup time, which makes
-    # this raise the only thing between a holed table and a wrong answer.
+    # 001-dice-task-engine FR-015: because the table is editable under that
+    # feature's FR-022, a score falling outside every band in the data then in
+    # force is a rules-data error, never a silent zero. Gap detection is
+    # deliberately deferred to lookup time, which makes this raise the only
+    # thing between a holed table and a wrong answer.
     gapped = _parameters(
         characteristic_bands=(
             Band(minimum=0, maximum=2, dm=-2),
@@ -227,7 +239,7 @@ def test_characteristic_score_in_no_band_raises_rules_data_error():
 
 
 def test_check_with_a_score_in_no_band_raises_rules_data_error():
-    gapped = _parameters(
+    rules = _rules(
         characteristic_bands=(
             Band(minimum=0, maximum=2, dm=-2),
             Band(minimum=6, maximum=8, dm=0),
@@ -235,16 +247,16 @@ def test_check_with_a_score_in_no_band_raises_rules_data_error():
         )
     )
     with pytest.raises(RulesDataError, match="no characteristic band covers score 4"):
-        check(Roller(1), characteristic=4, skill=0, parameters=gapped)
+        check(Roller(1), characteristic=4, skill=0, rules=rules)
 
 
-# --- FR-018: `dice_total` is `sum(faces)`, and a house-ruled roll modifier
-# --- is itemized like every other applied modifier rather than folded in
+# --- 001-dice-task-engine FR-018: `dice_total` is `sum(faces)`, and a house-
+# --- ruled roll modifier is itemized like every other applied modifier rather
+# --- than folded in
 
 
 def test_house_ruled_roll_modifier_is_itemized_and_dice_total_stays_sum_of_faces():
-    parameters = _parameters(roll="2d6+1")
-    result = check(Roller(1), difficulty="Average", skill=0, parameters=parameters)
+    result = check(Roller(1), difficulty="Average", skill=0, rules=_rules(roll="2d6+1"))
     assert result.faces == (2, 5)
     assert result.dice_total == 7
     assert result.modifiers[0] == Modifier(label="Roll (2d6+1)", value=1)
@@ -252,14 +264,69 @@ def test_house_ruled_roll_modifier_is_itemized_and_dice_total_stays_sum_of_faces
 
 
 def test_house_ruled_negative_roll_modifier_is_itemized():
-    parameters = _parameters(roll="2d6-2")
-    result = check(Roller(1), difficulty="Average", skill=0, parameters=parameters)
+    result = check(Roller(1), difficulty="Average", skill=0, rules=_rules(roll="2d6-2"))
     assert result.dice_total == 7
     assert result.modifiers[0] == Modifier(label="Roll (2d6-2)", value=-2)
     assert result.total == 5
 
 
 def test_roll_without_a_modifier_adds_no_roll_row():
-    parameters = _parameters(roll="2d6")
-    result = check(Roller(1), difficulty="Average", skill=0, parameters=parameters)
+    result = check(Roller(1), difficulty="Average", skill=0, rules=_rules(roll="2d6"))
     assert [m.label for m in result.modifiers] == ["Difficulty (Average)", "Skill 0"]
+
+
+def test_check_result_carries_the_rules_provenance():
+    rules = _rules()
+    result = check(Roller(1), skill=0, rules=rules)
+    assert result.provenance is rules.provenance
+
+
+class TestCommittedSignatureAndShape:
+    """`contracts/library-api.md` fixes both of these and nothing held either:
+    dropping the `*` from `check` or reordering `CheckResult`'s fields left
+    the whole suite green, because every call site passes by keyword and every
+    construction is keyword-based too. The point of the keyword-only marker is
+    the calls it makes impossible, and only a signature assertion can see them
+    (FR-043, contracts/library-api.md).
+    """
+
+    def test_check_takes_the_roller_positionally_and_everything_else_by_keyword(self):
+        import inspect
+
+        parameters = list(inspect.signature(check).parameters.values())
+        assert [p.name for p in parameters] == [
+            "roller",
+            "difficulty",
+            "characteristic",
+            "skill",
+            "modifiers",
+            "rules",
+        ]
+        assert parameters[0].kind is inspect.Parameter.POSITIONAL_OR_KEYWORD
+        assert all(p.kind is inspect.Parameter.KEYWORD_ONLY for p in parameters[1:])
+        assert all(p.default is not inspect.Parameter.empty for p in parameters[1:])
+
+    def test_a_second_positional_argument_is_refused(self):
+        with pytest.raises(TypeError):
+            check(Roller(1), "Average")
+
+    def test_the_removed_parameters_keyword_is_not_accepted_beside_rules(self):
+        # FR-044 requires the old reader replaced rather than kept alongside.
+        with pytest.raises(TypeError):
+            check(Roller(1), parameters=_parameters())
+
+    def test_check_result_field_order_matches_the_contract(self):
+        import dataclasses
+
+        from cetools.tasks import CheckResult
+
+        assert [f.name for f in dataclasses.fields(CheckResult)] == [
+            "faces",
+            "dice_total",
+            "modifiers",
+            "total",
+            "target",
+            "success",
+            "seed",
+            "provenance",
+        ]

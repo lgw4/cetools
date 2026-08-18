@@ -1,0 +1,186 @@
+# Contract: Command-Line Surface
+
+**Feature**: `002-rules-data-loading`
+
+Extends the surface `001-dice-task-engine` established. Only the changes are given
+here; `cetools roll` is untouched in every respect, because it resolves against no
+rules data.
+
+## `cetools check`
+
+```text
+cetools check [--difficulty NAME] [--characteristic N] [--skill N]
+              [--dm LABEL=VALUE ...] [--seed SEED] [--rules-data PATH] [--json]
+```
+
+One new option:
+
+| Option | Meaning |
+|---|---|
+| `--rules-data PATH` | Override location, a directory or a single file. Composed over the packaged data set exactly as a library load composes it (FR-042). |
+
+Rendered output gains one block, and nothing else changes (FR-045).
+
+## `cetools validate`
+
+```text
+cetools validate [PATH] [--json]
+```
+
+| Argument | Meaning |
+|---|---|
+| `PATH` | Optional. Absent: validate the packaged data set (FR-039). A directory: validate it composed over the packaged data (FR-040). A single file: the same, positioned by its basename alone (FR-040a). |
+
+The command name is `validate` rather than `validate-rules` because rules data is the
+only thing the package validates; a later second kind of validation takes a
+subcommand of its own rather than renaming this one.
+
+### Exit codes
+
+| Code | When |
+|---|---|
+| 0 | No problem found |
+| 1 | One or more problems found |
+| 2 | Usage error, including a `PATH` that does not exist, or that exists but is neither a file nor a directory |
+
+The choice of output mode changes neither the code nor the outcome (FR-041, SC-010).
+No code outside `{0, 1, 2}` is used, which is the set the project already had.
+
+### Streams
+
+Problems go to **stdout**: they are the report the command was asked for, not a
+diagnostic about the command failing. `--json` must produce a parseable stdout, and
+splitting the report across streams by mode would break that. stderr carries usage
+errors and nothing else.
+
+## Text rendering
+
+### Provenance block, shared by `check` and `validate`
+
+Packaged:
+
+```text
+  Rules: packaged (cetools 2026.8.1)
+```
+
+Overridden, with a file ignored:
+
+```text
+  Rules: overridden (cetools 2026.8.1)
+    navy.toml     replaced  sha256:3b1f...c0
+    scouts.toml   added     sha256:9ad4...71
+    notes.md      ignored
+```
+
+The package version follows the source in parentheses, in both the packaged and the
+overridden case (FR-033a). It is the version as installed metadata reports it, which is
+the PEP 440 normalization of the declared CalVer: `2026.08.1` in `pyproject.toml` is
+reported as `2026.8.1`, the zero-padded month having been normalized away. The examples
+here hold the reported form, and `tests/guards/test_documented_version.py` keeps them
+from drifting from it. The file column is padded to the longest *name* present — a
+composition key for a file that took effect, a path within the override for an ignored
+one — and the disposition column to the longest disposition present, matching the
+padding rule the `Modifiers` block already uses. Files that took effect are listed first, sorted by name,
+then ignored files, sorted by name. Fingerprints are printed whole; an ignored file has
+none and its line ends at the disposition.
+
+An override holding nothing but ignored files still reads `packaged`, because nothing
+took effect, and still lists them:
+
+```text
+  Rules: packaged (cetools 2026.8.1)
+    notes.md   ignored
+```
+
+The file column is padded to the longest name *present*, which here is
+`notes.md` itself, so this block is narrower than the one above rather than
+padded to the same width.
+
+### `cetools check`
+
+The existing rendering with the provenance block appended after `Seed:`:
+
+```text
+Check: FAILURE
+  Dice:  1, 5 (sum 6)
+  Modifiers:
+    Difficulty (Difficult) -2
+    Characteristic 9       +1
+    Skill 2                +2
+    cover                  -2
+  Total: 5 vs target 8
+  Seed:  14333185781139156525
+  Rules: packaged (cetools 2026.8.1)
+```
+
+The outer label column stays seven characters wide, because `Rules:` is no longer
+than `Total:`. Every line above the new one is byte-for-byte what it was, which is
+what SC-009 checks.
+
+The committed golden holds the version as a placeholder, substituted at comparison
+time, so a release rewrites no golden file (SC-009). SC-008 asserts the rendered
+version against the installed package version separately, so the normalization does
+not become the only check on it.
+
+### `cetools validate`, no problems
+
+```text
+Rules data is valid.
+  Files: 5
+  Rules: packaged (cetools 2026.8.1)
+```
+
+### `cetools validate`, with problems
+
+One line per problem, then a summary:
+
+```text
+navy.toml:mustering-out.chash: found unrecognized key 'chash'; expected one of: benefits, cash
+navy.toml:tables.service.entries[2]: found Vac Suit; expected a name in the skills registry
+navy.toml:throws.survival.target: found a string; expected an integer
+skills.toml:skills: found an empty table; expected at least one entry
+
+Rules data is invalid.
+  Files:    5
+  Problems: 4
+  Rules:    packaged (cetools 2026.8.1)
+```
+
+The problem line is `FILE:LOCATION: found FOUND; expected EXPECTED`, dropping
+`:LOCATION` when the problem is about the file as a whole. The message
+`tomllib` raises is passed through rather than reworded:
+
+```text
+navy.toml: found invalid TOML: Expected ']' at the end of a table declaration (at line 4, column 8); expected a well-formed TOML document
+```
+
+These are the lines the tool emits, not a paraphrase of them. The wording of
+`FOUND` and `EXPECTED` is deliberately not fixed by this contract — see below —
+but examples that no run could produce are drift rather than latitude, and
+`tests/integration/test_validate_cli.py` builds its fixtures from what the
+loader really returns so that neither side can go stale against the other.
+
+One problem per line and the file first makes the report greppable and sortable, and
+makes a test able to assert a single problem's presence without matching the whole
+report. Problems are sorted by file then location, so a run is stable. `FILE` is always
+one composition key: a problem that concerns two files, such as two careers declaring
+one name, names both in `FOUND` and keeps `FILE` singular, so grepping for a filename
+finds every problem about it.
+
+`FOUND` names a type in the same register `EXPECTED` does: `found a string`, not
+`found str`. TOML has no `str`, `dict` or `list`, and a Python type name in a report an
+author reads is the one word naming the implementation rather than the file. Settled by
+`type_name` in `errors.py`, which the three schema modules share.
+
+## Failure of a load during `check`
+
+An invalid data set raises out of the library and is caught at the single site
+`cli.py` already has. The problems are printed to stderr in the same one-line form,
+and the command exits 1. A check that cannot trust its rules data produces no result
+rather than a result with a caveat (FR-025).
+
+## Help text
+
+`--rules-data` and `validate` carry help strings. The licensing guard treats CLI help
+as a claim surface, so no help string may name the trademark as something this tool
+works with.

@@ -1,0 +1,14 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# The six characteristics.
+
+schema = "characteristics"
+schema-version = 1
+
+[characteristics]
+STR = "Strength"
+DEX = "Dexterity"
+END = "Endurance"
+INT = "Intellect"
+EDU = "Education"
+SOC = "Social Standing"

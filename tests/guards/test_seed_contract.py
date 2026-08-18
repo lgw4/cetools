@@ -6,7 +6,7 @@ import sys
 import pytest
 from typer.testing import CliRunner
 
-from cetools import Roller, check, d66, load_task_parameters, throw, throw_dice
+from cetools import Roller, check, d66, load_rules, throw, throw_dice
 from cetools.cli import app
 
 runner = CliRunner()
@@ -33,14 +33,15 @@ def test_guard_a_cli_invocation_does_not_touch_module_random_state(command, mode
 
 
 def test_guard_a_library_calls_do_not_touch_module_random_state():
-    # FR-001 binds the library, and SC-011 asks for capabilities to be verified
-    # without the CLI in the way, so every generator is exercised directly here.
+    # 001-dice-task-engine FR-001 binds the library, and that feature's SC-011
+    # asks for capabilities to be verified without the CLI in the way, so every
+    # generator is exercised directly here.
     before = random.getstate()
     throw(Roller("session-alpha"), "2d6+1")
     throw_dice(Roller(1), 3, 6, -2)
     d66(Roller("session-alpha"))
     check(Roller(1), difficulty="Difficult", characteristic=9, skill=2)
-    check(Roller(None), parameters=load_task_parameters())
+    check(Roller(None), rules=load_rules())
     assert random.getstate() == before
 
 

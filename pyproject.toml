@@ -8,6 +8,12 @@ version = "2026.08.1"
 description = "Dice and task check engine for SRD-derived 2D6 roleplaying rules"
 readme = "README.md"
 requires-python = ">=3.13"
+# The source code's licence, as an SPDX expression, so the built metadata says
+# what governs the package rather than only shipping the texts. `license-files`
+# alone left PyPI and `pip show` reporting cetools as unlicensed. The Open Game
+# Content under `src/cetools/data/` is covered by LICENSE-OGL.txt and its
+# Section 15 chain, which no SPDX expression can carry.
+license = "GPL-3.0-only"
 license-files = ["LICENSE", "LICENSE-OGL.txt"]
 dependencies = [
     "typer",
@@ -34,8 +40,8 @@ include = [
     "tests",
     "LICENSE",
     "LICENSE-OGL.txt",
-    "README.md",
-    "CHANGELOG.md",
+    "/README.md",
+    "/CHANGELOG.md",
 ]
 
 [tool.black]
@@ -44,6 +50,9 @@ line-length = 99
 [tool.isort]
 profile = "black"
 
+# Configuration for the rumdl markdown linter, which is deliberately neither a
+# dependency nor a CI gate; see the Style and tooling section of
+# CONTRIBUTING.md for why it is optional and how to run it.
 [tool.rumdl]
 flavor = "gfm"
 disable = ["MD013"]
@@ -52,3 +61,9 @@ exclude = [".claude", ".specify"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Platform requirements, applied in tests/conftest.py. Registered here so an
+# unmet one skips rather than warning about an unknown mark.
+markers = [
+    "needs_posix_special_files: builds a FIFO or points at a device node",
+    "needs_enforced_chmod: needs chmod(0o000) to actually deny access",
+]

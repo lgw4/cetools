@@ -45,7 +45,7 @@ Each feature now exits the map through `/grill-me` then
 link it here:
 
 - dice-task-engine: [specs/001-dice-task-engine](../../../specs/001-dice-task-engine/spec.md)
-- rules-data-loading: (not yet specified)
+- rules-data-loading: [specs/002-rules-data-loading](../../../specs/002-rules-data-loading/spec.md)
 - npc-generator: (not yet specified)
 - career-data: (not yet specified)
 - packaging-release: (not yet specified)
