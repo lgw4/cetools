@@ -5,7 +5,7 @@ shipped file and observing a specific rejection naming what is missing.
 
 from pathlib import Path
 
-from cetools.notation import CharacteristicCheck
+from cetools.notation import CharacteristicCheck, SkillGrant, SkillReference
 from cetools.rules import load_rules, validate_rules
 
 NAVY = (
@@ -97,7 +97,8 @@ def test_removing_every_rank_ladder_is_rejected(tmp_path):
         tmp_path,
         '[[ladders]]\nname = "enlisted"\nranks = [\n  '
         '{ rank = 0, title = "Starman", bonus = "Zero-G 1" },\n]\n\n',
-        '[[ladders]]\nname = "officer"\nranks = [\n  { rank = 1, title = "Midshipman" },\n  '
+        '[[ladders]]\nname = "officer"\nranks = [\n  '
+        '{ rank = 1, title = "Midshipman", bonus = "Melee Combat (Slashing Weapons) 1" },\n  '
         '{ rank = 2, title = "Lieutenant" },\n  '
         '{ rank = 3, title = "Lt Commander", bonus = "Tactics 1" },\n  '
         '{ rank = 4, title = "Commander" },\n  { rank = 5, title = "Captain" },\n  '
@@ -131,6 +132,25 @@ def test_the_reference_career_carries_a_characteristic_gate():
     # passing and the requirement proved by nothing.
     gate = load_rules().careers["navy"].tables["advanced-education"].requires
     assert gate == CharacteristicCheck(characteristic="EDU", target=8)
+
+
+def test_the_reference_career_writes_both_a_specified_specialty_and_an_owed_choice():
+    # FR-018 requires the shipped career to exercise every element of the
+    # schema, and the four skills that have specialties all appeared bare, so
+    # the career exercised FR-008's owed-choice case and never FR-006's
+    # base-and-specialty split. The split was proved by unit fixtures alone,
+    # which is the gap FR-018 exists to close: a fixture's author can
+    # unconsciously avoid the hard parts, and real content cannot.
+    navy = load_rules().careers["navy"]
+    officer = next(ladder for ladder in navy.ladders if ladder.name == "officer")
+    specified = officer.ranks[0].bonus
+    assert specified == SkillGrant(
+        skill=SkillReference(name="Melee Combat", specialty="Slashing Weapons"), level=1
+    )
+
+    # The same skill, bare, elsewhere in the same file: both halves of FR-008's
+    # distinction are in the shipped content rather than only in fixtures.
+    assert SkillReference(name="Melee Combat", specialty=None) in navy.tables["service"].entries
 
 
 def test_the_packaged_reference_career_itself_validates_cleanly():

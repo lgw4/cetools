@@ -158,6 +158,27 @@ def parse_skills(
 
     skills: dict[str, tuple[str, ...]] = {}
     for name, specialties in table.items():
+        # A key carrying a specialty group can never be referenced: every
+        # career entry is split into a base name and a specialty before it is
+        # resolved, so `"Gun Combat (Slug Rifle)" = []` is an entry nothing
+        # can reach, and a career writing that very text resolves
+        # `UNRECOGNIZED_SKILL` against the base name instead. Specialties are
+        # declared in the array (FR-011); a name that also spells one is a
+        # mistake the author needs told about rather than a dead entry
+        # (FR-006, FR-013, contracts/notation.md).
+        if "(" in name or ")" in name:
+            problems.append(
+                ValidationProblem(
+                    file=file,
+                    location=f"skills.{name}",
+                    found=name,
+                    expected=(
+                        "a skill name with no parentheses: a specialty is declared in this "
+                        "skill's array, never spelled into its name"
+                    ),
+                )
+            )
+            continue
         if not isinstance(specialties, list):
             problems.append(
                 ValidationProblem(

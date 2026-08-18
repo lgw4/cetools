@@ -134,30 +134,47 @@ class TestEntryContexts:
 
 
 class TestMalformedEntries:
+    """Every row of contracts/notation.md's malformed-entry table, pinned by
+    the rule it broke rather than only by the type it returned.
+
+    Asserting `isinstance(result, NotationProblem)` alone left three of these
+    guards deletable with the suite green: with the empty-entry, balanced-
+    parenthesis, and one-group checks each removed in turn, the entry still
+    came back a problem — by a different route and with a detail naming the
+    wrong rule — so nothing distinguished the guard doing its job from the
+    fallback catching the wreckage (FR-009, FR-009a).
+    """
+
     def test_empty_string(self):
         result = parse_entry("", EntryContext.SKILL_TABLE)
         assert isinstance(result, NotationProblem)
+        assert "a non-empty entry" in result.expected
 
     def test_whitespace_only(self):
         result = parse_entry("   ", EntryContext.SKILL_TABLE)
         assert isinstance(result, NotationProblem)
+        assert "a non-empty entry" in result.expected
 
     def test_trailing_sign_with_no_number(self):
         result = parse_entry("Pilot -", EntryContext.SKILL_TABLE)
         assert isinstance(result, NotationProblem)
         assert result.found == "Pilot -"
+        assert "a number after the sign" in result.expected
 
     def test_unbalanced_parenthesis(self):
         result = parse_entry("Pilot (", EntryContext.SKILL_TABLE)
         assert isinstance(result, NotationProblem)
+        assert "balanced parentheses" in result.expected
 
     def test_empty_specialty(self):
         result = parse_entry("Pilot ()", EntryContext.SKILL_TABLE)
         assert isinstance(result, NotationProblem)
+        assert "a non-empty specialty" in result.expected
 
     def test_more_than_one_specialty_group(self):
         result = parse_entry("Pilot (A) (B)", EntryContext.SKILL_TABLE)
         assert isinstance(result, NotationProblem)
+        assert "at most one specialty group" in result.expected
 
     def test_not_one_of_the_four_forms(self):
         result = parse_entry("INT +4+", EntryContext.GATE)
@@ -167,6 +184,7 @@ class TestMalformedEntries:
     def test_empty_name(self):
         result = parse_entry("2", EntryContext.SKILL_TABLE)
         assert isinstance(result, NotationProblem)
+        assert "a non-empty name" in result.expected
 
     def test_specialty_on_a_characteristic_check(self):
         # A specialty belongs to a skill or a benefit item. A characteristic
@@ -195,6 +213,70 @@ class TestMalformedEntries:
         # is a real characteristic is a registry question, out of scope here.
         result = parse_entry("Pilot -1", EntryContext.SKILL_TABLE)
         assert result == CharacteristicAdjustment(characteristic="Pilot", amount=-1)
+
+
+class TestTheSpaceBeforeASpecialtyGroupIsMandatory:
+    """T100. `name := text [ WS "(" text ")" ]` with `WS` one or more spaces,
+    and the parser split on the parenthesis without requiring any, so
+    `Blade(Cutlass)`, `Blade  (Cutlass)` and `Blade (Cutlass)` were one
+    reference. That is the widening FR-013 forbids, and it is the rule T087
+    already applied to a benefit item; the property strategy always renders
+    with a space, so nothing could find it.
+    """
+
+    def test_the_canonical_form_parses(self):
+        assert parse_entry("Blade (Cutlass)", EntryContext.SKILL_TABLE) == SkillReference(
+            name="Blade", specialty="Cutlass"
+        )
+
+    def test_the_space_free_form_is_malformed(self):
+        result = parse_entry("Blade(Cutlass)", EntryContext.SKILL_TABLE)
+        assert isinstance(result, NotationProblem)
+        assert result.found == "Blade(Cutlass)"
+        assert "a space before the specialty group" in result.expected
+
+    def test_the_space_free_form_is_malformed_in_the_grant_form_too(self):
+        result = parse_entry("Blade(Cutlass) 1", EntryContext.SKILL_TABLE)
+        assert isinstance(result, NotationProblem)
+        assert "a space before the specialty group" in result.expected
+
+    def test_more_than_one_space_still_parses(self):
+        # `WS` is one or *more*, so this stays admissible; the base name is
+        # stripped, which is why a skill reference has nothing to reassemble.
+        assert parse_entry("Blade  (Cutlass)", EntryContext.SKILL_TABLE) == SkillReference(
+            name="Blade", specialty="Cutlass"
+        )
+
+    def test_space_inside_the_group_is_still_trimmed(self):
+        # The inner `.strip()` has no sibling coverage: dropping it turned
+        # `Blade ( Cutlass )` from a valid reference into an unrecognized
+        # specialty with the rest of the suite green.
+        assert parse_entry("Blade ( Cutlass )", EntryContext.SKILL_TABLE) == SkillReference(
+            name="Blade", specialty="Cutlass"
+        )
+
+
+class TestBareNamesWithoutWhitespace:
+    """The untested complement of the trailing-token rule: an entry with no
+    whitespace at all has no trailing token, so it is a bare name whatever it
+    looks like. Both the `trailing is not None` guards and the `\\s+` in
+    `_TRAILING_TOKEN` could be loosened with the suite green, each flipping
+    these from the bare names the grammar requires into malformed entries.
+    """
+
+    @pytest.mark.parametrize("text", ["Zero-G2", "T2", "-", "+"])
+    def test_a_whitespace_free_entry_is_a_bare_name(self, text):
+        assert parse_entry(text, EntryContext.SKILL_TABLE) == SkillReference(
+            name=text, specialty=None
+        )
+
+    def test_a_whitespace_free_entry_that_is_itself_a_suffix_is_not(self):
+        # `2+` has no name before it, so it is the check form with an empty
+        # characteristic rather than a bare name: the trailing-token rule is
+        # about a *tail*, and an entry that is nothing but a tail has none.
+        result = parse_entry("2+", EntryContext.GATE)
+        assert isinstance(result, NotationProblem)
+        assert "a non-empty name" in result.expected
 
 
 class TestSpecialtyEndingInADigit:
@@ -305,10 +387,16 @@ class TestBenefitItemMatchedAsWritten:
             name="Weapon (Blade)"
         )
 
-    def test_a_missing_space_is_not_normalized_into_the_canonical_form(self):
-        assert parse_entry("Weapon(Blade)", EntryContext.BENEFIT_TABLE) == BenefitItem(
-            name="Weapon(Blade)"
-        )
+    def test_a_missing_space_is_rejected_rather_than_normalized(self):
+        # T100 settled the half T087 left open. `Weapon(Blade)` was admitted as
+        # a benefit item carrying that spelling, so it failed later on the
+        # registry; the grammar's `WS` before a specialty group is mandatory,
+        # so it is malformed here and the author is told which rule it broke
+        # instead of being told the registry has no such item.
+        result = parse_entry("Weapon(Blade)", EntryContext.BENEFIT_TABLE)
+        assert isinstance(result, NotationProblem)
+        assert result.found == "Weapon(Blade)"
+        assert "a space before the specialty group" in result.expected
 
     def test_a_doubled_space_is_not_collapsed(self):
         assert parse_entry("Weapon  (Blade)", EntryContext.BENEFIT_TABLE) == BenefitItem(

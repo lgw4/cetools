@@ -51,10 +51,14 @@ ranks = [
   { rank = 0, title = "Starman", bonus = "Zero-G 1" },
 ]
 
+# The newly commissioned officer's blade grant is the one place the source
+# names a specialty rather than leaving the choice to the character, so it is
+# written fully specified. Every other skill here is bare, which is the
+# source's own way of saying a choice is owed.
 [[ladders]]
 name = "officer"
 ranks = [
-  { rank = 1, title = "Midshipman" },
+  { rank = 1, title = "Midshipman", bonus = "Melee Combat (Slashing Weapons) 1" },
   { rank = 2, title = "Lieutenant" },
   { rank = 3, title = "Lt Commander", bonus = "Tactics 1" },
   { rank = 4, title = "Commander" },

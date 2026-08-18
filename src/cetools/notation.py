@@ -129,6 +129,17 @@ def _parse_name(name: str) -> tuple[str, str | None] | str:
     Returns a detail string rather than a `NotationProblem` because only the
     caller knows the context whose admissible forms belong in the report and
     the entry text as written; this sees the name alone.
+
+    The whitespace the grammar puts before a specialty group is required, not
+    decorative: `name := text [ WS "(" text ")" ]` with `WS` one or more
+    spaces. Splitting on the parenthesis alone made `Blade(Cutlass)` and
+    `Blade (Cutlass)` the same reference, which is the quiet widening FR-013
+    forbids and which T087 already refused for a benefit item on exactly this
+    reasoning — inserting or collapsing a space widens the notation the way
+    case folding does. A benefit item carries its name as written, so
+    `Weapon(Blade)` simply fails to match the registry; a skill reference is
+    split into two fields, so nothing but this check keeps the space-free form
+    from resolving. Rejecting it settles the two the same way.
     """
     name = name.strip()
     open_count = name.count("(")
@@ -143,7 +154,10 @@ def _parse_name(name: str) -> tuple[str, str | None] | str:
     match = _SPECIALTY.match(name)
     if match is None:
         return "a name followed by (specialty)"
-    base = match.group("base").strip()
+    base = match.group("base")
+    if base and not base[-1].isspace():
+        return "a space before the specialty group"
+    base = base.strip()
     inner = match.group("inner").strip()
     if not inner:
         return "a non-empty specialty"

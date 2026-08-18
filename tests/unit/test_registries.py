@@ -53,6 +53,24 @@ class TestCharacteristicRegistry:
         assert registry is None
         assert problems[0].location == "characteristics.STR"
 
+    def test_every_non_string_label_is_reported_not_only_the_first(self):
+        # The standard T076 held `parse_skills` to, asserted at the sibling it
+        # was compared against: changing this loop's `continue` to `break` left
+        # the whole suite green, so the asymmetry that justified the fix could
+        # regress here unnoticed (FR-021, SC-003).
+        data = {
+            "schema": "characteristics",
+            "schema-version": 1,
+            "characteristics": {"STR": 5, "DEX": 7, "END": 9},
+        }
+        registry, problems = parse_characteristics(data, "characteristics.toml")
+        assert registry is None
+        assert [p.location for p in problems] == [
+            "characteristics.STR",
+            "characteristics.DEX",
+            "characteristics.END",
+        ]
+
     def test_unrecognized_top_level_key_is_a_problem(self):
         data = {
             "schema": "characteristics",
@@ -130,6 +148,31 @@ class TestSkillRegistry:
         registry, problems = parse_skills(data, "skills.toml")
         assert registry is None
         assert any(p.location == "extra" for p in problems)
+
+    def test_a_skill_name_spelling_a_specialty_is_a_problem(self):
+        # T100's mirror case. A key such as `Gun Combat (Slug Rifle)` was
+        # accepted and could then be referenced by nothing: any career writing
+        # that very text parses it into a base and a specialty and resolves
+        # `UNRECOGNIZED_SKILL` against `Gun Combat`. Specialties are declared
+        # in the array (FR-011), so a name that also spells one is a mistake
+        # rather than an unreachable entry (FR-006, FR-013).
+        data = {
+            "schema": "skills",
+            "schema-version": 1,
+            "skills": {"Gun Combat (Slug Rifle)": []},
+        }
+        registry, problems = parse_skills(data, "skills.toml")
+        assert registry is None
+        assert len(problems) == 1
+        assert problems[0].location == "skills.Gun Combat (Slug Rifle)"
+        assert problems[0].found == "Gun Combat (Slug Rifle)"
+        assert "no parentheses" in problems[0].expected
+
+    def test_an_unbalanced_parenthesis_in_a_skill_name_is_caught_too(self):
+        data = {"schema": "skills", "schema-version": 1, "skills": {"Blade (": []}}
+        registry, problems = parse_skills(data, "skills.toml")
+        assert registry is None
+        assert [p.location for p in problems] == ["skills.Blade ("]
 
 
 class TestSkillRegistryResolution:
@@ -212,6 +255,14 @@ class TestBenefitRegistry:
         registry, problems = parse_benefits(data, "benefits.toml")
         assert registry is None
         assert problems[0].location == "benefits[1]"
+
+    def test_every_non_string_item_is_reported_not_only_the_first(self):
+        # The other sibling T076's fix was measured against; `break` here left
+        # the suite green too (FR-021, SC-003).
+        data = {"schema": "benefits", "schema-version": 1, "benefits": [5, 7, 9]}
+        registry, problems = parse_benefits(data, "benefits.toml")
+        assert registry is None
+        assert [p.location for p in problems] == ["benefits[0]", "benefits[1]", "benefits[2]"]
 
     def test_unrecognized_top_level_key_is_a_problem(self):
         data = {
