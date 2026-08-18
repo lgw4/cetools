@@ -141,6 +141,7 @@ def test_a_nonexistent_location_is_distinguishable_from_neither_file_nor_directo
         validate_rules(missing)
 
 
+@pytest.mark.needs_posix_special_files
 def test_a_location_that_is_neither_a_file_nor_a_directory_is_a_usage_error_naming_it(tmp_path):
     # The same silent failure FR-028 removes for a mistyped path: a location
     # that cannot hold rules data must not compose to the packaged set while
@@ -151,6 +152,7 @@ def test_a_location_that_is_neither_a_file_nor_a_directory_is_a_usage_error_nami
         validate_rules(fifo)
 
 
+@pytest.mark.needs_posix_special_files
 def test_neither_file_nor_directory_is_distinguishable_from_nonexistent(tmp_path):
     # The mirror of the nonexistent-path case above: this branch's wording
     # must be specific to "exists but is unusable", not merely reachable by
@@ -171,6 +173,7 @@ def test_a_broken_symlink_in_an_override_is_reported_rather_than_passed_over(tmp
     assert "read" in navy_problems[0].found
 
 
+@pytest.mark.needs_posix_special_files
 def test_a_fifo_in_an_override_is_reported_rather_than_hanging(tmp_path):
     # A FIFO opened for reading with no writer blocks forever, and no
     # `OSError` ever arrives to end the wait: `_collect_entry`'s bare
@@ -187,9 +190,14 @@ def test_a_fifo_in_an_override_is_reported_rather_than_hanging(tmp_path):
     assert navy_problems[0].location == ""
 
 
+@pytest.mark.needs_posix_special_files
 def test_a_symlink_to_a_device_in_an_override_is_reported_rather_than_read_unbounded(tmp_path):
     # A symlink to a character device reads without bound rather than
-    # raising, the same unguarded-read hazard a FIFO poses (T136).
+    # raising, the same unguarded-read hazard a FIFO poses (T136). Marked
+    # alongside the FIFO cases rather than left to run everywhere: where
+    # `/dev/zero` names nothing, this is merely a broken symlink, which the
+    # test above already covers and which reaches the report through the
+    # `OSError` path instead — passing here would prove nothing.
     (tmp_path / "navy.toml").symlink_to("/dev/zero")
     report = validate_rules(tmp_path)
     assert not report.valid
@@ -263,10 +271,7 @@ def test_provenance_files_arrive_sorted_by_composition_key(tmp_path):
     assert names == ["army.toml", "marines.toml", "navy.toml", "scouts.toml"]
 
 
-@pytest.mark.skipif(
-    hasattr(os, "geteuid") and os.geteuid() == 0,
-    reason="root lists a mode-000 directory regardless of its mode",
-)
+@pytest.mark.needs_enforced_chmod
 def test_a_subdirectory_that_cannot_be_listed_is_reported_rather_than_passed_over(tmp_path):
     # `rglob` swallows the `OSError`, so an unlistable subtree was the one
     # traversal failure that got exactly the treatment `_collect_entry`'s
@@ -283,10 +288,7 @@ def test_a_subdirectory_that_cannot_be_listed_is_reported_rather_than_passed_ove
     assert any("closed" in p.file and p.location == "" for p in report.problems)
 
 
-@pytest.mark.skipif(
-    hasattr(os, "geteuid") and os.geteuid() == 0,
-    reason="root lists a mode-000 directory regardless of its mode",
-)
+@pytest.mark.needs_enforced_chmod
 def test_an_override_root_that_cannot_be_listed_is_reported(tmp_path):
     root = tmp_path / "root"
     root.mkdir()

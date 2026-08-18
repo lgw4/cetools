@@ -78,6 +78,15 @@ matching directory:
 | `tests/guards/`      | Whole-repository invariants nothing else can check |
 | `tests/golden/`      | Expected CLI text output, byte for byte            |
 
+**The suite runs on Windows too.** CI covers it, so a test may not assume
+POSIX. Two facilities the override tests need are unavailable there — FIFOs
+and device nodes, and a `chmod(0o000)` that actually denies access — and a
+test that needs either carries `@pytest.mark.needs_posix_special_files` or
+`@pytest.mark.needs_enforced_chmod`. `tests/conftest.py` probes for the
+facility and skips; do not hand-roll a `skipif` on `os.name` or `geteuid`.
+Reading a shipped file as bytes is the other trap: a Windows checkout
+translates line endings, so normalize before asserting on them.
+
 If your change alters human-readable CLI output, the golden files in
 `tests/golden/` change with it in the same commit, and the diff should show
 the new output plainly enough to be reviewed on sight. The worked examples

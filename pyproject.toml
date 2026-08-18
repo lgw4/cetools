@@ -61,3 +61,9 @@ exclude = [".claude", ".specify"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Platform requirements, applied in tests/conftest.py. Registered here so an
+# unmet one skips rather than warning about an unknown mark.
+markers = [
+    "needs_posix_special_files: builds a FIFO or points at a device node",
+    "needs_enforced_chmod: needs chmod(0o000) to actually deny access",
+]

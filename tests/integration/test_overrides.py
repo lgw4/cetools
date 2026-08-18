@@ -66,6 +66,7 @@ def test_a_missing_override_location_is_a_usage_error(tmp_path, command):
     assert result.stdout == ""
 
 
+@pytest.mark.needs_posix_special_files
 @pytest.mark.parametrize("command", [["check", "--rules-data"], ["validate"]])
 def test_an_override_location_that_is_neither_file_nor_directory_is_a_usage_error(
     tmp_path, command

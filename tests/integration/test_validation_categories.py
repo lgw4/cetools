@@ -7,7 +7,6 @@ this list: FR-032a reports it rather than rejecting it (see
 tests/unit/test_composition.py).
 """
 
-import os
 from pathlib import Path
 
 import pytest
@@ -320,10 +319,7 @@ def test_undecodable_utf8_leaves_the_remaining_files_checked(tmp_path):
     assert any(p.file == "zzz-scouts.toml" and "Coms" in p.found for p in report.problems)
 
 
-@pytest.mark.skipif(
-    hasattr(os, "geteuid") and os.geteuid() == 0,
-    reason="root reads a mode-000 file regardless of its mode",
-)
+@pytest.mark.needs_enforced_chmod
 def test_file_cannot_be_read(tmp_path):
     # The other half of SC-002's "not well-formed at all, or cannot be read".
     # A second override file carries its own mistake, because FR-020a requires
@@ -350,10 +346,7 @@ def test_file_cannot_be_read(tmp_path):
     assert any(p.file == "scouts.toml" and "Coms" in p.found for p in report.problems)
 
 
-@pytest.mark.skipif(
-    hasattr(os, "geteuid") and os.geteuid() == 0,
-    reason="root lists a mode-000 directory regardless of its mode",
-)
+@pytest.mark.needs_enforced_chmod
 def test_directory_within_an_override_cannot_be_listed(tmp_path):
     # The directory-walk analogue of `test_file_cannot_be_read`: a
     # subdirectory the process cannot list is a collected problem naming it,

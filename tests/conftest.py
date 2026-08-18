@@ -1,4 +1,6 @@
+import os
 import re
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -228,3 +230,73 @@ def normalize_version():
         return text.replace(VERSION_PLACEHOLDER, installed)
 
     return _normalize
+
+
+# The override tests reach for two POSIX facilities to build the inputs they
+# pin, and neither is available everywhere the suite runs: CI covers Windows
+# as well as Linux and macOS, and the whole suite may be run as root. Both are
+# settled here for the same reason the ANSI escapes above are — the trap had
+# already caught four test modules, and the alternative is nine copies of a
+# platform condition that has to stay in agreement with itself.
+
+
+def _posix_special_files_exist() -> bool:
+    """Whether this platform has FIFOs and device nodes at all.
+
+    `os.mkfifo` is simply absent on Windows, and a path such as `/dev/zero`
+    names nothing there, so a test that builds a directory entry which is
+    neither a regular file nor a directory has no input to build.
+    """
+    return hasattr(os, "mkfifo")
+
+
+def _chmod_denials_are_enforced() -> bool:
+    """Whether `chmod(0o000)` actually denies *this* process access.
+
+    Root ignores the mode entirely, and Windows has no POSIX mode bits for
+    `Path.chmod` to clear — there it toggles the read-only attribute, which
+    stops neither a read nor a directory listing. Probing for the denial beats
+    naming the two cases, because the denial is what these tests need; a
+    filesystem that grants access for some third reason is caught too, rather
+    than skipped only where someone thought to look.
+    """
+    with tempfile.TemporaryDirectory() as name:
+        locked_dir = Path(name) / "dir"
+        locked_dir.mkdir()
+        locked_file = Path(name) / "file"
+        locked_file.write_bytes(b"")
+        try:
+            locked_dir.chmod(0o000)
+            locked_file.chmod(0o000)
+            try:
+                list(locked_dir.iterdir())
+                locked_file.read_bytes()
+            except OSError:
+                return True
+            return False
+        finally:
+            # Restored unconditionally: on Windows a read-only entry defeats
+            # the temporary directory's own cleanup.
+            locked_dir.chmod(0o700)
+            locked_file.chmod(0o600)
+
+
+_UNMET_REQUIREMENTS = {
+    "needs_posix_special_files": (
+        None
+        if _posix_special_files_exist()
+        else "this platform has no FIFOs or device nodes to point an override at"
+    ),
+    "needs_enforced_chmod": (
+        None
+        if _chmod_denials_are_enforced()
+        else "chmod(0o000) does not deny this process access, so there is nothing to report"
+    ),
+}
+
+
+def pytest_collection_modifyitems(config, items):
+    for item in items:
+        for marker, reason in _UNMET_REQUIREMENTS.items():
+            if reason is not None and marker in item.keywords:
+                item.add_marker(pytest.mark.skip(reason=reason))

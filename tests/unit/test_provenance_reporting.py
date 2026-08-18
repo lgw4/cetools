@@ -123,12 +123,23 @@ def test_fingerprint_reflects_the_raw_bytes_with_no_line_ending_normalization(tm
     # would make the reported value irreproducible with `shasum -a 256`,
     # which is FR-036's "MUST NOT vary with ... anything else outside the
     # content itself". The sibling test above proving `shasum` agreement
-    # uses whatever line endings the shipped file already has (LF), so it
-    # cannot see a normalization step that treats CRLF and LF as equal.
+    # uses whatever line endings the shipped file already has, so it cannot
+    # see a normalization step that treats CRLF and LF as equal.
+    #
+    # The CRLF is imposed on content normalized to LF first, rather than on
+    # the file's bytes as they sit on disk. A checkout configured to translate
+    # line endings — the Windows default — already hands this test CRLF, and
+    # doubling that produced `\r\r\n`, which is not valid TOML at all: the load
+    # below then failed on the malformed file instead of reporting the
+    # fingerprint this test exists to check.
     content = (
-        NAVY.read_bytes().replace(b'name = "Navy"', b'name = "Scouts"').replace(b"\n", b"\r\n")
+        NAVY.read_bytes()
+        .replace(b"\r\n", b"\n")
+        .replace(b'name = "Navy"', b'name = "Scouts"')
+        .replace(b"\n", b"\r\n")
     )
     assert b"\r\n" in content
+    assert b"\r\r\n" not in content
     override = tmp_path / "scouts.toml"
     override.write_bytes(content)
 
