@@ -52,7 +52,9 @@ SECTION_15_NOTICES = (
     "Publishing Ltd Authorized User.",
     "Cepheus Engine System Reference Document, Copyright © 2016 Samardan Press; "
     'Author Jason "Flynn" Kemp.',
-    "cetools rules data (src/cetools/data/), Copyright 2026, the cetools " "contributors.",
+    "cetools rules data, every .toml file under (src/cetools/data/) as distributed in "
+    "source and under (cetools/data/) as installed, Copyright 2026, the cetools "
+    "contributors.",
 )
 
 
@@ -83,11 +85,12 @@ def section_15_notices() -> tuple[str, ...]:
 
 
 _NOTICE_PATH = re.compile(r"\(([^()]+)\)")
+_NOTICE_SUFFIX = re.compile(r"every (\.[a-z0-9]+) file")
 
 
 @pytest.fixture
 def game_data_covered_paths(section_15_notices) -> tuple[str, ...]:
-    """The source paths this project's own game-data notice names.
+    """The paths this project's own game-data notice names.
 
     Read out of the notice rather than written into a test, because SC-016
     requires the coverage check to derive what must be covered from what is
@@ -97,10 +100,34 @@ def game_data_covered_paths(section_15_notices) -> tuple[str, ...]:
     `tests/unit/test_licensing.py` and the built-artifact guards in
     `tests/guards/test_packaging.py`, which differ only in where they get the
     file list.
+
+    The notice names two, because the content ships at two paths: a wheel
+    holds `cetools/data/` and nothing called `src/`, so a notice naming only
+    the source path named a path that exists in no wheel, and the wheel guard
+    had to fabricate the prefix as `f"src/{name}"` to make its own check line
+    up — papering over the mismatch rather than reporting it.
     """
     covered = tuple(_NOTICE_PATH.findall(section_15_notices[-1]))
     assert covered, "the game-data notice names no path, so it covers nothing"
     return covered
+
+
+@pytest.fixture
+def game_data_covered_suffix(section_15_notices) -> str:
+    """The extension the game-data notice qualifies its directories with.
+
+    Read out of the notice for the same reason the paths are. The notice
+    designates every `.toml` file under the data directory rather than the
+    directory entire, because `src/cetools/data/__init__.py` ships there and
+    is Python source, which CONTRIBUTING.md licenses as GPL-3.0 and which
+    Open Game Content cannot be sublicensed under. Nothing copyrightable is
+    double-licensed today — the file is empty — but the constitution requires
+    the designation to be unambiguous, and a check that read only the
+    directory prefix would call any file placed there covered.
+    """
+    match = _NOTICE_SUFFIX.search(section_15_notices[-1])
+    assert match, "the game-data notice does not say which files it covers"
+    return match.group(1)
 
 
 @pytest.fixture(autouse=True)
@@ -124,10 +151,19 @@ def strip_ansi():
 
 @pytest.fixture
 def help_text(strip_ansi):
-    """A command's `--help` screen as plain text, escapes already stripped.
+    """A command's `--help` screen as plain text, escapes already stripped and
+    rendered wide enough that nothing is elided.
 
     Takes the command as a list, so `help_text([])` is the top-level screen
     and `help_text(["check"])` is a subcommand's.
+
+    `COLUMNS` is forced here rather than at each call site. Rich sizes its box
+    to the terminal and *truncates* an argument's help with an ellipsis when
+    it does not fit, so at the default eighty columns a search for the second
+    half of a help string finds nothing while the string is perfectly present.
+    That is the same shape of trap as the ANSI escapes above — an assertion
+    that passes or fails on how the output happened to be drawn — and it is
+    settled in the same place, so no test has to remember it.
     """
     from typer.testing import CliRunner
 
@@ -136,7 +172,7 @@ def help_text(strip_ansi):
     runner = CliRunner()
 
     def _help(command: list[str]) -> str:
-        result = runner.invoke(app, [*command, "--help"])
+        result = runner.invoke(app, [*command, "--help"], env={"COLUMNS": "200"})
         assert result.exit_code == 0, f"{command} --help exited {result.exit_code}"
         return strip_ansi(result.stdout)
 

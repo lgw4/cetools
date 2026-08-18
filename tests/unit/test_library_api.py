@@ -6,11 +6,41 @@ job is programmatic reachability, not re-deriving that detail.
 """
 
 import json
+import re
 from importlib import resources
+from pathlib import Path
 
 import pytest
 
 import cetools
+
+_SPECS = Path(__file__).resolve().parents[2] / "specs"
+_FENCE = re.compile(r"```python\n(.*?)```", re.DOTALL)
+
+
+def _first_python_block(contract: Path, heading: str) -> str:
+    section = contract.read_text(encoding="utf-8").split(f"\n## {heading}\n", 1)
+    assert len(section) == 2, f"{contract.name} has no '## {heading}' section"
+    match = _FENCE.search(section[1].split("\n## ", 1)[0])
+    assert match is not None, f"'{heading}' in {contract.name} carries no python block"
+    return match.group(1)
+
+
+def _names(block: str) -> set[str]:
+    """Every bare identifier a contract block lists, comments stripped.
+
+    Reads both the `from cetools import (...)` form and the bare-name form the
+    removed-surface block uses, so the two sections are compared the same way.
+    """
+    # Comments first: the removed-surface block explains itself with
+    # `# replaced by load_rules(...)`, whose parentheses would otherwise be
+    # taken for the import list's and leave the set holding `...`.
+    body = "\n".join(line.split("#", 1)[0] for line in block.splitlines())
+    if "(" in body:
+        body = body.split("(", 1)[1].rsplit(")", 1)[0]
+    found = {part.strip() for part in body.replace("\n", ",").split(",") if part.strip()}
+    found.discard("from cetools import")
+    return found
 
 
 def _navy_source() -> str:
@@ -146,3 +176,55 @@ def test_check_result_and_validation_report_render_in_every_format():
     assert "Rules data is valid." in cetools.as_text(report)
     assert cetools.as_dict(report)["valid"] is True
     assert json.loads(cetools.as_json(report))["valid"] is True
+
+
+class TestPublicSurfaceMatchesTheContract:
+    """`__all__` compared against the contracts as a *set*, in both
+    directions. Nothing did that — `rg __all__ tests/` returned nothing — so
+    two clauses of contracts/library-api.md survived being broken with the
+    suite green: restoring a working `load_task_parameters`, which the
+    contract lists under **Public surface removed** and FR-044 requires
+    replaced rather than kept alongside, and dropping `FileProvenance`, which
+    every test reaches through `cetools.provenance` instead. Comparing the set
+    closes both, and every future one (FR-043, SC-013).
+    """
+
+    _ADDED = _names(
+        _first_python_block(
+            _SPECS / "002-rules-data-loading" / "contracts" / "library-api.md",
+            "Public surface added",
+        )
+    )
+    _REMOVED = _names(
+        _first_python_block(
+            _SPECS / "002-rules-data-loading" / "contracts" / "library-api.md",
+            "Public surface removed",
+        )
+    )
+    _INHERITED = _names(
+        _first_python_block(
+            _SPECS / "001-dice-task-engine" / "contracts" / "library-api.md",
+            "Public surface (`cetools/__init__.py`)",
+        )
+    )
+
+    def test_the_contracts_parsed_into_something(self):
+        # A heading rename or a reformatted block would otherwise leave every
+        # assertion below comparing the empty set against itself.
+        assert len(self._INHERITED) > 10
+        assert len(self._ADDED) > 20
+        assert self._REMOVED == {"load_task_parameters"}
+
+    def test_all_is_exactly_the_inherited_surface_less_what_was_removed_plus_what_was_added(self):
+        assert set(cetools.__all__) == (self._INHERITED - self._REMOVED) | self._ADDED
+
+    def test_all_has_no_duplicates(self):
+        assert len(cetools.__all__) == len(set(cetools.__all__))
+
+    def test_every_name_in_all_is_actually_importable(self):
+        for name in cetools.__all__:
+            assert hasattr(cetools, name), name
+
+    def test_the_removed_surface_is_gone_from_the_module_as_well_as_from_all(self):
+        for name in self._REMOVED:
+            assert not hasattr(cetools, name), name

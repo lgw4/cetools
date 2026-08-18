@@ -54,3 +54,67 @@ def test_the_guard_has_something_to_check():
         for match in pattern.findall(path.read_text(encoding="utf-8"))
     }
     assert documented == {package_version()}
+
+
+# --- the constitution's two Development Workflow clauses ---------------------
+#
+# Neither was checkable. `version` could be changed from `2026.08.1` to
+# `2026.8.1`, to `1.2.3`, or to `2026.13.1` with all 628 tests passing,
+# because PEP 440 normalizes the padded and unpadded forms to one string and
+# the drift guard above compares the *normalized* values — so nothing asserted
+# the declared string carries the `YYYY.0M.INC1` shape the constitution fixes,
+# which is the very distinction the rendered output had to reconcile. And the
+# changelog heading could be renamed to anything at all, so a release cut
+# without its entry shipped silently against the requirement that every
+# release ship one.
+
+_CALVER = re.compile(r"^(20\d\d)\.(0[1-9]|1[0-2])\.([1-9]\d*)$")
+
+
+def _declared_version() -> str:
+    import tomllib
+
+    return tomllib.loads((_ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"][
+        "version"
+    ]
+
+
+def test_the_declared_version_carries_the_constitutions_calver_shape():
+    declared = _declared_version()
+    assert _CALVER.match(declared), (
+        f"pyproject.toml declares version {declared!r}, which is not the "
+        "constitution's YYYY.0M.INC1 CalVer form"
+    )
+
+
+@pytest.mark.parametrize("bad", ["2026.8.1", "1.2.3", "2026.13.1", "2026.08.0", "2026.08"])
+def test_the_calver_shape_check_rejects_the_forms_it_must(bad):
+    """The rule this guard runs on, stated as cases: an unpadded month, a
+    semantic version, a thirteenth month, a zero increment, and a version with
+    no increment at all. Without these the pattern could be loosened to
+    something that accepts everything and still report success.
+    """
+    assert not _CALVER.match(bad)
+
+
+def test_the_declared_version_normalizes_to_the_version_the_tool_reports():
+    # The two halves have to be pinned together, or the shape check above and
+    # the drift guard could pass while naming different releases.
+    from importlib.metadata import version as _installed
+
+    assert _installed("cetools") == package_version()
+    padded, unpadded = _declared_version(), package_version()
+    assert padded.replace(".0", ".", 1) == unpadded or padded == unpadded
+
+
+def test_the_changelog_carries_an_entry_for_the_declared_version():
+    # The constitution: "every release ships a changelog entry". Renaming the
+    # heading to `## 9999.99.9 (unreleased)` left the suite green, so a
+    # release could be cut with its entry missing or misnumbered.
+    declared = _declared_version()
+    headings = re.findall(
+        r"^## (\S+)", (_ROOT / "CHANGELOG.md").read_text(encoding="utf-8"), re.MULTILINE
+    )
+    assert (
+        declared in headings
+    ), f"CHANGELOG.md has no `## {declared}` heading; its headings are {headings}"

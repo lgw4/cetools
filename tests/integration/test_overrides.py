@@ -113,6 +113,44 @@ def test_an_unrecognized_name_in_an_override_fails_like_a_shipped_file_would(tmp
     )
 
 
+@pytest.mark.parametrize("mode", [[], ["--json"]], ids=["text", "json"])
+def test_check_reports_every_problem_of_a_failed_load_on_stderr(tmp_path, mode):
+    """The failed-load reporting path of `check`, which nothing exercised: the
+    exit-1 cases elsewhere all reach `TaskError` through `--difficulty
+    Trivial`, and the override cases cover only the usage-error path. Two
+    independent mutations survived — printing to stdout, which breaks
+    Constitution II's stream split, and collapsing the branch to
+    `typer.echo(str(exc))`, which discards every problem FR-021 collected and
+    leaves a bare summary in place of the form contracts/cli.md fixes.
+    """
+    broken = NAVY.replace('"Comms"', '"Coms"', 1).replace(
+        '[throws.survival]\ncharacteristic = "INT"\ntarget = 5\n',
+        '[throws.survival]\ncharacteristic = "INT"\ntarget = "five"\n',
+    )
+    (tmp_path / "navy.toml").write_text(broken, encoding="utf-8")
+    expected = validate_rules(tmp_path).problems
+    assert len(expected) >= 2
+
+    result = runner.invoke(app, ["check", "--rules-data", str(tmp_path), "--seed", "1"] + mode)
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    lines = result.stderr.splitlines()
+    assert lines == [
+        f"{p.file}:{p.location}: found {p.found}; expected {p.expected}" for p in expected
+    ]
+
+
+def test_a_failed_check_load_produces_no_result_at_all(tmp_path):
+    # FR-025: a check that cannot trust its rules data produces no result
+    # rather than a result with a caveat, in both output modes.
+    (tmp_path / "navy.toml").write_text(NAVY.replace('"Comms"', '"Coms"', 1), encoding="utf-8")
+    for mode in ([], ["--json"]):
+        result = runner.invoke(app, ["check", "--rules-data", str(tmp_path), "--seed", "1"] + mode)
+        assert result.exit_code == 1
+        assert result.stdout == ""
+        assert "Check:" not in result.stderr
+
+
 def test_an_override_file_carries_no_licensing_obligation(tmp_path):
     without_header_comment = "\n".join(
         line for line in NAVY.splitlines() if not line.startswith("#")

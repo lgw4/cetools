@@ -3,8 +3,8 @@ from importlib.metadata import version
 
 from cetools.dice import ThrowResult
 from cetools.errors import ValidationProblem
-from cetools.provenance import Provenance
-from cetools.render import as_dict
+from cetools.provenance import Disposition, FileProvenance, Provenance
+from cetools.render import as_dict, as_json
 from cetools.rules import ValidationReport
 from cetools.tasks import CheckResult, Modifier
 
@@ -187,7 +187,9 @@ def test_payloads_are_json_serializable_round_trip():
 _WHOLE_FILE_PROBLEM = ValidationProblem(
     file="navy.toml",
     location="",
-    found="invalid TOML at line 12, column 3",
+    # The `tomllib` message as the loader passes it through, not a paraphrase:
+    # the contract's own worked example used to show one no run could produce.
+    found="invalid TOML: Expected ']' at the end of a table declaration (at line 4, column 8)",
     expected="a well-formed TOML document",
 )
 
@@ -200,7 +202,7 @@ _INVALID_REPORT = ValidationReport(
         ValidationProblem(
             file="navy.toml",
             location="tables.service.entries[2]",
-            found="unrecognized skill name 'Vac Suit'",
+            found="Vac Suit",
             expected="a name in the skills registry",
         ),
     ),
@@ -236,7 +238,7 @@ def test_validation_payload_matches_contract_example():
             {
                 "file": "navy.toml",
                 "location": "tables.service.entries[2]",
-                "found": "unrecognized skill name 'Vac Suit'",
+                "found": "Vac Suit",
                 "expected": "a name in the skills registry",
             }
         ],
@@ -268,3 +270,93 @@ def test_validation_payloads_are_json_serializable_round_trip():
     for report in (_VALID_REPORT, _INVALID_REPORT):
         payload = as_dict(report)
         assert json.loads(json.dumps(payload)) == payload
+
+
+# --- overridden provenance (contracts/json-output.md) ---
+
+_OVERRIDDEN_PROVENANCE = Provenance(
+    version=_VERSION,
+    files=(
+        FileProvenance(
+            file="navy.toml",
+            disposition=Disposition.REPLACED,
+            fingerprint="sha256:" + "3b" * 32,
+        ),
+        FileProvenance(
+            file="scouts.toml",
+            disposition=Disposition.ADDED,
+            fingerprint="sha256:" + "9a" * 32,
+        ),
+    ),
+    ignored=("notes.md",),
+)
+
+_OVERRIDDEN_REPORT = ValidationReport(provenance=_OVERRIDDEN_PROVENANCE, file_count=6, problems=())
+
+
+def test_overridden_provenance_matches_the_contract_example():
+    # Every fixture in this module built *packaged* provenance, so no test
+    # ever saw a populated `files` entry: the inner keys could be reordered
+    # with the suite green, although contracts/json-output.md states that key
+    # order is part of the contract (FR-041).
+    assert as_dict(_OVERRIDDEN_REPORT)["provenance"] == {
+        "source": "overridden",
+        "version": _VERSION,
+        "files": [
+            {
+                "file": "navy.toml",
+                "disposition": "replaced",
+                "fingerprint": "sha256:" + "3b" * 32,
+            },
+            {
+                "file": "scouts.toml",
+                "disposition": "added",
+                "fingerprint": "sha256:" + "9a" * 32,
+            },
+        ],
+        "ignored": ["notes.md"],
+    }
+
+
+def test_overridden_provenance_file_entry_key_order_matches_contract():
+    for entry in as_dict(_OVERRIDDEN_REPORT)["provenance"]["files"]:
+        assert list(entry) == ["file", "disposition", "fingerprint"]
+
+
+def test_disposition_serializes_as_its_string_not_its_repr():
+    for entry in as_dict(_OVERRIDDEN_REPORT)["provenance"]["files"]:
+        assert type(entry["disposition"]) is str
+        assert entry["disposition"] in ("replaced", "added")
+
+
+# --- rendering invariants that hold across every payload ---
+
+
+def test_json_is_emitted_with_indent_two_and_a_trailing_newline():
+    text = as_json(_VALID_REPORT)
+    assert text.endswith("}\n")
+    assert '\n  "kind": "validation"' in text
+
+
+def test_non_ascii_content_is_emitted_literally_not_escaped():
+    # `ensure_ascii=False` is the one clause of the `as_json` invariant whose
+    # siblings — `indent=2` and the trailing newline — are both killed. A
+    # report naming a benefit item spelled with a typographic apostrophe came
+    # back as `’`, which is valid JSON and is not what the contract says
+    # is emitted, and nothing could tell the difference.
+    report = ValidationReport(
+        provenance=_PACKAGED_PROVENANCE,
+        file_count=5,
+        problems=(
+            ValidationProblem(
+                file="navy.toml",
+                location="mustering-out.benefits[0]",
+                found="Explorers’ Society",
+                expected="a name in the benefits registry",
+            ),
+        ),
+    )
+    text = as_json(report)
+    assert "Explorers’ Society" in text
+    assert "\\u2019" not in text
+    assert json.loads(text)["problems"][0]["found"] == "Explorers’ Society"

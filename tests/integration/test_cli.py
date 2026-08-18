@@ -185,6 +185,15 @@ def test_check_help_lists_exactly_its_own_options(help_text, options_in_help):
     }
 
 
+def test_check_rules_data_carries_a_help_string(help_text):
+    # The option-name set alone left `help=None` on `--rules-data` passing,
+    # although contracts/cli.md requires it to carry one. Rich wraps inside
+    # its box, so the text is matched in fragments rather than as one line.
+    plain = " ".join(help_text(["check"]).split())
+    assert "Override location" in plain
+    assert "composed over the packaged data" in plain
+
+
 def test_check_seed_round_trip_is_byte_identical():
     first = runner.invoke(app, ["check"])
     assert first.exit_code == 0

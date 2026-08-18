@@ -356,6 +356,13 @@ class TestRankPositions:
         assert career is None
 
     def test_ranks_are_sorted_by_position(self, valid_data, characteristics, skills, benefits):
+        # Ordering was the one mutation in the career schema killed by a test
+        # that traced to no contract: FR-016 requires only that positions be
+        # non-negative and distinct, and data-model.md alone said "sorted by
+        # rank". contracts/data-files.md now states it, and states why — a
+        # consumer reading a ladder never has to sort it, and two files
+        # differing only in the order they list the same ranks load to the
+        # same thing.
         data = copy.deepcopy(valid_data)
         data["ladders"][0]["ranks"] = [
             {"rank": 5, "title": "Petty Officer"},
@@ -555,6 +562,147 @@ class TestRequiredSubKeys:
         career, problems = parse_career(data, FILE, characteristics, skills, benefits)
         assert career is None
         assert "ladders[0].name" in _problem_locations(problems)
+
+    def test_a_table_without_its_entries_is_rejected(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        # Not a lost diagnostic but a lost rejection: with the check removed,
+        # `parse_career` returned no problem at all and built a career whose
+        # `tables` silently omitted `service`, so a data set with no service
+        # table loaded successfully. `TestNonEmptyTables` covers an *empty*
+        # `entries` and `test_reference_career.py` removes only whole tables,
+        # so nothing deleted this key (FR-015, FR-019, contracts/data-files.md).
+        data = copy.deepcopy(valid_data)
+        del data["tables"]["service"]["entries"]
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "tables.service.entries" in _problem_locations(problems)
+
+    def test_a_ladder_without_its_ranks_is_rejected(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        # The sibling seam: with the check removed the career built with
+        # `ladders` set to `None` and no problem reported (FR-016, FR-019).
+        data = copy.deepcopy(valid_data)
+        del data["ladders"][0]["ranks"]
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "ladders[0].ranks" in _problem_locations(problems)
+
+
+class TestEmptyStringsAreRejectedWhereANameIsRequired:
+    """`_require_string` rejects an empty value as well as a missing one, and
+    every case was proved by the missing half alone: relaxing it to a bare
+    `isinstance` check left the suite green. An empty career name is not a
+    name, and FR-019b's distinctness rule would make two of them a clash
+    rather than two careers, so the strictness is worth keeping and worth
+    pinning (contracts/data-files.md).
+    """
+
+    def test_an_empty_career_name(self, valid_data, characteristics, skills, benefits):
+        data = copy.deepcopy(valid_data)
+        data["name"] = ""
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        matching = [p for p in problems if p.location == "name"]
+        assert len(matching) == 1
+        assert matching[0].found == "an empty string"
+
+    def test_an_empty_rank_title(self, valid_data, characteristics, skills, benefits):
+        data = copy.deepcopy(valid_data)
+        data["ladders"][0]["ranks"][0]["title"] = ""
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "ladders[0].ranks[0].title" in _problem_locations(problems)
+
+    def test_an_empty_ladder_name(self, valid_data, characteristics, skills, benefits):
+        data = copy.deepcopy(valid_data)
+        data["ladders"][0]["name"] = ""
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "ladders[0].name" in _problem_locations(problems)
+
+
+class TestBooleansAreNotIntegers:
+    """`True == 1` in Python and nowhere in TOML, so every integer-valued
+    field guards on the exact type. Weakening any of these to a bare
+    `isinstance` check left the suite green, and the consequence is a rules
+    value changed with no report rather than a worse message: `target = true`
+    composed as `Throw(target=True)` (FR-020b, FR-014, FR-016, FR-017).
+    """
+
+    def test_a_boolean_throw_target(self, valid_data, characteristics, skills, benefits):
+        data = copy.deepcopy(valid_data)
+        data["throws"]["survival"]["target"] = True
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        matching = [p for p in problems if p.location == "throws.survival.target"]
+        assert len(matching) == 1
+        assert matching[0].found == "a boolean"
+        assert matching[0].expected == "an integer"
+
+    def test_a_boolean_rank_position(self, valid_data, characteristics, skills, benefits):
+        data = copy.deepcopy(valid_data)
+        data["ladders"][0]["ranks"][0]["rank"] = True
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        matching = [p for p in problems if p.location == "ladders[0].ranks[0].rank"]
+        assert len(matching) == 1
+        assert matching[0].found == "a boolean"
+
+    def test_a_boolean_cash_amount(self, valid_data, characteristics, skills, benefits):
+        data = copy.deepcopy(valid_data)
+        data["mustering-out"]["cash"][0] = True
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        matching = [p for p in problems if p.location == "mustering-out.cash[0]"]
+        assert len(matching) == 1
+        assert matching[0].found == "a boolean"
+
+
+class TestNonStringInANotationBearingFieldIsATypeProblem:
+    """contracts/notation.md: "Non-string content in a notation-bearing field
+    is a type problem reported against the field, not routed to the parser."
+    Replacing the guard with `value = str(value)` left the suite green, and
+    under that mutation `entries = [5]` reported the unrecognized-entry-form
+    problem FR-004a's typing exists to prevent instead of naming the type.
+    The mirror direction — a string in a numeric field — was already covered
+    (FR-004a, FR-020b).
+    """
+
+    def _assert_typed(self, problems, location):
+        matching = [p for p in problems if p.location == location]
+        assert len(matching) == 1, [p.location for p in problems]
+        assert matching[0].found == "an integer"
+        assert matching[0].expected == "a notation string"
+
+    def test_a_table_entry(self, valid_data, characteristics, skills, benefits):
+        data = copy.deepcopy(valid_data)
+        data["tables"]["service"]["entries"][0] = 5
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        self._assert_typed(problems, "tables.service.entries[0]")
+
+    def test_a_table_gate(self, valid_data, characteristics, skills, benefits):
+        data = copy.deepcopy(valid_data)
+        data["tables"]["advanced-education"]["requires"] = 5
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        self._assert_typed(problems, "tables.advanced-education.requires")
+
+    def test_a_rank_bonus(self, valid_data, characteristics, skills, benefits):
+        data = copy.deepcopy(valid_data)
+        data["ladders"][0]["ranks"][1]["bonus"] = 5
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        self._assert_typed(problems, "ladders[0].ranks[1].bonus")
+
+    def test_a_mustering_out_benefit(self, valid_data, characteristics, skills, benefits):
+        data = copy.deepcopy(valid_data)
+        data["mustering-out"]["benefits"][0] = 5
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        self._assert_typed(problems, "mustering-out.benefits[0]")
 
 
 class TestKeyClosureWithinEachObject:

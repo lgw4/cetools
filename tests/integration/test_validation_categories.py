@@ -151,6 +151,32 @@ def test_unsupported_schema_version_reports_nothing_else_from_that_file(tmp_path
     assert from_navy[0].location == ""
 
 
+def test_a_version_mismatched_file_is_not_interpreted_even_when_it_is_full_of_mistakes(tmp_path):
+    # FR-002's "MUST NOT attempt to interpret that file's contents", stated so
+    # that something can falsify it. The two cases above bump `schema-version`
+    # on an otherwise clean file, so their one-problem assertion holds whether
+    # or not the contents were interpreted: with the early exit deleted, a
+    # version-mismatched file fell through and was fully validated, and the
+    # whole suite stayed green. Seeded with two further deliberate mistakes,
+    # each of which is a reported problem on its own, the file must still
+    # report exactly the version mismatch and nothing else (FR-021,
+    # contracts/data-files.md rule 2, quickstart Scenario 2).
+    text = (
+        NAVY.replace("schema-version = 1", "schema-version = 2", 1)
+        .replace('"Comms"', '"Coms"', 1)
+        .replace("[mustering-out]\n", "[mustering-out]\nchash = 5\n")
+    )
+    assert '"Coms"' in text and "chash" in text
+    _write(tmp_path, "navy.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    from_navy = [p for p in report.problems if p.file == "navy.toml"]
+    assert len(from_navy) == 1, from_navy
+    assert from_navy[0].found == "version 2"
+    assert from_navy[0].expected == "version 1"
+    assert from_navy[0].location == ""
+
+
 def test_unsupported_schema_version_on_a_single_instance_kind_reports_nothing_else(tmp_path):
     # The same assertion as the case above, for a single-instance kind rather
     # than a career: a career is the one kind the absent-kind check cannot

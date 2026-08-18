@@ -279,3 +279,54 @@ def test_check_result_carries_the_rules_provenance():
     rules = _rules()
     result = check(Roller(1), skill=0, rules=rules)
     assert result.provenance is rules.provenance
+
+
+class TestCommittedSignatureAndShape:
+    """`contracts/library-api.md` fixes both of these and nothing held either:
+    dropping the `*` from `check` or reordering `CheckResult`'s fields left
+    the whole suite green, because every call site passes by keyword and every
+    construction is keyword-based too. The point of the keyword-only marker is
+    the calls it makes impossible, and only a signature assertion can see them
+    (FR-043, contracts/library-api.md).
+    """
+
+    def test_check_takes_the_roller_positionally_and_everything_else_by_keyword(self):
+        import inspect
+
+        parameters = list(inspect.signature(check).parameters.values())
+        assert [p.name for p in parameters] == [
+            "roller",
+            "difficulty",
+            "characteristic",
+            "skill",
+            "modifiers",
+            "rules",
+        ]
+        assert parameters[0].kind is inspect.Parameter.POSITIONAL_OR_KEYWORD
+        assert all(p.kind is inspect.Parameter.KEYWORD_ONLY for p in parameters[1:])
+        assert all(p.default is not inspect.Parameter.empty for p in parameters[1:])
+
+    def test_a_second_positional_argument_is_refused(self):
+        with pytest.raises(TypeError):
+            check(Roller(1), "Average")
+
+    def test_the_removed_parameters_keyword_is_not_accepted_beside_rules(self):
+        # FR-044 requires the old reader replaced rather than kept alongside.
+        with pytest.raises(TypeError):
+            check(Roller(1), parameters=_parameters())
+
+    def test_check_result_field_order_matches_the_contract(self):
+        import dataclasses
+
+        from cetools.tasks import CheckResult
+
+        assert [f.name for f in dataclasses.fields(CheckResult)] == [
+            "faces",
+            "dice_total",
+            "modifiers",
+            "total",
+            "target",
+            "success",
+            "seed",
+            "provenance",
+        ]

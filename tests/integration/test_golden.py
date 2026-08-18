@@ -136,3 +136,77 @@ def test_sc009_check_difficult_fields_are_unchanged_field_by_field(normalize_ver
     ):
         assert field in before
         assert field in after
+
+
+# --- the worked examples in README.md, which ship as the PyPI description ---
+
+
+def _readme_blocks() -> dict[str, str]:
+    """Every `$ cetools ...` invocation in README.md with the output shown
+    beneath it, keyed by the command line.
+
+    The README is the `Description` in both the wheel's METADATA and the
+    sdist's PKG-INFO, so it is what PyPI renders. The project's own rule is
+    that changing human-readable CLI output means updating the committed
+    reference output in the same commit, and the one command whose output this
+    feature changed was documented as it was before the change: the `check`
+    block was byte-for-byte the *pre-loader* golden while the real command had
+    carried one line more since the provenance block landed.
+    """
+    lines = (
+        (Path(__file__).resolve().parents[2] / "README.md")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    )
+    blocks: dict[str, str] = {}
+    index = 0
+    while index < len(lines):
+        if not lines[index].startswith("$ "):
+            index += 1
+            continue
+        command = lines[index][2:]
+        index += 1
+        # A command line long enough to wrap is continued with a backslash.
+        while command.endswith("\\"):
+            command = command[:-1].rstrip() + " " + lines[index].strip()
+            index += 1
+        output: list[str] = []
+        while index < len(lines) and lines[index].strip() and not lines[index].startswith("```"):
+            output.append(lines[index])
+            index += 1
+        blocks[command] = "\n".join(output) + "\n"
+    return blocks
+
+
+README_EXAMPLES = {
+    "cetools roll 2d6+1 --seed session-alpha": ["roll", "2d6+1", "--seed", "session-alpha"],
+    "cetools roll d66 --seed session-alpha": ["roll", "d66", "--seed", "session-alpha"],
+    "cetools check --difficulty Difficult --characteristic 9 --skill 2 "
+    '--dm "cover=-2" --seed session-alpha': [
+        "check",
+        "--difficulty",
+        "Difficult",
+        "--characteristic",
+        "9",
+        "--skill",
+        "2",
+        "--dm",
+        "cover=-2",
+        "--seed",
+        "session-alpha",
+    ],
+    "cetools validate": ["validate"],
+}
+
+
+def test_every_documented_example_is_actually_parsed_out_of_the_readme():
+    """A parser that matched nothing would make every case below vacuous."""
+    blocks = _readme_blocks()
+    assert set(README_EXAMPLES) <= set(blocks), sorted(set(README_EXAMPLES) - set(blocks))
+
+
+@pytest.mark.parametrize("documented", sorted(README_EXAMPLES))
+def test_the_readme_shows_what_the_command_actually_prints(documented):
+    result = runner.invoke(app, README_EXAMPLES[documented])
+    assert result.exit_code == 0
+    assert _readme_blocks()[documented] == result.stdout
