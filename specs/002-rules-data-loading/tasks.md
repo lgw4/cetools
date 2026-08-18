@@ -403,7 +403,7 @@ re-running the suite, which surfaces required behavior that no test would notice
 Most of what follows is therefore unproven behavior rather than wrong behavior, and each
 such task says so.
 
-- [ ] T071 Traverse an override location explicitly instead of through `Path.rglob`, which
+- [X] T071 Traverse an override location explicitly instead of through `Path.rglob`, which
       drops whole subtrees in silence: `src/cetools/rules.py:407` iterates
       `override_path.rglob("*")`, and `rglob` defaults to `recurse_symlinks=False` and
       swallows `OSError`, so an override holding `linked/navy.toml` behind a symlinked
@@ -422,7 +422,7 @@ such task says so.
       an unreadable file at `rules.py:372-376`, and add cases beside
       `tests/unit/test_composition.py:95`, which today covers only a broken symlink to a
       file (FR-028, FR-029, FR-020a, FR-022, contracts/data-files.md) (partial)
-- [ ] T072 Make the SC-016 notice-coverage check capable of failing, which it is not:
+- [X] T072 Make the SC-016 notice-coverage check capable of failing, which it is not:
       `tests/unit/test_licensing.py:210-219` builds `data_files` by globbing
       `src/cetools/data/**/*.toml` and then asserts that each resulting path starts with
       `src/cetools/data/`, which is true by construction for every path that glob can
@@ -441,7 +441,7 @@ such task says so.
       the directory-wide line at `LICENSE-OGL.txt:137-138` does cover all five shipped files
       — so this is the mechanism failing, not the licence (FR-047, SC-016, Constitution
       Licensing & Distribution) (partial)
-- [ ] T073 Type-check the declared schema version before comparing it: `src/cetools/rules.py:529`
+- [X] T073 Type-check the declared schema version before comparing it: `src/cetools/rules.py:529`
       tests `declared_version != supported` against a bare `toml_data.get("schema-version")`,
       and Python equality makes `True == 1` and `1.0 == 1`, so a career file declaring
       `schema-version = true` or `schema-version = 1.0` passes the version gate and validates
@@ -454,7 +454,7 @@ such task says so.
       Apply the same guard, report a non-integer version as a wrong-typed value rather than as
       a version mismatch, and add the case beside
       `tests/integration/test_validation_categories.py:88` (FR-002, FR-020b, FR-022) (partial)
-- [ ] T074 Stop rejecting a bare entry whose specialty ends in a digit:
+- [X] T074 Stop rejecting a bare entry whose specialty ends in a digit:
       `src/cetools/notation.py:157-158` applies the "the trailing token contains a digit but
       matches no suffix form" heuristic to the last whitespace-separated token before the
       name is split into base and specialty, so the closing `)` of `Blade (Mark 2)` is caught
@@ -469,7 +469,7 @@ such task says so.
       `tests/unit/test_notation.py`; note that the property strategy at
       `tests/property/test_invariants.py:142` excludes digits from generated specialties and
       so cannot find this (FR-006, FR-009, contracts/notation.md) (contradicts)
-- [ ] T075 Name the forms acceptable in the position when reporting a malformed entry, which
+- [X] T075 Name the forms acceptable in the position when reporting a malformed entry, which
       FR-009 requires in terms and which only the wrong-form path currently does: every
       malformed-entry site in `src/cetools/notation.py` (lines 113, 121, 125, 141, 156, 158
       and 170) reports the context-free string `one of the four notation forms`, while the
@@ -482,7 +482,7 @@ such task says so.
       written per FR-009 rather than the stripped text: `'  Pilot -  '` currently reports
       `found='Pilot -'` everywhere except the empty-entry case at `notation.py:141`
       (FR-009, FR-009a, contracts/notation.md) (partial)
-- [ ] T076 Report every non-string element of a skill's specialty array rather than only the
+- [X] T076 Report every non-string element of a skill's specialty array rather than only the
       first: `src/cetools/registries.py:171` finds one offending index with
       `next((i for i, s in enumerate(specialties) if not isinstance(s, str)), None)` and then
       `continue`s to the next skill, so `Blade = ["Cutlass", 5, 7, 9]` yields one problem while
@@ -494,7 +494,7 @@ such task says so.
       file is always one" forbid, and the asymmetry with its two sibling parsers shows it was
       not a deliberate line. Loop as they do, and extend `tests/unit/test_registries.py` with a
       multiple-bad-element case (FR-021, SC-003) (partial)
-- [ ] T077 Settle how a problem that names two files reports them, because the code and the
+- [X] T077 Settle how a problem that names two files reports them, because the code and the
       contracts disagree: `src/cetools/rules.py:575` and `rules.py:629` build
       `file=", ".join(...)` for the two multi-file categories, emitting
       `"file": "navvy.toml, navy.toml"` in `--json` output, while
@@ -510,7 +510,7 @@ such task says so.
       `tests/integration/test_validation_categories.py:204-214`, which today asserts only
       substring containment and so passes under either choice (FR-019b, FR-010a, FR-022,
       contracts/json-output.md, contracts/cli.md) (contradicts)
-- [ ] T078 Apply the dot-prefixed carve-out to directories, not only to files:
+- [X] T078 Apply the dot-prefixed carve-out to directories, not only to files:
       `src/cetools/rules.py:367-368` returns early on a basename beginning with a dot, but the
       traversal above it descends dot-prefixed directories, so every file inside one is treated
       as authored content. Pointing `cetools validate` at an override directory that is a git
@@ -525,7 +525,7 @@ such task says so.
       author. Decide this against FR-032b's rationale rather than its wording, amend the
       requirement and the contract rule if the line moves to the directory, and add both cases
       to `tests/unit/test_composition.py` (FR-032b, FR-032a, contracts/data-files.md) (partial)
-- [ ] T079 Assert the file and the location on the SC-002 categories whose problems are not
+- [X] T079 Assert the file and the location on the SC-002 categories whose problems are not
       about the file as a whole, which T062 supplied for the whole-file categories and never
       for their complement: `tests/integration/test_validation_categories.py:29-36` checks an
       unrecognized name by asserting only `found` and `expected`, `:47-52` checks a malformed
@@ -537,7 +537,7 @@ such task says so.
       behavior is correct today — each emits `file` `navy.toml` and a location such as
       `tables.service.entries[0]` — so this is the assertion missing, not the behavior
       (SC-002, FR-022) (partial)
-- [ ] T080 Widen the Open Game Content designation in the two prose artifacts that still name
+- [X] T080 Widen the Open Game Content designation in the two prose artifacts that still name
       only the file which shipped before this feature: `CHANGELOG.md:108-111` states that
       `LICENSE-OGL.txt` "covers `src/cetools/data/tasks.toml` as Open Game Content" when four
       more OGC files now ship, and `CHANGELOG.md` travels in the sdist per `pyproject.toml:37`,
@@ -552,7 +552,7 @@ such task says so.
       commit. While in CONTRIBUTING.md, refresh `:155-158`, which enumerates what
       `tests/unit/test_licensing.py` checks and omits both checks this feature added
       (Constitution Licensing & Distribution, FR-046, FR-047) (contradicts)
-- [ ] T081 Pin the characteristic gate that FR-018 requires the reference career to exercise,
+- [X] T081 Pin the characteristic gate that FR-018 requires the reference career to exercise,
       and prove FR-015's clause that a gate is permitted on every table rather than fixed to
       one: deleting `requires = "EDU 8+"` from `src/cetools/data/careers/navy.toml:43` leaves
       all 547 tests passing, and no test anywhere asserts anything about a packaged career's
@@ -566,7 +566,7 @@ such task says so.
       gate is optional on every table rather than fixed to one of them", which is the clause
       nothing holds. Add a reference-career assertion for the gate and a unit case placing a
       gate on a different table (FR-018, FR-015, SC-004) (missing)
-- [ ] T082 Cover the required sub-keys and the two non-emptiness rules that no test would
+- [X] T082 Cover the required sub-keys and the two non-emptiness rules that no test would
       notice losing, each confirmed by mutating a scratch copy of the tree and observing all
       547 tests still pass: making `throws.*.target` optional at `src/cetools/careers.py:300`
       against FR-014's "The target is required", making `ranks[].rank` optional at
@@ -581,7 +581,7 @@ such task says so.
       fall in the seam between FR-019's top-level enumeration, which SC-004 tests exhaustively
       and correctly, and the per-object tables in contracts/data-files.md, which nothing tests
       (FR-014, FR-016, FR-017, contracts/data-files.md) (missing)
-- [ ] T083 Test FR-005's "and no other" clause in both directions, which nothing currently
+- [X] T083 Test FR-005's "and no other" clause in both directions, which nothing currently
       does: `tests/unit/test_careers.py:401-408` rejects `"Not A Real Skill"` in a skill table
       and `:428-433` rejects `"Not A Real Benefit"` in a benefits table, but both names are
       absent from *both* registries, so an implementation that consulted both registries and
@@ -592,7 +592,7 @@ such task says so.
       `Low Passage` in a skill table and a skills-only name such as `Vacc Suit` in a benefits
       table, and assert each is rejected against the registry its position selects. The
       implementation is correct today, so this is the proof missing (FR-005, SC-002) (missing)
-- [ ] T084 Add regression cases for the five career key-closure sites that survive neutering:
+- [X] T084 Add regression cases for the five career key-closure sites that survive neutering:
       the career top level at `src/cetools/careers.py:757-761`, inside a throw at `:272-274`,
       inside a skill table at `:352-354`, inside a rank at `:474-476`, and inside a ladder at
       `:562` each leave all 547 tests passing when the unrecognized-key check is removed. FR-020
@@ -604,7 +604,7 @@ such task says so.
       regression would trip. The closed sets of throw names and table names are properly pinned
       at `tests/unit/test_careers.py:293-310`; it is the key closure within each object that is
       not (FR-020, SC-002) (partial)
-- [ ] T085 Assert the three distinguishable messages FR-007 requires, which exist in the code
+- [X] T085 Assert the three distinguishable messages FR-007 requires, which exist in the code
       and are pinned nowhere: `src/cetools/careers.py:246-258` builds distinct text for
       `SPECIALTY_NOT_ALLOWED`, `UNRECOGNIZED_SPECIALTY`, and `UNRECOGNIZED_SKILL`, and a
       repository-wide search for those strings returns only that source line.
@@ -617,7 +617,7 @@ such task says so.
       registry does not list for that skill to be "reported distinguishably from an
       unrecognized skill name", which is a claim about the reported problem and not about the
       enum (FR-007, SC-002) (missing)
-- [ ] T086 Report every ignored file rather than every distinct ignored basename:
+- [X] T086 Report every ignored file rather than every distinct ignored basename:
       `src/cetools/rules.py:402` accumulates `ignored` as a `set[str]` and `rules.py:370` adds
       the basename alone, so an override containing `a/notes.md` and `b/notes.md` yields
       `provenance.ignored == ("notes.md",)` and one of the two author-written files that failed
@@ -627,7 +627,7 @@ such task says so.
       reported. Declining to raise FR-029a's duplicate-basename problem for ignored files is
       defensible, since an ignored file claims no composition position, but the naming
       obligation is separate from it (FR-035, FR-032a) (partial)
-- [ ] T087 Match a benefit item against the registry as written rather than after
+- [X] T087 Match a benefit item against the registry as written rather than after
       renormalization: `src/cetools/notation.py:190` reassembles the name as
       `f"{base} ({specialty})"` from the split made at `notation.py:104`, so `Weapon(Blade)` and
       `Weapon  (Blade)` both resolve to `BenefitItem(name='Weapon (Blade)')`. Two things follow.
@@ -640,7 +640,7 @@ such task says so.
       `benefits.toml`, which holds no parenthesized item, and so reachable only through an
       override registry; the property strategy excludes parentheses and no unit test covers a
       parenthesized benefit item (FR-013, contracts/notation.md) (contradicts)
-- [ ] T088 Prove that schema versions are counted per kind, which is FR-002a's whole claim and
+- [X] T088 Prove that schema versions are counted per kind, which is FR-002a's whole claim and
       which no test could currently falsify: `src/cetools/rules.py:45-51` keys
       `_SUPPORTED_VERSION` by kind and is structurally correct, but every file in every test
       declares version 1 for every kind, the only version cases being
@@ -652,7 +652,7 @@ such task says so.
       user-supplied file of a kind whose shape did not change" — and the sole justification the
       spec's Assumptions give for the version field's existence at all (FR-002a, SC-012)
       (missing)
-- [ ] T089 Reconcile three stale artifact passages against the output and types the code
+- [X] T089 Reconcile three stale artifact passages against the output and types the code
       actually produces: contracts/cli.md:90-92 shows an ignored-only provenance block padding
       `notes.md` to eleven columns, while `src/cetools/render.py:35,47` pads to the longest
       basename present and the contract's own prose rule at line 80 agrees with the code, so
@@ -667,7 +667,7 @@ such task says so.
       four-row table at `:101-107`, where `src/cetools/registries.py:32-40` defines four
       `SkillResolution` members and contracts/notation.md:92 says four (FR-020b, FR-007,
       contracts/cli.md, data-model.md) (contradicts)
-- [ ] T090 Make the identical-content override assertion capable of failing:
+- [X] T090 Make the identical-content override assertion capable of failing:
       `tests/unit/test_composition.py:129-134` is the only test using byte-identical override
       content and it asserts `directory_result.provenance.files == file_result.provenance.files`,
       which holds vacuously if both are empty, so an implementation that compared content and
@@ -677,7 +677,7 @@ such task says so.
       `src/cetools/rules.py:432` never comparing content, so this is an assertion that the
       files tuple is non-empty and carries the expected disposition (spec Edge Case, FR-035)
       (partial)
-- [ ] T091 Declare the package's licence in machine-readable metadata: `pyproject.toml:5-11`
+- [X] T091 Declare the package's licence in machine-readable metadata: `pyproject.toml:5-11`
       sets `license-files` but carries no `[project] license` expression and no licence
       classifier, so the built wheel's METADATA holds only two `License-File` lines and PyPI
       and `pip show` report the package as unlicensed, while the constitution states outright

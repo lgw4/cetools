@@ -131,7 +131,7 @@ New. Produced by `cetools validate --json` and by `as_dict(ValidationReport)`.
 | `file_count` | number | Files composed and checked. |
 | `provenance` | object | Present whether or not validation succeeded, because composition precedes validation. |
 | `problems` | array | Sorted by `file` then `location`. Empty when valid. |
-| `problems[].file` | string | Composition key of the file. |
+| `problems[].file` | string | Composition key of the file, always exactly one. A problem concerning two files (two careers declaring one name, two files declaring one single-instance kind, two override files sharing a basename) names both in `found` and keeps this a single key, so a consumer grouping by it never gets a key matching no file. |
 | `problems[].location` | string | Dotted key path with array indices. `""` for a problem about the file as a whole. |
 | `problems[].found` | string | What was there. |
 | `problems[].expected` | string | What would have been acceptable. |

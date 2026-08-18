@@ -88,8 +88,12 @@ took effect, and still lists them:
 
 ```text
   Rules: packaged (cetools 2026.8.1)
-    notes.md      ignored
+    notes.md   ignored
 ```
+
+The file column is padded to the longest basename *present*, which here is
+`notes.md` itself, so this block is narrower than the one above rather than
+padded to the same width.
 
 ### `cetools check`
 
@@ -150,7 +154,15 @@ navy.toml: found invalid TOML at line 12, column 3; expected a well-formed TOML 
 
 One problem per line and the file first makes the report greppable and sortable, and
 makes a test able to assert a single problem's presence without matching the whole
-report. Problems are sorted by file then location, so a run is stable.
+report. Problems are sorted by file then location, so a run is stable. `FILE` is always
+one composition key: a problem that concerns two files, such as two careers declaring
+one name, names both in `FOUND` and keeps `FILE` singular, so grepping for a filename
+finds every problem about it.
+
+`FOUND` names a type in the same register `EXPECTED` does: `found a string`, not
+`found str`. TOML has no `str`, `dict` or `list`, and a Python type name in a report an
+author reads is the one word naming the implementation rather than the file. Settled by
+`type_name` in `errors.py`, which the three schema modules share.
 
 ## Failure of a load during `check`
 

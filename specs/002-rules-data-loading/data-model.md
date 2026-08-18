@@ -96,8 +96,9 @@ case-folding here would make `int 4+` valid and quietly widen the notation.
 |---|---|---|
 | `skills` | `Mapping[str, tuple[str, ...]]` | Skill name to its permitted specialties. An empty tuple means the skill has none. |
 
-Three distinguishable outcomes when resolving a `SkillReference`, which is what FR-007
-requires:
+Four distinguishable outcomes when resolving a `SkillReference`, which is what FR-007
+and FR-008 together require — the table below has four rows, `SkillResolution` has four
+members, and contracts/notation.md says four:
 
 | Condition | Outcome |
 |---|---|

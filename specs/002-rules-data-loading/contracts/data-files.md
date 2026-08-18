@@ -275,12 +275,22 @@ unrecognized key, not a new table.
 2. If an override location was named and is a directory, every file under it, at any
    depth, is collected and keyed by basename. If it is a single file, that file alone is
    collected, keyed by its basename. The directory a file sits in never affects its key
-   (FR-029, of which FR-040a is the single-file case).
+   (FR-029, of which FR-040a is the single-file case). The tree is walked explicitly:
+   symlinked directories are followed, and a directory that cannot be listed is a problem
+   naming it, exactly as an unreadable file is (FR-020a, FR-022). Passing either over
+   would leave every house rule beneath it out of force while the run reported `packaged`
+   and exited 0, which is the failure FR-028 exists to remove.
 3. A collected file whose name begins with a dot is discarded before anything else
-   happens: not loaded, not keyed, not reported (FR-032b).
-4. A collected file whose extension is not `.toml` is **ignored**: its basename goes to
-   `provenance.ignored` and it contributes nothing. It is not a validation problem and
-   does not fail the load (FR-032a).
+   happens: not loaded, not keyed, not reported. So is a directory whose name begins with
+   a dot, along with everything beneath it, which is why an override that is a git
+   checkout reports nothing from `.git/` and a `.toml` under a dot-prefixed directory
+   never composes (FR-032b).
+4. A collected file whose extension is not `.toml` is **ignored**: its path within the
+   override goes to `provenance.ignored` and it contributes nothing. It is not a
+   validation problem and does not fail the load (FR-032a). The path rather than the
+   basename, because FR-035 requires *every* ignored file to be named and two
+   author-written `notes.md` in different directories reported under one name leave one
+   of them named nowhere.
 5. A key present in both the packaged set and the override is a **replacement**: the
    override file is used whole, and nothing from the packaged file survives (FR-029,
    FR-030).

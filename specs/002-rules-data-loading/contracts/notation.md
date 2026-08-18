@@ -61,7 +61,16 @@ Examples:
 | `Blade (Cutlass) 1` | grant | skill `Blade`, specialty `Cutlass`, level `1` |
 | `Vacc Suit` | bare | skill `Vacc Suit`, no specialty |
 | `Gun Combat (Slug Rifle)` | bare | skill `Gun Combat`, specialty `Slug Rifle` |
+| `Blade (Mark 2)` | bare | skill `Blade`, specialty `Mark 2` |
 | `Low Passage` | bare | benefit item `Low Passage` (benefit context only) |
+
+The tail is looked for after a specialty group's closing parenthesis, because the
+grammar reserves the suffix position to text outside the group. Without that, the `)`
+of `Blade (Mark 2)` is the trailing token, it contains a digit, it matches no suffix
+form, and the entry is rejected — while the same specialty in the grant form
+`Blade (Mark 2) 1` parses. Text beyond a specialty group is still reported rather than
+dropped: the bare form takes the whole entry as its name, so `Blade (Mark 2) Extra` is
+malformed.
 
 ## Contexts
 
@@ -87,6 +96,15 @@ than taking it from position.
 Every registry lookup is exact and case sensitive (FR-013), so `int 4+` fails on the
 characteristic rather than being folded to `INT`.
 
+A benefit item carries its name as written rather than reassembled from a base and a
+specialty, because it has one field to carry it in. `Weapon(Blade)` and
+`Weapon  (Blade)` are therefore not the registry's `Weapon (Blade)`: the grammar makes
+the space before the parenthesis part of the name, and normalizing it away would widen
+the notation the way case folding would, letting one registry entry answer to three
+written forms while an entry actually spelled `Weapon(Blade)` could be matched by
+nothing. A skill reference keeps its base and specialty in separate fields, so there is
+nothing to reassemble there.
+
 ## Specialties
 
 A `SkillReference` resolves against the skills registry with four distinguishable
@@ -106,7 +124,13 @@ one (FR-008).
 
 ## Malformed entries
 
-Each is a problem carrying the entry as written, its location, and what was expected:
+Each is a problem carrying the entry exactly as written — surrounding whitespace and
+all, since an author shown `Pilot -` for a cell holding `  Pilot -  ` is shown an entry
+that is not in their file — its location, and what was expected. What was expected
+always names the forms admissible in that position first, per FR-009 and FR-009a, and
+then what the entry did wrong: a gate reports one form and a mustering-out benefits
+entry two, so a context-free "one of the four notation forms" was not merely incomplete
+but false.
 
 | Written | Problem |
 |---|---|

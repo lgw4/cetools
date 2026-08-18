@@ -133,11 +133,14 @@ line it sits on.
 
 - **Code, tests, packaging, and docs are GPL-3.0** (`LICENSE`). By
   contributing them you agree to license them that way.
-- **`src/cetools/data/tasks.toml` is Open Game Content under OGL 1.0a**
-  (`LICENSE-OGL.txt`). It cannot be sublicensed under the GPL. Any new file
-  containing content derived from the Cepheus Engine SRD is also OGC, must
-  carry the OGC designation in a header comment the way `tasks.toml` does,
-  and must be named as OGC in the README's licensing section.
+- **Everything under `src/cetools/data/` is Open Game Content under OGL
+  1.0a** (`LICENSE-OGL.txt`). It cannot be sublicensed under the GPL. Any new
+  file containing content derived from the Cepheus Engine SRD is also OGC,
+  must carry the OGC designation in a header comment the way `tasks.toml`
+  does, and must live under `src/cetools/data/`, which is the directory the
+  README's licensing section and the Section 15 game-data notice both
+  designate. Putting one anywhere else means widening that notice in the same
+  change; the guard below will tell you so.
 - **Section 15 is verbatim.** Every distribution bundles the full OGL 1.0a
   text and reproduces the SRD's complete Section 15 copyright-notice chain
   exactly as received, extended with this project's own game-data copyright
@@ -154,8 +157,15 @@ line it sits on.
 
 `tests/unit/test_licensing.py` checks the mechanical parts of this: that
 both license files exist and are non-empty, that `LICENSE-OGL.txt` still has
-its Section 15, that `pyproject.toml` lists both under `license-files`, and
-that the README carries the OGC/GPL designation.
+its Section 15 chain complete and in order, that `pyproject.toml` lists both
+under `license-files` and declares the code's licence as the SPDX expression
+`GPL-3.0-only`, that the README carries the OGC/GPL designation, that no
+documented surface makes a compatibility claim without its attribution, and
+that the chain's game-data notice covers every file carrying the OGC
+designation — a check that reads the covered paths out of the notice itself,
+so narrowing the notice fails rather than passing unnoticed.
+`tests/guards/test_packaging.py` runs the same coverage check against the
+built wheel and sdist, which is what SC-014 binds.
 
 ## Changelog and releases
 

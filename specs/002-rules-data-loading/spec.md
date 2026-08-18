@@ -556,12 +556,18 @@ location and confirming the reported provenance changes.
   considered and dropped: it would fail a load over a file the author did not write, and
   the visibility that matters is achieved without that cost.
 - **FR-032b**: A file whose name begins with a dot MUST be passed over silently, neither
-  loaded nor reported as ignored. Such files are made by tools rather than written by
-  authors: a directory opened once in a file browser acquires one, as do editors saving
-  alongside the file being edited. A file the author did not write is not a mistake the
-  author needs told about, and a report full of such files is a report that stops being
-  read. This is the only carve-out, and it is drawn at authorship rather than at a list of
-  known filenames, which would need extending for every tool anyone uses.
+  loaded nor reported as ignored, and so MUST a directory whose name begins with a dot,
+  together with everything beneath it at any depth. Such files are made by tools rather
+  than written by authors: a directory opened once in a file browser acquires one, as do
+  editors saving alongside the file being edited. A file the author did not write is not a
+  mistake the author needs told about, and a report full of such files is a report that
+  stops being read. This is the only carve-out, and it is drawn at authorship rather than
+  at a list of known filenames, which would need extending for every tool anyone uses.
+  The carve-out extends to directories for that same reason and not by analogy: sharing a
+  rule set as a git checkout is the obvious way to do it, and drawing the line at the
+  file's own leading dot put eighteen entries from `.git/` into the report while letting
+  `.hidden/navy.toml` compose silently as a replacement. `.git/config` was written by no
+  author, and `applypatch-msg.sample` is not a house rule that failed to take effect.
 
 #### Provenance
 
