@@ -198,11 +198,33 @@ README_EXAMPLES = {
     "cetools validate": ["validate"],
 }
 
+# Worked examples the README shows with elided or otherwise non-literal
+# output, deliberately excluded from `README_EXAMPLES` rather than run.
+ILLUSTRATIVE_README_EXAMPLES = frozenset(
+    {
+        # `...` elides most of the output, and `./house-rules` names no real
+        # directory in this repo; the block demonstrates the shape of an
+        # overridden result, not a command meant to run literally.
+        "cetools check --seed session-alpha --rules-data ./house-rules",
+    }
+)
+
 
 def test_every_documented_example_is_actually_parsed_out_of_the_readme():
     """A parser that matched nothing would make every case below vacuous."""
     blocks = _readme_blocks()
     assert set(README_EXAMPLES) <= set(blocks), sorted(set(README_EXAMPLES) - set(blocks))
+
+
+def test_every_readme_example_is_either_checked_or_explicitly_illustrative():
+    # The check above runs in one direction only: it never notices a worked
+    # example present in the README but absent from `README_EXAMPLES`, which
+    # is exactly how the `check` block stayed at pre-loader output until T095
+    # caught it by hand rather than the suite. A new example must be added to
+    # one of the two sets below or this fails (T139).
+    blocks = _readme_blocks()
+    unchecked = set(blocks) - set(README_EXAMPLES) - ILLUSTRATIVE_README_EXAMPLES
+    assert not unchecked, unchecked
 
 
 @pytest.mark.parametrize("documented", sorted(README_EXAMPLES))

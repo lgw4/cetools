@@ -108,13 +108,19 @@ carries a docstring; that is a requirement of Principle I, and
 ## Style and tooling
 
 Formatting and linting are configured but, per Principle III, are not
-constitutional gates. Run them anyway:
+constitutional gates. Run them anyway, scoped to this project's own code:
 
 ```sh
-uv run black .
-uv run isort .
-uv run flake8
+uv run black src tests
+uv run isort src tests
+uv run flake8 src tests
 ```
+
+Neither `black` nor `flake8` is configured to exclude `.venv` or the vendored
+`.claude`/`.specify` trees, so running any of the three unscoped reports
+thousands of errors from the virtualenv and six files under `.specify` that
+are not this project's to reformat. `isort` needs no such scoping; it already
+reports clean at repository scope.
 
 Line length is 99 for both black and flake8; isort uses the black profile.
 CI (`.github/workflows/ci.yaml`) runs `uv run pytest` on Linux, macOS, and

@@ -1323,3 +1323,131 @@ so.
       FR-028 and T067 each had to separate, a mistyped path and a `/dev/null`, and they are
       the pair FR-028 names as most easily confused with the empty-location case that behaves
       oppositely (FR-028, FR-040) (partial)
+
+---
+
+## Phase 15: Convergence
+
+Appended by an eighth `/speckit-converge` run. Phase 14's T115 through T135 are done and
+verified; T059 is still open by the deliberate choice recorded under **Recorded Deviation**
+in plan.md and is not restated here.
+
+**The feature's specified scope is built.** Of 111 checked items — 61 functional
+requirements, 16 success criteria, 19 acceptance scenarios, and 15 Edge Cases — 101 are
+implemented and covered by a test that would fail if the behavior were lost, and the
+remaining ten are implemented correctly and merely unpinned. Nothing the spec calls for is
+unbuilt. 738 tests pass with no skips, `black`, `isort`, and `flake8` are clean over `src`
+and `tests`, the packaging guard really builds both artifacts and proves they validate and
+carry their designations, and SC-009's one-added-line comparison against
+`tests/golden/pre-loader/` holds.
+
+**This phase deliberately carries only defects, and that is a change of method.** Four
+independent assessments ran: constitution and repository hygiene, an AST and hand-written
+mutation sweep, artifact-versus-code reconciliation, and a requirement-by-requirement
+coverage sweep. They produced 45 findings between them, of which the five below are the only
+ones where the tool does something wrong. All five came from the hygiene pass. The other
+three passes produced 40 findings and no defects: 19 mutation survivors where the code is
+correct and unpinned, 10 stale statements in `plan.md`, `data-model.md`, `research.md`,
+`quickstart.md` Scenario 5 and two `contracts/library-api.md` claims, and 11 further
+unpinned-but-correct behaviors. Those 40 were assessed and are **not** carried, because
+phases 12 through 14 show where that road goes: 65 tasks produced 331 lines of `src`
+change against 2,577 lines of test and 949 lines of specification bookkeeping, and a
+traceable chain of tasks whose only job was finishing an earlier convergence task
+(T102 after T086, T104 after T080, T105 after T076, T103 after T072, T112 after T066,
+T124 after T101). Mutation testing always finds another survivor and each round's own
+amendments generate the next round's drift, so neither category has a fixed point and
+neither is what this command is for: converge closes the gap between what the spec calls
+for and what the code does, and behavior that is implemented and correct is not a gap.
+
+- [X] T136 **CRITICAL**: stop `cetools validate` and `cetools check --rules-data` hanging
+      forever, with no output and no exit status, on a non-regular file inside an override
+      directory: `_walk_override` at `src/cetools/rules.py:443-446` deliberately yields any
+      non-directory entry — its comment reads "Not `is_file()`: a broken symlink is neither a
+      file nor a directory", which T067 required — and `_collect_entry` at `rules.py:387`
+      then does a bare `data = path.read_bytes()` guarded only by `except OSError`. Opening a
+      FIFO for reading blocks indefinitely and no `OSError` ever arrives, so
+      `mkfifo override/navy.toml` makes all three of `validate <dir>`, `validate <dir> --json`
+      and `check --seed 1 --rules-data <dir>` hang with no exit code at all, verified by
+      timing each out at 8s. A symlink to a character device (`ln -s /dev/zero
+      override/navy.toml`) reaches the same unguarded read and reads without bound. This
+      violates Constitution II's "Exit codes are meaningful: zero on success, non-zero on
+      failure" by producing no status on a reachable path, and it defeats FR-021's
+      collect-everything and FR-020a's "the remaining files in the data set MUST still be
+      checked", since neither is reached. The contradiction sits twenty lines below in the
+      same module: `_compose` at `rules.py:467-469` already refuses a *top-level* location
+      that is neither file nor directory, and its message names the very object class that
+      hangs one level down, which is why the same FIFO named directly as `PATH` correctly
+      exits 2. Give `_collect_entry` the rule `_compose` already applies — a path that is not
+      a regular file becomes a `ValidationProblem` naming it with an empty location per
+      FR-022, the way an unreadable file is answered at `rules.py:372-376` — while keeping
+      T067's broken-symlink behavior, and add both the FIFO and the device-symlink cases to
+      `tests/unit/test_composition.py` beside the broken-symlink case at `:95`
+      (Constitution II, FR-020a, FR-021, FR-022, FR-028) (missing)
+- [X] T137 Refuse an empty override location instead of silently composing the current
+      working directory: `src/cetools/cli.py:35` and `src/cetools/rules.py:459` both build
+      `Path("")`, which is `Path(".")`, which exists and is a directory, so both the CLI
+      pre-check at `cli.py:36-40` and `_compose`'s two usage-error branches at
+      `rules.py:461-469` pass it through. Run at the repository root, `cetools validate ""`
+      walks the whole tree: it composed `pyproject.toml` and
+      `wayfinder/cetools-mvp/decisions/rules-data-schema-prototype/merchants.toml` as
+      candidate rules files, reported `tasks.toml: found two override files share this
+      basename: src/cetools/data/tasks.toml, wayfinder/…/tasks.toml`, printed `Files: 7`, and
+      listed 145 ignored lines drawn from `__pycache__`, `dist/` and `.git`. `check
+      --rules-data ""` does the same. This is the ordinary shell mistake
+      `cetools validate "$DIR"` with `DIR` unset, and while it exits 1 rather than 0 it is
+      the same class as the `/dev/null` case T067 closed and the mistyped path FR-028 names
+      as the failure this feature exists to remove: the empty string is not a location any
+      author named. Refuse it as a usage error naming it, in `_compose` so that the library
+      and the CLI agree rather than in the CLI's copy alone, and pin it beside
+      `tests/unit/test_rules.py:234` (FR-028, FR-027) (partial)
+- [X] T138 Anchor the sdist include patterns so the distribution stops shipping a vendored
+      Spec Kit file: `pyproject.toml:38-45` lists `"README.md"` and `"CHANGELOG.md"` with no
+      leading slash, and hatchling treats a pattern containing no slash as matching at any
+      depth, so a fresh `uv build --sdist` produces a tarball whose non-`src`, non-`tests`
+      members are `CHANGELOG.md`, `.gitignore`, `LICENSE`, `LICENSE-OGL.txt`, `README.md`,
+      `pyproject.toml`, `PKG-INFO` — and `cetools-2026.8.1/.specify/extensions/git/README.md`,
+      which is neither this project's code nor its rules data and which the include list does
+      not name. The constitution requires the repository and package to clearly designate
+      which files are Open Game Content and which are GPL-licensed code, and a distributed
+      file that belongs to neither category and was never meant to ship defeats that. Anchor
+      both patterns as `/README.md` and `/CHANGELOG.md`. While there, note that
+      `tests/unit/test_licensing.py:252-264` resolves each include entry as a literal path
+      (`target = repo_root / entry`) and so does not replicate hatchling's at-any-depth
+      semantics, although its docstring claims its scope is "every file a source distribution
+      would carry, read out of the build configuration rather than assumed"; either derive it
+      from a built sdist or say plainly that it approximates. The licensing obligation itself
+      is safe, `tests/guards/test_packaging.py:213-217` enumerating real `sdist.getnames()`
+      and keying on the designation (Constitution Licensing & Distribution, FR-047, SC-016)
+      (contradicts)
+- [X] T139 Correct the sentence this feature made false in the text PyPI renders, and close
+      the one-directional check that let it drift: `README.md:49` reads "Both commands accept
+      `--json` for machine-readable output" — unchanged from `main`, where there were two
+      commands. This feature added a third, and the README never states that `validate`
+      accepts `--json`, although it does. `--version` is undocumented too, which predates this
+      branch. The text ships: it is verbatim the `Description` in the wheel's METADATA and in
+      the sdist's PKG-INFO, so it is what PyPI renders, and Constitution II binds both output
+      modes on every command. The mechanism matters as much as the instance:
+      `tests/integration/test_golden.py:205` asserts only
+      `set(README_EXAMPLES) <= set(blocks)`, so the check runs in one direction and a worked
+      example added to the README is executed by nothing — which is exactly how the `check`
+      block stayed at pre-loader output until T095 caught it by hand, T095 having fixed the
+      instance and left the mechanism. Name all three commands, document `--version`, and
+      assert `set(blocks) - set(README_EXAMPLES)` is empty or an explicitly listed
+      illustrative set, so a new example cannot ship unchecked (Constitution II, FR-041,
+      CLAUDE.md reference-output rule) (contradicts)
+- [X] T140 Make the lint commands CONTRIBUTING.md documents work at the scope it documents:
+      `CONTRIBUTING.md:113-117` gives `uv run black .`, `uv run isort .` and `uv run flake8`,
+      and at repository scope `flake8` emits 9,759 errors, every one of them from
+      `.venv/lib/python3.14/site-packages/`, while `black --check .` reports "6 files would be
+      reformatted", all six vendored Spec Kit scripts under `.specify/`. `.flake8` sets
+      `max-line-length` and `extend-ignore` and no `exclude`, and flake8's defaults do not
+      cover `.venv`; `[tool.black]` in `pyproject.toml` sets only `line-length`. Both are
+      clean at `src tests`, which is the scope every convergence note from Phase 9 onward has
+      silently meant when claiming the tree lints clean. This branch owns the inconsistency
+      rather than inheriting it: the `[tool.rumdl]` paragraph added here
+      (`CONTRIBUTING.md:123-130`) excludes `.claude` and `.specify` on the stated ground that
+      "their markdown is not ours to fix", two paragraphs below a black command that rewrites
+      `.specify`'s Python. Either add `exclude`/`extend-exclude`/`force-exclude` covering
+      `.venv`, `.claude`, `.specify` and `wayfinder`, or document the narrowed commands;
+      `isort` needs neither, already reporting clean at repository scope
+      (Principle VI, CONTRIBUTING.md Style and tooling) (contradicts)

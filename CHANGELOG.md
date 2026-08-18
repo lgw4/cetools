@@ -93,7 +93,12 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   over, because the author wrote it: `cetools validate ./.navy.toml` composes
   that file, rather than reporting success having done nothing. A file with
   the wrong extension is reported as ignored under its path within the
-  override, so two files sharing a basename are both named.
+  override, so two files sharing a basename are both named. A FIFO or a
+  symlink to a device node found within an override is reported rather than
+  read, since either would otherwise hang the run forever with no output and
+  no exit status. An empty override location is refused as a usage error too,
+  rather than silently composing the current working directory, which is
+  what the empty string names as a path.
 - **Provenance.** Every `CheckResult` and `ValidationReport` carries a
   `Provenance`: the installed package version, and, for an overridden load,
   each file's disposition and a reproducible SHA-256 fingerprint over its
@@ -142,7 +147,10 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   paths — as Open Game Content. Both ship in every sdist and wheel, and the
   guard that checks the notice's coverage derives what must be covered from
   the files a distribution actually carries, keyed on the designation rather
-  than on a directory prefix and an extension.
+  than on a directory prefix and an extension. The sdist's `include` patterns
+  for `README.md` and `CHANGELOG.md` are anchored to the repository root:
+  unanchored, they matched at any depth and picked up a vendored Spec Kit
+  file the sdist was never meant to ship.
 - **Project documentation.** `README.md` with installation and worked
   examples, and `CONTRIBUTING.md` covering the constitution, the spec-driven
   workflow, and the licensing rules.

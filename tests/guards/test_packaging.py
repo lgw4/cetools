@@ -227,6 +227,17 @@ def test_sdist_carries_the_source_code_license(sdist):
     assert _read_from_sdist(sdist, "LICENSE").strip()
 
 
+def test_sdist_ships_no_file_outside_its_own_include_list(sdist):
+    # Neither `"README.md"` nor `"CHANGELOG.md"` in pyproject.toml's sdist
+    # `include` list carried a leading slash, and hatchling treats a
+    # slash-free pattern as matching at any depth, so both also picked up
+    # `.specify/extensions/git/README.md` — a vendored Spec Kit file that is
+    # neither this project's code nor its rules data, and that the include
+    # list does not name (T138).
+    members = {name.split("/", 1)[-1] for name in sdist.getnames()}
+    assert not any(name.startswith(".specify") for name in members), members
+
+
 def test_sdist_carries_the_ogl_text_with_its_section_15_chain(sdist, assert_section_15_chain):
     text = _read_from_sdist(sdist, "LICENSE-OGL.txt")
     assert "OPEN GAME LICENSE Version 1.0a" in text

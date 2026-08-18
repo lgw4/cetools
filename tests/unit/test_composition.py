@@ -171,6 +171,33 @@ def test_a_broken_symlink_in_an_override_is_reported_rather_than_passed_over(tmp
     assert "read" in navy_problems[0].found
 
 
+def test_a_fifo_in_an_override_is_reported_rather_than_hanging(tmp_path):
+    # A FIFO opened for reading with no writer blocks forever, and no
+    # `OSError` ever arrives to end the wait: `_collect_entry`'s bare
+    # `read_bytes()` made `cetools validate` and `cetools check --rules-data`
+    # hang with no output and no exit status at all, which Constitution II
+    # forbids ("Exit codes are meaningful"). `path.exists()` is True for a
+    # FIFO, which is what tells it apart from the broken symlink above, whose
+    # read failure is reported through the `OSError` handler instead (T136).
+    os.mkfifo(tmp_path / "navy.toml")
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    navy_problems = [p for p in report.problems if p.file == "navy.toml"]
+    assert len(navy_problems) == 1
+    assert navy_problems[0].location == ""
+
+
+def test_a_symlink_to_a_device_in_an_override_is_reported_rather_than_read_unbounded(tmp_path):
+    # A symlink to a character device reads without bound rather than
+    # raising, the same unguarded-read hazard a FIFO poses (T136).
+    (tmp_path / "navy.toml").symlink_to("/dev/zero")
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    navy_problems = [p for p in report.problems if p.file == "navy.toml"]
+    assert len(navy_problems) == 1
+    assert navy_problems[0].location == ""
+
+
 def test_a_file_behind_a_symlinked_directory_is_collected(tmp_path):
     # `Path.rglob` defaults to `recurse_symlinks=False`, so a whole subtree
     # reached through a symlinked directory composed nothing while the run

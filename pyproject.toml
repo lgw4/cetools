@@ -40,8 +40,8 @@ include = [
     "tests",
     "LICENSE",
     "LICENSE-OGL.txt",
-    "README.md",
-    "CHANGELOG.md",
+    "/README.md",
+    "/CHANGELOG.md",
 ]
 
 [tool.black]

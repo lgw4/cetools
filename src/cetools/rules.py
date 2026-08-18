@@ -368,6 +368,24 @@ def _unlistable(name: str, exc: OSError) -> ValidationProblem:
     )
 
 
+def _not_a_regular_file(basename: str) -> ValidationProblem:
+    """A FIFO, or a symlink to a device node, exists but is not something a
+    bare `read_bytes()` may safely be pointed at: a FIFO with no writer
+    blocks forever and a character device reads without bound, and either
+    leaves the run hanging with no output and no exit status at all, which
+    Constitution II forbids (T136). `path.exists()` is true for both, which
+    is what tells them apart from a broken symlink: that one fails
+    `exists()` too, so it falls through to the `read_bytes()` below and is
+    reported through the `OSError` it raises instead, preserving T067's
+    behavior of reading rather than passing it over.
+    """
+    return ValidationProblem(
+        file=basename,
+        found="not a regular file",
+        expected="a regular file",
+    )
+
+
 def _collect_entry(
     path: Path,
     relative: str,
@@ -382,6 +400,9 @@ def _collect_entry(
         # author-written `notes.md` in different directories reported under
         # one name leave one of them named nowhere.
         ignored.add(relative)
+        return
+    if path.exists() and not path.is_file():
+        problems.append(_not_a_regular_file(basename))
         return
     try:
         data = path.read_bytes()
@@ -456,6 +477,12 @@ def _compose(
     if override is None:
         provenance = Provenance(version=package_version(), files=(), ignored=())
         return dict(packaged), provenance, ()
+    if override == "":
+        # `Path("")` is `Path(".")`, which exists and is a directory, so an
+        # empty string silently composed the whole current working
+        # directory — the ordinary shell mistake of `--rules-data "$DIR"`
+        # with `DIR` unset, and no location any author named (FR-028, T137).
+        raise RulesDataError("override location is empty")
 
     override_path = Path(override)
     if not override_path.exists():

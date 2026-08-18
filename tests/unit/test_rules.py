@@ -372,6 +372,20 @@ def test_validate_rules_rejects_a_nonexistent_override_location_as_a_usage_error
         validate_rules(missing)
 
 
+def test_load_rules_rejects_an_empty_override_location_as_a_usage_error():
+    # `Path("")` is `Path(".")`, which exists and is a directory, so an empty
+    # string silently composed the whole current working directory instead of
+    # being refused the way a mistyped path is — the ordinary shell mistake of
+    # `--rules-data "$DIR"` with `DIR` unset (T137, FR-028).
+    with pytest.raises(RulesDataError, match="empty"):
+        load_rules("")
+
+
+def test_validate_rules_rejects_an_empty_override_location_as_a_usage_error():
+    with pytest.raises(RulesDataError, match="empty"):
+        validate_rules("")
+
+
 def test_load_rules_accepts_str_or_path_override(tmp_path):
     report_from_path = validate_rules(tmp_path)
     report_from_str = validate_rules(str(tmp_path))

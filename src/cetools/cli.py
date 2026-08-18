@@ -32,6 +32,8 @@ def _parse_dm(raw: str) -> Modifier:
 def _check_override_location(path: Optional[str], param_hint: str) -> Optional[str]:
     if path is None:
         return None
+    if path == "":
+        raise typer.BadParameter("override location is empty", param_hint=param_hint)
     location = Path(path)
     if not location.exists():
         message = f"override location does not exist: {path}"

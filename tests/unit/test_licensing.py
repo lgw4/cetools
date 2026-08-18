@@ -253,7 +253,11 @@ def _shipped_files(repo_root: Path) -> list[Path]:
     assert includes, "the sdist ships nothing, so the scan would be vacuous"
     files: list[Path] = []
     for entry in includes:
-        target = repo_root / entry
+        # A leading slash anchors the pattern to the sdist root rather than
+        # matching at any depth; joined onto `repo_root` unstripped it would
+        # discard `repo_root` entirely, since `Path` treats a leading-slash
+        # right operand as absolute.
+        target = repo_root / entry.lstrip("/")
         if target.is_dir():
             files.extend(
                 path
@@ -334,6 +338,19 @@ def test_the_coverage_check_sees_a_designated_file_the_old_scan_missed(
         assert _uncovered(designated, game_data_covered_paths, game_data_covered_suffix)
     finally:
         planted.unlink()
+
+
+def test_shipped_files_still_finds_a_root_level_include_anchored_with_a_leading_slash(repo_root):
+    # T138 anchored `"README.md"` and `"CHANGELOG.md"` to `"/README.md"` and
+    # `"/CHANGELOG.md"` in the sdist `include` list, so hatchling stops
+    # matching the pattern at any depth. `repo_root / "/README.md"` is not
+    # `repo_root/README.md`: a `pathlib` join discards the left operand
+    # entirely when the right one looks absolute, so `_shipped_files` silently
+    # dropped both files, contradicting its own docstring's promise of "every
+    # file a source distribution would carry".
+    shipped = {path.name for path in _shipped_files(repo_root)}
+    assert "README.md" in shipped
+    assert "CHANGELOG.md" in shipped
 
 
 def test_packaged_tasks_toml_opens_with_ogc_designation_and_omits_pi_strings():

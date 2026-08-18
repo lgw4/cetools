@@ -46,9 +46,10 @@ Check: FAILURE
   Rules: packaged (cetools 2026.8.1)
 ```
 
-Both commands accept `--json` for machine-readable output, and either
-prints the seed it used (fresh, if none was given), so any result is
-reproducible from `--seed <that seed> --json` given the same package
+`roll`, `check`, and `validate` all accept `--json` for machine-readable
+output, and `roll` and `check` each print the seed used (fresh, if none was
+given), so any result is reproducible from `--seed <that seed> --json` given
+the same package version. `cetools --version` prints the installed package
 version.
 
 `check` resolves against the rules data packaged with `cetools`: a task

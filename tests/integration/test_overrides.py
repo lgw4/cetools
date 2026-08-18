@@ -77,6 +77,15 @@ def test_an_override_location_that_is_neither_file_nor_directory_is_a_usage_erro
     assert result.stdout == ""
 
 
+@pytest.mark.parametrize("command", [["check", "--rules-data"], ["validate"]])
+def test_an_empty_override_location_is_a_usage_error(command):
+    # `Path("")` is `Path(".")`, the ordinary shell mistake of an unset
+    # variable in `--rules-data "$DIR"` (T137).
+    result = runner.invoke(app, [*command, ""])
+    assert result.exit_code == 2
+    assert result.stdout == ""
+
+
 def test_a_value_omitted_from_the_override_is_absent_not_inherited(tmp_path):
     assert _COMMISSION_BLOCK in NAVY
     override = tmp_path / "navy.toml"
