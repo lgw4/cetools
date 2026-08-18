@@ -7,14 +7,10 @@ from cetools.errors import RulesDataError, TaskError
 from cetools.rules import load_rules, parse_task_parameters, validate_rules
 from cetools.tasks import Band
 
-CHARACTERISTICS = (
-    Path(__file__).resolve().parents[2]
-    / "src"
-    / "cetools"
-    / "data"
-    / "registries"
-    / "characteristics.toml"
-).read_text(encoding="utf-8")
+_DATA = Path(__file__).resolve().parents[2] / "src" / "cetools" / "data"
+CHARACTERISTICS = (_DATA / "registries" / "characteristics.toml").read_text(encoding="utf-8")
+TASKS = (_DATA / "tasks.toml").read_text(encoding="utf-8")
+NAVY = (_DATA / "careers" / "navy.toml").read_text(encoding="utf-8")
 
 VALID_TOML = """
 schema = "task-parameters"
@@ -288,6 +284,206 @@ def test_raising_one_kinds_version_rejects_that_kinds_file_and_no_others(tmp_pat
     assert [p.file for p in version_problems] == ["characteristics.toml"]
     for untouched in ("tasks.toml", "skills.toml", "benefits.toml"):
         assert not [p for p in report.problems if p.file == untouched]
+
+
+class TestBooleansAreNotIntegers:
+    """Every integer-valued field in this module guards on the exact type,
+    because `True == 1` in Python and nowhere in TOML. Weakening any of these
+    to a bare `isinstance` check left the whole suite green, and the
+    consequence is a rules value changed with no report rather than a worse
+    message: `"Difficult" = true` composed as difficulty modifier `1`, and
+    `target = true` yielded `Throw(target=True)` (FR-020b, FR-014).
+    """
+
+    def _problems(self, text: str):
+        import tomllib
+
+        parameters, problems = parse_task_parameters(tomllib.loads(text), "tasks.toml")
+        assert parameters is None
+        return problems
+
+    def test_a_boolean_task_target(self):
+        problems = self._problems(VALID_TOML.replace("target = 8", "target = true"))
+        matching = [p for p in problems if p.location == "task.target"]
+        assert len(matching) == 1
+        assert matching[0].found == "a boolean"
+        assert matching[0].expected == "an integer"
+
+    def test_a_boolean_unskilled_dm(self):
+        problems = self._problems(VALID_TOML.replace("unskilled-dm = -3", "unskilled-dm = true"))
+        matching = [p for p in problems if p.location == "task.unskilled-dm"]
+        assert len(matching) == 1
+        assert matching[0].found == "a boolean"
+
+    def test_a_boolean_difficulty_modifier(self):
+        problems = self._problems(VALID_TOML.replace('"Difficult" = -2', '"Difficult" = true'))
+        matching = [p for p in problems if p.location == "difficulty-dms.Difficult"]
+        assert len(matching) == 1
+        assert matching[0].found == "a boolean"
+
+    def test_a_boolean_characteristic_band_modifier(self):
+        problems = self._problems(VALID_TOML.replace('"9-11" = 1', '"9-11" = true'))
+        matching = [p for p in problems if p.location == "characteristic-dms.9-11"]
+        assert len(matching) == 1
+        assert matching[0].found == "a boolean"
+
+
+class TestCollectedRatherThanRaisedOrDropped:
+    """Five branches that could each be neutered with the suite green. Each is
+    a problem the loader is required to collect (FR-020, FR-021, FR-023,
+    SC-002), and losing one is a file that vanishes from the data set with no
+    report, or a `validate_rules` call that raises instead of reporting.
+    """
+
+    def test_a_file_that_is_not_utf8_is_reported_rather_than_dropped(self, tmp_path):
+        # The sibling `tomllib.TOMLDecodeError` branch three lines below this
+        # one is covered, so the gap was an asymmetry rather than a drawn
+        # line: with the `problems.append` removed and the `continue` kept, an
+        # override career file with one bad byte left the data set with no
+        # report at all and exit 0. SC-002's closed list names "a file that is
+        # not well-formed at all, or cannot be read".
+        (tmp_path / "navy.toml").write_bytes(NAVY.encode("utf-8").replace(b"Navy", b"Na\xffvy", 1))
+        report = validate_rules(tmp_path)
+        assert not report.valid
+        navy_problems = [p for p in report.problems if p.file == "navy.toml"]
+        assert len(navy_problems) == 1
+        assert navy_problems[0].location == ""
+        assert "UTF-8" in navy_problems[0].found
+
+    def test_a_non_string_roll_is_collected_rather_than_sent_into_the_dice_parser(self, tmp_path):
+        # Losing the type check sends a non-string into `_check_dice`, which
+        # leaves `validate_rules` raising rather than collecting — an FR-021
+        # and FR-023 break, not merely a worse message.
+        (tmp_path / "tasks.toml").write_text(
+            TASKS.replace('roll = "2d6"', "roll = 6", 1), encoding="utf-8"
+        )
+        report = validate_rules(tmp_path)
+        assert not report.valid
+        matching = [p for p in report.problems if p.location == "task.roll"]
+        assert len(matching) == 1
+        assert matching[0].found == "an integer"
+        assert matching[0].expected == "a string"
+
+    def test_a_misspelled_key_inside_the_task_table_reports_both_halves(self, tmp_path):
+        # The `tasks.toml` analogue of the five career sites T084 closed: a
+        # misspelling is an unrecognized key *and* a missing required one, and
+        # only the second was proved. An author shown one of the two fixes the
+        # wrong thing (FR-020, FR-021).
+        (tmp_path / "tasks.toml").write_text(
+            TASKS.replace("unskilled-dm = -3", "unskiled-dm = -3", 1), encoding="utf-8"
+        )
+        report = validate_rules(tmp_path)
+        assert not report.valid
+        locations = [p.location for p in report.problems if p.file == "tasks.toml"]
+        assert "task.unskiled-dm" in locations
+        assert "task.unskilled-dm" in locations
+
+    def test_a_packaged_file_that_cannot_be_read_is_reported(self, monkeypatch, tmp_path):
+        # The override-side twin of this branch is covered and the packaged
+        # side was not. It also exercises the one source of `_singleton_slots`
+        # nothing else reaches: `skills.toml` is gone from the packaged map
+        # because it never read, so only its canonical basename can say which
+        # slot it occupied, and without that the report would both name the
+        # file and say there is no such file (FR-002, FR-020a).
+        from cetools import rules as rules_module
+
+        real_walk = rules_module._walk_toml
+
+        class _Unreadable:
+            name = "skills.toml"
+
+            def read_bytes(self):
+                raise OSError(13, "Permission denied")
+
+        def walk(traversable):
+            for entry in real_walk(traversable):
+                yield _Unreadable() if entry.name == "skills.toml" else entry
+
+        monkeypatch.setattr(rules_module, "_walk_toml", walk)
+        report = validate_rules(tmp_path)
+        assert not report.valid
+        skills_problems = [p for p in report.problems if p.file == "skills.toml"]
+        assert len(skills_problems) == 1
+        assert skills_problems[0].location == ""
+        assert "read" in skills_problems[0].found
+        assert not [p for p in report.problems if "exactly one file declaring" in p.expected]
+
+    def test_a_rejected_file_declaring_a_kind_at_any_basename_occupies_that_slot(
+        self, monkeypatch, tmp_path
+    ):
+        # The other source of `_singleton_slots`, isolated: `house-skills.toml`
+        # is neither a packaged basename nor a canonical one, so only what it
+        # declared can say it stands for the skills registry. Its version is
+        # refused, so its contents are not interpreted — and reporting the
+        # kind absent as well would name a file and then deny it exists.
+        from cetools import rules as rules_module
+
+        real_discover = rules_module._discover_packaged
+
+        def without_skills():
+            files, problems = real_discover()
+            del files["skills.toml"]
+            return files, problems
+
+        monkeypatch.setattr(rules_module, "_discover_packaged", without_skills)
+        (tmp_path / "house-skills.toml").write_text(
+            'schema = "skills"\nschema-version = 2\n\n[skills]\n"Comms" = []\n', encoding="utf-8"
+        )
+        report = validate_rules(tmp_path)
+        assert not report.valid
+        version_problems = [p for p in report.problems if p.expected == "version 1"]
+        assert [p.file for p in version_problems] == ["house-skills.toml"]
+        assert not [p for p in report.problems if "declaring kind 'skills'" in p.expected]
+
+
+def test_canonical_file_names_the_packaged_declarer_of_every_single_instance_kind():
+    """`_singleton_slots` reads a basename's slot out of `_CANONICAL_FILE`
+    alone, which is only sound while that literal names the packaged file that
+    actually declares each kind. Pinned here rather than kept as a second,
+    always-agreeing source inside `_singleton_slots`, where neither could be
+    shown to matter (FR-010a, FR-029).
+    """
+    from cetools import rules as rules_module
+
+    packaged, problems = rules_module._discover_packaged()
+    assert not problems
+    declarers = rules_module._packaged_kind_map(packaged)
+    for kind, basename in rules_module._CANONICAL_FILE.items():
+        assert declarers.get(basename) == kind
+    assert sorted(rules_module._CANONICAL_FILE) == sorted(rules_module._SINGLETON_KINDS)
+
+
+def test_problems_arrive_sorted_by_file_then_location(tmp_path):
+    """data-model.md and contracts/cli.md both state `(file, location)` order
+    as the reason a report is stable run to run, which SC-002 and SC-003
+    depend on to assert content — and nothing asserted it. Deleting the sort,
+    or reversing it, left all 628 tests passing: the one test that mentions
+    the order asserts that *rendering* must not re-sort, deferring to a
+    guarantee nothing held.
+
+    Broken in two files at once, and in two places within one of them, chosen
+    so that the order the problems accumulate in differs from the sorted order
+    on both axes: `tasks.toml` is validated first but sorts last, and within
+    `navy.toml` the throws are read before the mustering-out block but sort
+    after it (FR-022).
+    """
+    (tmp_path / "tasks.toml").write_text(
+        TASKS.replace("target = 8", 'target = "eight"', 1), encoding="utf-8"
+    )
+    (tmp_path / "navy.toml").write_text(
+        NAVY.replace("target = 5", 'target = "five"', 1).replace(
+            "cash = [1000,", 'cash = ["1000",', 1
+        ),
+        encoding="utf-8",
+    )
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    pairs = [(p.file, p.location) for p in report.problems]
+    assert pairs == [
+        ("navy.toml", "mustering-out.cash[0]"),
+        ("navy.toml", "throws.survival.target"),
+        ("tasks.toml", "task.target"),
+    ]
 
 
 def test_supported_schema_version_is_a_literal_not_derived_from_package_version():

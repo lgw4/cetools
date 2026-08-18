@@ -376,8 +376,6 @@ def _collect_entry(
     problems: list[ValidationProblem],
 ) -> None:
     basename = path.name
-    if basename.startswith("."):
-        return
     if not basename.endswith(".toml"):
         # Keyed by the path within the override, not the basename: FR-035
         # requires any file FR-032a marks ignored to be named, and two
@@ -403,17 +401,27 @@ def _walk_override(root: Path, problems: list[ValidationProblem]):
     passed over in silence, both while the run reported `packaged` and exited
     0 (FR-028, FR-029).
 
-    A dot-prefixed directory is passed over whole here; the same carve-out for
-    a dot-prefixed *file* lives in `_collect_entry`, which the single-file
-    override path reaches too. FR-032b's line is drawn at authorship, and
-    applying it to a file's own name alone put eighteen `ignored` lines from a
-    `.git/` checkout into the report of anyone sharing a rule set the obvious
-    way, while letting `.hidden/navy.toml` compose silently as a replacement.
-    `.git/config` was written by no author.
+    A dot-prefixed file or directory is passed over here, and only here.
+    FR-032b's line is drawn at authorship: `.git/config` was written by no
+    author, and applying the carve-out to a file's own name alone put eighteen
+    `ignored` lines from a `.git/` checkout into the report of anyone sharing a
+    rule set the obvious way, while letting `.hidden/navy.toml` compose
+    silently as a replacement.
+
+    The carve-out is deliberately *not* in `_collect_entry`, which the
+    single-file override path also reaches: a location the author typed on the
+    command line is not a file a tool left behind, and passing it over made
+    `cetools validate override/.navy.toml` print `Rules data is valid.` and
+    exit 0 having composed nothing — verbatim the mistyped-path-that-appears-
+    to-succeed failure FR-028 exists to remove, and the same reasoning that
+    made a `/dev/null` location a usage error rather than a silent no-op.
 
     Symlinked directories are followed, which is the point, so directories
     already visited are skipped by identity: without that a link pointing at
-    its own ancestor walks until the kernel runs out of path.
+    its own ancestor walks until the kernel runs out of path, and a link beside
+    the directory it points at lists every file beneath it twice. The identity
+    check therefore comes before the listing rather than after it, so a
+    revisited directory costs nothing and yields nothing.
     """
     stack = [root]
     seen: set[tuple[int, int]] = set()
@@ -421,18 +429,19 @@ def _walk_override(root: Path, problems: list[ValidationProblem]):
         directory = stack.pop()
         try:
             identity = directory.stat()
+            if (key := (identity.st_dev, identity.st_ino)) in seen:
+                continue
+            seen.add(key)
             entries = sorted(directory.iterdir())
         except OSError as exc:
             name = str(root) if directory == root else directory.relative_to(root).as_posix()
             problems.append(_unlistable(name, exc))
             continue
-        if (key := (identity.st_dev, identity.st_ino)) in seen:
-            continue
-        seen.add(key)
         for entry in entries:
+            if entry.name.startswith("."):
+                continue
             if entry.is_dir():
-                if not entry.name.startswith("."):
-                    stack.append(entry)
+                stack.append(entry)
             else:
                 # Not `is_file()`: a broken symlink is neither a file nor a
                 # directory, and passing it over would leave a misnamed house
@@ -485,6 +494,11 @@ def _compose(
         accepted[basename] = items[0][1]
 
     composed = dict(packaged)
+    # `accepted` was filled from `sorted(candidates.items())` above, so this
+    # list is already in `file` order and data-model.md's "sorted by file"
+    # guarantee holds on that sort. A second `file_provenance.sort()` here was
+    # dead, and worse than dead: it read as the line providing the guarantee,
+    # so removing the sort that actually provides it would have looked safe.
     file_provenance: list[FileProvenance] = []
     for basename, data in accepted.items():
         disposition = Disposition.REPLACED if basename in packaged else Disposition.ADDED
@@ -492,7 +506,6 @@ def _compose(
         file_provenance.append(
             FileProvenance(file=basename, disposition=disposition, fingerprint=fingerprint(data))
         )
-    file_provenance.sort(key=lambda fp: fp.file)
 
     provenance = Provenance(
         version=package_version(),
@@ -505,23 +518,28 @@ def _compose(
 # --- the validation driver ---------------------------------------------------
 
 
-def _singleton_slots(
-    basename: str, declared: object, packaged_kind: Mapping[str, str]
-) -> set[str]:
-    """Which single-instance kinds a file stands for, by what it declared, by
-    the packaged file it replaces, and by the basename it carries (FR-029).
+def _singleton_slots(basename: str, declared: object) -> set[str]:
+    """Which single-instance kinds a file stands for, by what it declared and
+    by the basename it carries (FR-029).
 
     A file rejected before its contents were interpreted still occupies its
     slot, so the absent-kind check must not go on to report it missing: a
     report that names a file and then says there is no such file states
     something false, and rule 2 of contracts/data-files.md asks for no
     further problem from a file rejected on its header (FR-002).
+
+    A third source — the kind declared by the *packaged* file this basename
+    replaces — was carried here and was redundant with the second by
+    construction: `_CANONICAL_FILE` maps each single-instance kind to the
+    packaged basename that declares it, so the two answer identically for
+    every shipped file, and `test_canonical_file_names_the_packaged_declarer`
+    pins that. Two sources that always agree cannot each be shown to matter,
+    which is how all three came to be removable one at a time with the suite
+    green.
     """
     slots = set()
     if isinstance(declared, str) and declared in _SINGLETON_KINDS:
         slots.add(declared)
-    if (original := packaged_kind.get(basename)) in _SINGLETON_KINDS:
-        slots.add(original)
     if (canonical := _KIND_AT_CANONICAL_FILE.get(basename)) is not None:
         slots.add(canonical)
     return slots
@@ -538,7 +556,7 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
     # tell a kind no file declares from one whose file was rejected (FR-002).
     rejected_slots: set[str] = set()
     for read_problem in read_problems:
-        rejected_slots |= _singleton_slots(read_problem.file, None, packaged_kind)
+        rejected_slots |= _singleton_slots(read_problem.file, None)
 
     parsed: dict[str, tuple[str, dict]] = {}
     for basename in sorted(composed):
@@ -553,7 +571,7 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
                     expected="a UTF-8 encoded file",
                 )
             )
-            rejected_slots |= _singleton_slots(basename, None, packaged_kind)
+            rejected_slots |= _singleton_slots(basename, None)
             continue
         try:
             toml_data = tomllib.loads(text)
@@ -565,7 +583,7 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
                     expected="a well-formed TOML document",
                 )
             )
-            rejected_slots |= _singleton_slots(basename, None, packaged_kind)
+            rejected_slots |= _singleton_slots(basename, None)
             continue
 
         kind = toml_data.get("schema")
@@ -579,7 +597,7 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
                     expected=f"one of: {', '.join(sorted(_SUPPORTED_VERSION))}",
                 )
             )
-            rejected_slots |= _singleton_slots(basename, kind, packaged_kind)
+            rejected_slots |= _singleton_slots(basename, kind)
             continue
 
         declared_version = toml_data.get("schema-version")
@@ -600,7 +618,7 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
                     expected="an integer",
                 )
             )
-            rejected_slots |= _singleton_slots(basename, kind, packaged_kind)
+            rejected_slots |= _singleton_slots(basename, kind)
             continue
         if declared_version != supported:
             problems.append(
@@ -614,7 +632,7 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
                     expected=f"version {supported}",
                 )
             )
-            rejected_slots |= _singleton_slots(basename, kind, packaged_kind)
+            rejected_slots |= _singleton_slots(basename, kind)
             continue
 
         original_kind = packaged_kind.get(basename)
@@ -628,7 +646,7 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
                     ),
                 )
             )
-            rejected_slots |= _singleton_slots(basename, kind, packaged_kind)
+            rejected_slots |= _singleton_slots(basename, kind)
             continue
 
         parsed[basename] = (kind, toml_data)

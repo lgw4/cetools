@@ -53,6 +53,51 @@ def test_a_dot_prefixed_file_is_passed_over_silently(tmp_path):
     assert report.provenance.is_packaged
 
 
+def test_a_dot_prefixed_file_named_as_the_location_itself_composes(tmp_path):
+    # T101. FR-032b's carve-out is drawn at authorship — "a file the author
+    # did not write is not a mistake the author needs told about" — and a path
+    # typed on the command line is not such a file. Passing it over made
+    # `cetools validate override/.navy.toml` report `Rules data is valid.`,
+    # `Rules: packaged`, and exit 0 having composed nothing, which is verbatim
+    # the mistyped-path-that-appears-to-succeed failure FR-028 exists to
+    # remove and is how a `/dev/null` location was settled (FR-040a).
+    hidden = tmp_path / ".scouts.toml"
+    hidden.write_text(
+        NAVY.read_text(encoding="utf-8").replace('name = "Navy"', 'name = "Scouts"'),
+        encoding="utf-8",
+    )
+    report = validate_rules(hidden)
+    assert report.valid, report.problems
+    assert not report.provenance.is_packaged
+    assert [(fp.file, fp.disposition) for fp in report.provenance.files] == [
+        (".scouts.toml", Disposition.ADDED)
+    ]
+    assert load_rules(hidden).careers[".scouts"].name == "Scouts"
+
+
+def test_a_dot_prefixed_non_toml_file_named_as_the_location_is_reported_ignored(tmp_path):
+    # The other half of the same decision: a directly named location that
+    # cannot be rules data is named rather than passed over, so nothing an
+    # author typed produces a run that succeeds having done nothing.
+    junk = tmp_path / ".DS_Store"
+    junk.write_text("binary junk", encoding="utf-8")
+    report = validate_rules(junk)
+    assert report.valid
+    assert report.provenance.ignored == (".DS_Store",)
+
+
+def test_a_dot_prefixed_file_found_by_walking_a_directory_is_still_passed_over(tmp_path):
+    # The control case for the decision above: the carve-out still applies to
+    # everything the walk finds, so a `.DS_Store` beside a house rule neither
+    # fails the load nor clutters the report.
+    (tmp_path / ".DS_Store").write_text("binary junk", encoding="utf-8")
+    (tmp_path / ".navy.toml").write_bytes(NAVY.read_bytes())
+    report = validate_rules(tmp_path)
+    assert report.valid
+    assert report.provenance.ignored == ()
+    assert report.provenance.is_packaged
+
+
 def test_a_dot_prefixed_file_with_a_wrong_extension_still_appears_nowhere(tmp_path):
     (tmp_path / ".hidden.yaml").write_text("junk", encoding="utf-8")
     report = validate_rules(tmp_path)
@@ -117,6 +162,54 @@ def test_a_file_behind_a_symlinked_directory_is_collected(tmp_path):
     report = validate_rules(override)
     assert report.valid, report.problems
     assert [fp.file for fp in report.provenance.files] == ["navy.toml"]
+
+
+def test_a_directory_reached_twice_is_walked_once(tmp_path):
+    # The `seen` set is what stops a symlink pointing at its own ancestor from
+    # walking until the kernel runs out of path — a regression there hangs
+    # rather than fails, which is no signal at all. Its other job is
+    # observable: a link beside the directory it points at yielded every file
+    # beneath it twice, and two override files sharing a basename is a
+    # problem, so this fails rather than hangs if the guard goes. It also pins
+    # the identity check running *before* `iterdir`, not after it (T111).
+    real = tmp_path / "real"
+    real.mkdir()
+    shutil.copy(NAVY, real / "navy.toml")
+    (tmp_path / "alias").symlink_to(real, target_is_directory=True)
+    report = validate_rules(tmp_path)
+    assert report.valid, report.problems
+    assert [fp.file for fp in report.provenance.files] == ["navy.toml"]
+
+
+def test_a_symlink_cycle_terminates(tmp_path):
+    inner = tmp_path / "inner"
+    inner.mkdir()
+    shutil.copy(NAVY, inner / "navy.toml")
+    (inner / "up").symlink_to(tmp_path, target_is_directory=True)
+    report = validate_rules(tmp_path)
+    assert report.valid, report.problems
+    assert [fp.file for fp in report.provenance.files] == ["navy.toml"]
+
+
+def test_provenance_files_arrive_sorted_by_composition_key(tmp_path):
+    # data-model.md guarantees `Provenance.files` is sorted by `file`. The line
+    # that appeared to provide it was dead — the list is built from
+    # `sorted(candidates.items())` — so removing the sort that actually does
+    # would have looked safe. Written into the override in reverse order, at
+    # differing depths, so an implementation relying on directory order fails.
+    deep = tmp_path / "z" / "deeper"
+    deep.mkdir(parents=True)
+    shutil.copy(NAVY, deep / "navy.toml")
+    for stem in ("scouts", "army", "marines"):
+        (tmp_path / f"{stem}.toml").write_text(
+            NAVY.read_text(encoding="utf-8").replace('name = "Navy"', f'name = "{stem}"'),
+            encoding="utf-8",
+        )
+    report = validate_rules(tmp_path)
+    assert report.valid, report.problems
+    names = [fp.file for fp in report.provenance.files]
+    assert names == sorted(names)
+    assert names == ["army.toml", "marines.toml", "navy.toml", "scouts.toml"]
 
 
 @pytest.mark.skipif(
