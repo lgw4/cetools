@@ -1006,3 +1006,320 @@ and each such task says so.
       double-licensed, but the constitution requires the designation to be unambiguous;
       qualifying both statements to every `.toml` under the directory settles it (FR-046,
       FR-047, Constitution Licensing & Distribution) (partial)
+
+---
+
+## Phase 14: Convergence
+
+Appended by a seventh `/speckit-converge` run. Phase 13's T092 through T114 are done and
+verified; T059 is still open by the deliberate choice recorded under **Recorded Deviation**
+in plan.md and is not restated here. Everything else converged: 709 tests pass with no
+skips, `black`, `isort`, and `flake8` are clean over `src` and `tests`, the packaging guard
+really builds a wheel and an sdist and proves both validate and carry their designations,
+SC-016's coverage obligation now derives from what ships and fails when a designated file
+is added without widening the notice, SC-007's audit hook fails when an outside path is
+read, all thirteen SC-002 categories are rejected with their locations pinned, every
+quickstart scenario but one behaves literally as written, and SC-009's one-added-line
+comparison against `tests/golden/pre-loader/` holds.
+
+This round continued the method of the last two — mutating a scratch copy and re-running
+the suite, driving the real CLI against hand-built override trees, and diffing every worked
+example against emitted output — and added a sweep of the two artifacts nothing had walked
+end to end, `research.md` and the acceptance scenarios. Of roughly 400 mutations applied
+across four independent passes, the great majority were killed; rendering, the career
+schema, the notation grammar, the registries, the CLI surface, exit codes, and the
+licensing guards each survived every mutation aimed at them. As in phases 12 and 13, most
+of what follows is unproven behavior rather than wrong behavior, and each such task says
+so.
+
+- [ ] T115 Prove that a missing top-level table in `tasks.toml` refuses rather than falling
+      back, which is the one requirement in this feature that only a built-in fallback can
+      falsify and which nothing currently could: inserting a literal
+      `if dd is None: dd = {"Simple": 6, ..., "Formidable": -6}` before the `difficulty-dms`
+      check at `src/cetools/rules.py:169`, or the equivalent
+      `if cd is None: cd = {"0-5": -1, "6+": 0}` before the `characteristic-dms` check at
+      `rules.py:210`, each leaves all 709 tests passing — a literal built-in fallback for
+      missing rules data, unnoticed by the suite. `tests/unit/test_rules.py` mutates the
+      *contents* of both tables (`:122` zero rungs, `:132` several unbounded bands, `:142` a
+      malformed band key) and never removes either table, while every sibling absence is
+      properly killed: a missing `[task]` table, a missing `task.target`, and a missing
+      `[characteristics]` or `[skills]` table each fail the suite. These two are the only
+      required top-level elements of any kind whose absence nothing pins. The behavior is
+      correct today, reporting
+      `tasks.toml:difficulty-dms: found missing; expected a [difficulty-dms] table with at
+      least one entry`, so this is the proof missing — but FR-026 is the requirement that a
+      data set with a hole must refuse rather than quietly resolve against engine constants,
+      and a fallback is exactly the shape it forbids (FR-026, FR-019, SC-002) (missing)
+- [ ] T116 Prove that the characteristics are known from data rather than to the parsing
+      code, which Constitution Principle V and FR-012 both require and which no test could
+      falsify: weakening `CharacteristicRegistry.__contains__` at
+      `src/cetools/registries.py:28-29` to
+      `return code in self.names or code in {"STR", "DEX", "END", "INT", "EDU", "SOC"}`
+      leaves all 709 tests passing. SC-011's registry demonstration,
+      `tests/integration/test_data_driven.py:51`, covers the **skills** registry only, and
+      its own docstring calls that case "the sharpest"; nothing does the equivalent for
+      characteristics. The proof is available and cheap, since removing `EDU` from an
+      override `characteristics.toml` today yields exactly four problems, at
+      `throws.promotion.characteristic`, `tables.personal.entries[4]`,
+      `tables.advanced-education.requires` and `mustering-out.benefits[1]` — one per
+      characteristic-bearing position in the shipped career, which is also a second witness
+      for FR-005's rule that a characteristic adjustment is checked against the
+      characteristics registry in every context including a benefits table. FR-012 is the
+      one requirement in this feature that is a claim about where knowledge lives rather
+      than about a report, so a hard-coded fallback is the only mutation that can falsify
+      it, and it survives (FR-012, SC-011, Constitution V) (missing)
+- [ ] T117 Prove FR-020a's second sentence, that "the remaining files in the data set MUST
+      still be checked", which is protected on one side and unprotected on the other:
+      changing `continue` to `break` at `src/cetools/rules.py:574` (the UTF-8 decode branch)
+      or at `rules.py:586` (the TOML decode branch) each leaves all 709 tests passing. The
+      consequence is not only a masked problem but a false report: an override holding a
+      malformed `navy.toml` beside a `skills.toml` whose `skills.NOPE` is a string reports
+      both problems today, while under either mutation the real `skills.toml` problem
+      disappears and is replaced by fabricated `skills.toml: no file` and
+      `tasks.toml: no file` lines — a report naming a file and then saying there is none,
+      which is verbatim the false statement T069 was written to remove from the other
+      direction. Assert that a data set carrying an unparseable file still reports the
+      problems in every other file, beside
+      `tests/integration/test_validation_categories.py`'s existing malformed-file case
+      (FR-020a, FR-021, FR-025, SC-002) (partial)
+- [ ] T118 Pin the *multiplicity* of collected problems at the eight sites where only their
+      presence is proved, which is what FR-021 and SC-003's "the number of runs needed to
+      find every problem in a file is always one" actually require: truncating to
+      `sub_problems[:1]` at `src/cetools/rules.py:697` (characteristics), `:703` (skills) and
+      `:709` (benefits) each leaves 709 passing, so the looping T076 fixed and T105 protected
+      in the three registry parsers can be lost one layer up in the driver that funnels them,
+      while the task-parameters funnel at `:691` is correctly killed; truncating
+      `extra = sorted(set(data) - allowed)` to `[:1]` at `src/cetools/careers.py:99`,
+      `src/cetools/registries.py:75` and `rules.py:96` each leaves 709 passing, so a file
+      carrying two misspelled keys — the mistake FR-020 exists for and the one an author
+      makes several times in a file — could report one and hide the other; and suppressing
+      all but the first problem in the mustering-out cash loop at `careers.py:669` or the
+      benefits loop at `careers.py:722` each leaves 709 passing, while the structurally
+      identical `tables.*.entries` loop at `careers.py:399` is killed, which is the same
+      asymmetry T076 called out in `parse_skills` against its two siblings. Every site is
+      correct today. `test_sc003_four_distinct_problems_in_one_file_report_together` uses
+      four *different* categories with one instance each, so it says nothing about any of
+      this (FR-021, FR-020, SC-003) (partial)
+- [ ] T119 Prove FR-001's second clause, that the system rejects a file which declares no
+      schema version at all: guarding `src/cetools/rules.py:623` as
+      `if declared_version is not None and declared_version != supported:` leaves all 709
+      tests passing, because no test anywhere *omits* `schema-version` — all six version
+      cases (`tests/integration/test_validation_categories.py:131,144,165,185`,
+      `tests/unit/test_rules.py:264,430`) *replace* its value. The `"missing"` half of the
+      ternary at `rules.py:626-630` exists and works, an override career with no
+      `schema-version` yielding `('scout.toml', '', 'missing', 'version 1')`, so this is the
+      proof missing. It is a direct asymmetry with the sibling FR-001a, whose
+      `test_missing_kind_declaration` does kill the equivalent mutation, and it matters
+      because FR-001 binds every file including user-supplied ones: a silently accepted
+      undeclared version is exactly the upgrade story the version field was justified on in
+      the spec's Assumptions (FR-001, FR-002, SC-002) (missing)
+- [ ] T120 Cover the two gate exclusions FR-009a states and nothing holds: widening
+      `EntryContext.GATE` at `src/cetools/notation.py:88` from `frozenset({"check"})` to
+      admit `"adjustment"` or `"grant"` each leaves all 709 tests passing.
+      `tests/unit/test_notation.py:113` is the only gate-exclusion case, covering a bare name,
+      while its neighbours cover check-in-skill-table (`:99`), check-in-benefit-table (`:103`)
+      and grant-in-benefit-table (`:107`) — so the one context that excludes three of the four
+      forms has one of the three proved. The behavior is correct today, `parse_entry("EDU +1",
+      GATE)` and `parse_entry("Pilot 2", GATE)` both returning
+      `NotationProblem(expected='a characteristic check')` and a career carrying
+      `requires = "EDU +1"` being rejected at `tables.advanced-education.requires`. It matters
+      because under either mutation a gate silently becomes a `CharacteristicAdjustment` or a
+      `SkillGrant` assigned to `SkillTable.requires`, which `data-model.md:150` types as
+      `CharacteristicCheck | None`, and because FR-009a's own sentence names the gate as the
+      field admitting "a check and nothing else" (FR-009a, FR-009, contracts/notation.md,
+      data-model.md) (partial)
+- [ ] T121 Assert the package version on the *overridden* provenance branch, which SC-008
+      asks for in terms and which nothing reaches: replacing `version=package_version()` with
+      `version="0.0.0"` at `src/cetools/rules.py:511` leaves all 709 tests passing, while the
+      identical call on the packaged branch at `rules.py:457` is killed instantly. Only
+      `tests/unit/test_provenance_reporting.py:76-78` asserts the reported version equals
+      `importlib.metadata.version("cetools")`, and it loads with **no** override; the goldens
+      that pin the parenthetical hold packaged output only; every overridden assertion stops
+      at `startswith("Rules: overridden")`
+      (`tests/integration/test_provenance_cli.py:47,58`); and the `_VERSION` occurrences in
+      `tests/contract/test_json_contract.py` sit in hand-built `Provenance` fixtures that
+      never reach this line. The behavior is right today, `cetools validate <override>`
+      printing `Rules: overridden (cetools 2026.8.1)` and `--json` carrying the same. It
+      matters because the overridden case is precisely the one where a reader needs both
+      halves of the reproduction key, FR-033a requiring the version "whether or not anything
+      was overridden" and SC-008 requiring it "in both cases" and "asserted directly"
+      (FR-033a, FR-035, SC-008) (missing)
+- [ ] T122 Assert the provenance detail on a *failing* report, which FR-032a requires
+      "wherever provenance is reported" and which no test reaches: replacing the provenance
+      with `files=()` when `problems` is non-empty at `src/cetools/rules.py:745`, or doing the
+      same with `ignored=()`, each leaves all 709 tests passing. Under either, a `validate`
+      run that finds a problem stops naming the files the author put in force, or stops naming
+      the file that failed to take effect for carrying the wrong extension. Every ignored-file
+      and disposition assertion in the suite runs against a *valid* data set
+      (`tests/unit/test_composition.py:41,108,280` and all of
+      `tests/integration/test_provenance_cli.py`), while the one failing-override test,
+      `tests/integration/test_overrides.py:117-140`, asserts only the stderr problem lines and
+      an empty stdout. Real output is correct in both modes today. This is the case where the
+      report matters most: an author debugging a rejected data set is exactly the reader who
+      needs to see which of their files were in force and which were passed over, and
+      FR-032a's whole bargain — that admitting an unrecognized filename is paid for by
+      reporting it — is void on the runs that fail (FR-035, FR-032a, FR-021, SC-005) (missing)
+- [ ] T123 Prove FR-036's first clause, that a fingerprint changes when the content it
+      describes changes, and with it the uncached-override rule the same code rests on:
+      memoizing override loads by `str(override)` at `src/cetools/rules.py:787` — returning
+      the cached `RulesData` on a second call — leaves all 709 tests passing, and under it
+      editing an override file and reloading the same path in one process yields the previous
+      content's fingerprint and skips revalidation entirely, which is also an FR-024 break.
+      The two fingerprint tests, `tests/unit/test_provenance_reporting.py:20-33` and `:36-49`,
+      both write their differing content to *different directories*, so between them they
+      establish only that content at different locations fingerprints differently — an
+      implementation keyed on location passes both. `load_rules`' own docstring at
+      `rules.py:790` states the property ("an override call is not [cached], since a caller
+      may edit a file and reload in the same process") with nothing holding it, and the
+      authoring loop plan.md's Performance Goals describe is exactly edit-and-reload in one
+      process (FR-036, FR-024, SC-008) (missing)
+- [ ] T124 Qualify the dot-prefixed clause in
+      `specs/002-rules-data-loading/contracts/library-api.md:54-57`, which T101 left behind
+      when it settled the question everywhere else: the contract states unqualified that "A
+      file or directory whose name begins with a dot is passed over without appearing
+      anywhere (FR-032b)", while `src/cetools/rules.py:404-425` puts the carve-out only in
+      `_walk_override` and deliberately not in `_collect_entry` (`rules.py:371-391`), which
+      the single-file branch at `rules.py:476-477` reaches. Verified against the real package:
+      `load_rules("<dir>/.DS_Store")` returns `provenance.ignored == ('.DS_Store',)` and
+      `validate_rules("<dir>/.navy.toml")` composes it as a replacement. T101 amended
+      `spec.md` FR-032b (`spec.md:571-576`) and `contracts/data-files.md:299-308` and stopped
+      there. It matters because `library-api.md` is the one artifact a library caller reads,
+      and it now states the opposite of what `load_rules` does for a path the caller names —
+      the same class of stale cross-reference T102 and T112 closed elsewhere
+      (FR-032b, FR-028, contracts/library-api.md) (contradicts)
+- [ ] T125 Fix Scenario 4 of `specs/002-rules-data-loading/quickstart.md:125`, whose closing
+      sentence describes an outcome its own commands cannot produce: "Change the declared
+      `name` inside `navvy.toml` and rerun: exit 0, with `navvy.toml` reported as `added` and
+      `navy.toml` still packaged." In the directory Scenario 3 builds at `quickstart.md:88-96`
+      — which copies `navy.toml` into `/tmp/ce-house` and edits it — `navy.toml` is
+      necessarily a replacement, and the block run by hand reads `navvy.toml added ...` over
+      `navy.toml replaced ...` per `src/cetools/render.py:43-47`. No sequence of the
+      quickstart's own commands produces the documented outcome, so a reviewer walking it hits
+      a mismatch on the one scenario that exists to distinguish an addition from a
+      replacement. Either drop the trailing clause or have Scenario 4 start from a directory
+      holding only `navvy.toml`; T057 walked these scenarios before the surrounding ones were
+      amended (FR-032, SC-005, quickstart Scenario 4) (contradicts)
+- [ ] T126 Settle what "the name as written" means for an unrecognized skill carrying a
+      specialty, which the code is internally inconsistent about and which nothing pins:
+      `src/cetools/careers.py:243` reports `found=reference.name`, so an entry written
+      `Vac Suit (Foo)` is reported as `found Vac Suit`, while the two sibling branches in the
+      same function report the reassembled written form — `:250` and `:256` both build
+      `f"{reference.name} ({reference.specialty})"`. Mutating `:243` to report the written
+      form *also* leaves 709 passing, so neither answer is held. FR-013 requires the report to
+      carry "the name as written" in terms, and an argument exists for the base name on the
+      ground that the base is what was checked against the registry — which is exactly why it
+      needs deciding rather than left to whichever branch a reader lands on. T085 pinned the
+      three distinguishable messages FR-007 requires without settling this (FR-013, FR-007)
+      (contradicts)
+- [ ] T127 Justify and pin, or drop, the band sort at `src/cetools/rules.py:265`:
+      `bands.sort(key=lambda band: band.minimum)` is removable with the suite green, and
+      unlike the dead `file_provenance.sort()` T111 removed it is not inert — nothing in
+      either feature's spec, contracts, or data model states an ordering for
+      `characteristic-dms` and nothing forbids overlapping bands, so with two overlapping
+      bands this line decides which DM a score resolves to, and that decision traces to no
+      requirement. It is the same class T111 surfaced for the ladder rank sort, which was kept
+      and pinned with a test, and for `file_provenance.sort()`, which was found dead and
+      removed; this one is in neither state. Decide which it is: pin it with a
+      requirement-traceable case, or drop it and let band order come from the file the way
+      every other list in the schema does (Principle VI, FR-026, data-model.md) (unrequested)
+- [ ] T128 Cover the *two rungs at zero* half of the difficulty ladder rule that
+      `contracts/data-files.md:94` states as "Exactly one rung must be `0`": weakening
+      `src/cetools/rules.py:199` from `zero_count != 1` to `zero_count < 1` leaves all 709
+      tests passing, because `tests/unit/test_rules.py:123` covers only the zero-rungs half.
+      The sibling rule one field over is symmetric — `rules.py:256`'s `unbounded_count != 1`
+      is killed by `tests/unit/test_rules.py:133`, which tests the *several* case — so this is
+      an asymmetry rather than a drawn line. The behavior is correct, two rungs at zero
+      reporting `found 2 rungs at modifier 0; expected exactly one rung at modifier 0`, and it
+      matters because `TaskParameters.default_difficulty()` at `src/cetools/tasks.py:72-76`
+      returns the first zero rung, so two of them make the default difficulty depend on the
+      order keys happen to sit in the file (FR-026, FR-020b, contracts/data-files.md) (partial)
+- [ ] T129 Pin the malformation detail at the four whole-file problem sites, which FR-020a
+      asks for as "locating the malformation as precisely as the format allows" and which can
+      be reduced to a bare category with the suite green: dropping the interpolated `{exc}` or
+      `{exc.strerror}` at `src/cetools/rules.py:322` (an unreadable file), `:366` (an
+      unlistable directory), `:570` (a UTF-8 decode failure) or `:582` (a TOML decode failure)
+      each leaves all 709 tests passing. Today the loader really does emit
+      `invalid TOML: Expected ']' at the end of a table declaration (at line 3, column 8)` and
+      `could not decode as UTF-8: 'utf-8' codec can't decode byte 0xff in position 18`. The
+      only tests carrying position text — `tests/contract/test_json_contract.py:192` and
+      `tests/unit/test_render.py:369,439` — are hand-built renderer fixtures that never come
+      from the loader, so, exactly as T107 observed about wording, neither side checks the
+      other. Line and column is the whole of what that clause buys an author staring at an
+      unparseable file (FR-020a, FR-022, SC-002) (partial)
+- [ ] T130 Prove that the fingerprint hashes the bytes as read, end to end, which is the one
+      transformation research R4 and `provenance.fingerprint`'s docstring name by name and
+      which the end-to-end test cannot see: wrapping the `data` passed to `fingerprint()` at
+      `src/cetools/rules.py:507` in a CRLF-to-LF `.replace()` leaves all 709 tests passing,
+      because `test_the_reported_fingerprint_is_reproducible_with_shasum` in
+      `tests/unit/test_provenance_reporting.py` uses an LF-only fixture. `fingerprint()`
+      itself is properly pinned at `tests/unit/test_provenance.py:48`, so the gap is at the
+      composition site that feeds it. It matters because normalizing line endings is precisely
+      what would make a reported value irreproducible with `shasum -a 256`, which is FR-036's
+      "MUST NOT vary with ... anything else outside the content itself" and the reason
+      plan.md's trap list names it (FR-036, SC-008, research R4) (partial)
+- [ ] T131 Assert that `file_count` counts the files actually composed rather than the files
+      that shipped: replacing `len(composed)` with `len(packaged)` at
+      `src/cetools/rules.py:746` leaves all 709 tests passing, because every assertion on the
+      field is either `== 5` against the packaged set (`tests/unit/test_rules.py:226,231`,
+      the second of which is named `test_validate_rules_file_count_counts_every_composed_toml`
+      and composes nothing) or a hand-built `ValidationReport`
+      (`tests/contract/test_json_contract.py:196,200,294,349`,
+      `tests/integration/test_validate_cli.py:62,66`, and eleven fixtures in
+      `tests/unit/test_render.py`). The behavior is correct, an override adding `scouts.toml`
+      really reporting `Files: 6`, but `Files:` is a documented line in both output modes and
+      `data-model.md:272` and `contracts/json-output.md:131` both define the field as the
+      files composed and checked. The only case that distinguishes "composed" from "packaged"
+      is the addition case, which is also the distinction SC-005 rests on
+      (SC-005, FR-032, data-model.md, contracts/json-output.md) (partial)
+- [ ] T132 Correct research R5's rationale at `specs/002-rules-data-loading/research.md:124`,
+      which credits a line that does no such work: "Sorting the walk makes problem reports
+      stable across platforms, which SC-002 and SC-003 depend on to assert content" names the
+      sort at `src/cetools/rules.py:308`, but that sort is inert — `_discover_packaged` returns
+      a basename-keyed dict, `_validate` re-iterates `sorted(composed)` at `rules.py:562`, and
+      every collected problem passes through `problems.sort()` at `rules.py:744`, so removing
+      the key from the `sorted()` call leaves all 709 tests passing. This is the same shape as
+      T111's `file_provenance.sort()` finding: a line that reads as providing a stability
+      guarantee which in fact comes from elsewhere, so a later change removing one of the two
+      sorts that really discharge it would look safe. Either delete the line and move R5's
+      rationale to the two sorts that earn it, or say plainly that walk order is normalized
+      downstream (research R5, FR-021, SC-002, SC-003) (contradicts)
+- [ ] T133 Pin the two ordering clauses in the provenance block that are held by nothing or by
+      chance. First, `contracts/cli.md:80-83` states the file column is "padded to the longest
+      *name* present — a composition key for a file that took effect, a path within the
+      override for an ignored one", the wording T102 corrected from "basename", but changing
+      `+ list(provenance.ignored)` to `or list(provenance.ignored)` at
+      `src/cetools/render.py:33` leaves all 709 tests passing, because
+      `tests/unit/test_render.py:222-250` covers files-only and ignored-only blocks and
+      `tests/integration/test_provenance_cli.py` never builds a mixed block whose longest name
+      is an ignored path; a case such as `deep/subdir/notes.md` beside `navy.toml` closes it.
+      Second, `contracts/json-output.md:53`, `data-model.md:203` and
+      `contracts/library-api.md:107` all state `provenance.ignored` is sorted, and
+      `src/cetools/rules.py:474` accumulates it as a `set[str]` sorted on the way out at
+      `rules.py:513`; the only assertion of its order,
+      `tests/unit/test_composition.py:292`, pins a two-element tuple whose order under a bare
+      set is hash-dependent, so it holds by chance rather than by construction — assert over
+      enough names, given in an order the sort must correct, that set iteration cannot
+      coincide with it (FR-032a, FR-035, contracts/cli.md, contracts/json-output.md) (partial)
+- [ ] T134 Restore the two macOS ignore patterns this branch damaged: on `main`,
+      `.gitignore` lines 290 and 312 read `Icon[\r]` and `.HFS+ Private Directory Data[\r]`,
+      the standard character classes matching the CR-terminated resource-fork filenames the
+      Finder creates; on this branch the `\r]` is gone from both, leaving `Icon[` and
+      `.HFS+ Private Directory Data[` with an unterminated bracket, confirmed byte for byte
+      with `od -c` against `git show main:.gitignore`. Both patterns are now dead: a macOS
+      `Icon\r` file is no longer ignored, and on this project's own platform that is a file
+      that can be committed by accident. No requirement, plan decision, or task asks for the
+      change; it has the shape of an editor stripping the CR during an unrelated edit, the
+      same commit having added `.rumdl_cache/`. It matters because it is a silent, tracked
+      regression in a file nobody reviews, and it is a one-line revert
+      (Principle VI, unrelated to any requirement) (unrequested)
+- [ ] T135 Pin the distinction FR-028 draws between the two usage-error cases, which is
+      currently held only by their shared message: deleting the nonexistent-path branch at
+      `src/cetools/rules.py:461-462` leaves all 709 tests passing, because the neighbouring
+      neither-file-nor-directory branch at `rules.py:467` catches the same input and also
+      names the path, and the three tests that exercise it
+      (`tests/unit/test_rules.py:234,242`, `tests/unit/test_composition.py:124`) match only on
+      the path string. The requirement is still satisfied by the mutant, so this is the
+      distinction going unpinned rather than a behavior gap — but the two cases are the ones
+      FR-028 and T067 each had to separate, a mistyped path and a `/dev/null`, and they are
+      the pair FR-028 names as most easily confused with the empty-location case that behaves
+      oppositely (FR-028, FR-040) (partial)
