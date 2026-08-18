@@ -93,25 +93,37 @@ def test_the_data_set_read_from_the_wheel_validates_without_a_problem(wheel, tmp
     assert report.valid, report.problems
 
 
-def _uncovered(paths, covered: tuple[str, ...]) -> list[str]:
-    return [path for path in paths if not any(path.startswith(prefix) for prefix in covered)]
+def _uncovered(paths, covered: tuple[str, ...], suffix: str) -> list[str]:
+    """Both halves of the notice's scope; see tests/unit/test_licensing.py."""
+    return [
+        path
+        for path in paths
+        if not (path.endswith(suffix) and any(path.startswith(p) for p in covered))
+    ]
+
+
+# The designation as the data files write it, split into two fragments so this
+# module does not carry it and designate itself; see the same constant in
+# tests/unit/test_licensing.py, where the reasoning is recorded.
+DESIGNATION = b"Open Game Content" b" per OGL 1.0a"
 
 
 def test_the_notice_covers_every_open_game_content_file_in_the_wheel(
-    wheel, game_data_covered_paths
+    wheel, game_data_covered_paths, game_data_covered_suffix
 ):
     # SC-016 requires the coverage obligation to be derived from what is
     # actually shipped, and SC-014 binds the built artifacts rather than the
-    # working tree, so the two belong together here. Wheel members sit at
-    # `cetools/...` where the notice names `src/cetools/...`, which is the one
-    # translation between them.
-    designated = sorted(
-        f"src/{name}"
-        for name in wheel.namelist()
-        if name.endswith(".toml") and "Open Game Content" in wheel.read(name).decode("utf-8")
-    )
+    # working tree, so the two belong together here.
+    #
+    # Every member, and keyed on the designation rather than on the `.toml`
+    # extension: filtering by extension left an Open Game Content file that is
+    # not a `.toml` covered by no check at all. No path translation either —
+    # the notice now names `cetools/data/` alongside `src/cetools/data/`,
+    # because a wheel holds no `src/` and the fabricated `f"src/{name}"`
+    # prefix this check used to build was papering over that.
+    designated = sorted(name for name in wheel.namelist() if DESIGNATION in wheel.read(name))
     assert designated, "the wheel carries no Open Game Content file to derive coverage from"
-    uncovered = _uncovered(designated, game_data_covered_paths)
+    uncovered = _uncovered(designated, game_data_covered_paths, game_data_covered_suffix)
     assert not uncovered, (
         f"the wheel ships {uncovered} as Open Game Content, outside the paths the game-data "
         f"notice names: {list(game_data_covered_paths)}"
@@ -182,21 +194,29 @@ def test_the_data_set_read_from_the_sdist_validates_without_a_problem(sdist, tmp
     assert report.valid, report.problems
 
 
+def _sdist_bytes(sdist: tarfile.TarFile, name: str) -> bytes:
+    handle = sdist.extractfile(name)
+    return b"" if handle is None else handle.read()
+
+
 def test_the_notice_covers_every_open_game_content_file_in_the_sdist(
-    sdist, game_data_covered_paths
+    sdist, game_data_covered_paths, game_data_covered_suffix
 ):
     # The sdist's member paths, once the single `{name}-{version}/` prefix is
     # stripped, are exactly the source paths the notice names, so no
     # translation is needed here.
+    #
+    # Every member, keyed on the designation. Filtering on a `src/` prefix left
+    # a designated file under `tests/` — which this sdist really does ship, per
+    # the `include` list in pyproject.toml — covered by no check at all, and
+    # filtering on the extension left a designated non-`.toml` uncovered too.
     designated = sorted(
-        relative
+        name.split("/", 1)[-1]
         for name in sdist.getnames()
-        if (relative := name.split("/", 1)[-1]).endswith(".toml")
-        and relative.startswith("src/")
-        and "Open Game Content" in _read_from_sdist(sdist, relative)
+        if DESIGNATION in _sdist_bytes(sdist, name)
     )
     assert designated, "the sdist carries no Open Game Content file to derive coverage from"
-    uncovered = _uncovered(designated, game_data_covered_paths)
+    uncovered = _uncovered(designated, game_data_covered_paths, game_data_covered_suffix)
     assert not uncovered, (
         f"the sdist ships {uncovered} as Open Game Content, outside the paths the game-data "
         f"notice names: {list(game_data_covered_paths)}"

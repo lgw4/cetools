@@ -205,35 +205,88 @@ def test_the_guard_reads_a_compatibility_claim_as_a_claim():
             _assert_claim_carries_attribution(claim, "a synthetic claim")
 
 
-def _uncovered(paths, covered: tuple[str, ...]) -> list[str]:
-    """Which of `paths` falls under none of the paths the notice names."""
-    return [path for path in paths if not any(path.startswith(prefix) for prefix in covered)]
+def _uncovered(paths, covered: tuple[str, ...], suffix: str) -> list[str]:
+    """Which of `paths` the notice does not designate.
+
+    Both halves of the notice's scope, because it names directories *and*
+    qualifies them with an extension: a designated file inside a covered
+    directory but of another kind is not covered by a notice that says `.toml`.
+    """
+    return [
+        path
+        for path in paths
+        if not (path.endswith(suffix) and any(path.startswith(p) for p in covered))
+    ]
+
+
+# The designation as the data files actually write it, not the bare phrase.
+# Keying on `"Open Game Content"` alone would match every file that merely
+# discusses the licence — this module, the README, CONTRIBUTING, the OGL text
+# itself — so the obligation set has to be derived from the designation, which
+# only a designated file carries.
+#
+# Written in two fragments on purpose. `tests/` ships in the sdist, so a
+# contiguous literal here would make this guard designate its own source and
+# then report it uncovered, which is a guard failing on itself rather than on
+# the tree.
+DESIGNATION = b"Open Game Content" b" per OGL 1.0a"
+
+# Never shipped, whatever `rglob` finds: hatchling's sdist honours the VCS
+# ignore list, and a compiled cache holds this module's own constants — which
+# would reintroduce the self-match the split literal above avoids.
+_NOT_SHIPPED = ("__pycache__", ".pytest_cache", ".hypothesis")
+
+
+def _shipped_files(repo_root: Path) -> list[Path]:
+    """Every file a source distribution would carry, read out of the build
+    configuration rather than assumed.
+
+    Scoped to what ships because that is what the notice must cover: FR-047
+    binds "every data file this feature adds" to the chain "that travels with
+    the shipped Open Game Content". Deriving the scope from a hard-coded
+    `src/` prefix is what left an Open Game Content file under `tests/` — a
+    directory the sdist really does ship — covered by no check at all, while
+    an OGC-designated file that was not a `.toml` was covered by none either.
+    """
+    pyproject = tomllib.loads((repo_root / "pyproject.toml").read_text(encoding="utf-8"))
+    includes = pyproject["tool"]["hatch"]["build"]["targets"]["sdist"]["include"]
+    assert includes, "the sdist ships nothing, so the scan would be vacuous"
+    files: list[Path] = []
+    for entry in includes:
+        target = repo_root / entry
+        if target.is_dir():
+            files.extend(
+                path
+                for path in target.rglob("*")
+                if path.is_file() and not set(path.parts) & set(_NOT_SHIPPED)
+            )
+        elif target.is_file():
+            files.append(target)
+    return files
+
+
+def _designated_in_tree(repo_root: Path) -> list[str]:
+    # `as_posix`, not `str`: the notice names POSIX paths, and a Windows
+    # `str()` renders separators as backslashes, so this compares the notice
+    # against the same shape on every platform. Bytes, not decoded text: the
+    # scan reaches every shipped file, and not all of them are text.
+    return sorted(
+        path.relative_to(repo_root).as_posix()
+        for path in _shipped_files(repo_root)
+        if DESIGNATION in path.read_bytes()
+    )
 
 
 def test_section_15_game_data_line_covers_every_open_game_content_file_present(
-    repo_root, section_15_notices, game_data_covered_paths
+    repo_root, section_15_notices, game_data_covered_paths, game_data_covered_suffix
 ):
     # 002-rules-data-loading FR-047 and SC-016: derive what the game-data
-    # notice must cover from the files actually present rather than comparing
-    # the chain against a fixed expected text.
-    #
-    # The obligation set is every designated file under `src/`, not every file
-    # under the directory the notice happens to name: deriving it from a glob
-    # of the covered directory made the coverage assertion true by
-    # construction, and left an Open Game Content file shipped anywhere else
-    # covered by neither this check nor the designation guard in
-    # tests/guards/test_packaging.py, which filters on the same directory.
-    #
-    # `as_posix`, not `str`: the notice names POSIX paths, and a Windows
-    # `str()` renders separators as backslashes, so this compares the notice
-    # against the same shape on every platform.
-    designated = sorted(
-        path.relative_to(repo_root).as_posix()
-        for path in (repo_root / "src").rglob("*.toml")
-        if "Open Game Content" in path.read_text(encoding="utf-8")
-    )
+    # notice must cover from the files actually shipped rather than comparing
+    # the chain against a fixed expected text, and derive it from the
+    # designation rather than from a directory prefix and an extension.
+    designated = _designated_in_tree(repo_root)
     assert designated, "no Open Game Content files found to derive coverage from"
-    uncovered = _uncovered(designated, game_data_covered_paths)
+    uncovered = _uncovered(designated, game_data_covered_paths, game_data_covered_suffix)
     assert not uncovered, (
         f"{uncovered} carry the Open Game Content designation but fall under none of the "
         f"paths the game-data notice names: {list(game_data_covered_paths)}"
@@ -243,19 +296,44 @@ def test_section_15_game_data_line_covers_every_open_game_content_file_present(
     assert section_15_notices[-1] in text
 
 
-def test_the_coverage_check_can_fail(repo_root, game_data_covered_paths):
+def test_the_coverage_check_can_fail(repo_root, game_data_covered_paths, game_data_covered_suffix):
     # The rule this guard runs on, stated as a case, for the same reason the
-    # compatibility-claim guard states its own: the previous form of the check
+    # compatibility-claim guard states its own: an earlier form of the check
     # was a tautology, and a tautology reports success. Narrowing the notice
     # back to the single file that shipped before this feature must fail it.
     narrowed = ("src/cetools/data/tasks.toml",)
-    designated = sorted(
-        path.relative_to(repo_root).as_posix()
-        for path in (repo_root / "src").rglob("*.toml")
-        if "Open Game Content" in path.read_text(encoding="utf-8")
-    )
-    assert _uncovered(designated, narrowed), "a narrowed notice must leave files uncovered"
-    assert not _uncovered(designated, game_data_covered_paths)
+    designated = _designated_in_tree(repo_root)
+    uncovered = _uncovered(designated, narrowed, game_data_covered_suffix)
+    assert uncovered, "a narrowed notice must leave files uncovered"
+    assert not _uncovered(designated, game_data_covered_paths, game_data_covered_suffix)
+
+
+@pytest.mark.parametrize(
+    ("relative", "name"),
+    [("tests", "fixtures_ogc.toml"), ("src/cetools/data", "tables.md")],
+    ids=["outside-src", "not-a-toml"],
+)
+def test_the_coverage_check_sees_a_designated_file_the_old_scan_missed(
+    repo_root, game_data_covered_paths, game_data_covered_suffix, relative, name
+):
+    """The two cases the previous scan could not fail on, each written into
+    the tree and then removed.
+
+    `tests/` really does ship — it is in the sdist's `include` list — and the
+    old scan filtered on a `src/` prefix; a designated file that is not a
+    `.toml` sits inside the covered directory and the old scan filtered on the
+    extension. Both left an Open Game Content file travelling outside the
+    notice that grants the right to redistribute it (FR-047, SC-016).
+    """
+    planted = repo_root / relative / name
+    assert not planted.exists()
+    planted.write_bytes(b"# " + DESIGNATION + b"; see LICENSE-OGL.txt\n")
+    try:
+        designated = _designated_in_tree(repo_root)
+        assert planted.relative_to(repo_root).as_posix() in designated
+        assert _uncovered(designated, game_data_covered_paths, game_data_covered_suffix)
+    finally:
+        planted.unlink()
 
 
 def test_packaged_tasks_toml_opens_with_ogc_designation_and_omits_pi_strings():
