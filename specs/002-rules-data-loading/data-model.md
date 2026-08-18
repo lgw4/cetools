@@ -200,7 +200,7 @@ keeps `is_packaged` an emptiness check rather than a filter.
 |---|---|---|
 | `version` | `str` | The installed package version, from `importlib.metadata` (FR-033a). Present whether or not anything was overridden. |
 | `files` | `tuple[FileProvenance, ...]` | Files that took effect. Sorted by `file`. Empty exactly when nothing was overridden. |
-| `ignored` | `tuple[str, ...]` | Basenames of files in an override location that are not rules data (FR-032a). Sorted. Dot-prefixed files never appear here (FR-032b). |
+| `ignored` | `tuple[str, ...]` | Paths, within the override location, of files that are not rules data (FR-032a). The path rather than the basename, because FR-035 requires every ignored file to be named and two author-written `notes.md` in different directories reported under one name leave one of them named nowhere. Sorted. Dot-prefixed files found by walking the override never appear here (FR-032b). |
 
 | Property | Returns |
 |---|---|

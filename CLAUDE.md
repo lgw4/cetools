@@ -11,11 +11,12 @@ with artifacts in `specs/<NNN>-<slug>/`.
 - Test-first, strictly: write the test, watch it fail, then implement.
 - All randomness flows from a seeded `Roller`. Never call `random`, read
   the clock, or let output depend on anything the seed does not determine.
-- Rules content lives in `src/cetools/data/*.toml`, never hard-coded in
-  engine code. New SRD-derived data files are Open Game Content: OGC
-  header comment, named in the README licensing section, and never
-  containing the strings "Cepheus Engine" or "Samardan Press". Everything
-  else is GPL-3.0. See CONTRIBUTING.md before adding any file.
+- Rules content lives in `.toml` files under `src/cetools/data/`, at any
+  depth, never hard-coded in engine code. New SRD-derived data files are
+  Open Game Content: OGC header comment, under the directory the README
+  licensing section and the Section 15 game-data notice both designate, and
+  never containing the strings "Cepheus Engine" or "Samardan Press".
+  Everything else is GPL-3.0. See CONTRIBUTING.md before adding any file.
 
 ## Gotchas
 

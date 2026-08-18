@@ -50,7 +50,7 @@ Overridden:
 | `files[].file` | string | The composition key, which is the basename. |
 | `files[].disposition` | string | `"replaced"` or `"added"` (FR-032, FR-035). |
 | `files[].fingerprint` | string | `"sha256:"` and the 64-character lowercase hex digest of the file's bytes. Reproducible with `shasum -a 256`. |
-| `ignored` | array of string | Basenames in an override that are not rules data (FR-032a). Sorted. Dot-prefixed files never appear (FR-032b). |
+| `ignored` | array of string | Paths, within the override, of files that are not rules data (FR-032a). The path rather than the basename, so two `notes.md` in different directories are both named. Sorted. Dot-prefixed files found by walking the override never appear (FR-032b). |
 
 Key order: `source`, `version`, `files`, `ignored`.
 
@@ -117,7 +117,7 @@ New. Produced by `cetools validate --json` and by `as_dict(ValidationReport)`.
     {
       "file": "navy.toml",
       "location": "tables.service.entries[2]",
-      "found": "unrecognized skill name 'Vac Suit'",
+      "found": "Vac Suit",
       "expected": "a name in the skills registry"
     }
   ]

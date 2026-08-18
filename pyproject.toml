@@ -50,6 +50,9 @@ line-length = 99
 [tool.isort]
 profile = "black"
 
+# Configuration for the rumdl markdown linter, which is deliberately neither a
+# dependency nor a CI gate; see the Style and tooling section of
+# CONTRIBUTING.md for why it is optional and how to run it.
 [tool.rumdl]
 flavor = "gfm"
 disable = ["MD013"]

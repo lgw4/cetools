@@ -28,6 +28,24 @@ spaces trimmed. Skill names contain spaces, apostrophes, slashes and hyphens
 (`Ship's Boat`, `Vacc Suit`, `Air/Raft`, `Jack-of-all-Trades`), so a name is never
 tokenized on whitespace.
 
+The `WS` before a specialty group is **mandatory**, as the grammar says: `Blade
+(Cutlass)` parses and `Blade(Cutlass)` is malformed. Splitting on the parenthesis
+alone let one reference answer to three written forms, which is the quiet widening
+FR-013 forbids and is exactly the rule a benefit item is already held to below. A
+benefit item carries its name as written, so `Weapon(Blade)` simply fails to match the
+registry; a skill reference is split into two fields, so nothing but this rule keeps
+the space-free form from resolving. More than one space still parses — `WS` is one or
+more — and a skill reference's base name is trimmed, so `Blade  (Cutlass)` is the same
+reference as `Blade (Cutlass)`. A benefit item's is not, because it has one field and
+nothing to reassemble from.
+
+The same rule applies to the skills registry from the other side: a skill *name* that
+spells a specialty into itself, such as `"Gun Combat (Slug Rifle)" = []`, is rejected
+by `contracts/data-files.md`'s `skills` schema. No career entry could ever match it —
+every entry is split into a base and a specialty before it is resolved — so admitting
+it would leave a registry entry nothing can reach while a career writing that very
+text reported an unrecognized skill name.
+
 A specialty belongs to a skill or a benefit item, and a characteristic never carries
 one, which is why `check` and `adjustment` take a `characteristic` rather than a
 `name`. `INT (Foo) 4+` and `STR (Foo) +1` are malformed (FR-009) rather than gates on
@@ -97,13 +115,13 @@ Every registry lookup is exact and case sensitive (FR-013), so `int 4+` fails on
 characteristic rather than being folded to `INT`.
 
 A benefit item carries its name as written rather than reassembled from a base and a
-specialty, because it has one field to carry it in. `Weapon(Blade)` and
-`Weapon  (Blade)` are therefore not the registry's `Weapon (Blade)`: the grammar makes
-the space before the parenthesis part of the name, and normalizing it away would widen
-the notation the way case folding would, letting one registry entry answer to three
-written forms while an entry actually spelled `Weapon(Blade)` could be matched by
-nothing. A skill reference keeps its base and specialty in separate fields, so there is
-nothing to reassemble there.
+specialty, because it has one field to carry it in. `Weapon  (Blade)` is therefore not
+the registry's `Weapon (Blade)`: the grammar makes the spaces before the parenthesis
+part of the name, and normalizing them away would widen the notation the way case
+folding would, letting one registry entry answer to several written forms.
+`Weapon(Blade)` does not reach the registry at all, being malformed on the mandatory
+`WS` above. A skill reference keeps its base and specialty in separate fields, so there
+is nothing to reassemble there, and its base is trimmed.
 
 ## Specialties
 
@@ -140,6 +158,7 @@ but false.
 | `Pilot (` | unbalanced parenthesis |
 | `Pilot ()` | empty specialty |
 | `Pilot (A) (B)` | more than one specialty group |
+| `Pilot(Ace)` | no space before the specialty group |
 | `INT +4+` | not one of the four forms |
 | `INT (Foo) 4+` | specialty on a characteristic check |
 | `STR (Foo) +1` | specialty on a characteristic adjustment |

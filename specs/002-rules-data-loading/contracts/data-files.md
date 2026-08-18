@@ -133,7 +133,12 @@ schema-version = 1
 
 | Location | Type | Notes |
 |---|---|---|
-| `skills.*` | array of string | Key is the skill name, value is its permitted specialties. At least one entry. |
+| `skills.*` | array of string | Key is the skill name, value is its permitted specialties. At least one entry. The key carries no parentheses. |
+
+A skill name spelling a specialty into itself, `"Gun Combat (Slug Rifle)" = []`, is
+rejected. Every career entry is split into a base name and a specialty before it is
+resolved, so such a key could be matched by nothing while a career writing that very
+text would report `Gun Combat` as an unrecognized skill (FR-006, FR-013).
 
 The specialty list is required for every skill, empty when the skill has none. Absence
 is not accepted as a way of saying "no specialties": FR-011 requires each skill to
@@ -262,8 +267,14 @@ A **rank** is a table with:
 | Key | Type | Required | Notes |
 |---|---|---|---|
 | `rank` | integer | yes | Non-negative, distinct within its ladder. |
-| `title` | string | yes | |
+| `title` | string | yes | Non-empty. |
 | `bonus` | notation | no | Skill-table context (FR-016). |
+
+A ladder's ranks are exposed **sorted by position**, whatever order the file writes them
+in, so a consumer reading a ladder never has to sort it and two files differing only in
+the order they list the same ranks load to the same thing. `name`, `ranks[].title` and
+`ladders[].name` are each required to be non-empty: an empty label is not a label, and
+FR-019b's distinctness rule would otherwise read two unnamed careers as a clash.
 
 The table names and the throw names are closed sets. `[tables.sevice]` is an
 unrecognized key, not a new table.
@@ -280,11 +291,21 @@ unrecognized key, not a new table.
    naming it, exactly as an unreadable file is (FR-020a, FR-022). Passing either over
    would leave every house rule beneath it out of force while the run reported `packaged`
    and exited 0, which is the failure FR-028 exists to remove.
-3. A collected file whose name begins with a dot is discarded before anything else
-   happens: not loaded, not keyed, not reported. So is a directory whose name begins with
-   a dot, along with everything beneath it, which is why an override that is a git
-   checkout reports nothing from `.git/` and a `.toml` under a dot-prefixed directory
-   never composes (FR-032b).
+3. A file or directory **found by walking an override directory** whose name begins with
+   a dot is discarded before anything else happens: not loaded, not keyed, not reported,
+   and for a directory that goes for everything beneath it, which is why an override that
+   is a git checkout reports nothing from `.git/` and a `.toml` under a dot-prefixed
+   directory never composes (FR-032b).
+
+   The carve-out does **not** apply to the location the caller named. FR-032b draws its
+   line at authorship — a file the author did not write is not a mistake the author needs
+   told about — and a path typed on the command line was written by the author by
+   definition. Applying the carve-out to it made `cetools validate override/.navy.toml`
+   print `Rules data is valid.`, `Rules: packaged`, and exit 0 having composed nothing,
+   which is verbatim the mistyped-path-that-appears-to-succeed failure FR-028 exists to
+   remove, and is how a `/dev/null` location was settled. So a named dot-prefixed `.toml`
+   composes by its basename under rules 5 and 6, and a named dot-prefixed file of another
+   kind is **ignored** under rule 4 and named in the report.
 4. A collected file whose extension is not `.toml` is **ignored**: its path within the
    override goes to `provenance.ignored` and it contributes nothing. It is not a
    validation problem and does not fail the load (FR-032a). The path rather than the

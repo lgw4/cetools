@@ -568,6 +568,12 @@ location and confirming the reported provenance changes.
   file's own leading dot put eighteen entries from `.git/` into the report while letting
   `.hidden/navy.toml` compose silently as a replacement. `.git/config` was written by no
   author, and `applypatch-msg.sample` is not a house rule that failed to take effect.
+  For that same reason the carve-out binds only what is found by *walking* an override
+  location, never the location the caller named: a path typed on the command line was
+  written by the author by definition, so `cetools validate override/.navy.toml` composes
+  that file by its basename and `cetools validate override/.DS_Store` reports it ignored
+  under FR-032a. Passing a named location over instead reported success having composed
+  nothing, which is verbatim the failure FR-028 exists to remove.
 
 #### Provenance
 

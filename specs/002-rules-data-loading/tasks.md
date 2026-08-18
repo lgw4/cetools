@@ -710,7 +710,7 @@ best-covered area in the feature, with more than sixty mutations killed and thre
 open. As in Phase 12, most of what follows is unproven behavior rather than wrong behavior,
 and each such task says so.
 
-- [ ] T092 Prove FR-002's "MUST NOT attempt to interpret that file's contents", which
+- [X] T092 Prove FR-002's "MUST NOT attempt to interpret that file's contents", which
       nothing currently could falsify: deleting the `continue` at `src/cetools/rules.py:618`,
       so a version-mismatched file falls through into `parsed` and is fully validated, leaves
       all 628 tests passing. The two cases that claim to cover this,
@@ -724,7 +724,7 @@ and each such task says so.
       fixture with two further deliberate mistakes and assert the file still reports exactly
       one problem (FR-002, FR-021, contracts/data-files.md rule 2, quickstart Scenario 2)
       (partial)
-- [ ] T093 Cover the two required career sub-keys whose absence is checked but proved by
+- [X] T093 Cover the two required career sub-keys whose absence is checked but proved by
       nothing, which is not a lost-diagnostic gap but a lost rejection: replacing the
       `"entries" not in table` check at `src/cetools/careers.py:373-381` and the
       `"ranks" not in table` check at `careers.py:564-572` with `pass` each leaves all 628
@@ -736,7 +736,7 @@ and each such task says so.
       `ranks` array, but nothing deletes either key, and
       `tests/integration/test_reference_career.py` removes only whole tables and whole ladders
       (FR-015, FR-016, FR-019, SC-004, contracts/data-files.md) (missing)
-- [ ] T094 Cover the failed-load reporting path of `check`, which is the whole of T044 and is
+- [X] T094 Cover the failed-load reporting path of `check`, which is the whole of T044 and is
       proved by nothing: no test anywhere invokes `check --rules-data` against an invalid data
       set — the four exit-1 cases in `tests/integration/test_cli.py` all reach `TaskError`
       through `--difficulty Trivial`, and `tests/integration/test_overrides.py:61,69` cover
@@ -748,7 +748,7 @@ and each such task says so.
       discards every problem FR-021 collected. The behavior is correct today — five
       `FILE:LOCATION: found …; expected …` lines on stderr, empty stdout, exit 1, identical in
       both output modes (Constitution II, FR-021, FR-025, contracts/cli.md) (missing)
-- [ ] T095 Add the `Rules:` line FR-037 requires to the worked `check` example in
+- [X] T095 Add the `Rules:` line FR-037 requires to the worked `check` example in
       `README.md:35-46`, which is byte-for-byte identical to
       `tests/golden/pre-loader/check_difficult.txt` — the *pre-feature* output — while
       `tests/golden/check_difficult.txt` and the real command both carry one line more. T056
@@ -760,7 +760,7 @@ and each such task says so.
       output in the same commit is exactly the rule that was missed. Hold the version as the
       documented form the `tests/guards/test_documented_version.py` drift guard already
       checks, so a release does not stale it (FR-037, contracts/cli.md) (contradicts)
-- [ ] T096 Assert the `(file, location)` ordering of `ValidationReport.problems` at the place
+- [X] T096 Assert the `(file, location)` ordering of `ValidationReport.problems` at the place
       that establishes it, which is asserted nowhere: deleting `problems.sort()` at
       `src/cetools/rules.py:726` leaves 628 tests passing, and so does replacing it with
       `problems.sort(reverse=True)`. The one test that mentions the order,
@@ -772,7 +772,7 @@ and each such task says so.
       run, which SC-002 and SC-003 depend on to assert content. Assert it over a data set
       broken in several files at once (FR-022, SC-002, SC-003, data-model.md, contracts/cli.md)
       (missing)
-- [ ] T097 Pin the boolean guard on every integer-valued field, which T073 added for
+- [X] T097 Pin the boolean guard on every integer-valued field, which T073 added for
       `schema-version` and which is untested at five further sites: weakening
       `not isinstance(value, int) or isinstance(value, bool)` to a bare `isinstance` check at
       `src/cetools/rules.py:294` (`_require_int`, governing `task.target` and
@@ -784,7 +784,7 @@ and each such task says so.
       modifier `1`, and `target = true` yields `Throw(target=True)`. Every site is correct
       today, reporting `found a boolean; expected an integer` (FR-020b, FR-014, FR-016, FR-017)
       (partial)
-- [ ] T098 Add regression cases for the five collected-problem branches in
+- [X] T098 Add regression cases for the five collected-problem branches in
       `src/cetools/rules.py` that survive being neutered, each verified against the real
       package before the mutation: the UTF-8 decode failure at `rules.py:548-557`, whose
       `problems.append` can be dropped while keeping the `continue`, so an override career file
@@ -802,7 +802,7 @@ and each such task says so.
       suite green, so T069's union is proved only in aggregate and its canonical-basename
       source is exercised by nothing (FR-020, FR-020a, FR-020b, FR-021, FR-023, SC-002)
       (partial)
-- [ ] T099 Pin the rule that non-string content in a notation-bearing field is a *type*
+- [X] T099 Pin the rule that non-string content in a notation-bearing field is a *type*
       problem reported against the field rather than text routed to the parser: replacing the
       guard at `src/cetools/careers.py:189-192` with `value = str(value)` leaves 628 tests
       passing, and under the mutation `entries = [5]` reports `expected a characteristic
@@ -813,7 +813,7 @@ and each such task says so.
       and `tests/unit/test_careers.py::TestPlainNumericFieldsNeverRoutedThroughNotation` covers
       only the mirror direction, a string in a numeric field (FR-004a, FR-020b,
       contracts/notation.md) (partial)
-- [ ] T100 Settle whether the whitespace before a specialty group is mandatory, which the
+- [X] T100 Settle whether the whitespace before a specialty group is mandatory, which the
       grammar says and the skill path does not enforce: contracts/notation.md line 19 writes
       `name := text [ WS "(" text ")" ]`, but `_SPECIALTY` at `src/cetools/notation.py:104` and
       `_parse_name` at `:143-150` split on the parenthesis without requiring the space, so
@@ -830,7 +830,7 @@ and each such task says so.
       `Gun Combat (Slug Rifle)` (`src/cetools/registries.py:159-189`) that no career entry can
       ever match, since any career writing it parses to base and specialty and resolves
       `UNRECOGNIZED_SKILL` (FR-006, FR-013, contracts/notation.md) (contradicts)
-- [ ] T101 Decide what happens when the location named on the command line is itself a
+- [X] T101 Decide what happens when the location named on the command line is itself a
       dot-prefixed file, which today reports success and does nothing:
       `cetools validate <dir>/.navy.toml` prints `Rules data is valid.`, `Files: 5`,
       `Rules: packaged`, and exits 0, because the single-file branch at
@@ -845,7 +845,7 @@ and each such task says so.
       `/dev/null` under T067 and `.git/` under T078; decide it the same way, amend FR-032b and
       contracts/data-files.md rule 3 if the line moves, and pin the result (FR-032b, FR-028,
       FR-040, contracts/data-files.md) (partial)
-- [ ] T102 Finish T086's move of `provenance.ignored` from basenames to paths within the
+- [X] T102 Finish T086's move of `provenance.ignored` from basenames to paths within the
       override, which left two contracts and one docstring behind: `data-model.md:203` and
       `contracts/json-output.md:53` both still type the field as "Basenames of files in an
       override location", while `contracts/data-files.md` rule 4 and
@@ -857,7 +857,7 @@ and each such task says so.
       docstring at `src/cetools/render.py:22-23`, where the code pads to the longest *name*
       across both lists, which is right for paths and no longer what the prose says (FR-032a,
       FR-035, data-model.md, contracts/json-output.md, contracts/cli.md) (contradicts)
-- [ ] T103 Close the blind spot T072 narrowed but did not remove: both coverage checks
+- [X] T103 Close the blind spot T072 narrowed but did not remove: both coverage checks
       self-limit to the paths they could ever fail on, so an Open Game Content file shipped
       outside `src/`, or one that is not a `.toml`, is covered by neither. Writing an
       OGC-designated `tests/fixtures_ogc.toml` leaves all 628 tests passing, and the file
@@ -870,7 +870,7 @@ and each such task says so.
       designation guard; derive it from the built artifact's whole file list rather than from a
       prefix, and key on the designation comment rather than on the extension (FR-047, SC-016,
       SC-014, Constitution Licensing & Distribution) (partial)
-- [ ] T104 Finish T080's widening in the two files it did not reach: `CLAUDE.md:14-18` still
+- [X] T104 Finish T080's widening in the two files it did not reach: `CLAUDE.md:14-18` still
       tells a contributor that a new SRD-derived data file must be "named in the README
       licensing section", which `README.md:92-96` no longer does per file, having moved to
       designating the whole directory — the identical contradiction T080 reconciled in
@@ -881,7 +881,7 @@ and each such task says so.
       added `test_data_layout.py`, `test_no_outside_reads.py` and `test_documented_version.py`
       to that directory, so five of its six files are not the seed contract (FR-046, FR-047,
       Constitution Licensing & Distribution) (contradicts)
-- [ ] T105 Pin the looping that T076 was measured against, which is asserted in neither
+- [X] T105 Pin the looping that T076 was measured against, which is asserted in neither
       sibling parser: changing `continue` to `break` at `src/cetools/registries.py:126`
       (`parse_characteristics`) and at `:235` (`parse_benefits`) each leaves 628 tests passing.
       T076's fix to `parse_skills` was justified by the asymmetry with these two — "both of
@@ -890,7 +890,7 @@ and each such task says so.
       labels yielding three problems and `benefits = [5, 7, 9]` yielding three, and FR-021 with
       SC-003's "the number of runs needed to find every problem in a file is always one" is
       what forbids the first-one-only form (FR-021, SC-003) (partial)
-- [ ] T106 Close the two clauses of `contracts/library-api.md` that survive removal, and the
+- [X] T106 Close the two clauses of `contracts/library-api.md` that survive removal, and the
       reason they can: restoring a working `load_task_parameters` to `src/cetools/__init__.py`
       leaves 628 tests passing, although FR-044 requires the old reader replaced rather than
       kept alongside and the contract lists it under **Public surface removed**; and removing
@@ -901,7 +901,7 @@ and each such task says so.
       nothing, so `cetools.__all__` is never compared against the contract's list as a set in
       either direction. Compare it as a set, which closes both clauses and every future one
       (FR-043, FR-044, SC-013, contracts/library-api.md) (missing)
-- [ ] T107 Reconcile the four worked examples that no longer match what the tool emits, as
+- [X] T107 Reconcile the four worked examples that no longer match what the tool emits, as
       T089 did for the fifth: `contracts/cli.md:137` and `contracts/json-output.md:120` show
       `found unrecognized skill name 'Vac Suit'` where the tool emits `found Vac Suit`;
       `cli.md:139` shows `found an unrecognized key 'chash'; expected one of cash, benefits`
@@ -915,7 +915,7 @@ and each such task says so.
       `tests/integration/test_validate_cli.py:35` pin the *contract's* wording rather than the
       code's, so neither side currently checks the other (contracts/cli.md,
       contracts/json-output.md) (contradicts)
-- [ ] T108 Pin the malformed-entry rows and bare-name paths that collapse into one another
+- [X] T108 Pin the malformed-entry rows and bare-name paths that collapse into one another
       with the suite green, each verified by mutation: deleting the empty-entry guard at
       `src/cetools/notation.py:173-174`, the balanced-parenthesis check at `:136-137`, or the
       one-group check at `:138-139` leaves 628 tests passing, because
@@ -930,7 +930,7 @@ and each such task says so.
       which is the untested complement of the case T074 decided. `contracts/notation.md`'s
       malformed-entry table is the artifact all of these are pinned to (FR-006, FR-009,
       contracts/notation.md) (partial)
-- [ ] T109 Write a parenthesized specialty into `src/cetools/data/careers/navy.toml`, which
+- [X] T109 Write a parenthesized specialty into `src/cetools/data/careers/navy.toml`, which
       contains none: the four skills that have specialties in
       `src/cetools/data/registries/skills.toml` (`Gun Combat`, `Gunnery`, `Melee Combat`,
       `Vehicle`) all appear bare, so the shipped career exercises FR-008's owed-choice case and
@@ -939,7 +939,7 @@ and each such task says so.
       by unit fixtures, which is the gap FR-018 exists to close — a fixture's author can
       unconsciously avoid the hard parts, and real content cannot. Whichever entry gains one,
       it must stay faithful to the source material, per T060 (FR-018, FR-006, SC-004) (partial)
-- [ ] T110 Add cases for the four committed-shape clauses that survive mutation, all in the
+- [X] T110 Add cases for the four committed-shape clauses that survive mutation, all in the
       otherwise best-proved area of the feature: the inner key order of `provenance.files[]`,
       reorderable at `src/cetools/render.py:56` with the suite green because
       `tests/contract/test_json_contract.py` builds only *packaged* provenance and so never
@@ -953,7 +953,7 @@ and each such task says so.
       both of which T032 and `contracts/library-api.md:159-168` fix and both of which can be
       changed with the suite green (FR-041, FR-043, contracts/json-output.md, contracts/cli.md,
       contracts/library-api.md) (missing)
-- [ ] T111 Justify or drop the five behaviors no requirement or contract asks for, surfaced
+- [X] T111 Justify or drop the five behaviors no requirement or contract asks for, surfaced
       for review rather than for deletion: `src/cetools/careers.py:544` sorts a ladder's ranks
       by position and `tests/unit/test_careers.py:358-367` pins it, although FR-016 requires
       only that positions be non-negative and distinct and contracts/data-files.md's rank table
@@ -971,7 +971,7 @@ and each such task says so.
       `rumdl`, which is in no dependency group, no CI workflow, and no CONTRIBUTING section,
       beside a stale `.ruff_cache/` with no ruff config either (Principle VI, FR-016,
       data-model.md) (unrequested)
-- [ ] T112 Qualify the last stale cross-reference of the class T066 closed, and document or
+- [X] T112 Qualify the last stale cross-reference of the class T066 closed, and document or
       remove one private seam: `src/cetools/tasks.py:21-22` says the leading underscore is
       "the convention contracts/library-api.md states", but a search of `specs/` finds that
       statement only at `specs/001-dice-task-engine/contracts/library-api.md:124` — this
@@ -981,7 +981,7 @@ and each such task says so.
       `_problem_line` from `render.py`, a library-to-CLI seam no contract in this feature
       documents; either name it in `contracts/library-api.md` or give it a public spelling
       (contracts/library-api.md, Constitution I) (contradicts)
-- [ ] T113 Make the constitution's two Development Workflow clauses checkable, neither of
+- [X] T113 Make the constitution's two Development Workflow clauses checkable, neither of
       which anything enforces: changing `pyproject.toml`'s `version` from `2026.08.1` to
       `2026.8.1`, or to `1.2.3`, or to `2026.13.1`, each leaves 628 tests passing, because
       PEP 440 normalizes the zero-padded and unpadded forms to the same string and the
@@ -992,7 +992,7 @@ and each such task says so.
       `## 9999.99.9 (unreleased)` leaves 628 passing, so a release cut without its changelog
       entry ships silently against the constitution's requirement that every release ship one
       (Constitution Development Workflow) (missing)
-- [ ] T114 Correct two wordings in the Open Game Content designation, neither of which is an
+- [X] T114 Correct two wordings in the Open Game Content designation, neither of which is an
       exposure and both of which say something not quite true: `LICENSE-OGL.txt:137-138` names
       the covered files as `cetools rules data (src/cetools/data/)`, a path that exists in no
       wheel — the wheel ships them at `cetools/data/`, and `src/` appears nowhere in it, which

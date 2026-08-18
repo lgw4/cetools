@@ -183,6 +183,26 @@ suite's fixture rather than passing a bare `TaskParameters`.
 `CheckResult` registrations gain the provenance block. `ThrowResult` rendering is
 untouched, because `roll` resolves against no rules data.
 
+### Package-internal seam: `render._problem_line`
+
+```python
+def _problem_line(problem: ValidationProblem) -> str: ...
+```
+
+`cli.py` imports this to print the problems of a failed `check` load. It is
+package-internal — the leading underscore is the convention, as it is for
+`tasks._check_dice`, and callers outside the package must not use it — but it is
+named here because it crosses a module boundary and because a seam no contract
+records is a seam a later change can break without noticing.
+
+It exists so that the two surfaces which render a problem as one line, `validate`'s
+report and `check`'s failure output, cannot disagree about the form. Duplicating the
+formatting in `cli.py` was the alternative, and contracts/cli.md fixes that form for
+both, so one of the two copies would eventually have drifted from it. A public
+spelling was considered and rejected: nothing outside the package renders a single
+problem, and `__all__` is the contract, so adding a name with no caller is the
+speculative surface Principle VI rejects.
+
 ## Errors
 
 ```python

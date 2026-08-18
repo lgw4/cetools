@@ -18,8 +18,10 @@ def _check_dice(roll: str) -> tuple[int, int, int]:
     The single place a check's dice are read, so the loader and `check`
     itself cannot disagree about what `task.roll` may hold. Package-internal
     despite being imported by `rules.py`: the leading underscore is the
-    convention contracts/library-api.md states for a seam callers outside
-    the package must not use. Raises
+    convention `001-dice-task-engine/contracts/library-api.md` states for a
+    seam callers outside the package must not use, and it is named there
+    rather than in this feature's contract, so the reference has to say
+    which. Raises
     `RulesDataError` for notation the grammar rejects and for the `d66`
     literal, which composes two faces into a two-digit table value rather
     than describing a count and a side count: a check needs the latter, and

@@ -57,15 +57,20 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   item, so one written on a characteristic — `INT (Foo) 4+` — is reported
   rather than quietly discarded; a specialty may end in a digit, so
   `Blade (Mark 2)` reads as the same skill and specialty its grant form
-  `Blade (Mark 2) 1` does. A benefit item resolves under the name as written,
-  so `Weapon(Blade)` is not silently normalized into the registry's
-  `Weapon (Blade)`.
+  `Blade (Mark 2) 1` does. The space before a specialty group is part of the
+  grammar rather than decoration, so `Blade(Cutlass)` is reported as
+  malformed rather than read as `Blade (Cutlass)`, and a benefit item
+  resolves under the name as written, so `Weapon  (Blade)` is not silently
+  collapsed into the registry's `Weapon (Blade)`.
 - **The reference career, and the registries that give it meaning.** Three
   shipped registries (`CharacteristicRegistry`, `SkillRegistry`,
   `BenefitRegistry`) resolve the names a career file's entries use, the skill
   registry reporting which of the four `SkillResolution` outcomes a reference
   produces. A name no registry contains is reported with the registry it was
-  checked against, so an author knows which file to correct.
+  checked against, so an author knows which file to correct, and a skill
+  registry entry that spells a specialty into its own name — `"Gun Combat
+  (Slug Rifle)"` — is refused rather than admitted as an entry no career
+  could ever reference.
   `CareerDefinition` and its parts (`Throw`, `SkillTable`,
   `RankLadder`, `Rank`, `MusteringOut`) are the schema a career file
   validates against.
@@ -81,11 +86,14 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   directory within it that cannot be listed is reported the way an unreadable
   file is rather than passed over. Symlinked directories are followed, so a
   rule set assembled out of links composes. Files and directories whose names
-  begin with a dot are passed over entirely, so pointing the tool at a git
-  checkout reports nothing from `.git/` — and a `.toml` beneath such a
-  directory does not quietly take effect either. A file with the wrong
-  extension is reported as ignored under its path within the override, so two
-  files sharing a basename are both named.
+  begin with a dot are passed over entirely when they are *found* under an
+  override location, so pointing the tool at a git checkout reports nothing
+  from `.git/` — and a `.toml` beneath such a directory does not quietly take
+  effect either. A dot-prefixed path named on the command line is not passed
+  over, because the author wrote it: `cetools validate ./.navy.toml` composes
+  that file, rather than reporting success having done nothing. A file with
+  the wrong extension is reported as ignored under its path within the
+  override, so two files sharing a basename are both named.
 - **Provenance.** Every `CheckResult` and `ValidationReport` carries a
   `Provenance`: the installed package version, and, for an overridden load,
   each file's disposition and a reproducible SHA-256 fingerprint over its
@@ -129,8 +137,12 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
 - **Dual licensing.** `LICENSE` (GPL-3.0) covers the code, declared in the
   package metadata as the SPDX expression `GPL-3.0-only` so installers and
   indexes can read it; `LICENSE-OGL.txt` (OGL 1.0a, with the SRD's Section 15
-  chain verbatim) covers everything under `src/cetools/data/` as Open Game
-  Content. Both ship in every sdist and wheel.
+  chain verbatim) covers every `.toml` file under `src/cetools/data/` — which
+  ships as `cetools/data/` in an installed package, and the notice names both
+  paths — as Open Game Content. Both ship in every sdist and wheel, and the
+  guard that checks the notice's coverage derives what must be covered from
+  the files a distribution actually carries, keyed on the designation rather
+  than on a directory prefix and an extension.
 - **Project documentation.** `README.md` with installation and worked
   examples, and `CONTRIBUTING.md` covering the constitution, the spec-driven
   workflow, and the licensing rules.

@@ -17,11 +17,13 @@ def _provenance_lines(provenance: Provenance, label_width: int = _RULES_LABEL_WI
     `label_width` lets a caller line the `Rules:` label up with sibling
     summary labels of different lengths (`Files:`, `Problems:`); it defaults
     to `Rules:`'s own width, which is what `CheckResult` needs since `Rules:`
-    is its widest label. The file column is padded to the longest basename
-    present and the disposition column to the longest disposition present
-    (`"ignored"` counts as one), matching the padding rule the `Modifiers`
-    block already uses. Files that took effect are listed first, already
-    sorted by name, then ignored files, already sorted by name. An ignored
+    is its widest label. The file column is padded to the longest name present
+    across both lists — a composition key for a file that took effect, a path
+    within the override for an ignored one — and the disposition column to the
+    longest disposition present (`"ignored"` counts as one), matching the
+    padding rule the `Modifiers` block already uses. Files that took effect
+    are listed first, already sorted by name, then ignored files, already
+    sorted by name. An ignored
     file's line ends at the disposition: it carries no fingerprint to pad
     toward.
     """
@@ -65,6 +67,10 @@ def _problem_line(problem: ValidationProblem) -> str:
     dropping `:LOCATION` for a problem about the file as a whole
     (contracts/cli.md). Also what `cli.py` prints to stderr when a `check`
     load fails, so the two surfaces never disagree on the form.
+
+    Package-internal, and named as such in this feature's
+    `contracts/library-api.md` because it crosses a module boundary: a seam no
+    contract records is one a later change can break without noticing.
     """
     location = f":{problem.location}" if problem.location else ""
     return f"{problem.file}{location}: found {problem.found}; expected {problem.expected}"

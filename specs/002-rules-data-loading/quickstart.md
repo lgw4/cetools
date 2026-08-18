@@ -140,6 +140,16 @@ This is the same bargain FR-032 strikes for a misspelled stem: visibility rather
 rejection. Rejecting instead would fail the load over the `.DS_Store`, which is why it was
 considered and dropped.
 
+The carve-out covers what the walk *finds*, not what you type. Name the dot file itself
+and it is reported, because you wrote that path:
+
+```sh
+uv run cetools validate /tmp/ce-house/.DS_Store
+```
+
+Expected: exit 0, with `.DS_Store` named as `ignored` rather than a run that reports
+`Rules: packaged` and exits 0 having composed nothing (FR-032b, FR-028).
+
 Put a file that is *only* ignorable in a location of its own to see the two report
 independently:
 

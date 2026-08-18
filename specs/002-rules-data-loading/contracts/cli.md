@@ -77,9 +77,10 @@ overridden case (FR-033a). It is the version as installed metadata reports it, w
 the PEP 440 normalization of the declared CalVer: `2026.08.1` in `pyproject.toml` is
 reported as `2026.8.1`, the zero-padded month having been normalized away. The examples
 here hold the reported form, and `tests/guards/test_documented_version.py` keeps them
-from drifting from it. The file column is padded to the longest basename present and
-the disposition column to the longest disposition present, matching the padding rule the
-`Modifiers` block already uses. Files that took effect are listed first, sorted by name,
+from drifting from it. The file column is padded to the longest *name* present — a
+composition key for a file that took effect, a path within the override for an ignored
+one — and the disposition column to the longest disposition present, matching the
+padding rule the `Modifiers` block already uses. Files that took effect are listed first, sorted by name,
 then ignored files, sorted by name. Fingerprints are printed whole; an ignored file has
 none and its line ends at the disposition.
 
@@ -91,7 +92,7 @@ took effect, and still lists them:
     notes.md   ignored
 ```
 
-The file column is padded to the longest basename *present*, which here is
+The file column is padded to the longest name *present*, which here is
 `notes.md` itself, so this block is narrower than the one above rather than
 padded to the same width.
 
@@ -134,10 +135,10 @@ Rules data is valid.
 One line per problem, then a summary:
 
 ```text
-navy.toml:tables.service.entries[2]: found unrecognized skill name 'Vac Suit'; expected a name in the skills registry
+navy.toml:mustering-out.chash: found unrecognized key 'chash'; expected one of: benefits, cash
+navy.toml:tables.service.entries[2]: found Vac Suit; expected a name in the skills registry
 navy.toml:throws.survival.target: found a string; expected an integer
-navy.toml:mustering-out: found an unrecognized key 'chash'; expected one of cash, benefits
-skills.toml:skills: found no entries; expected at least one
+skills.toml:skills: found an empty table; expected at least one entry
 
 Rules data is invalid.
   Files:    5
@@ -146,11 +147,18 @@ Rules data is invalid.
 ```
 
 The problem line is `FILE:LOCATION: found FOUND; expected EXPECTED`, dropping
-`:LOCATION` when the problem is about the file as a whole:
+`:LOCATION` when the problem is about the file as a whole. The message
+`tomllib` raises is passed through rather than reworded:
 
 ```text
-navy.toml: found invalid TOML at line 12, column 3; expected a well-formed TOML document
+navy.toml: found invalid TOML: Expected ']' at the end of a table declaration (at line 4, column 8); expected a well-formed TOML document
 ```
+
+These are the lines the tool emits, not a paraphrase of them. The wording of
+`FOUND` and `EXPECTED` is deliberately not fixed by this contract — see below —
+but examples that no run could produce are drift rather than latitude, and
+`tests/integration/test_validate_cli.py` builds its fixtures from what the
+loader really returns so that neither side can go stale against the other.
 
 One problem per line and the file first makes the report greppable and sortable, and
 makes a test able to assert a single problem's presence without matching the whole
