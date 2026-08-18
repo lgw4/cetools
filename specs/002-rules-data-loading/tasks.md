@@ -687,3 +687,322 @@ such task says so.
       inherited from `001-dice-task-engine` rather than introduced here, so it may reasonably
       be deferred; it is recorded because the licensing obligations this feature discharges are
       the occasion on which it was found (Constitution Licensing & Distribution) (missing)
+
+---
+
+## Phase 13: Convergence
+
+Appended by a sixth `/speckit-converge` run. Phase 12's T071 through T091 are done and
+verified; T059 is still open by the deliberate choice recorded under **Recorded Deviation**
+in plan.md and is not restated here. Everything else converged: 628 tests pass with no
+skips, `black`, `isort`, and `flake8` are clean over `src` and `tests`, the built wheel and
+sdist carry all five Open Game Content files with their designations and neither Product
+Identity string, quickstart Scenarios 1 through 9 behave literally as written when run by
+hand, every error path tried exits within `{0, 1, 2}` with usage errors on stderr and
+reports on stdout in both output modes, the library surface matches
+`contracts/library-api.md` in both directions, and SC-009's one-added-line comparison
+against `tests/golden/pre-loader/` holds.
+
+This round continued Phase 12's method — mutating a scratch copy of the tree and re-running
+the suite — and extended it to the built artifacts and to the real CLI, run against
+hand-built override trees. Of 208 mutations applied, 185 were killed. Rendering proved the
+best-covered area in the feature, with more than sixty mutations killed and three left
+open. As in Phase 12, most of what follows is unproven behavior rather than wrong behavior,
+and each such task says so.
+
+- [ ] T092 Prove FR-002's "MUST NOT attempt to interpret that file's contents", which
+      nothing currently could falsify: deleting the `continue` at `src/cetools/rules.py:618`,
+      so a version-mismatched file falls through into `parsed` and is fully validated, leaves
+      all 628 tests passing. The two cases that claim to cover this,
+      `tests/integration/test_validation_categories.py:143` and `:154`, both bump
+      `schema-version` on an *otherwise clean* file, so their `len(from_navy) == 1` assertion
+      holds whether or not the contents were interpreted. The behavior is right today — a
+      `navy.toml` carrying `schema-version = 2` together with an unrecognized skill name and a
+      misspelled key yields exactly one problem, `found version 2; expected version 1` — but
+      the cascade FR-002 exists to prevent could return unnoticed, and this is the same
+      guarantee T069 was written to protect from the other side. Seed the version-mismatched
+      fixture with two further deliberate mistakes and assert the file still reports exactly
+      one problem (FR-002, FR-021, contracts/data-files.md rule 2, quickstart Scenario 2)
+      (partial)
+- [ ] T093 Cover the two required career sub-keys whose absence is checked but proved by
+      nothing, which is not a lost-diagnostic gap but a lost rejection: replacing the
+      `"entries" not in table` check at `src/cetools/careers.py:373-381` and the
+      `"ranks" not in table` check at `careers.py:564-572` with `pass` each leaves all 628
+      tests passing, and under either mutation `parse_career` returns no problems at all and
+      builds a `CareerDefinition` whose `tables` silently omits `service`, or whose `ladders`
+      is `None` — a data set with a missing service table loads successfully. T082 closed the
+      sibling seam for `throws.*.target`, `ranks[].rank`, `ranks[].title` and `ladders[].name`,
+      and `tests/unit/test_careers.py` `TestNonEmptyTables` covers an *empty* `entries` or
+      `ranks` array, but nothing deletes either key, and
+      `tests/integration/test_reference_career.py` removes only whole tables and whole ladders
+      (FR-015, FR-016, FR-019, SC-004, contracts/data-files.md) (missing)
+- [ ] T094 Cover the failed-load reporting path of `check`, which is the whole of T044 and is
+      proved by nothing: no test anywhere invokes `check --rules-data` against an invalid data
+      set — the four exit-1 cases in `tests/integration/test_cli.py` all reach `TaskError`
+      through `--difficulty Trivial`, and `tests/integration/test_overrides.py:61,69` cover
+      only the usage-error path. Two independent mutations survive the suite: printing the
+      problems to stdout instead of stderr at `src/cetools/cli.py:123`, which breaks
+      Constitution II's requirement that diagnostics go to stderr, and replacing the whole
+      branch at `cli.py:121-125` with `typer.echo(str(exc), err=True)`, which replaces the
+      one-line-per-problem form `contracts/cli.md` fixes with a bare summary and so silently
+      discards every problem FR-021 collected. The behavior is correct today — five
+      `FILE:LOCATION: found …; expected …` lines on stderr, empty stdout, exit 1, identical in
+      both output modes (Constitution II, FR-021, FR-025, contracts/cli.md) (missing)
+- [ ] T095 Add the `Rules:` line FR-037 requires to the worked `check` example in
+      `README.md:35-46`, which is byte-for-byte identical to
+      `tests/golden/pre-loader/check_difficult.txt` — the *pre-feature* output — while
+      `tests/golden/check_difficult.txt` and the real command both carry one line more. T056
+      added the `validate` and `--rules-data` sections and left the pre-existing `check` block
+      untouched, so the one command whose output this feature changed is documented as it was
+      before the change. This ships: `README.md` is the `Description` in both the wheel's
+      METADATA and the sdist's PKG-INFO, so it is what PyPI renders, and the project's own
+      rule that changing human-readable CLI output means updating the committed reference
+      output in the same commit is exactly the rule that was missed. Hold the version as the
+      documented form the `tests/guards/test_documented_version.py` drift guard already
+      checks, so a release does not stale it (FR-037, contracts/cli.md) (contradicts)
+- [ ] T096 Assert the `(file, location)` ordering of `ValidationReport.problems` at the place
+      that establishes it, which is asserted nowhere: deleting `problems.sort()` at
+      `src/cetools/rules.py:726` leaves 628 tests passing, and so does replacing it with
+      `problems.sort(reverse=True)`. The one test that mentions the order,
+      `tests/unit/test_render.py:444`, asserts that *rendering* must not re-sort and says so in
+      its own comment — "The loader guarantees (file, location) order" — so the renderer defers
+      to a guarantee that nothing holds, and `tests/unit/test_errors.py` pins the dataclass's
+      `order=True` rather than the loader's use of it. data-model.md:235 and
+      contracts/cli.md:158 both state the guarantee as the reason a report is stable run to
+      run, which SC-002 and SC-003 depend on to assert content. Assert it over a data set
+      broken in several files at once (FR-022, SC-002, SC-003, data-model.md, contracts/cli.md)
+      (missing)
+- [ ] T097 Pin the boolean guard on every integer-valued field, which T073 added for
+      `schema-version` and which is untested at five further sites: weakening
+      `not isinstance(value, int) or isinstance(value, bool)` to a bare `isinstance` check at
+      `src/cetools/rules.py:294` (`_require_int`, governing `task.target` and
+      `task.unskilled-dm`), `rules.py:185` (`difficulty-dms.*`), `rules.py:226`
+      (`characteristic-dms.*`), `src/cetools/careers.py:163` (`throws.*.target` and
+      `ranks[].rank`) and `careers.py:670` (`mustering-out.cash[i]`) each leaves 628 tests
+      passing. The consequence is a rules value changed with no report, not merely a worse
+      message: under the mutation `"Difficult" = true` composes silently as difficulty
+      modifier `1`, and `target = true` yields `Throw(target=True)`. Every site is correct
+      today, reporting `found a boolean; expected an integer` (FR-020b, FR-014, FR-016, FR-017)
+      (partial)
+- [ ] T098 Add regression cases for the five collected-problem branches in
+      `src/cetools/rules.py` that survive being neutered, each verified against the real
+      package before the mutation: the UTF-8 decode failure at `rules.py:548-557`, whose
+      `problems.append` can be dropped while keeping the `continue`, so an override career file
+      with one bad byte vanishes from the data set with no report and exit 0 — the sibling
+      `tomllib.TOMLDecodeError` branch three lines below *is* covered, so this is an asymmetry
+      rather than a drawn line, and SC-002's closed list names "a file that is not well-formed
+      at all, or cannot be read"; the `task.roll` string-type check at `rules.py:145`, whose
+      loss sends a non-string into `_check_dice` and leaves `validate_rules` raising rather
+      than collecting, which is an FR-021 and FR-023 break and not only a worse message; the
+      key closure inside `[task]` at `rules.py:134-136`, the `tasks.toml` analogue of the five
+      career sites T084 closed, where `unskiled-dm` today correctly reports both the
+      unrecognized key and the missing one and only the second is proved; the unreadable
+      *packaged* file at `rules.py:334-335`, whose override-side twin is covered; and the three
+      sources of `_singleton_slots` at `rules.py:521-526`, each individually removable with the
+      suite green, so T069's union is proved only in aggregate and its canonical-basename
+      source is exercised by nothing (FR-020, FR-020a, FR-020b, FR-021, FR-023, SC-002)
+      (partial)
+- [ ] T099 Pin the rule that non-string content in a notation-bearing field is a *type*
+      problem reported against the field rather than text routed to the parser: replacing the
+      guard at `src/cetools/careers.py:189-192` with `value = str(value)` leaves 628 tests
+      passing, and under the mutation `entries = [5]` reports `expected a characteristic
+      adjustment, a skill grant, or a bare skill reference` — the unrecognized-entry-form
+      report that contracts/notation.md's clause and FR-004a's typing exist to prevent —
+      instead of `found an integer; expected a notation string`. The rule governs
+      `tables.*.entries`, `tables.*.requires`, `ranks[].bonus` and `mustering-out.benefits`,
+      and `tests/unit/test_careers.py::TestPlainNumericFieldsNeverRoutedThroughNotation` covers
+      only the mirror direction, a string in a numeric field (FR-004a, FR-020b,
+      contracts/notation.md) (partial)
+- [ ] T100 Settle whether the whitespace before a specialty group is mandatory, which the
+      grammar says and the skill path does not enforce: contracts/notation.md line 19 writes
+      `name := text [ WS "(" text ")" ]`, but `_SPECIALTY` at `src/cetools/notation.py:104` and
+      `_parse_name` at `:143-150` split on the parenthesis without requiring the space, so
+      `Blade(Cutlass)`, `Blade  (Cutlass)` and `Blade (Cutlass)` all return the identical
+      `SkillReference(name='Blade', specialty='Cutlass')`. T087 settled exactly this widening
+      for `BenefitItem` on the grounds that inserting or collapsing a space widens the notation
+      the way case folding does, which FR-013 forbids; its amended paragraph justifies leaving
+      the skill path alone only by "there is nothing to reassemble", which answers a different
+      question than whether the missing space should parse. Either make `WS` optional in the
+      grammar or reject the space-free form, and pin whichever is chosen — the property
+      strategy at `tests/property/test_invariants.py:167-181` always renders with a space, so
+      it cannot find this. While settling it, decide the mirror case the contract records for
+      benefit items and leaves open for skills: `parse_skills` accepts a registry key such as
+      `Gun Combat (Slug Rifle)` (`src/cetools/registries.py:159-189`) that no career entry can
+      ever match, since any career writing it parses to base and specialty and resolves
+      `UNRECOGNIZED_SKILL` (FR-006, FR-013, contracts/notation.md) (contradicts)
+- [ ] T101 Decide what happens when the location named on the command line is itself a
+      dot-prefixed file, which today reports success and does nothing:
+      `cetools validate <dir>/.navy.toml` prints `Rules data is valid.`, `Files: 5`,
+      `Rules: packaged`, and exits 0, because the single-file branch at
+      `src/cetools/rules.py:468` routes through `_collect_entry`, whose leading-dot carve-out
+      at `:379-380` returns early. Making that branch bypass the dot check also leaves 628
+      tests passing, so nothing pins either answer, while the control case — a dot file found
+      *inside* a directory override — is killed by `tests/unit/test_composition.py:48`. The
+      letter of FR-032b is followed and its rationale is not: "a file the author did not write
+      is not a mistake the author needs told about" does not describe a path the author typed,
+      and the outcome is verbatim the mistyped-path-that-appears-to-succeed failure FR-028
+      names as the one this feature exists to remove. This is the same reasoning that moved
+      `/dev/null` under T067 and `.git/` under T078; decide it the same way, amend FR-032b and
+      contracts/data-files.md rule 3 if the line moves, and pin the result (FR-032b, FR-028,
+      FR-040, contracts/data-files.md) (partial)
+- [ ] T102 Finish T086's move of `provenance.ignored` from basenames to paths within the
+      override, which left two contracts and one docstring behind: `data-model.md:203` and
+      `contracts/json-output.md:53` both still type the field as "Basenames of files in an
+      override location", while `contracts/data-files.md` rule 4 and
+      `contracts/library-api.md:54` correctly say the path — verified against the real package,
+      where an override holding `a/notes.md` and `b/notes.md` yields
+      `('a/notes.md', 'b/notes.md')` in both the text block and `--json`. Two smaller
+      consequences of the same drift: `contracts/cli.md:81` and `:94-96` describe the file
+      column as padded to "the longest basename present", as does the `_provenance_lines`
+      docstring at `src/cetools/render.py:22-23`, where the code pads to the longest *name*
+      across both lists, which is right for paths and no longer what the prose says (FR-032a,
+      FR-035, data-model.md, contracts/json-output.md, contracts/cli.md) (contradicts)
+- [ ] T103 Close the blind spot T072 narrowed but did not remove: both coverage checks
+      self-limit to the paths they could ever fail on, so an Open Game Content file shipped
+      outside `src/`, or one that is not a `.toml`, is covered by neither. Writing an
+      OGC-designated `tests/fixtures_ogc.toml` leaves all 628 tests passing, and the file
+      really does ship — it appears in the built sdist, `tests/` being in the `include` list at
+      `pyproject.toml:40` — because `tests/unit/test_licensing.py:231-234` globs
+      `(repo_root / "src").rglob("*.toml")` and `tests/guards/test_packaging.py:194-196`
+      filters `relative.startswith("src/")`. An OGC-designated `src/cetools/data/tables.md`
+      likewise leaves the suite green. SC-016 asks the obligation to be derived from the data
+      files the distribution actually contains, which is what SC-014 already does for the
+      designation guard; derive it from the built artifact's whole file list rather than from a
+      prefix, and key on the designation comment rather than on the extension (FR-047, SC-016,
+      SC-014, Constitution Licensing & Distribution) (partial)
+- [ ] T104 Finish T080's widening in the two files it did not reach: `CLAUDE.md:14-18` still
+      tells a contributor that a new SRD-derived data file must be "named in the README
+      licensing section", which `README.md:92-96` no longer does per file, having moved to
+      designating the whole directory — the identical contradiction T080 reconciled in
+      `CONTRIBUTING.md:136-143` — and its glob `src/cetools/data/*.toml` matches only
+      `tasks.toml`, missing the four files this feature added under `careers/` and
+      `registries/`. While there, refresh `CONTRIBUTING.md:78`, whose test-directory table
+      still describes `tests/guards/` as "The seed-reproducibility contract"; this feature
+      added `test_data_layout.py`, `test_no_outside_reads.py` and `test_documented_version.py`
+      to that directory, so five of its six files are not the seed contract (FR-046, FR-047,
+      Constitution Licensing & Distribution) (contradicts)
+- [ ] T105 Pin the looping that T076 was measured against, which is asserted in neither
+      sibling parser: changing `continue` to `break` at `src/cetools/registries.py:126`
+      (`parse_characteristics`) and at `:235` (`parse_benefits`) each leaves 628 tests passing.
+      T076's fix to `parse_skills` was justified by the asymmetry with these two — "both of
+      those looping and reporting each element" — so the standard it was held to can regress
+      in the two places it was compared with. Both are correct today, three bad characteristic
+      labels yielding three problems and `benefits = [5, 7, 9]` yielding three, and FR-021 with
+      SC-003's "the number of runs needed to find every problem in a file is always one" is
+      what forbids the first-one-only form (FR-021, SC-003) (partial)
+- [ ] T106 Close the two clauses of `contracts/library-api.md` that survive removal, and the
+      reason they can: restoring a working `load_task_parameters` to `src/cetools/__init__.py`
+      leaves 628 tests passing, although FR-044 requires the old reader replaced rather than
+      kept alongside and the contract lists it under **Public surface removed**; and removing
+      `FileProvenance` from the imports and `__all__` also leaves 628 passing, because every
+      test reaches that type through `cetools.provenance` rather than through `cetools`, which
+      is precisely the reaching-past-the-package that T064 closed for `NotationProblem` and
+      `SkillResolution`. Both survive for one underlying reason — `rg __all__ tests/` returns
+      nothing, so `cetools.__all__` is never compared against the contract's list as a set in
+      either direction. Compare it as a set, which closes both clauses and every future one
+      (FR-043, FR-044, SC-013, contracts/library-api.md) (missing)
+- [ ] T107 Reconcile the four worked examples that no longer match what the tool emits, as
+      T089 did for the fifth: `contracts/cli.md:137` and `contracts/json-output.md:120` show
+      `found unrecognized skill name 'Vac Suit'` where the tool emits `found Vac Suit`;
+      `cli.md:139` shows `found an unrecognized key 'chash'; expected one of cash, benefits`
+      against the emitted `found unrecognized key 'chash'; expected one of: benefits, cash`;
+      `cli.md:140` shows `found no entries; expected at least one` against
+      `found an empty table; expected at least one entry`; and `cli.md:152` shows
+      `found invalid TOML at line 12, column 3` against the tomllib message the code passes
+      through. Both contracts do say the wording of `found` and `expected` is not fixed, so
+      this is drift rather than a defect — but the hand-built fixtures at
+      `tests/contract/test_json_contract.py:203` and
+      `tests/integration/test_validate_cli.py:35` pin the *contract's* wording rather than the
+      code's, so neither side currently checks the other (contracts/cli.md,
+      contracts/json-output.md) (contradicts)
+- [ ] T108 Pin the malformed-entry rows and bare-name paths that collapse into one another
+      with the suite green, each verified by mutation: deleting the empty-entry guard at
+      `src/cetools/notation.py:173-174`, the balanced-parenthesis check at `:136-137`, or the
+      one-group check at `:138-139` leaves 628 tests passing, because
+      `tests/unit/test_notation.py::TestMalformedEntries` asserts only
+      `isinstance(result, NotationProblem)` for those five cases and pins the detail of just
+      one, `Pilot -`; dropping the specialty's `.strip()` at `:147` also leaves 628 passing
+      while turning `Blade ( Cutlass )` from a valid reference into an unrecognized specialty,
+      although its sibling `base` strip one line above *is* covered; and both the
+      `trailing is not None` guard at `:189` and the `\s+` in `_TRAILING_TOKEN` at `:99` can be
+      loosened with the suite green, each flipping whitespace-free entries such as `Zero-G2`,
+      `T2` and `-` from the accepted bare names the grammar requires into malformed ones —
+      which is the untested complement of the case T074 decided. `contracts/notation.md`'s
+      malformed-entry table is the artifact all of these are pinned to (FR-006, FR-009,
+      contracts/notation.md) (partial)
+- [ ] T109 Write a parenthesized specialty into `src/cetools/data/careers/navy.toml`, which
+      contains none: the four skills that have specialties in
+      `src/cetools/data/registries/skills.toml` (`Gun Combat`, `Gunnery`, `Melee Combat`,
+      `Vehicle`) all appear bare, so the shipped career exercises FR-008's owed-choice case and
+      never FR-006's base-and-specialty split nor a fully-specified reference. FR-018 requires
+      the shipped career to exercise every element of the schema, and the split is proved only
+      by unit fixtures, which is the gap FR-018 exists to close — a fixture's author can
+      unconsciously avoid the hard parts, and real content cannot. Whichever entry gains one,
+      it must stay faithful to the source material, per T060 (FR-018, FR-006, SC-004) (partial)
+- [ ] T110 Add cases for the four committed-shape clauses that survive mutation, all in the
+      otherwise best-proved area of the feature: the inner key order of `provenance.files[]`,
+      reorderable at `src/cetools/render.py:56` with the suite green because
+      `tests/contract/test_json_contract.py` builds only *packaged* provenance and so never
+      sees a populated entry, while `contracts/json-output.md` states that key order is part of
+      the contract; `ensure_ascii=False` at `render.py:223`, the one clause of that invariant
+      whose siblings `indent=2` and the trailing newline are both killed; the help strings
+      `contracts/cli.md:174-178` requires, since setting `help=None` on `--rules-data`
+      (`cli.py:102`) or on `validate`'s `PATH` (`cli.py:135-136`) leaves 628 passing because
+      the two help tests assert only the option-name set; and `check`'s keyword-only signature
+      at `src/cetools/tasks.py:109` together with `CheckResult`'s field order at `:103-104`,
+      both of which T032 and `contracts/library-api.md:159-168` fix and both of which can be
+      changed with the suite green (FR-041, FR-043, contracts/json-output.md, contracts/cli.md,
+      contracts/library-api.md) (missing)
+- [ ] T111 Justify or drop the five behaviors no requirement or contract asks for, surfaced
+      for review rather than for deletion: `src/cetools/careers.py:544` sorts a ladder's ranks
+      by position and `tests/unit/test_careers.py:358-367` pins it, although FR-016 requires
+      only that positions be non-negative and distinct and contracts/data-files.md's rank table
+      says nothing about order — it is the one mutation in the career schema killed by a test
+      that traces to no requirement; `_require_string` at `careers.py:137` rejects an empty
+      `name`, `ranks[].title` or `ladders[].name`, strictness neither required nor proved,
+      since relaxing it to a bare `isinstance` check leaves 628 passing; the symlink-cycle
+      guard at `src/cetools/rules.py:429-431` is removable with the suite green and is
+      necessary only because T071 chose to follow symlinked directories, and a regression there
+      hangs rather than fails (note also that `stat()` and `iterdir()` run before the `seen`
+      check, so a revisited directory is listed redundantly); `file_provenance.sort()` at
+      `rules.py:495` is genuinely dead, the list being built from `sorted(candidates.items())`
+      at `:474`, so the ordering guarantee data-model.md:202 states rests on the upstream sort
+      rather than on the line that appears to provide it; and `pyproject.toml:53-57` configures
+      `rumdl`, which is in no dependency group, no CI workflow, and no CONTRIBUTING section,
+      beside a stale `.ruff_cache/` with no ruff config either (Principle VI, FR-016,
+      data-model.md) (unrequested)
+- [ ] T112 Qualify the last stale cross-reference of the class T066 closed, and document or
+      remove one private seam: `src/cetools/tasks.py:21-22` says the leading underscore is
+      "the convention contracts/library-api.md states", but a search of `specs/` finds that
+      statement only at `specs/001-dice-task-engine/contracts/library-api.md:124` — this
+      feature's contract says nothing about it, so a bare contract-file reference in a
+      docstring T066 already visited now resolves to the wrong feature's contract, exactly as
+      the bare `FR-NNN` references did. Separately, `src/cetools/cli.py:10` imports the private
+      `_problem_line` from `render.py`, a library-to-CLI seam no contract in this feature
+      documents; either name it in `contracts/library-api.md` or give it a public spelling
+      (contracts/library-api.md, Constitution I) (contradicts)
+- [ ] T113 Make the constitution's two Development Workflow clauses checkable, neither of
+      which anything enforces: changing `pyproject.toml`'s `version` from `2026.08.1` to
+      `2026.8.1`, or to `1.2.3`, or to `2026.13.1`, each leaves 628 tests passing, because
+      PEP 440 normalizes the zero-padded and unpadded forms to the same string and the
+      `tests/guards/test_documented_version.py` drift guard compares the normalized values —
+      so nothing anywhere asserts the *declared* string matches the `YYYY.0M.INC1` shape the
+      constitution fixes, which is the very distinction T063 had to reconcile in the rendered
+      output. Likewise, renaming the `## 2026.08.1 (unreleased)` heading in `CHANGELOG.md` to
+      `## 9999.99.9 (unreleased)` leaves 628 passing, so a release cut without its changelog
+      entry ships silently against the constitution's requirement that every release ship one
+      (Constitution Development Workflow) (missing)
+- [ ] T114 Correct two wordings in the Open Game Content designation, neither of which is an
+      exposure and both of which say something not quite true: `LICENSE-OGL.txt:137-138` names
+      the covered files as `cetools rules data (src/cetools/data/)`, a path that exists in no
+      wheel — the wheel ships them at `cetools/data/`, and `src/` appears nowhere in it, which
+      is why `tests/guards/test_packaging.py:108-112` has to fabricate the prefix as
+      `f"src/{name}"` to make its check line up, papering over the mismatch rather than
+      reporting it. And the directory-wide designation that replaced the per-file list sweeps
+      in `src/cetools/data/__init__.py`, which ships in the wheel: `README.md:92-94` and
+      `LICENSE-OGL.txt:137` both say everything under that directory is Open Game Content,
+      while `CONTRIBUTING.md:134-137` says Python source is GPL-3.0 and that Open Game Content
+      cannot be sublicensed under the GPL. The file is empty so nothing copyrightable is
+      double-licensed, but the constitution requires the designation to be unambiguous;
+      qualifying both statements to every `.toml` under the directory settles it (FR-046,
+      FR-047, Constitution Licensing & Distribution) (partial)
