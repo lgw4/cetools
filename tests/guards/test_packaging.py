@@ -93,6 +93,31 @@ def test_the_data_set_read_from_the_wheel_validates_without_a_problem(wheel, tmp
     assert report.valid, report.problems
 
 
+def _uncovered(paths, covered: tuple[str, ...]) -> list[str]:
+    return [path for path in paths if not any(path.startswith(prefix) for prefix in covered)]
+
+
+def test_the_notice_covers_every_open_game_content_file_in_the_wheel(
+    wheel, game_data_covered_paths
+):
+    # SC-016 requires the coverage obligation to be derived from what is
+    # actually shipped, and SC-014 binds the built artifacts rather than the
+    # working tree, so the two belong together here. Wheel members sit at
+    # `cetools/...` where the notice names `src/cetools/...`, which is the one
+    # translation between them.
+    designated = sorted(
+        f"src/{name}"
+        for name in wheel.namelist()
+        if name.endswith(".toml") and "Open Game Content" in wheel.read(name).decode("utf-8")
+    )
+    assert designated, "the wheel carries no Open Game Content file to derive coverage from"
+    uncovered = _uncovered(designated, game_data_covered_paths)
+    assert not uncovered, (
+        f"the wheel ships {uncovered} as Open Game Content, outside the paths the game-data "
+        f"notice names: {list(game_data_covered_paths)}"
+    )
+
+
 def _license_in_wheel(wheel: zipfile.ZipFile, name: str) -> str:
     matches = [n for n in wheel.namelist() if n.endswith(f".dist-info/licenses/{name}")]
     assert matches, f"{name} is missing from the wheel"
@@ -155,6 +180,27 @@ def test_the_data_set_read_from_the_sdist_validates_without_a_problem(sdist, tmp
         )
     report = validate_rules(tmp_path)
     assert report.valid, report.problems
+
+
+def test_the_notice_covers_every_open_game_content_file_in_the_sdist(
+    sdist, game_data_covered_paths
+):
+    # The sdist's member paths, once the single `{name}-{version}/` prefix is
+    # stripped, are exactly the source paths the notice names, so no
+    # translation is needed here.
+    designated = sorted(
+        relative
+        for name in sdist.getnames()
+        if (relative := name.split("/", 1)[-1]).endswith(".toml")
+        and relative.startswith("src/")
+        and "Open Game Content" in _read_from_sdist(sdist, relative)
+    )
+    assert designated, "the sdist carries no Open Game Content file to derive coverage from"
+    uncovered = _uncovered(designated, game_data_covered_paths)
+    assert not uncovered, (
+        f"the sdist ships {uncovered} as Open Game Content, outside the paths the game-data "
+        f"notice names: {list(game_data_covered_paths)}"
+    )
 
 
 def test_sdist_carries_the_source_code_license(sdist):

@@ -114,6 +114,18 @@ def test_pyproject_lists_both_licenses_in_license_files():
     assert "LICENSE-OGL.txt" in license_files
 
 
+def test_pyproject_declares_the_source_code_license_as_a_machine_readable_expression():
+    # `license-files` ships the texts; it says nothing about which licence
+    # governs the code, so PyPI and `pip show` reported the package as
+    # unlicensed. The constitution states outright that source code is
+    # GPL-3.0 and that the package must clearly designate what is GPL
+    # code, and a licence a tool cannot read is not a designation a tool
+    # can act on. `-only`, not `-or-later`: nothing in this repository
+    # offers a later version.
+    pyproject = tomllib.loads((_repo_root() / "pyproject.toml").read_text(encoding="utf-8"))
+    assert pyproject["project"]["license"] == "GPL-3.0-only"
+
+
 def test_readme_contains_ogc_gpl_designation():
     text = " ".join((_repo_root() / "README.md").read_text(encoding="utf-8").split())
     assert "Open Game Content" in text
@@ -193,33 +205,57 @@ def test_the_guard_reads_a_compatibility_claim_as_a_claim():
             _assert_claim_carries_attribution(claim, "a synthetic claim")
 
 
-def test_section_15_game_data_line_covers_every_data_file_actually_present(
-    repo_root, section_15_notices
-):
-    # 002-rules-data-loading FR-047 and SC-016: derive what the game-data notice
-    # must cover from the data files actually present rather than comparing the
-    # chain against a fixed expected text. A check written the latter way passes
-    # unchanged when a file is added, which is exactly the failure this test
-    # exists to catch.
-    game_data_line = section_15_notices[-1]
-    covered_prefix = "src/cetools/data/"
-    assert (
-        covered_prefix in game_data_line
-    ), "the game-data notice must name the directory every shipped data file lives under"
+def _uncovered(paths, covered: tuple[str, ...]) -> list[str]:
+    """Which of `paths` falls under none of the paths the notice names."""
+    return [path for path in paths if not any(path.startswith(prefix) for prefix in covered)]
 
-    data_dir = repo_root / "src" / "cetools" / "data"
-    data_files = sorted(p.relative_to(repo_root) for p in data_dir.rglob("*.toml"))
-    assert data_files, "no data files found to derive coverage from"
-    for data_file in data_files:
-        # `as_posix`, not `str`: the notice names a POSIX path, and a Windows
-        # `str()` renders separators as backslashes, so this compares the
-        # notice against the same shape on every platform.
-        assert data_file.as_posix().startswith(
-            covered_prefix
-        ), f"{data_file} is not under the directory the game-data notice covers"
+
+def test_section_15_game_data_line_covers_every_open_game_content_file_present(
+    repo_root, section_15_notices, game_data_covered_paths
+):
+    # 002-rules-data-loading FR-047 and SC-016: derive what the game-data
+    # notice must cover from the files actually present rather than comparing
+    # the chain against a fixed expected text.
+    #
+    # The obligation set is every designated file under `src/`, not every file
+    # under the directory the notice happens to name: deriving it from a glob
+    # of the covered directory made the coverage assertion true by
+    # construction, and left an Open Game Content file shipped anywhere else
+    # covered by neither this check nor the designation guard in
+    # tests/guards/test_packaging.py, which filters on the same directory.
+    #
+    # `as_posix`, not `str`: the notice names POSIX paths, and a Windows
+    # `str()` renders separators as backslashes, so this compares the notice
+    # against the same shape on every platform.
+    designated = sorted(
+        path.relative_to(repo_root).as_posix()
+        for path in (repo_root / "src").rglob("*.toml")
+        if "Open Game Content" in path.read_text(encoding="utf-8")
+    )
+    assert designated, "no Open Game Content files found to derive coverage from"
+    uncovered = _uncovered(designated, game_data_covered_paths)
+    assert not uncovered, (
+        f"{uncovered} carry the Open Game Content designation but fall under none of the "
+        f"paths the game-data notice names: {list(game_data_covered_paths)}"
+    )
 
     text = " ".join((repo_root / "LICENSE-OGL.txt").read_text(encoding="utf-8").split())
-    assert game_data_line in text
+    assert section_15_notices[-1] in text
+
+
+def test_the_coverage_check_can_fail(repo_root, game_data_covered_paths):
+    # The rule this guard runs on, stated as a case, for the same reason the
+    # compatibility-claim guard states its own: the previous form of the check
+    # was a tautology, and a tautology reports success. Narrowing the notice
+    # back to the single file that shipped before this feature must fail it.
+    narrowed = ("src/cetools/data/tasks.toml",)
+    designated = sorted(
+        path.relative_to(repo_root).as_posix()
+        for path in (repo_root / "src").rglob("*.toml")
+        if "Open Game Content" in path.read_text(encoding="utf-8")
+    )
+    assert _uncovered(designated, narrowed), "a narrowed notice must leave files uncovered"
+    assert not _uncovered(designated, game_data_covered_paths)
 
 
 def test_packaged_tasks_toml_opens_with_ogc_designation_and_omits_pi_strings():

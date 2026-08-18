@@ -197,6 +197,133 @@ class TestMalformedEntries:
         assert result == CharacteristicAdjustment(characteristic="Pilot", amount=-1)
 
 
+class TestSpecialtyEndingInADigit:
+    """The tail is looked for after a specialty's closing parenthesis, so the
+    "trailing token contains a digit but matches no suffix form" heuristic
+    never sees the `)` of `Blade (Mark 2)`. contracts/notation.md admits any
+    run of non-parenthesis characters as a specialty's text, and the grant
+    form of the same specialty always parsed, so rejecting the bare form was
+    an over-rejection nothing had decided on (FR-006, FR-009).
+    """
+
+    def test_bare_reference_whose_specialty_ends_in_a_digit(self):
+        assert parse_entry("Blade (Mark 2)", EntryContext.SKILL_TABLE) == SkillReference(
+            name="Blade", specialty="Mark 2"
+        )
+
+    def test_the_grant_form_of_the_same_specialty_still_parses(self):
+        assert parse_entry("Blade (Mark 2) 1", EntryContext.SKILL_TABLE) == SkillGrant(
+            skill=SkillReference(name="Blade", specialty="Mark 2"), level=1
+        )
+
+    def test_bare_benefit_item_whose_specialty_ends_in_a_digit(self):
+        assert parse_entry("Weapon (Mark 2)", EntryContext.BENEFIT_TABLE) == BenefitItem(
+            name="Weapon (Mark 2)"
+        )
+
+    def test_text_after_the_specialty_group_is_still_malformed(self):
+        # Looking for the tail after the closing parenthesis must not let text
+        # beyond the specialty be dropped on the floor.
+        result = parse_entry("Blade (Mark 2) Extra", EntryContext.SKILL_TABLE)
+        assert isinstance(result, NotationProblem)
+
+    def test_a_suffix_after_a_specialty_that_matches_no_form_is_still_malformed(self):
+        result = parse_entry("Blade (Mark 2) x1", EntryContext.SKILL_TABLE)
+        assert isinstance(result, NotationProblem)
+
+
+class TestMalformedEntriesNameTheFormsTheirPositionAdmits:
+    """FR-009 requires a malformed entry to report "the forms that were
+    acceptable in that position", and FR-009a restates that as its reason for
+    existing. A context-free "one of the four notation forms" was not merely
+    incomplete but false: a gate admits one form and a benefits entry two.
+    """
+
+    _GATE_CASES = ["", "   ", "Pilot -", "Pilot (", "Pilot ()", "Pilot (A) (B)", "INT +4+", "2"]
+
+    @pytest.mark.parametrize("text", [*_GATE_CASES, "INT (Foo) 4+"])
+    def test_a_gate_names_its_one_form_and_never_claims_four(self, text):
+        result = parse_entry(text, EntryContext.GATE)
+        assert isinstance(result, NotationProblem)
+        assert result.expected.startswith("a characteristic check")
+        assert "four" not in result.expected
+
+    @pytest.mark.parametrize("text", [*_GATE_CASES, "SOC (Foo) -1"])
+    def test_a_benefit_table_names_its_two_forms(self, text):
+        result = parse_entry(text, EntryContext.BENEFIT_TABLE)
+        assert isinstance(result, NotationProblem)
+        assert result.expected.startswith("a characteristic adjustment or a bare benefit item")
+        assert "four" not in result.expected
+
+    @pytest.mark.parametrize("text", [*_GATE_CASES, "STR (Foo) +1"])
+    def test_a_skill_table_names_its_three_forms(self, text):
+        result = parse_entry(text, EntryContext.SKILL_TABLE)
+        assert isinstance(result, NotationProblem)
+        assert result.expected.startswith(
+            "a characteristic adjustment, a skill grant, or a bare skill reference"
+        )
+        assert "four" not in result.expected
+
+    def test_the_specific_malformation_survives_alongside_the_admissible_forms(self):
+        result = parse_entry("Pilot -", EntryContext.SKILL_TABLE)
+        assert isinstance(result, NotationProblem)
+        assert "a number after the sign" in result.expected
+
+
+class TestMalformedEntriesReportTheEntryAsWritten:
+    """FR-009 asks for "the entry as written". Every site but the empty-entry
+    one reported the stripped text, so an author who wrote trailing spaces was
+    shown an entry that is not the one in their file.
+    """
+
+    def test_a_malformed_entry_keeps_its_surrounding_whitespace(self):
+        result = parse_entry("  Pilot -  ", EntryContext.SKILL_TABLE)
+        assert isinstance(result, NotationProblem)
+        assert result.found == "  Pilot -  "
+
+    def test_an_inadmissible_form_keeps_its_surrounding_whitespace(self):
+        result = parse_entry("  INT 4+  ", EntryContext.SKILL_TABLE)
+        assert isinstance(result, NotationProblem)
+        assert result.found == "  INT 4+  "
+
+    def test_a_name_level_malformation_reports_the_whole_entry(self):
+        result = parse_entry("  Pilot (A) (B)  ", EntryContext.SKILL_TABLE)
+        assert isinstance(result, NotationProblem)
+        assert result.found == "  Pilot (A) (B)  "
+
+
+class TestBenefitItemMatchedAsWritten:
+    """FR-013 requires every name to be matched exactly, giving case folding
+    as the example of the quiet widening it forbids. Reassembling the name as
+    `f"{base} ({specialty})"` widened it the same way: one registry entry
+    answered to three written forms, and an item actually spelled
+    `Weapon(Blade)` could never be matched at all.
+    """
+
+    def test_the_canonical_spelling_is_unchanged(self):
+        assert parse_entry("Weapon (Blade)", EntryContext.BENEFIT_TABLE) == BenefitItem(
+            name="Weapon (Blade)"
+        )
+
+    def test_a_missing_space_is_not_normalized_into_the_canonical_form(self):
+        assert parse_entry("Weapon(Blade)", EntryContext.BENEFIT_TABLE) == BenefitItem(
+            name="Weapon(Blade)"
+        )
+
+    def test_a_doubled_space_is_not_collapsed(self):
+        assert parse_entry("Weapon  (Blade)", EntryContext.BENEFIT_TABLE) == BenefitItem(
+            name="Weapon  (Blade)"
+        )
+
+    def test_surrounding_whitespace_is_still_trimmed(self):
+        assert parse_entry("  Low Passage  ", EntryContext.BENEFIT_TABLE) == BenefitItem(
+            name="Low Passage"
+        )
+
+    def test_a_malformed_specialty_is_still_caught(self):
+        assert isinstance(parse_entry("Weapon ()", EntryContext.BENEFIT_TABLE), NotationProblem)
+
+
 class TestNoRegistryLookup:
     def test_unrecognized_characteristic_still_parses(self):
         # notation.py never consults a registry; INT vs XYZ are equally valid text.

@@ -38,7 +38,7 @@ _FOUR_PROBLEMS = (
     ValidationProblem(
         file="navy.toml",
         location="throws.survival.target",
-        found="str",
+        found="a string",
         expected="an integer",
     ),
     ValidationProblem(

@@ -32,8 +32,17 @@ def test_unrecognized_name(tmp_path):
     report = validate_rules(tmp_path)
     assert not report.valid
     # FR-013 asks for the registry the name was checked against, not merely
-    # that some registry rejected it.
-    assert any("Coms" in p.found and "skills registry" in p.expected for p in report.problems)
+    # that some registry rejected it. SC-002 asks for the file and, because
+    # this problem is not about the file as a whole, the location within it;
+    # without those two this could regress into a whole-file problem against
+    # any file and still pass.
+    assert any(
+        p.file == "navy.toml"
+        and p.location == "tables.service.entries[0]"
+        and "Coms" in p.found
+        and "skills registry" in p.expected
+        for p in report.problems
+    )
 
 
 def test_unrecognized_key(tmp_path):
@@ -49,7 +58,12 @@ def test_malformed_entry(tmp_path):
     _write(tmp_path, "navy.toml", text)
     report = validate_rules(tmp_path)
     assert not report.valid
-    assert any("Comms 2x" in p.found for p in report.problems)
+    assert any(
+        p.file == "navy.toml"
+        and p.location == "tables.service.entries[0]"
+        and "Comms 2x" in p.found
+        for p in report.problems
+    )
 
 
 def test_well_formed_entry_of_a_form_its_field_does_not_admit(tmp_path):
@@ -59,7 +73,25 @@ def test_well_formed_entry_of_a_form_its_field_does_not_admit(tmp_path):
     _write(tmp_path, "navy.toml", text)
     report = validate_rules(tmp_path)
     assert not report.valid
-    assert any("INT 4+" in p.found for p in report.problems)
+    assert any(
+        p.file == "navy.toml" and p.location == "tables.service.entries[0]" and "INT 4+" in p.found
+        for p in report.problems
+    )
+
+
+def test_a_specialty_given_for_a_skill_that_has_none(tmp_path):
+    # FR-007's first half end to end: the shipped registry declares `Comms`
+    # with no specialties, so `Comms (Radio)` must be reported distinguishably
+    # from an unrecognized skill name. The branch that builds that text was
+    # reached by no test outside the enum's own unit cases.
+    text = NAVY.replace('"Comms"', '"Comms (Radio)"', 1)
+    _write(tmp_path, "navy.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    matching = [p for p in report.problems if p.location == "tables.service.entries[0]"]
+    assert len(matching) == 1
+    assert matching[0].found == "Comms (Radio)"
+    assert "no specialties" in matching[0].expected
 
 
 def test_missing_required_element(tmp_path):
@@ -81,8 +113,31 @@ def test_wrong_value_type(tmp_path):
     report = validate_rules(tmp_path)
     assert not report.valid
     assert any(
-        p.location == "throws.survival.target" and p.found == "str" for p in report.problems
+        p.file == "navy.toml" and p.location == "throws.survival.target" and p.found == "a string"
+        for p in report.problems
     )
+
+
+@pytest.mark.parametrize(
+    ("literal", "found"),
+    [("true", "a boolean"), ("1.0", "a number"), ('"1"', "a string")],
+)
+def test_a_schema_version_of_the_wrong_type_is_a_type_problem(tmp_path, literal, found):
+    # Python equality makes `True == 1` and `1.0 == 1`, so comparing the
+    # declared version against the supported one without the type guard every
+    # other integer-valued field in the module carries let a career declaring
+    # `schema-version = true` pass the version gate and validate clean
+    # (FR-002, FR-020b).
+    text = NAVY.replace("schema-version = 1", f"schema-version = {literal}", 1)
+    assert text != NAVY
+    _write(tmp_path, "navy.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    from_navy = [p for p in report.problems if p.file == "navy.toml"]
+    assert len(from_navy) == 1
+    assert from_navy[0].location == "schema-version"
+    assert from_navy[0].found == found
+    assert "integer" in from_navy[0].expected
 
 
 def test_unsupported_schema_version_reports_nothing_else_from_that_file(tmp_path):
@@ -205,26 +260,49 @@ def test_two_careers_in_force_declare_the_same_name(tmp_path):
     _write(tmp_path, "scouts.toml", NAVY)
     report = validate_rules(tmp_path)
     assert not report.valid
-    assert any(
-        "Navy" in p.found
-        and "navy.toml" in p.file
-        and "scouts.toml" in p.file
-        and p.location == ""
-        for p in report.problems
-    )
+    matching = [p for p in report.problems if "Navy" in p.found]
+    assert len(matching) == 1
+    assert matching[0].file == "navy.toml"
+    assert matching[0].location == ""
+    assert "navy.toml" in matching[0].found and "scouts.toml" in matching[0].found
 
 
 def test_two_files_declare_the_same_single_instance_kind(tmp_path):
     _write(tmp_path, "characteristics2.toml", CHARACTERISTICS)
     report = validate_rules(tmp_path)
     assert not report.valid
-    assert any(
-        "characteristics" in p.found
-        and "characteristics.toml" in p.file
-        and "characteristics2.toml" in p.file
-        and p.location == ""
-        for p in report.problems
-    )
+    matching = [p for p in report.problems if "declared by" in p.found]
+    assert len(matching) == 1
+    assert matching[0].file == "characteristics.toml"
+    assert matching[0].location == ""
+    assert "characteristics.toml" in matching[0].found
+    assert "characteristics2.toml" in matching[0].found
+
+
+def test_a_problem_naming_two_files_still_carries_one_composition_key(tmp_path):
+    # contracts/json-output.md and data-model.md type `problems[].file` as the
+    # composition key of *the* file, singular, and contracts/cli.md justifies
+    # the text line's shape on the grounds that leading with the file makes
+    # the report greppable. Joining two names into that field gives a consumer
+    # grouping by key a phantom key matching no file, and one filtering for
+    # `navy.toml` misses the problem entirely. FR-019b and FR-010a are
+    # satisfied by naming both files in `found`, which is what FR-029a's
+    # duplicate-basename problem already does.
+    _write(tmp_path, "scouts.toml", NAVY)
+    _write(tmp_path, "characteristics2.toml", CHARACTERISTICS)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    composed = {
+        "tasks.toml",
+        "characteristics.toml",
+        "characteristics2.toml",
+        "skills.toml",
+        "benefits.toml",
+        "navy.toml",
+        "scouts.toml",
+    }
+    for problem in report.problems:
+        assert problem.file in composed, problem
 
 
 def test_a_single_instance_kind_is_absent(tmp_path, monkeypatch):

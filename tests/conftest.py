@@ -82,6 +82,27 @@ def section_15_notices() -> tuple[str, ...]:
     return SECTION_15_NOTICES
 
 
+_NOTICE_PATH = re.compile(r"\(([^()]+)\)")
+
+
+@pytest.fixture
+def game_data_covered_paths(section_15_notices) -> tuple[str, ...]:
+    """The source paths this project's own game-data notice names.
+
+    Read out of the notice rather than written into a test, because SC-016
+    requires the coverage check to derive what must be covered from what is
+    actually shipped. A check that globs the covered directory and then
+    asserts every result sits under it is true by construction, which is the
+    tautology FR-047 exists to remove. Shared by the working-tree guard in
+    `tests/unit/test_licensing.py` and the built-artifact guards in
+    `tests/guards/test_packaging.py`, which differ only in where they get the
+    file list.
+    """
+    covered = tuple(_NOTICE_PATH.findall(section_15_notices[-1]))
+    assert covered, "the game-data notice names no path, so it covers nothing"
+    return covered
+
+
 @pytest.fixture(autouse=True)
 def _clear_rules_cache():
     from cetools.rules import load_rules

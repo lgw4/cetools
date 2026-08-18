@@ -101,6 +101,25 @@ class TestSkillRegistry:
         assert registry is None
         assert problems[0].location == "skills.Blade[1]"
 
+    def test_every_non_string_specialty_is_reported_not_only_the_first(self):
+        # FR-021 collects everything and SC-003 requires the number of runs
+        # needed to find every problem in a file to be one. Reporting the
+        # first offending element alone made this the one field where fixing
+        # the reported mistake revealed the next one on the following run,
+        # while `parse_benefits` and `parse_characteristics` both loop.
+        data = {
+            "schema": "skills",
+            "schema-version": 1,
+            "skills": {"Blade": ["Cutlass", 5, 7, 9]},
+        }
+        registry, problems = parse_skills(data, "skills.toml")
+        assert registry is None
+        assert [p.location for p in problems] == [
+            "skills.Blade[1]",
+            "skills.Blade[2]",
+            "skills.Blade[3]",
+        ]
+
     def test_unrecognized_top_level_key_is_a_problem(self):
         data = {
             "schema": "skills",

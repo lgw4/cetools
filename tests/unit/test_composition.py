@@ -102,6 +102,103 @@ def test_a_broken_symlink_in_an_override_is_reported_rather_than_passed_over(tmp
     assert "read" in navy_problems[0].found
 
 
+def test_a_file_behind_a_symlinked_directory_is_collected(tmp_path):
+    # `Path.rglob` defaults to `recurse_symlinks=False`, so a whole subtree
+    # reached through a symlinked directory composed nothing while the run
+    # reported `packaged` and exited 0 — the author's house rules entirely
+    # out of force while the run appears to succeed, which is verbatim the
+    # failure FR-028 exists to remove.
+    real = tmp_path / "real"
+    real.mkdir()
+    shutil.copy(NAVY, real / "navy.toml")
+    override = tmp_path / "override"
+    override.mkdir()
+    (override / "linked").symlink_to(real, target_is_directory=True)
+    report = validate_rules(override)
+    assert report.valid, report.problems
+    assert [fp.file for fp in report.provenance.files] == ["navy.toml"]
+
+
+@pytest.mark.skipif(
+    hasattr(os, "geteuid") and os.geteuid() == 0,
+    reason="root lists a mode-000 directory regardless of its mode",
+)
+def test_a_subdirectory_that_cannot_be_listed_is_reported_rather_than_passed_over(tmp_path):
+    # `rglob` swallows the `OSError`, so an unlistable subtree was the one
+    # traversal failure that got exactly the treatment `_collect_entry`'s
+    # comment rejects for a single unreadable file (FR-020a, FR-022).
+    closed = tmp_path / "closed"
+    closed.mkdir()
+    shutil.copy(NAVY, closed / "navy.toml")
+    closed.chmod(0o000)
+    try:
+        report = validate_rules(tmp_path)
+    finally:
+        closed.chmod(0o700)
+    assert not report.valid
+    assert any("closed" in p.file and p.location == "" for p in report.problems)
+
+
+@pytest.mark.skipif(
+    hasattr(os, "geteuid") and os.geteuid() == 0,
+    reason="root lists a mode-000 directory regardless of its mode",
+)
+def test_an_override_root_that_cannot_be_listed_is_reported(tmp_path):
+    root = tmp_path / "root"
+    root.mkdir()
+    shutil.copy(NAVY, root / "navy.toml")
+    root.chmod(0o000)
+    try:
+        report = validate_rules(root)
+    finally:
+        root.chmod(0o700)
+    assert not report.valid
+    assert any(p.location == "" and "listed" in p.found for p in report.problems)
+
+
+def test_a_dot_prefixed_directory_is_passed_over_with_everything_under_it(tmp_path):
+    # FR-032b draws its line at authorship, and a git checkout is the obvious
+    # way to share a rule set: `.git/HEAD` and `.git/config` were written by
+    # no author, and a report full of them is a report that stops being read.
+    git = tmp_path / ".git"
+    git.mkdir()
+    (git / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+    (git / "config").write_text("[core]\n", encoding="utf-8")
+    (git / "hooks").mkdir()
+    (git / "hooks" / "applypatch-msg.sample").write_text("#!/bin/sh\n", encoding="utf-8")
+    report = validate_rules(tmp_path)
+    assert report.valid
+    assert report.provenance.ignored == ()
+    assert report.provenance.is_packaged
+
+
+def test_a_toml_file_under_a_dot_prefixed_directory_does_not_compose(tmp_path):
+    # The other half: following the letter of FR-032b let `.hidden/navy.toml`
+    # replace the packaged Navy career and be reported as `replaced`.
+    hidden = tmp_path / ".hidden"
+    hidden.mkdir()
+    shutil.copy(NAVY, hidden / "navy.toml")
+    report = validate_rules(tmp_path)
+    assert report.valid
+    assert report.provenance.files == ()
+    assert report.provenance.is_packaged
+
+
+def test_every_ignored_file_is_named_not_every_distinct_basename(tmp_path):
+    # FR-035 requires any file FR-032a marks ignored to be named,
+    # unconditionally, and FR-032a's whole bargain is that admitting an
+    # unrecognized filename is paid for by reporting it. Accumulating
+    # basenames in a set reported one of two author-written files under the
+    # other's name, which is not reporting it.
+    (tmp_path / "a").mkdir()
+    (tmp_path / "b").mkdir()
+    (tmp_path / "a" / "notes.md").write_text("first", encoding="utf-8")
+    (tmp_path / "b" / "notes.md").write_text("second", encoding="utf-8")
+    report = validate_rules(tmp_path)
+    assert report.valid
+    assert report.provenance.ignored == ("a/notes.md", "b/notes.md")
+
+
 def test_two_override_files_sharing_a_basename_is_a_problem_naming_both(tmp_path):
     (tmp_path / "a").mkdir()
     (tmp_path / "b").mkdir()
@@ -131,4 +228,13 @@ def test_a_single_file_override_composes_exactly_as_a_directory_holding_it_alone
     directory_result = validate_rules(tmp_path)
     file_result = validate_rules(tmp_path / "navy.toml")
     assert directory_result.valid == file_result.valid
+    # The content is byte-identical to the packaged file, and the spec's Edge
+    # Case requires it to be recorded as overridden all the same, "because
+    # provenance describes where content came from, not whether it differs".
+    # Comparing the two tuples alone holds vacuously if both are empty, so an
+    # implementation that compared content and composed this as packaged would
+    # satisfy it (FR-035).
+    assert [(fp.file, fp.disposition) for fp in directory_result.provenance.files] == [
+        ("navy.toml", Disposition.REPLACED)
+    ]
     assert directory_result.provenance.files == file_result.provenance.files

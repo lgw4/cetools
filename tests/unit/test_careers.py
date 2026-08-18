@@ -396,6 +396,27 @@ class TestNonEmptyTables:
         career, problems = parse_career(data, FILE, characteristics, skills, benefits)
         assert career is None
 
+    def test_empty_ranks_array_is_rejected(self, valid_data, characteristics, skills, benefits):
+        # FR-016: "A ladder MUST carry at least one rank." The sibling cases
+        # above were covered and this one was not, which makes the gap
+        # asymmetric rather than a drawn line.
+        data = copy.deepcopy(valid_data)
+        data["ladders"][0]["ranks"] = []
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "ladders[0].ranks" in _problem_locations(problems)
+
+    def test_empty_mustering_out_benefits_array_is_rejected(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        # FR-017: cash and benefits are both required and "both MUST declare
+        # at least one entry".
+        data = copy.deepcopy(valid_data)
+        data["mustering-out"]["benefits"] = []
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "mustering-out.benefits" in _problem_locations(problems)
+
 
 class TestNotationBearingFieldsValidatedAgainstRegistry:
     def test_unrecognized_skill_in_service_table(
@@ -470,6 +491,232 @@ class TestPlainNumericFieldsNeverRoutedThroughNotation:
         data["mustering-out"]["cash"][0] = -1
         career, problems = parse_career(data, FILE, characteristics, skills, benefits)
         assert career is None
+
+
+class TestGateIsOptionalOnEveryTable:
+    """FR-015 says in terms that "the gate is optional on every table rather
+    than fixed to one of them". Every gate in the suite and in the shipped
+    data sat on `advanced-education`, so restricting `requires` to that one
+    table left the whole suite passing.
+    """
+
+    @pytest.mark.parametrize("table", ["personal", "service", "advanced"])
+    def test_a_gate_on_a_table_other_than_advanced_education(
+        self, valid_data, characteristics, skills, benefits, table
+    ):
+        data = copy.deepcopy(valid_data)
+        data["tables"][table]["requires"] = "EDU 8+"
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert problems == ()
+        assert career.tables[table].requires == CharacteristicCheck(characteristic="EDU", target=8)
+
+
+class TestRequiredSubKeys:
+    """The seam between FR-019's top-level enumeration, which SC-004 tests
+    exhaustively, and the per-object tables in contracts/data-files.md. Each
+    of these keys is required there and nothing noticed it becoming optional.
+    """
+
+    def test_a_throw_without_a_target_is_rejected(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        # FR-014: "The target is required."
+        data = copy.deepcopy(valid_data)
+        del data["throws"]["qualification"]["target"]
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "throws.qualification.target" in _problem_locations(problems)
+
+    def test_a_rank_without_its_position_is_rejected(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        # FR-016: each rank carries "its position".
+        data = copy.deepcopy(valid_data)
+        del data["ladders"][0]["ranks"][0]["rank"]
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "ladders[0].ranks[0].rank" in _problem_locations(problems)
+
+    def test_a_rank_without_its_title_is_rejected(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        # FR-016: each rank carries "its title".
+        data = copy.deepcopy(valid_data)
+        del data["ladders"][0]["ranks"][0]["title"]
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "ladders[0].ranks[0].title" in _problem_locations(problems)
+
+    def test_a_ladder_without_a_name_is_rejected(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        data = copy.deepcopy(valid_data)
+        del data["ladders"][0]["name"]
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "ladders[0].name" in _problem_locations(problems)
+
+
+class TestKeyClosureWithinEachObject:
+    """FR-020 exists because a misspelled key "would otherwise leave the throw
+    or table that key configures silently inoperative". The closed sets of
+    throw names and table names are pinned above; the key closure *within*
+    each object was not, so a misspelled `charactristic` inside a throw was
+    caught by nothing a regression would trip.
+    """
+
+    def test_an_unrecognized_key_at_the_career_top_level(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        data = copy.deepcopy(valid_data)
+        data["laders"] = []
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "laders" in _problem_locations(problems)
+
+    def test_an_unrecognized_key_inside_a_throw(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        data = copy.deepcopy(valid_data)
+        data["throws"]["qualification"]["charactristic"] = "INT"
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "throws.qualification.charactristic" in _problem_locations(problems)
+
+    def test_an_unrecognized_key_inside_a_skill_table(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        data = copy.deepcopy(valid_data)
+        data["tables"]["service"]["require"] = "EDU 8+"
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "tables.service.require" in _problem_locations(problems)
+
+    def test_an_unrecognized_key_inside_a_rank(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        data = copy.deepcopy(valid_data)
+        data["ladders"][0]["ranks"][0]["titel"] = "Able Spacehand"
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "ladders[0].ranks[0].titel" in _problem_locations(problems)
+
+    def test_an_unrecognized_key_inside_a_ladder(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        data = copy.deepcopy(valid_data)
+        data["ladders"][0]["rank"] = []
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "ladders[0].rank" in _problem_locations(problems)
+
+
+class TestBareNameValidatedAgainstItsPositionsRegistryAndNoOther:
+    """FR-005 states the requirement together with its reason: "so that a skill
+    name is never accepted because it happens to appear in the benefit items
+    registry". Rejecting names absent from *both* registries left an
+    implementation that consulted both and accepted a name found in either
+    passing every test in the suite.
+    """
+
+    def test_a_benefits_only_name_in_a_skill_table_is_rejected(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        assert "Low Passage" in benefits
+        assert "Low Passage" not in skills.skills
+        data = copy.deepcopy(valid_data)
+        data["tables"]["service"]["entries"][0] = "Low Passage"
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        matching = [p for p in problems if p.location == "tables.service.entries[0]"]
+        assert len(matching) == 1
+        assert "skills registry" in matching[0].expected
+
+    def test_a_skills_only_name_in_a_benefits_table_is_rejected(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        assert "Vacc Suit" in skills.skills
+        assert "Vacc Suit" not in benefits
+        data = copy.deepcopy(valid_data)
+        data["mustering-out"]["benefits"][0] = "Vacc Suit"
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        matching = [p for p in problems if p.location == "mustering-out.benefits[0]"]
+        assert len(matching) == 1
+        assert "benefits registry" in matching[0].expected
+
+    def test_a_name_in_both_registries_is_accepted_in_either_position(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        # The spec's Edge Case about one name in two registries rests on the
+        # same guarantee: position selects the registry, so "Blade" resolves
+        # in both without either lookup consulting the other.
+        assert "Blade" in benefits and "Blade" in skills.skills
+        data = copy.deepcopy(valid_data)
+        data["tables"]["service"]["entries"][0] = "Blade"
+        data["mustering-out"]["benefits"][0] = "Blade"
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert problems == ()
+
+
+class TestThreeDistinguishableSkillProblems:
+    """FR-007 requires a specialty given for a skill that has none, and a
+    specialty the registry does not list for that skill, to be "reported
+    distinguishably from an unrecognized skill name". That is a claim about
+    the reported problem, not about the `SkillResolution` enum, and the three
+    branches that build the text were pinned nowhere.
+    """
+
+    def _problem(self, data, characteristics, skills, benefits, location):
+        _, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        matching = [p for p in problems if p.location == location]
+        assert len(matching) == 1, problems
+        return matching[0]
+
+    def test_a_specialty_given_for_a_skill_that_has_none(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        assert skills.skills["Admin"] == ()
+        data = copy.deepcopy(valid_data)
+        data["tables"]["service"]["entries"][0] = "Admin (Legal)"
+        problem = self._problem(
+            data, characteristics, skills, benefits, "tables.service.entries[0]"
+        )
+        assert problem.found == "Admin (Legal)"
+        assert "no specialties" in problem.expected
+
+    def test_a_specialty_the_registry_does_not_list_for_that_skill(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        data = copy.deepcopy(valid_data)
+        data["tables"]["service"]["entries"][0] = "Blade (Chainsaw)"
+        problem = self._problem(
+            data, characteristics, skills, benefits, "tables.service.entries[0]"
+        )
+        assert problem.found == "Blade (Chainsaw)"
+        assert "a specialty the skills registry gives Blade" == problem.expected
+
+    def test_an_unrecognized_skill_name(self, valid_data, characteristics, skills, benefits):
+        data = copy.deepcopy(valid_data)
+        data["tables"]["service"]["entries"][0] = "Vac Suit"
+        problem = self._problem(
+            data, characteristics, skills, benefits, "tables.service.entries[0]"
+        )
+        assert problem.found == "Vac Suit"
+        assert problem.expected == "a name in the skills registry"
+
+    def test_the_three_are_pairwise_distinguishable(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        reported = set()
+        for entry in ("Admin (Legal)", "Blade (Chainsaw)", "Vac Suit"):
+            data = copy.deepcopy(valid_data)
+            data["tables"]["service"]["entries"][0] = entry
+            problem = self._problem(
+                data, characteristics, skills, benefits, "tables.service.entries[0]"
+            )
+            reported.add((problem.found, problem.expected))
+        assert len(reported) == 3
 
 
 class TestSpecialtyDistinguishableInLoadedData:

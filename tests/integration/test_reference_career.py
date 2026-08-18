@@ -5,7 +5,8 @@ shipped file and observing a specific rejection naming what is missing.
 
 from pathlib import Path
 
-from cetools.rules import validate_rules
+from cetools.notation import CharacteristicCheck
+from cetools.rules import load_rules, validate_rules
 
 NAVY = (
     Path(__file__).resolve().parents[2] / "src" / "cetools" / "data" / "careers" / "navy.toml"
@@ -120,6 +121,16 @@ def test_removing_mustering_out_benefits_is_rejected(tmp_path):
         '"High Passage", "Explorers\' Society"]\n',
         location="mustering-out.benefits",
     )
+
+
+def test_the_reference_career_carries_a_characteristic_gate():
+    # FR-018 names a characteristic-gated table among the elements the shipped
+    # career must exercise. It is the one element of that list SC-004's
+    # remove-and-expect-a-rejection method cannot reach, a gate being optional,
+    # so deleting `requires = "EDU 8+"` from navy.toml left the whole suite
+    # passing and the requirement proved by nothing.
+    gate = load_rules().careers["navy"].tables["advanced-education"].requires
+    assert gate == CharacteristicCheck(characteristic="EDU", target=8)
 
 
 def test_the_packaged_reference_career_itself_validates_cleanly():

@@ -1,10 +1,20 @@
 import re
+from pathlib import Path
 
 import pytest
 
 from cetools.errors import RulesDataError, TaskError
 from cetools.rules import load_rules, parse_task_parameters, validate_rules
 from cetools.tasks import Band
+
+CHARACTERISTICS = (
+    Path(__file__).resolve().parents[2]
+    / "src"
+    / "cetools"
+    / "data"
+    / "registries"
+    / "characteristics.toml"
+).read_text(encoding="utf-8")
 
 VALID_TOML = """
 schema = "task-parameters"
@@ -89,7 +99,7 @@ def test_non_integer_target_reports_a_problem_locating_the_field():
     data = tomllib.loads(text)
     parameters, problems = parse_task_parameters(data, "tasks.toml")
     assert parameters is None
-    assert any(p.location == "task.target" and p.found == "str" for p in problems)
+    assert any(p.location == "task.target" and p.found == "a string" for p in problems)
 
 
 def test_unparseable_roll_reports_a_problem():
@@ -243,6 +253,41 @@ def test_load_rules_accepts_str_or_path_override(tmp_path):
     report_from_path = validate_rules(tmp_path)
     report_from_str = validate_rules(str(tmp_path))
     assert report_from_path.valid == report_from_str.valid
+
+
+def test_a_supported_schema_version_is_counted_per_kind(tmp_path, monkeypatch):
+    # FR-002a states the claim: "a change to one kind's shape MUST NOT
+    # invalidate a user-supplied file of a kind whose shape did not change".
+    # It is the sole justification the spec's Assumptions give for the version
+    # field existing at all, and with every file in the suite declaring
+    # version 1 for every kind, nothing could falsify it.
+    from cetools import rules as rules_module
+
+    monkeypatch.setitem(rules_module._SUPPORTED_VERSION, "characteristics", 2)
+    (tmp_path / "characteristics.toml").write_text(
+        CHARACTERISTICS.replace("schema-version = 1", "schema-version = 2", 1), encoding="utf-8"
+    )
+    report = validate_rules(tmp_path)
+    assert report.valid, report.problems
+
+
+def test_raising_one_kinds_version_rejects_that_kinds_file_and_no_others(tmp_path, monkeypatch):
+    # The same claim from the other side: with characteristics at 2 and every
+    # packaged file still declaring 1, the characteristics registry is the only
+    # file whose version is refused, and the files of the untouched kinds
+    # validate as they did. navy.toml is not among those, because a rejected
+    # characteristics registry cascades into every name it would have
+    # resolved — which is research R13's deliberate choice, not a version
+    # judgement about the career.
+    from cetools import rules as rules_module
+
+    monkeypatch.setitem(rules_module._SUPPORTED_VERSION, "characteristics", 2)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    version_problems = [p for p in report.problems if p.expected.startswith("version ")]
+    assert [p.file for p in version_problems] == ["characteristics.toml"]
+    for untouched in ("tasks.toml", "skills.toml", "benefits.toml"):
+        assert not [p for p in report.problems if p.file == untouched]
 
 
 def test_supported_schema_version_is_a_literal_not_derived_from_package_version():
