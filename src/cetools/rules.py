@@ -20,7 +20,7 @@ from types import MappingProxyType
 
 from cetools.careers import CareerDefinition
 from cetools.careers import parse_career as _parse_career
-from cetools.errors import RulesDataError, ValidationProblem
+from cetools.errors import RulesDataError, ValidationProblem, type_name
 from cetools.provenance import (
     Disposition,
     FileProvenance,
@@ -125,7 +125,7 @@ def parse_task_parameters(
             ValidationProblem(
                 file=file,
                 location="task",
-                found="missing" if task is None else type(task).__name__,
+                found="missing" if task is None else type_name(task),
                 expected="a [task] table",
             )
         )
@@ -147,7 +147,7 @@ def parse_task_parameters(
             ValidationProblem(
                 file=file,
                 location="task.roll",
-                found=type(task["roll"]).__name__,
+                found=type_name(task["roll"]),
                 expected="a string",
             )
         )
@@ -173,9 +173,7 @@ def parse_task_parameters(
                 file=file,
                 location="difficulty-dms",
                 found=(
-                    "missing"
-                    if dd is None
-                    else ("an empty table" if dd == {} else type(dd).__name__)
+                    "missing" if dd is None else ("an empty table" if dd == {} else type_name(dd))
                 ),
                 expected="a [difficulty-dms] table with at least one entry",
             )
@@ -189,7 +187,7 @@ def parse_task_parameters(
                     ValidationProblem(
                         file=file,
                         location=f"difficulty-dms.{name}",
-                        found=type(value).__name__,
+                        found=type_name(value),
                         expected="an integer",
                     )
                 )
@@ -216,9 +214,7 @@ def parse_task_parameters(
                 file=file,
                 location="characteristic-dms",
                 found=(
-                    "missing"
-                    if cd is None
-                    else ("an empty table" if cd == {} else type(cd).__name__)
+                    "missing" if cd is None else ("an empty table" if cd == {} else type_name(cd))
                 ),
                 expected="a [characteristic-dms] table with at least one entry",
             )
@@ -232,7 +228,7 @@ def parse_task_parameters(
                     ValidationProblem(
                         file=file,
                         location=f"characteristic-dms.{key}",
-                        found=type(value).__name__,
+                        found=type_name(value),
                         expected="an integer",
                     )
                 )
@@ -298,7 +294,7 @@ def _require_int(
     if not isinstance(value, int) or isinstance(value, bool):
         problems.append(
             ValidationProblem(
-                file=file, location=location, found=type(value).__name__, expected="an integer"
+                file=file, location=location, found=type_name(value), expected="an integer"
             )
         )
         return None
@@ -356,6 +352,22 @@ def _packaged_kind_map(packaged: dict[str, bytes]) -> dict[str, str]:
 # --- composition ---------------------------------------------------------------
 
 
+def _unlistable(name: str, exc: OSError) -> ValidationProblem:
+    """A directory that is present but cannot be listed, reported the way an
+    unreadable file is (FR-020a, FR-022).
+
+    Passing it over instead would leave every house rule beneath it silently
+    out of force while the run reported `packaged` and exited 0, which is the
+    failure FR-028 exists to remove — and is exactly the treatment
+    `_collect_entry` below refuses to give a single unreadable file.
+    """
+    return ValidationProblem(
+        file=name,
+        found=f"a directory that could not be listed: {exc.strerror or exc}",
+        expected="a readable directory",
+    )
+
+
 def _collect_entry(
     path: Path,
     relative: str,
@@ -367,7 +379,11 @@ def _collect_entry(
     if basename.startswith("."):
         return
     if not basename.endswith(".toml"):
-        ignored.add(basename)
+        # Keyed by the path within the override, not the basename: FR-035
+        # requires any file FR-032a marks ignored to be named, and two
+        # author-written `notes.md` in different directories reported under
+        # one name leave one of them named nowhere.
+        ignored.add(relative)
         return
     try:
         data = path.read_bytes()
@@ -375,6 +391,53 @@ def _collect_entry(
         problems.append(_unreadable(basename, exc))
         return
     candidates[basename].append((relative, data))
+
+
+def _walk_override(root: Path, problems: list[ValidationProblem]):
+    """Yield every non-directory entry under `root`, at any depth, with its
+    path relative to `root`.
+
+    Walked with `iterdir` rather than `Path.rglob`, which defaults to
+    `recurse_symlinks=False` and swallows `OSError`: a subtree behind a
+    symlinked directory composed nothing, and an unlistable directory was
+    passed over in silence, both while the run reported `packaged` and exited
+    0 (FR-028, FR-029).
+
+    A dot-prefixed directory is passed over whole here; the same carve-out for
+    a dot-prefixed *file* lives in `_collect_entry`, which the single-file
+    override path reaches too. FR-032b's line is drawn at authorship, and
+    applying it to a file's own name alone put eighteen `ignored` lines from a
+    `.git/` checkout into the report of anyone sharing a rule set the obvious
+    way, while letting `.hidden/navy.toml` compose silently as a replacement.
+    `.git/config` was written by no author.
+
+    Symlinked directories are followed, which is the point, so directories
+    already visited are skipped by identity: without that a link pointing at
+    its own ancestor walks until the kernel runs out of path.
+    """
+    stack = [root]
+    seen: set[tuple[int, int]] = set()
+    while stack:
+        directory = stack.pop()
+        try:
+            identity = directory.stat()
+            entries = sorted(directory.iterdir())
+        except OSError as exc:
+            name = str(root) if directory == root else directory.relative_to(root).as_posix()
+            problems.append(_unlistable(name, exc))
+            continue
+        if (key := (identity.st_dev, identity.st_ino)) in seen:
+            continue
+        seen.add(key)
+        for entry in entries:
+            if entry.is_dir():
+                if not entry.name.startswith("."):
+                    stack.append(entry)
+            else:
+                # Not `is_file()`: a broken symlink is neither a file nor a
+                # directory, and passing it over would leave a misnamed house
+                # rule silently out of force. Reading it reports it instead.
+                yield entry, entry.relative_to(root).as_posix()
 
 
 def _compose(
@@ -404,13 +467,8 @@ def _compose(
     if override_path.is_file():
         _collect_entry(override_path, override_path.name, candidates, ignored, problems)
     else:
-        for entry in sorted(override_path.rglob("*")):
-            # Not `is_file()`: a broken symlink is neither a file nor a
-            # directory, and passing it over would leave a misnamed house rule
-            # silently out of force. Reading it reports it instead.
-            if not entry.is_dir():
-                relative = str(entry.relative_to(override_path))
-                _collect_entry(entry, relative, candidates, ignored, problems)
+        for entry, relative in _walk_override(override_path, problems):
+            _collect_entry(entry, relative, candidates, ignored, problems)
 
     accepted: dict[str, bytes] = {}
     for basename, items in sorted(candidates.items()):
@@ -526,6 +584,24 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
 
         declared_version = toml_data.get("schema-version")
         supported = _SUPPORTED_VERSION[kind]
+        # Typed before it is compared, because `True == 1` and `1.0 == 1`: a
+        # file declaring `schema-version = true` passed the version gate and
+        # validated clean, while `schema-version = "1"` was refused as a
+        # mismatch rather than as the wrong type. Every other integer-valued
+        # field in this module carries the same guard (FR-002, FR-020b).
+        if "schema-version" in toml_data and (
+            not isinstance(declared_version, int) or isinstance(declared_version, bool)
+        ):
+            problems.append(
+                ValidationProblem(
+                    file=basename,
+                    location="schema-version",
+                    found=type_name(declared_version),
+                    expected="an integer",
+                )
+            )
+            rejected_slots |= _singleton_slots(basename, kind, packaged_kind)
+            continue
         if declared_version != supported:
             problems.append(
                 ValidationProblem(
@@ -570,10 +646,20 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
                     )
                 )
         elif len(declarers) > 1:
+            # `file` stays one composition key and the declarers are named in
+            # `found`, which is the shape FR-029a's duplicate-basename problem
+            # already uses. Joining the names into `file` gave a consumer
+            # grouping by composition key a phantom key matching no file, and
+            # one filtering for a name missed the problem entirely, against
+            # what contracts/json-output.md and data-model.md type that field
+            # as (FR-010a, FR-022).
             problems.append(
                 ValidationProblem(
-                    file=", ".join(declarers),
-                    found=f"kind {kind!r} declared by {len(declarers)} files",
+                    file=declarers[0],
+                    found=(
+                        f"kind {kind!r} declared by {len(declarers)} files: "
+                        f"{', '.join(declarers)}"
+                    ),
                     expected=f"exactly one file declaring kind {kind!r}",
                 )
             )
@@ -623,11 +709,13 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
         if career is None:
             continue
         if career.name in career_names_seen:
-            other = career_names_seen[career.name]
+            # One composition key in `file`, both files named in `found`; see
+            # the single-instance-kind problem above for why (FR-019b, FR-022).
+            both = sorted((basename, career_names_seen[career.name]))
             problems.append(
                 ValidationProblem(
-                    file=", ".join(sorted((basename, other))),
-                    found=f"both declare the name {career.name!r}",
+                    file=both[0],
+                    found=f"both declare the name {career.name!r}: {', '.join(both)}",
                     expected="a name distinct across careers in force",
                 )
             )

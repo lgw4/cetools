@@ -19,6 +19,36 @@ class DiceError(CetoolsError):
     """
 
 
+_TOML_TYPE_NAMES = {
+    bool: "a boolean",
+    int: "an integer",
+    float: "a number",
+    str: "a string",
+    list: "an array",
+    dict: "a table",
+}
+
+
+def type_name(value: object) -> str:
+    """Name a value's type the way the data files spell it, for the `found`
+    half of a type problem (FR-020b).
+
+    The rest of a problem line is TOML's vocabulary in English -- "a [task]
+    table", "an empty array", "a non-empty string" -- so a bare Python type
+    name was the one word in a report that named the implementation rather
+    than the file the author is looking at, and `dict` and `list` are not
+    words TOML uses at all. Settled here rather than at each site so the
+    three schema modules cannot drift apart.
+
+    Keyed on the exact type, which is what keeps `bool` from answering as an
+    integer it subclasses. Anything unmapped falls back to the Python name
+    rather than guessing: TOML's date and time types reach no field in this
+    schema, and inventing a word for them would be worse than saying which
+    type was actually seen.
+    """
+    return _TOML_TYPE_NAMES.get(type(value), type(value).__name__)
+
+
 @dataclass(frozen=True, slots=True, order=True)
 class ValidationProblem:
     """One thing wrong with one rules data file.

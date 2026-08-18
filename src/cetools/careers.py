@@ -13,7 +13,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 
-from cetools.errors import ValidationProblem
+from cetools.errors import ValidationProblem, type_name
 from cetools.notation import (
     BenefitItem,
     CharacteristicAdjustment,
@@ -114,7 +114,7 @@ def _require_dict(
     if not isinstance(value, dict):
         problems.append(
             ValidationProblem(
-                file=file, location=location, found=type(value).__name__, expected=expected
+                file=file, location=location, found=type_name(value), expected=expected
             )
         )
         return None
@@ -135,7 +135,7 @@ def _require_string(
         return None
     value = container[key]
     if not isinstance(value, str) or not value:
-        found = type(value).__name__ if not isinstance(value, str) else "an empty string"
+        found = type_name(value) if not isinstance(value, str) else "an empty string"
         problems.append(
             ValidationProblem(
                 file=file, location=location, found=found, expected="a non-empty string"
@@ -163,7 +163,7 @@ def _require_int(
     if not isinstance(value, int) or isinstance(value, bool):
         problems.append(
             ValidationProblem(
-                file=file, location=location, found=type(value).__name__, expected="an integer"
+                file=file, location=location, found=type_name(value), expected="an integer"
             )
         )
         return None
@@ -188,7 +188,7 @@ def _notation_field(
 ) -> object | ValidationProblem:
     if not isinstance(value, str):
         return ValidationProblem(
-            file=file, location=location, found=type(value).__name__, expected="a notation string"
+            file=file, location=location, found=type_name(value), expected="a notation string"
         )
 
     parsed = parse_entry(value, context)
@@ -281,7 +281,7 @@ def _parse_throw(
                 ValidationProblem(
                     file=file,
                     location=f"{location}.characteristic",
-                    found=type(code).__name__,
+                    found=type_name(code),
                     expected="a string",
                 )
             )
@@ -312,7 +312,7 @@ def _parse_throws(
     if not isinstance(raw, dict):
         problems.append(
             ValidationProblem(
-                file=file, location="throws", found=type(raw).__name__, expected="a throws table"
+                file=file, location="throws", found=type_name(raw), expected="a throws table"
             )
         )
         return {}
@@ -383,9 +383,7 @@ def _parse_skill_table(
         raw_entries = table["entries"]
         if not isinstance(raw_entries, list) or not raw_entries:
             found = (
-                type(raw_entries).__name__
-                if not isinstance(raw_entries, list)
-                else "an empty array"
+                type_name(raw_entries) if not isinstance(raw_entries, list) else "an empty array"
             )
             problems.append(
                 ValidationProblem(
@@ -432,7 +430,7 @@ def _parse_tables(
     if not isinstance(raw, dict):
         problems.append(
             ValidationProblem(
-                file=file, location="tables", found=type(raw).__name__, expected="a tables table"
+                file=file, location="tables", found=type_name(raw), expected="a tables table"
             )
         )
         return {}
@@ -509,7 +507,7 @@ def _parse_ranks(
     problems: list[ValidationProblem],
 ) -> tuple[Rank, ...] | None:
     if not isinstance(raw, list) or not raw:
-        found = type(raw).__name__ if not isinstance(raw, list) else "an empty array"
+        found = type_name(raw) if not isinstance(raw, list) else "an empty array"
         problems.append(
             ValidationProblem(
                 file=file, location=location, found=found, expected="at least one rank"
@@ -591,7 +589,7 @@ def _parse_ladders(
     problems: list[ValidationProblem],
 ) -> tuple[RankLadder, ...] | None:
     if not isinstance(raw, list) or not raw:
-        found = type(raw).__name__ if not isinstance(raw, list) else "an empty array"
+        found = type_name(raw) if not isinstance(raw, list) else "an empty array"
         problems.append(
             ValidationProblem(
                 file=file, location="ladders", found=found, expected="at least one ladder"
@@ -656,7 +654,7 @@ def _parse_mustering_out(
     else:
         raw_cash = table["cash"]
         if not isinstance(raw_cash, list) or not raw_cash:
-            found = type(raw_cash).__name__ if not isinstance(raw_cash, list) else "an empty array"
+            found = type_name(raw_cash) if not isinstance(raw_cash, list) else "an empty array"
             problems.append(
                 ValidationProblem(
                     file=file,
@@ -674,7 +672,7 @@ def _parse_mustering_out(
                         ValidationProblem(
                             file=file,
                             location=f"{location}.cash[{index}]",
-                            found=type(item).__name__,
+                            found=type_name(item),
                             expected="an integer",
                         )
                     )
@@ -708,9 +706,7 @@ def _parse_mustering_out(
         raw_benefits = table["benefits"]
         if not isinstance(raw_benefits, list) or not raw_benefits:
             found = (
-                type(raw_benefits).__name__
-                if not isinstance(raw_benefits, list)
-                else "an empty array"
+                type_name(raw_benefits) if not isinstance(raw_benefits, list) else "an empty array"
             )
             problems.append(
                 ValidationProblem(

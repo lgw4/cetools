@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from types import MappingProxyType
 
-from cetools.errors import ValidationProblem
+from cetools.errors import ValidationProblem, type_name
 from cetools.notation import SkillReference
 
 _HEADER_KEYS = frozenset({"schema", "schema-version"})
@@ -95,7 +95,7 @@ def parse_characteristics(
             ValidationProblem(
                 file=file,
                 location="characteristics",
-                found="missing" if table is None else type(table).__name__,
+                found="missing" if table is None else type_name(table),
                 expected="a [characteristics] table with at least one entry",
             )
         )
@@ -119,7 +119,7 @@ def parse_characteristics(
                 ValidationProblem(
                     file=file,
                     location=f"characteristics.{code}",
-                    found=type(label).__name__,
+                    found=type_name(label),
                     expected="a string",
                 )
             )
@@ -142,7 +142,7 @@ def parse_skills(
             ValidationProblem(
                 file=file,
                 location="skills",
-                found="missing" if table is None else type(table).__name__,
+                found="missing" if table is None else type_name(table),
                 expected="a [skills] table with at least one entry",
             )
         )
@@ -163,21 +163,28 @@ def parse_skills(
                 ValidationProblem(
                     file=file,
                     location=f"skills.{name}",
-                    found=type(specialties).__name__,
+                    found=type_name(specialties),
                     expected="an array of strings",
                 )
             )
             continue
-        bad_index = next((i for i, s in enumerate(specialties) if not isinstance(s, str)), None)
-        if bad_index is not None:
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location=f"skills.{name}[{bad_index}]",
-                    found=type(specialties[bad_index]).__name__,
-                    expected="a string",
-                )
+        # Every offending element, not the first: reporting one made this the
+        # one field in the feature where fixing the reported mistake revealed
+        # the next on the following run, which FR-021's collect-everything and
+        # SC-003's "the number of runs needed to find every problem in a file
+        # is always one" forbid. Both sibling parsers below already loop.
+        bad = [
+            ValidationProblem(
+                file=file,
+                location=f"skills.{name}[{index}]",
+                found=type_name(specialty),
+                expected="a string",
             )
+            for index, specialty in enumerate(specialties)
+            if not isinstance(specialty, str)
+        ]
+        if bad:
+            problems.extend(bad)
             continue
         skills[name] = tuple(specialties)
 
@@ -197,7 +204,7 @@ def parse_benefits(
             ValidationProblem(
                 file=file,
                 location="benefits",
-                found="missing" if items is None else type(items).__name__,
+                found="missing" if items is None else type_name(items),
                 expected="an array of strings with at least one entry",
             )
         )
@@ -221,7 +228,7 @@ def parse_benefits(
                 ValidationProblem(
                     file=file,
                     location=f"benefits[{index}]",
-                    found=type(item).__name__,
+                    found=type_name(item),
                     expected="a string",
                 )
             )

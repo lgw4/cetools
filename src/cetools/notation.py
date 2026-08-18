@@ -104,25 +104,49 @@ _BARE_SIGN_TOKEN = re.compile(r"^[+-]$")
 _SPECIALTY = re.compile(r"^(?P<base>[^()]*)\((?P<inner>[^()]*)\)$")
 
 
-def _parse_name(text: str) -> tuple[str, str | None] | NotationProblem:
-    """Split `text` into a base name and an optional parenthesized specialty."""
-    text = text.strip()
-    open_count = text.count("(")
-    close_count = text.count(")")
-    if open_count != close_count:
-        return NotationProblem(found=text, expected="a name with balanced parentheses")
-    if open_count > 1:
-        return NotationProblem(found=text, expected="at most one specialty group")
-    if open_count == 0:
-        return text, None
+def _malformed(text: str, context: EntryContext, detail: str) -> NotationProblem:
+    """A malformed entry, reported the way FR-009 asks for it: the entry as
+    written, and the forms acceptable in the position it sits in.
 
-    match = _SPECIALTY.match(text)
+    The forms come first because they are what FR-009 promises and FR-009a
+    exists to supply; a context-free "one of the four notation forms" was not
+    merely incomplete but false, since a gate admits exactly one form and a
+    mustering-out benefits entry exactly two. `detail` says which rule the
+    entry broke, which the admissible forms alone do not tell an author who
+    wrote `Pilot -`.
+
+    `text` is the entry as the author wrote it, not the stripped form: an
+    author shown `Pilot -` for a cell holding `  Pilot -  ` is shown an entry
+    that is not in their file.
+    """
+    return NotationProblem(found=text, expected=f"{_ADMISSIBLE_FORMS[context]}; {detail}")
+
+
+def _parse_name(name: str) -> tuple[str, str | None] | str:
+    """Split `name` into a base name and an optional parenthesized specialty,
+    or return the detail of what is wrong with it.
+
+    Returns a detail string rather than a `NotationProblem` because only the
+    caller knows the context whose admissible forms belong in the report and
+    the entry text as written; this sees the name alone.
+    """
+    name = name.strip()
+    open_count = name.count("(")
+    close_count = name.count(")")
+    if open_count != close_count:
+        return "a name with balanced parentheses"
+    if open_count > 1:
+        return "at most one specialty group"
+    if open_count == 0:
+        return name, None
+
+    match = _SPECIALTY.match(name)
     if match is None:
-        return NotationProblem(found=text, expected="a name followed by (specialty)")
+        return "a name followed by (specialty)"
     base = match.group("base").strip()
     inner = match.group("inner").strip()
     if not inner:
-        return NotationProblem(found=text, expected="a non-empty specialty")
+        return "a non-empty specialty"
     return base, inner
 
 
@@ -135,12 +159,22 @@ def parse_entry(text: str, context: EntryContext) -> Entry | NotationProblem:
     three suffixed forms is reported as malformed rather than folded into
     the name, distinguishing a mistaken suffix from a name that merely ends
     in ordinary text.
+
+    The tail is looked for after a specialty's closing parenthesis, because
+    the grammar reserves the suffix position to text outside the specialty
+    group: without that, the `)` of `Blade (Mark 2)` was caught by the digit
+    heuristic and the entry rejected, while the very same specialty in the
+    grant form `Blade (Mark 2) 1` parsed. Only the suffixed forms take the
+    name from before the tail; the bare form always takes the whole entry, so
+    text beyond a specialty group still reaches `_parse_name` and is still
+    reported rather than dropped.
     """
     stripped = text.strip()
     if not stripped:
-        return NotationProblem(found=text, expected="a non-empty entry")
+        return _malformed(text, context, "a non-empty entry")
 
-    trailing = _TRAILING_TOKEN.search(stripped)
+    after_specialty = stripped.rfind(")") + 1
+    trailing = _TRAILING_TOKEN.search(stripped, after_specialty)
     name_part = stripped[: trailing.start()] if trailing else ""
     token = trailing.group(1) if trailing else stripped
 
@@ -153,21 +187,23 @@ def parse_entry(text: str, context: EntryContext) -> Entry | NotationProblem:
     elif (m := _GRANT_TOKEN.match(token)) is not None:
         kind, level = "grant", int(m.group(1))
     elif trailing is not None and _BARE_SIGN_TOKEN.match(token):
-        return NotationProblem(found=stripped, expected="a number after the sign")
+        return _malformed(text, context, "a number after the sign")
     elif trailing is not None and any(ch.isdigit() for ch in token):
-        return NotationProblem(found=stripped, expected="one of the four notation forms")
+        return _malformed(
+            text, context, "a trailing number reads as a level, an amount, or a target"
+        )
     else:
         kind, name_part = "bare", stripped
 
     if kind not in _ADMISSIBLE_KINDS[context]:
-        return NotationProblem(found=stripped, expected=_ADMISSIBLE_FORMS[context])
+        return NotationProblem(found=text, expected=_ADMISSIBLE_FORMS[context])
 
     parsed_name = _parse_name(name_part)
-    if isinstance(parsed_name, NotationProblem):
-        return parsed_name
+    if isinstance(parsed_name, str):
+        return _malformed(text, context, parsed_name)
     base, specialty = parsed_name
     if not base:
-        return NotationProblem(found=stripped, expected="a non-empty name")
+        return _malformed(text, context, "a non-empty name")
 
     if kind in ("check", "adjustment"):
         # A specialty belongs to a skill or a benefit item. Building the entry
@@ -176,16 +212,18 @@ def parse_entry(text: str, context: EntryContext) -> Entry | NotationProblem:
         # match, since the name as written is `INT (Foo)` and the
         # characteristics registry holds only `INT`.
         if specialty is not None:
-            return NotationProblem(
-                found=stripped,
-                expected=(f"{_ADMISSIBLE_FORMS[context]}; a characteristic carries no specialty"),
-            )
+            return _malformed(text, context, "a characteristic carries no specialty")
         if kind == "check":
             return CharacteristicCheck(characteristic=base, target=target)
         return CharacteristicAdjustment(characteristic=base, amount=amount)
     if kind == "grant":
         return SkillGrant(skill=SkillReference(name=base, specialty=specialty), level=level)
-    # kind == "bare"
+    # kind == "bare". A benefit item has one field, so its name is carried as
+    # written rather than reassembled from the split: rebuilding it as
+    # `f"{base} ({specialty})"` made `Weapon(Blade)` and `Weapon  (Blade)`
+    # resolve to the same registry entry, which is the quiet widening FR-013
+    # forbids by requiring every name to be matched exactly. A skill keeps
+    # base and specialty in separate fields, so nothing is reassembled there.
     if context is EntryContext.BENEFIT_TABLE:
-        return BenefitItem(name=f"{base} ({specialty})" if specialty else base)
+        return BenefitItem(name=stripped)
     return SkillReference(name=base, specialty=specialty)
