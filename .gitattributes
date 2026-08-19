@@ -1,0 +1,17 @@
+# Line endings are LF in the repository and LF in every working tree,
+# including on Windows.
+#
+# Without this, a Windows checkout translates text files on the way out, and
+# any test that reads a shipped file as bytes sees content the same test sees
+# as LF everywhere else. That is not hypothetical: the CRLF a Windows runner
+# handed `test_fingerprint_reflects_the_raw_bytes_with_no_line_ending_
+# normalization` got doubled into `\r\r\n`, which is not valid TOML, and the
+# load failed on a malformed file instead of reporting the fingerprint the
+# test exists to check. The rules data is parsed as TOML and fingerprinted
+# with SHA-256 over its raw bytes, so which bytes land on disk is part of the
+# contract rather than a display detail.
+#
+# `text=auto` still lets Git detect genuinely binary files and leave them
+# alone; `eol=lf` pins the working-tree ending for everything it does treat
+# as text.
+* text=auto eol=lf
