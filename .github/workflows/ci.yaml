@@ -1,7 +1,11 @@
 name: CI
 
+# A branch with an open pull request matched both triggers, so every push ran
+# the six-job matrix twice and reported twelve checks. `main` still gets a run
+# per push, which is what protects the merge result itself.
 on:
   push:
+    branches: [main]
   pull_request:
 
 jobs:

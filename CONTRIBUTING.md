@@ -84,8 +84,11 @@ and device nodes, and a `chmod(0o000)` that actually denies access — and a
 test that needs either carries `@pytest.mark.needs_posix_special_files` or
 `@pytest.mark.needs_enforced_chmod`. `tests/conftest.py` probes for the
 facility and skips; do not hand-roll a `skipif` on `os.name` or `geteuid`.
-Reading a shipped file as bytes is the other trap: a Windows checkout
-translates line endings, so normalize before asserting on them.
+Reading a shipped file as bytes is the other trap: a Windows checkout used to
+translate line endings, so a test that imposed CRLF on bytes that already had
+it produced `\r\r\n` and invalid TOML. `.gitattributes` now pins LF in every
+working tree, which settles it at the source; a test that asserts on raw bytes
+should still normalize first rather than rely on that.
 
 If your change alters human-readable CLI output, the golden files in
 `tests/golden/` change with it in the same commit, and the diff should show
