@@ -19,24 +19,8 @@ with artifacts in `specs/<NNN>-<slug>/`.
   licensing section and the Section 15 game-data notice both designate, and
   never containing the strings "Cepheus Engine" or "Samardan Press".
   Everything else is GPL-3.0. See CONTRIBUTING.md before adding any file.
-
-## Tidy First approach
-
-- Separate all changes into two distinct types:
-    1. Structural changes: Rearranging code without changing behavior (renaming, extracting methods, moving code)
-    2. Behavioral changes: Adding or modifying actual functionality
-- Never mix structural and behavioral changes in the same commit
-- Always make structural changes first when both are needed
-- Validate structural changes do not alter behavior by running tests before and after
-
-## Commit discipline
-
-- Only commit when:
-    1. ALL tests are passing
-    2. ALL compiler/linter warnings have been resolved
-    3. The change represents a single logical unit of work
-    4. Commit messages clearly state whether the commit contains structural or behavioral changes
-- Use small, frequent commits rather than large, infrequent ones
+- Tidy First: structural and behavioral changes never share a commit,
+  structural goes first, and the commit message says which it is.
 
 ## Gotchas
 
