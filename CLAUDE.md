@@ -9,6 +9,8 @@ with artifacts in `specs/<NNN>-<slug>/`.
 ## Non-negotiables
 
 - Test-first, strictly: write the test, watch it fail, then implement.
+  One test at a time, and run the whole suite (minus long-running tests)
+  after each step.
 - All randomness flows from a seeded `Roller`. Never call `random`, read
   the clock, or let output depend on anything the seed does not determine.
 - Rules content lives in `.toml` files under `src/cetools/data/`, at any
@@ -17,6 +19,24 @@ with artifacts in `specs/<NNN>-<slug>/`.
   licensing section and the Section 15 game-data notice both designate, and
   never containing the strings "Cepheus Engine" or "Samardan Press".
   Everything else is GPL-3.0. See CONTRIBUTING.md before adding any file.
+
+## Tidy First approach
+
+- Separate all changes into two distinct types:
+    1. Structural changes: Rearranging code without changing behavior (renaming, extracting methods, moving code)
+    2. Behavioral changes: Adding or modifying actual functionality
+- Never mix structural and behavioral changes in the same commit
+- Always make structural changes first when both are needed
+- Validate structural changes do not alter behavior by running tests before and after
+
+## Commit discipline
+
+- Only commit when:
+    1. ALL tests are passing
+    2. ALL compiler/linter warnings have been resolved
+    3. The change represents a single logical unit of work
+    4. Commit messages clearly state whether the commit contains structural or behavioral changes
+- Use small, frequent commits rather than large, infrequent ones
 
 ## Gotchas
 
