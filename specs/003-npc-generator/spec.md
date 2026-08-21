@@ -34,6 +34,42 @@ Explicitly out of scope: psionics and anagathics, world and homeworld generation
 generation, non-human species and their traits, starting equipment, noble titles, a lethal
 chargen mode, and forcing a specific career or a specific number of terms."
 
+## Clarifications
+
+### Session 2026-08-20 (name tables)
+
+Requested after the specification was first written, and amended into it rather than deferred,
+because the exclusion it overturns is stated in this specification and shipping a spec that
+forbids what the next one requires would leave the two contradicting each other.
+
+- Q: The decisions brief excluded name generation on the grounds that name lists are not source
+  material and carry no license cover, and FR-047 accordingly required the name to be supplied
+  by the caller. Should the generator name its characters after all? → A: Yes. The generator
+  ships a table of given names and a set of surname tables and rolls a name for every character.
+  The licensing reasoning survives the change rather than being set aside: name tables are not
+  Open Game Content, they are ordinary project content under GPL-3.0, and this is the first time
+  the package ships a data file that is not OGC. The consequence is that the licensing checks and
+  the copyright notice chain must distinguish the two designations rather than requiring the OGC
+  designation of every data file, which is what FR-042 previously assumed.
+- Q: Does the generator name a character by default, or only when asked? → A: By default. Every
+  generated character gets a rolled name, and a caller-supplied name overrides it. The batch is
+  the case that actually needs names, and a batch is exactly the case where supplying them by
+  hand is impossible.
+- Q: Are given names organized by region as surnames are? → A: No. There is one table of given
+  names, selected to be gender neutral, and one surname table per region. A character's given
+  name and surname are rolled independently, so the two are not correlated and a name is not a
+  claim about where a character is from.
+- Q: When a surname is rolled, is every region equally likely, or is every surname equally
+  likely? → A: Every region is equally likely. Each region's table is chosen first and a surname
+  is drawn from within it, so how many entries a table holds does not decide how often that
+  region appears. Under the alternative, table size would be a hidden weighting decision that
+  authoring work could shift without anyone intending it.
+- Q: The regions named are North America, Central America, South America, Africa, Asia, Europe,
+  and indigenous peoples not covered by those. Is the last one region among seven? → A: Yes, one
+  table weighted equally with the other six. Because it collects distinct and unrelated naming
+  traditions rather than one, its entries must each name the people they come from, so that the
+  data does not flatten them into a single undifferentiated category.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Get a usable NPC from a seed (Priority: P1)
@@ -57,8 +93,8 @@ feature exists to be.
 **Acceptance Scenarios**:
 
 1. **Given** a seed, **When** the generator runs, **Then** a complete character is produced,
-   carrying six characteristics, a skill list, one or more careers with terms and rank, an
-   age, and mustering-out proceeds, and the character is alive.
+   carrying a name, six characteristics, a skill list, one or more careers with terms and
+   rank, an age, and mustering-out proceeds, and the character is alive.
 2. **Given** the same seed and the same package version, **When** the generator runs twice,
    **Then** the two characters are identical in every field and their sheets are identical
    byte for byte.
@@ -71,6 +107,12 @@ feature exists to be.
 5. **Given** a character who never held a rank on any ladder, **When** the default rendering
    is written, **Then** the lines the format has nothing to put in are omitted entirely
    rather than emitted blank.
+6. **Given** no name supplied by the caller, **When** the generator runs, **Then** the
+   character carries a given name and a surname rolled from the shipped name tables, so that
+   the sheet names a person rather than an anonymous profile.
+7. **Given** the same seed run twice, once with a caller-supplied name and once without,
+   **When** the two characters are compared, **Then** they differ in the name and in nothing
+   else, so that naming a character does not change who they turned out to be.
 
 ---
 
@@ -238,9 +280,25 @@ value on its own as the house-rule path for all character generation.
   removed it or a shipped file was edited? The run fails before producing any character,
   naming the unresolvable career, rather than falling back to Drifter. A fallback here would
   be a rule in engine code that has no reason to exist once the data is complete.
-- What happens when no name is supplied? The character is generated and rendered without a
-  personal name, carrying only the rank title from the career ladder if they hold one. Names
-  are not generated, because name lists are not source material and carry no license cover.
+- What happens when no name is supplied? A name is rolled: a given name from the given-names
+  table and a surname from one of the regional surname tables. The rank title from the career
+  ladder is attached to it if the character holds one.
+- What happens when a name is supplied? It is used verbatim and no name is rolled, and the
+  character is otherwise identical to the one that seed produces unnamed.
+- What happens when a batch is generated and two characters roll the same name? Nothing. A
+  repeated name is not prevented, because preventing it would make each character depend on the
+  ones generated before it, and a character in a batch must be reproducible from its own
+  position alone.
+- What happens when a caller supplies one name and asks for a batch of twelve? The supplied
+  name is a usage error against a batch of more than one, rather than twelve identical names or
+  eleven silently discarded requests.
+- What happens when an override supplies a surname table for a region that shipped, or for a
+  region that did not? The first replaces that region's table and the weighting is unchanged;
+  the second adds an eighth region, which then carries the same weight as each of the others.
+  Regional weighting is per table in force, not a fixed seventh share.
+- What happens when an override supplies an empty name table? The run fails naming the file,
+  rather than producing characters with no given name or drawing every surname from the
+  remaining regions.
 - What happens when a character's career grants a noble title? It is not rendered. Choosing
   between the source's printed forms requires a gender the source itself files as pure color,
   and emitting only one form would render every titled NPC a Baron and never a Baroness.
@@ -356,9 +414,9 @@ value on its own as the house-rule path for all character generation.
 
 #### The character
 
-- **FR-029**: The generated character MUST carry: its characteristics with their current
-  scores, its skills with their levels including level zero, every career it served with the
-  terms served and rank reached in each, its age, its funds, its outstanding debt, its
+- **FR-029**: The generated character MUST carry: its name, its characteristics with their
+  current scores, its skills with their levels including level zero, every career it served
+  with the terms served and rank reached in each, its age, its funds, its outstanding debt, its
   pension, its named benefit items, and its generation history.
 - **FR-030**: The generation history MUST record every step of the walk in the order it
   occurred, each step naming what was decided or thrown and what followed. The history is what
@@ -413,12 +471,62 @@ value on its own as the house-rule path for all character generation.
   tree at any depth, because an override file is positioned by its basename regardless of the
   directory it sits in. This constraint binds every file this feature adds and every file the
   feature after it adds.
-- **FR-042**: Every data file this feature ships MUST carry its Open Game Content designation,
-  MUST NOT contain either Product Identity string, and MUST be covered by the copyright notice
-  chain that travels with the package, which MUST be widened in the same change that adds the
-  files.
+- **FR-042**: Every data file this feature ships MUST carry a licensing designation, and the
+  designation MUST match what the file actually is. A file derived from the source material
+  carries the Open Game Content designation and MUST be covered by the copyright notice chain
+  that travels with the package, which MUST be widened in the same change that adds the files. A
+  file that is not derived from the source material, which the name tables of FR-043a are the
+  first of, MUST carry the project's own GPL-3.0 designation, MUST NOT carry the Open Game
+  Content designation, and MUST NOT be claimed by the notice chain. No data file this feature
+  ships may contain either Product Identity string, whatever its designation.
+- **FR-042a**: The automated licensing checks MUST distinguish the two designations rather than
+  requiring the Open Game Content designation of every data file. Until this feature every
+  shipped data file was Open Game Content, so the existing checks read "every data file" and
+  "every Open Game Content file" as the same set. They stop being the same set here, and a check
+  that keeps the old reading either fails on the name tables or, if relaxed to pass them, stops
+  proving the designation for the files that genuinely need it.
 - **FR-043**: The generator MUST consume rules content exclusively through the validated
   loader, and MUST NOT read, search, or fall back to any content the loader did not supply.
+  Name tables are content the loader supplies, held to the same validation, override, and
+  provenance rules as any other data file, and the generator MUST NOT reach them by any other
+  route.
+
+#### Names
+
+- **FR-043a**: The system MUST ship one table of given names and one table of surnames per
+  region, as data files under the loader's ordinary rules, so that a referee replaces or adds
+  a name table exactly as they replace or add any other rules data.
+- **FR-043b**: The given names table MUST hold names that are gender neutral, meaning names
+  commonly borne across genders or not gender-marked in the languages they come from. The
+  system MUST NOT model a character's gender at any point, and no name table may carry a gender
+  field, so that a later reading cannot reintroduce a distinction this table exists to avoid.
+- **FR-043c**: The shipped surname regions MUST be North America, Central America, South
+  America, Africa, Asia, Europe, and indigenous peoples not covered by the other six. Each
+  region MUST be its own file, because an override replaces whole files and a referee changing
+  one region's surnames MUST NOT have to restate the other six.
+- **FR-043d**: Each entry in the indigenous-peoples surname table MUST name the people it comes
+  from. That table collects distinct and unrelated naming traditions rather than one, and
+  without the attribution the file is a list labelled with a category that describes none of
+  its entries.
+- **FR-043e**: Every name table MUST record the source its entries were drawn from, and entries
+  MUST come from sources that publish names for general use. This is the same obligation the
+  Open Game Content designation discharges for the source material, applied to content that
+  designation does not reach.
+- **FR-043f**: A rolled surname MUST be drawn by selecting a region first, with every surname
+  table in force equally likely, and then a surname from within that region. How many entries a
+  table holds MUST NOT decide how often that region appears. Weighting MUST be over the tables
+  in force rather than over the shipped seven, so that an override adding a region gives it the
+  same weight as each of the others.
+- **FR-043g**: The given name and the surname MUST be rolled independently of one another, and
+  neither MUST be correlated with any other fact about the character. A name is not a claim
+  about where a character is from, what career they served, or anything else on the sheet.
+- **FR-043h**: The system MUST reject a name table with no entries, naming the file, rather
+  than producing a character with no given name or silently redistributing a region's weight
+  among the others.
+- **FR-043i**: The given names table MUST hold at least sixty entries and each surname table at
+  least forty, so that a batch of the size a referee actually asks for does not read as a list
+  of repetitions. These are floors on the shipped tables and MUST NOT be imposed on an override,
+  which is the referee's business to size.
 
 #### Rendering
 
@@ -433,10 +541,17 @@ value on its own as the house-rule path for all character generation.
   locale-independently so that a seed renders identically on any machine; careers separated by
   comma in the order they were entered; a cascade specialization written qualified by its
   parent skill so a reader can find it in the registry; and exactly one tab between fields.
-- **FR-047**: The character's personal name MUST be supplied by the caller and MUST NOT be
-  generated, because name lists are not source material and carry no license cover. The rank
-  title from the ladder the character reached MUST be attached to the rendered name, since that
-  is the difference between a named officer and an anonymous profile.
+- **FR-047**: Every character MUST have a personal name. A name supplied by the caller MUST be
+  used verbatim; where none is supplied, one MUST be rolled per FR-043a through FR-043i. The
+  rank title from the ladder the character reached MUST be attached to the rendered name, since
+  that is the difference between a named officer and an anonymous profile.
+- **FR-047a**: A rolled name MUST be written as the given name, a single space, and the
+  surname, and MUST NOT be reordered, abbreviated, or otherwise adjusted to suit the naming
+  conventions of the region a surname came from. The generator composes two independently drawn
+  parts and does not claim to be modelling any one tradition's name order.
+- **FR-047b**: Whether a character's name was supplied or rolled MUST NOT change any other
+  field of that character for a given seed. A caller who names a character gets the character
+  that seed produces, named; not a different character.
 - **FR-048**: Noble titles MUST NOT be rendered, on either the name or elsewhere.
 - **FR-049**: The system MUST provide a second, fuller text rendering that carries what the
   Universal Character Format has nowhere to put: the outstanding debt, the pension, and the
@@ -456,6 +571,9 @@ value on its own as the house-rule path for all character generation.
 - **FR-053**: That command MUST accept a seed, a count, a name, an override location for rules
   data, a choice of human-readable or machine-readable output, and a choice between the default
   and the fuller text rendering.
+- **FR-053a**: A supplied name together with a count greater than one MUST be refused as a
+  usage error naming both options, since a name names one character. Applying it to all of them
+  or to the first alone would each silently discard part of what was asked for.
 - **FR-054**: That command MUST exit zero when it produces characters and non-zero when it
   cannot, with the choice of output mode affecting neither outcome, and MUST report the reason
   on standard error when it cannot.
@@ -468,6 +586,10 @@ value on its own as the house-rule path for all character generation.
   exactly. No part of the walk may draw on any source of variation outside the seeded
   generator, including the clock, the environment, the locale, or the order in which any
   unordered collection happens to be traversed.
+- **FR-056a**: A rolled name MUST be drawn from the seeded generator like every other decision
+  in the walk, and MUST be drawn in a way that satisfies FR-047b: supplying a name must leave
+  the rest of the character untouched rather than shifting every draw that would have followed
+  the name roll.
 - **FR-057**: A seed and a count MUST determine a batch exactly, and the first characters of a
   larger batch MUST equal a smaller batch from the same seed, so that a count is a request for
   more of one sequence rather than for a different sequence.
@@ -477,10 +599,10 @@ value on its own as the house-rule path for all character generation.
 
 ### Key Entities
 
-- **Character**: The finished person the generator produces. Carries characteristics, skills
-  with levels, the careers served with terms and rank in each, age, funds, outstanding debt,
-  pension, named benefit items, and the generation history. Always alive; always internally
-  consistent.
+- **Character**: The finished person the generator produces. Carries a name, characteristics,
+  skills with levels, the careers served with terms and rank in each, age, funds, outstanding
+  debt, pension, named benefit items, and the generation history. Always named, always alive,
+  always internally consistent.
 - **Generation history**: The ordered record of the walk that produced a character. Every step
   names what was decided or thrown and what followed. It is the evidence by which a surprising
   sheet is diagnosed, and every number on the sheet traces to a step in it.
@@ -506,6 +628,11 @@ value on its own as the house-rule path for all character generation.
   whether it is always available as a fallback, and whether it may be re-entered. Its
   advancement throw becomes optional, and a career declaring neither commission nor advancement
   is by that fact a career granting two skill rolls a term.
+- **Name table**: A shipped list of names, either the one table of given names or one region's
+  table of surnames. Not derived from the source material, and so the first shipped data the
+  Open Game Content designation does not cover. Records the source its entries came from;
+  carries no gender field; and, for the indigenous-peoples table, names the people each entry
+  comes from.
 - **Universal Character Format**: The source material's printed character sheet, and the
   default human-readable rendering. Five tab-separated lines, inapplicable lines omitted,
   level-zero skills shown, funds prefixed and separated. Has nowhere to put debt, pension, or
@@ -565,17 +692,38 @@ value on its own as the house-rule path for all character generation.
   characteristic modifier bands moved produces an identical one after, compared field by field
   against the reference outputs committed with the previous feature, so that a data
   reorganization changes no result.
-- **SC-015**: Every data file this feature adds carries its Open Game Content designation,
-  contains neither Product Identity string, and is covered by the shipped copyright notice
-  chain, verified by automated checks against the files as read from the installed package, and
-  every packaged data file's basename remains unique across the whole tree.
+- **SC-015**: Every data file this feature adds carries the licensing designation that matches
+  what it is, verified by automated checks against the files as read from the installed package:
+  every file derived from the source material carries the Open Game Content designation and is
+  covered by the shipped copyright notice chain, every name table carries the project's GPL-3.0
+  designation and is claimed by neither, no data file contains either Product Identity string,
+  and no file carries both designations or none. Every packaged data file's basename remains
+  unique across the whole tree.
+- **SC-015a**: Adding a data file under either designation without extending the corresponding
+  check fails the suite, demonstrated by adding a file of each kind in turn to a copy of the
+  package. A check that passes unchanged when a file is added is a check that will pass while a
+  name table travels under an Open Game Content notice that does not cover it, or while a career
+  table travels under no notice at all.
+- **SC-015b**: Every name the generator can produce comes from a table that records where its
+  entries were drawn from, every entry in the indigenous-peoples table names the people it comes
+  from, no name table carries a gender field, the given names table holds at least sixty entries
+  and each surname table at least forty, verified by automated check so that an entry added
+  later without its attribution fails the suite.
 - **SC-016**: Every behavior in the functional requirements has a test whose expected values
   were written before the implementation existed, evidenced by those values being committed in
   a change that precedes the implementing change and by the test being observed to fail before
   it passes.
 - **SC-017**: Every capability in this feature is exercised by at least one test that uses the
   library directly without invoking the command line.
-- **SC-018**: A referee generating an NPC for play needs one command and no follow-up
+- **SC-018**: Every generated character has a name, verified over the same sample as SC-003
+  with no character rendering nameless, and a seed run with and without a caller-supplied name
+  produces characters that differ in the name alone, compared field by field.
+- **SC-019**: Over a sample of ten thousand rolled names, each surname region appears within a
+  narrow band of an equal share, so that no region dominates and none is effectively
+  unreachable, and the observed share does not track the number of entries the regions' tables
+  hold. Table sizes are deliberately made to differ in the shipped data so that this criterion
+  can fail if weighting is ever taken over names rather than over regions.
+- **SC-020**: A referee generating an NPC for play needs one command and no follow-up
   question: the sheet as rendered carries everything needed to run the character in a scene,
   with nothing about the generator's internals on it.
 
@@ -597,8 +745,19 @@ features must add.
 - **World and homeworld generation**: excluded. Background skills are therefore drawn over the
   source's tables directly, and the trade-code row is kept as flavor rather than derived from a
   world that was generated.
-- **Name generation**: excluded. Name lists are not source material and carry no license cover,
-  so the name is supplied by the caller or absent.
+- **Culturally coherent names**: excluded, while name generation itself is in. The given name
+  and the surname are drawn independently and the result is not adjusted to any one tradition's
+  name order, conventions, or pairings. Modelling that would require the generator to hold a
+  position on which traditions go together, which is a claim about people rather than a rule
+  about characters, and the source material supplies nothing to ground it.
+- **Any correlation between a name and the rest of the character**: excluded. A name says
+  nothing about homeworld, species, career, or anything else on the sheet, and nothing on the
+  sheet constrains a name. Homeworld generation is out of scope in any case, so there is nothing
+  for a name to be consistent with.
+- **Gendered names, gendered titles, and gender itself**: excluded. The given names table is
+  gender neutral and the generator models no gender, for the same reason noble titles are
+  excluded: the source files gender as pure color, and a generator that picked one would be
+  inventing a fact about every character it produced.
 - **Non-human species and their traits**: excluded. Every generated character is human.
 - **Noble titles**: excluded. Choosing between the source's printed forms requires a gender the
   source itself files as pure color, and emitting only the unparenthesized form would render
@@ -651,9 +810,21 @@ Defaults chosen where the decisions brief did not specify:
   provenance in-document**, and they are not additionally echoed to standard error, so that the
   document is self-contained and the stream is not split. FR-051's routing to standard error
   is a text-mode arrangement, made so that a redirected sheet is exactly a sheet.
-- **When no name is supplied**, the character renders with the rank title alone where they hold
-  one, and with no name at all where they do not. The name is a caller-supplied decoration on a
-  character that is complete without it.
+- **Sixty given names and forty surnames per region are the shipped floors**, chosen so that a
+  batch of the size a referee actually asks for reads as a list of people rather than a list of
+  repetitions: with seven regions those floors put roughly sixteen thousand full names in reach,
+  at which a batch of twelve repeats a name well under one time in a hundred. The floors bind
+  the shipped tables only. Larger tables are welcome and no maximum is imposed.
+- **The seventh region is a collection rather than a place.** "Indigenous peoples not covered by
+  the other six" is the category the request named, and it is kept because the alternative, a
+  continental bucket per tradition, would need a partition of the world's naming traditions that
+  this project has no standing to draw. Requiring each entry to name its people (FR-043d) is
+  what keeps the category from flattening what it holds. If authoring the table shows a better
+  partition, adopting it changes the shipped region list and nothing else in this specification,
+  because FR-043f weights over the tables in force rather than over a fixed seven.
+- **Oceania and Australia are reached through the seventh table** rather than through regions of
+  their own, since the six named regions omit them. This follows from the request's own list and
+  is recorded because it is the omission most likely to be read as an oversight.
 - **The professional-tier career that ships is chosen during planning**, constrained only by
   FR-033: it must be whichever career completes the coverage the other seven leave incomplete.
 - **The medical-tier definitions are universal data** while the tier a career charges at is in
