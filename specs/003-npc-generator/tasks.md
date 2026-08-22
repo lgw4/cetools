@@ -322,14 +322,14 @@ the override.
 
 ### Tests for User Story 4 ⚠️ written and observed failing first
 
-- [ ] T130 [P] [US4] [TEST] Add SC-013's five demonstrations to `tests/integration/test_data_driven.py`: a Draft table row, an aging table entry, a Survival Mishaps entry, a career's medical tier, and the term cap, each changed in an override and each changing the generator's behavior accordingly with no code edit
-- [ ] T131 [P] [US4] [TEST] Add `tests/integration/test_overrides.py` cases for the npc command: an override supplying a career that did not ship can be entered and is reported as `added`, a replaced file is reported as `replaced`, and the provenance block appears on standard error in text mode and in-document under `--json` (FR-058)
-- [ ] T132 [P] [US4] [TEST] Add `tests/integration/test_overrides.py` cases for name-table overrides: replacing a shipped region leaves the weighting unchanged, adding an eighth region gives it the same weight as each of the others, and neither the sixty/forty floors nor either designation is imposed on an override (FR-043f, FR-043i, FR-042)
-- [ ] T133 [P] [US4] [TEST] Add `tests/integration/test_npc_cli.py` cases for inconsistent override data: the run fails before any character exists, exits 1, writes nothing to standard output, and names what could not be resolved
+- [X] T130 [P] [US4] [TEST] Add SC-013's five demonstrations to `tests/integration/test_data_driven.py`: a Draft table row, an aging table entry, a Survival Mishaps entry, a career's medical tier, and the term cap, each changed in an override and each changing the generator's behavior accordingly with no code edit
+- [X] T131 [P] [US4] [TEST] Add `tests/integration/test_overrides.py` cases for the npc command: an override supplying a career that did not ship can be entered and is reported as `added`, a replaced file is reported as `replaced`, and the provenance block appears on standard error in text mode and in-document under `--json` (FR-058)
+- [X] T132 [P] [US4] [TEST] Add `tests/integration/test_overrides.py` cases for name-table overrides: replacing a shipped region leaves the weighting unchanged, adding an eighth region gives it the same weight as each of the others, and neither the sixty/forty floors nor either designation is imposed on an override (FR-043f, FR-043i, FR-042)
+- [X] T133 [P] [US4] [TEST] Add `tests/integration/test_npc_cli.py` cases for inconsistent override data: the run fails before any character exists, exits 1, writes nothing to standard output, and names what could not be resolved
 
 ### Implementation for User Story 4
 
-- [ ] T134 [US4] Make whatever the tests above show missing in `src/cetools/cli.py` and `src/cetools/generator.py` — the override path is the previous feature's mechanism reaching new data, so this task is expected to be small, and anything it turns out to need is a defect in the loader integration of Phase 2F rather than new capability
+- [X] T134 [US4] Make whatever the tests above show missing in `src/cetools/cli.py` and `src/cetools/generator.py` — the override path is the previous feature's mechanism reaching new data, so this task is expected to be small, and anything it turns out to need is a defect in the loader integration of Phase 2F rather than new capability
 
 **Checkpoint**: every user story is independently functional.
 

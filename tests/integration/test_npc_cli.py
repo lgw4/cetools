@@ -7,12 +7,18 @@ import os
 import re
 import subprocess
 import sys
+from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from cetools.cli import app
 
 runner = CliRunner()
+
+_NAVY = (
+    Path(__file__).resolve().parents[2] / "src" / "cetools" / "data" / "careers" / "navy.toml"
+).read_text(encoding="utf-8")
 
 _REPORTED_SEED = r"Seed:\s+([+-]?\d+)"
 
@@ -36,6 +42,21 @@ def test_a_failed_run_writes_nothing_to_standard_output():
     result = runner.invoke(app, ["npc", "--rules-data", "/does/not/exist"])
     assert result.exit_code != 0
     assert result.stdout == ""
+
+
+@pytest.mark.parametrize("mode", [[], ["--json"]], ids=["text", "json"])
+def test_inconsistent_override_data_fails_before_any_character_exists(tmp_path, mode):
+    broken = _NAVY.replace('"Comms"', '"Coms"', 1)
+    (tmp_path / "navy.toml").write_text(broken, encoding="utf-8")
+
+    result = runner.invoke(
+        app, ["npc", "--rules-data", str(tmp_path), "--seed", "session-alpha"] + mode
+    )
+
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    assert "navy.toml" in result.stderr
+    assert "Coms" in result.stderr
 
 
 def test_exit_codes_are_0_1_and_2():

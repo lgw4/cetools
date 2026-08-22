@@ -7,12 +7,30 @@ what gives names meaning (FR-013).
 
 from pathlib import Path
 
+from cetools.dice import Roller
+from cetools.generator import generate_character
 from cetools.rules import load_rules, validate_rules
 
 _DATA = Path(__file__).resolve().parents[2] / "src" / "cetools" / "data"
 NAVY = (_DATA / "careers" / "navy.toml").read_text(encoding="utf-8")
 SKILLS = (_DATA / "registries" / "skills.toml").read_text(encoding="utf-8")
 CHARACTERISTICS = (_DATA / "registries" / "characteristics.toml").read_text(encoding="utf-8")
+DRAFT = (_DATA / "chargen" / "draft.toml").read_text(encoding="utf-8")
+AGING = (_DATA / "chargen" / "aging.toml").read_text(encoding="utf-8")
+MISHAPS = (_DATA / "chargen" / "mishaps.toml").read_text(encoding="utf-8")
+CHARGEN_PARAMETERS = (_DATA / "chargen" / "chargen-parameters.toml").read_text(encoding="utf-8")
+
+
+def _first_seed_matching(rules, predicate, limit=500):
+    """The first seed under `limit` whose generated character satisfies
+    `predicate`, so SC-013's demonstrations can force the walk down a
+    specific path without hand-deriving a seed's draws.
+    """
+    for seed in range(limit):
+        character = generate_character(Roller(seed), rules)
+        if predicate(character):
+            return seed, character
+    raise AssertionError(f"no seed under {limit} satisfies the predicate")
 
 
 _PROMOTION_BLOCK = '[throws.promotion]\ncharacteristic = "EDU"\ntarget = 6\n'
@@ -101,3 +119,116 @@ def test_removing_a_characteristic_from_the_registry_breaks_every_career_referen
         "tables.advanced-education.requires",
         "mustering-out.benefits[1]",
     }
+
+
+# --- SC-013: a Draft table row, an aging table entry, a Survival Mishaps ---
+# entry, a career's medical tier, and the term cap, each changed in an
+# override with no code edit.
+
+
+def test_a_draft_table_row_takes_effect_with_no_code_edit(tmp_path):
+    packaged = load_rules()
+    seed, baseline = _first_seed_matching(
+        packaged, lambda c: any(step.kind == "draft" for step in c.history)
+    )
+    draft_step = next(step for step in baseline.history if step.kind == "draft")
+    original_name = draft_step.selected
+    replacement = next(name for name in packaged.draft.careers if name != original_name)
+
+    override = tmp_path / "draft.toml"
+    override.write_text(
+        DRAFT.replace(f'"{original_name}"', f'"{replacement}"', 1), encoding="utf-8"
+    )
+    rules = load_rules(override)
+    assert rules.draft.careers != packaged.draft.careers
+
+    overridden = generate_character(Roller(seed), rules)
+    new_draft_step = next(step for step in overridden.history if step.kind == "draft")
+    assert new_draft_step.selected == replacement
+    assert new_draft_step.selected != original_name
+
+
+def test_an_aging_table_entry_takes_effect_with_no_code_edit(tmp_path):
+    packaged = load_rules()
+    seed, baseline = _first_seed_matching(
+        packaged, lambda c: any(step.kind == "aging" and step.effects for step in c.history)
+    )
+
+    # Every amount in the table made drastically more severe, so whichever
+    # row this seed's modified roll lands on, the row it reads has changed.
+    overridden_text = AGING.replace("amount = -1", "amount = -10").replace(
+        "amount = -2", "amount = -20"
+    )
+    override = tmp_path / "aging.toml"
+    override.write_text(overridden_text, encoding="utf-8")
+    rules = load_rules(override)
+
+    overridden = generate_character(Roller(seed), rules)
+    baseline_step = next(
+        step for step in baseline.history if step.kind == "aging" and step.effects
+    )
+    overridden_step = next(
+        step for step in overridden.history if step.kind == "aging" and step.effects
+    )
+    assert overridden_step.effects != baseline_step.effects
+
+
+def test_a_survival_mishaps_entry_takes_effect_with_no_code_edit(tmp_path):
+    packaged = load_rules()
+    seed, baseline = _first_seed_matching(
+        packaged,
+        lambda c: any(step.kind == "mishap" and step.throw is not None for step in c.history),
+    )
+    mishap_step = next(
+        step for step in baseline.history if step.kind == "mishap" and step.throw is not None
+    )
+    original_description = mishap_step.selected
+    new_description = f"{original_description} (house rule)"
+
+    override = tmp_path / "mishaps.toml"
+    override.write_text(
+        MISHAPS.replace(f'"{original_description}"', f'"{new_description}"', 1),
+        encoding="utf-8",
+    )
+    rules = load_rules(override)
+
+    overridden = generate_character(Roller(seed), rules)
+    overridden_step = next(
+        step for step in overridden.history if step.kind == "mishap" and step.throw is not None
+    )
+    assert overridden_step.selected == new_description
+    assert overridden_step.selected != original_description
+
+
+def test_a_careers_medical_tier_takes_effect_with_no_code_edit(tmp_path):
+    assert 'medical-tier = "service"' in NAVY
+    override = tmp_path / "navy.toml"
+    override.write_text(
+        NAVY.replace('medical-tier = "service"', 'medical-tier = "professional"', 1),
+        encoding="utf-8",
+    )
+    rules = load_rules(override)
+    assert rules.careers["navy"].medical_tier == "professional"
+    assert (
+        rules.medical_tiers.tiers[rules.careers["navy"].medical_tier]
+        != rules.medical_tiers.tiers["service"]
+    )
+
+
+def test_the_term_cap_takes_effect_with_no_code_edit(tmp_path):
+    assert "cap = 7" in CHARGEN_PARAMETERS
+    packaged = load_rules()
+    seed, baseline = _first_seed_matching(
+        packaged, lambda c: sum(service.terms for service in c.careers) > 1
+    )
+
+    override = tmp_path / "chargen-parameters.toml"
+    override.write_text(CHARGEN_PARAMETERS.replace("cap = 7", "cap = 1", 1), encoding="utf-8")
+    rules = load_rules(override)
+    assert rules.chargen.terms_cap == 1
+
+    overridden = generate_character(Roller(seed), rules)
+    assert sum(service.terms for service in overridden.careers) == 1
+    assert sum(service.terms for service in overridden.careers) < sum(
+        service.terms for service in baseline.careers
+    )
