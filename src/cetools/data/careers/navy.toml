@@ -36,7 +36,7 @@ entries = ["STR +1", "DEX +1", "END +1", "INT +1", "EDU +1", "Melee Combat"]
 [tables.service]
 entries = ["Comms", "Engineering", "Gun Combat", "Gunnery", "Melee Combat", "Vehicle"]
 
-[tables.advanced]
+[tables.specialist]
 entries = ["Gravitics", "Jack-of-All-Trades", "Melee Combat", "Navigation", "Leadership", "Piloting"]
 
 [tables.advanced-education]

@@ -83,12 +83,12 @@ def test_removing_the_service_table_is_rejected(tmp_path):
     )
 
 
-def test_removing_the_advanced_table_is_rejected(tmp_path):
+def test_removing_the_specialist_table_is_rejected(tmp_path):
     _validate_missing(
         tmp_path,
-        '[tables.advanced]\nentries = ["Gravitics", "Jack-of-All-Trades", "Melee Combat", '
+        '[tables.specialist]\nentries = ["Gravitics", "Jack-of-All-Trades", "Melee Combat", '
         '"Navigation", "Leadership", "Piloting"]\n\n',
-        location="tables.advanced",
+        location="tables.specialist",
     )
 
 

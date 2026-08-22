@@ -90,7 +90,7 @@ def valid_data():
                     "Blade",
                 ]
             },
-            "advanced": {
+            "specialist": {
                 "entries": [
                     "Vacc Suit",
                     "Mechanical",
@@ -211,7 +211,7 @@ class TestMissingRequiredElements:
             (("throws", "re-enlistment"), "throws.re-enlistment"),
             (("tables", "personal"), "tables.personal"),
             (("tables", "service"), "tables.service"),
-            (("tables", "advanced"), "tables.advanced"),
+            (("tables", "specialist"), "tables.specialist"),
             (("mustering-out", "cash"), "mustering-out.cash"),
             (("mustering-out", "benefits"), "mustering-out.benefits"),
         ],
@@ -507,7 +507,7 @@ class TestGateIsOptionalOnEveryTable:
     table left the whole suite passing.
     """
 
-    @pytest.mark.parametrize("table", ["personal", "service", "advanced"])
+    @pytest.mark.parametrize("table", ["personal", "service", "specialist"])
     def test_a_gate_on_a_table_other_than_advanced_education(
         self, valid_data, characteristics, skills, benefits, table
     ):

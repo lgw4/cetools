@@ -37,7 +37,7 @@ _HEADER_KEYS = frozenset({"schema", "schema-version"})
 _REQUIRED_THROWS = ("qualification", "survival", "promotion", "re-enlistment")
 _OPTIONAL_THROWS = ("commission",)
 _ALL_THROWS = frozenset(_REQUIRED_THROWS) | frozenset(_OPTIONAL_THROWS)
-_REQUIRED_TABLES = ("personal", "service", "advanced")
+_REQUIRED_TABLES = ("personal", "service", "specialist")
 _OPTIONAL_TABLES = ("advanced-education",)
 _ALL_TABLES = frozenset(_REQUIRED_TABLES) | frozenset(_OPTIONAL_TABLES)
 
