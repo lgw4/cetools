@@ -20,6 +20,9 @@ _RANGE_SINGLE = re.compile(r"^(-?\d+)$")
 _RANGE_BOUNDED = re.compile(r"^(-?\d+)-(-?\d+)$")
 _RANGE_UNBOUNDED = re.compile(r"^(-?\d+)\+$")
 
+_AMOUNT_INTEGER = re.compile(r"^[+-]?\d+$")
+_AMOUNT_DICE = re.compile(r"^[+-]?\d*[dD]\d+(?:[+-]\d+)?$")
+
 
 def _unrecognized_key_problems(
     data: Mapping[str, object], allowed: frozenset[str], file: str, prefix: str = ""
@@ -452,3 +455,282 @@ def parse_aging_table(
         return None, tuple(problems)
     rows.sort(key=lambda row: row.minimum)
     return AgingTable(roll=roll, rows=tuple(rows)), ()
+
+
+# --- mishap-table (contracts/data-files.md) ----------------------------------
+
+_MISHAP_EFFECT_KINDS = frozenset(
+    {
+        "characteristic-class",
+        "debt",
+        "years",
+        "forfeit-term-benefit",
+        "forfeit-career-benefits",
+        "roll-injury",
+    }
+)
+_MISHAP_EFFECT_AMOUNT_KINDS = frozenset({"characteristic-class", "debt", "years"})
+
+
+@dataclass(frozen=True, slots=True)
+class MishapEffect:
+    """One consequence of a mishap or an injury row.
+
+    `characteristic_class` and `count` are only meaningful for
+    `"characteristic-class"`, `""` and `0` otherwise; `amount` is only
+    meaningful for `"characteristic-class"`, `"debt"`, and `"years"`, `""`
+    otherwise.
+    """
+
+    kind: str
+    characteristic_class: str
+    count: int
+    amount: str
+
+
+@dataclass(frozen=True, slots=True)
+class MishapRow:
+    """One row of the mishap table, indexed by the throw's total, like the
+    draft table.
+    """
+
+    description: str
+    effects: tuple[MishapEffect, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class InjuryRow:
+    """One row of the injury table, reached only from a `roll-injury`
+    effect.
+    """
+
+    description: str
+    effects: tuple[MishapEffect, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class MishapTable:
+    """`rows` from `mishaps`, indexed positionally by `roll`'s total.
+    `injuries` lives here because nothing but a `roll-injury` effect reaches
+    it, and splitting the two files would let a referee replace one and
+    leave a dangling reference in the other.
+    """
+
+    roll: str
+    rows: tuple[MishapRow, ...]
+    injury_roll: str
+    injuries: tuple[InjuryRow, ...]
+
+
+def _valid_amount_text(text: str) -> bool:
+    return bool(_AMOUNT_INTEGER.match(text) or _AMOUNT_DICE.match(text))
+
+
+def _parse_mishap_effect(
+    value: object, file: str, location: str
+) -> tuple[MishapEffect | None, list[ValidationProblem]]:
+    problems: list[ValidationProblem] = []
+    if not isinstance(value, dict):
+        problems.append(
+            ValidationProblem(
+                file=file, location=location, found=type_name(value), expected="a table"
+            )
+        )
+        return None, problems
+
+    kind = value.get("kind")
+    if kind not in _MISHAP_EFFECT_KINDS:
+        problems.append(
+            ValidationProblem(
+                file=file,
+                location=f"{location}.kind",
+                found="missing" if "kind" not in value else repr(kind),
+                expected=f"one of: {', '.join(sorted(_MISHAP_EFFECT_KINDS))}",
+            )
+        )
+        problems.extend(
+            _unrecognized_key_problems(
+                value, {"kind", "class", "count", "amount"}, file, f"{location}."
+            )
+        )
+        return None, problems
+
+    allowed = {"kind"}
+    if kind == "characteristic-class":
+        allowed |= {"class", "count", "amount"}
+    elif kind in ("debt", "years"):
+        allowed |= {"amount"}
+    problems.extend(_unrecognized_key_problems(value, allowed, file, f"{location}."))
+
+    characteristic_class = ""
+    count = 0
+    if kind == "characteristic-class":
+        parsed_class = _require_string(value, "class", file, f"{location}.class", problems)
+        parsed_count = _require_int(value, "count", file, f"{location}.count", problems, minimum=1)
+        characteristic_class = parsed_class or ""
+        count = parsed_count if parsed_count is not None else 0
+
+    amount = ""
+    if kind in _MISHAP_EFFECT_AMOUNT_KINDS:
+        raw_amount = value.get("amount")
+        if not isinstance(raw_amount, str) or not raw_amount:
+            found = "missing" if "amount" not in value else type_name(raw_amount)
+            problems.append(
+                ValidationProblem(
+                    file=file,
+                    location=f"{location}.amount",
+                    found=found,
+                    expected="dice notation or a signed integer, as text",
+                )
+            )
+        elif not _valid_amount_text(raw_amount):
+            problems.append(
+                ValidationProblem(
+                    file=file,
+                    location=f"{location}.amount",
+                    found=repr(raw_amount),
+                    expected="dice notation or a signed integer, as text",
+                )
+            )
+        else:
+            amount = raw_amount
+
+    if problems:
+        return None, problems
+    return (
+        MishapEffect(
+            kind=kind, characteristic_class=characteristic_class, count=count, amount=amount
+        ),
+        problems,
+    )
+
+
+def _parse_mishap_effects(
+    raw: object, file: str, location: str
+) -> tuple[tuple[MishapEffect, ...] | None, list[ValidationProblem]]:
+    if not isinstance(raw, list):
+        return None, [
+            ValidationProblem(
+                file=file, location=location, found=type_name(raw), expected="an array"
+            )
+        ]
+    problems: list[ValidationProblem] = []
+    effects: list[MishapEffect] = []
+    ok = True
+    for index, item in enumerate(raw):
+        effect, sub_problems = _parse_mishap_effect(item, file, f"{location}[{index}]")
+        problems.extend(sub_problems)
+        if effect is None:
+            ok = False
+        else:
+            effects.append(effect)
+    if not ok:
+        return None, problems
+    return tuple(effects), problems
+
+
+def _parse_mishap_row(
+    value: object, file: str, location: str
+) -> tuple[tuple[str, tuple[MishapEffect, ...]] | None, list[ValidationProblem]]:
+    problems: list[ValidationProblem] = []
+    if not isinstance(value, dict):
+        problems.append(
+            ValidationProblem(
+                file=file, location=location, found=type_name(value), expected="a table"
+            )
+        )
+        return None, problems
+
+    problems.extend(
+        _unrecognized_key_problems(value, {"description", "effects"}, file, f"{location}.")
+    )
+
+    description = _require_string(value, "description", file, f"{location}.description", problems)
+
+    effects: tuple[MishapEffect, ...] | None = None
+    if "effects" not in value:
+        problems.append(
+            ValidationProblem(
+                file=file, location=f"{location}.effects", found="missing", expected="an array"
+            )
+        )
+    else:
+        effects, sub_problems = _parse_mishap_effects(
+            value["effects"], file, f"{location}.effects"
+        )
+        problems.extend(sub_problems)
+
+    if description is None or effects is None:
+        return None, problems
+    return (description, effects), problems
+
+
+def _parse_row_array(
+    raw: object, file: str, location: str
+) -> tuple[list[tuple[str, tuple[MishapEffect, ...]]] | None, list[ValidationProblem]]:
+    problems: list[ValidationProblem] = []
+    if not isinstance(raw, list) or not raw:
+        found = type_name(raw) if not isinstance(raw, list) else "an empty array"
+        problems.append(
+            ValidationProblem(
+                file=file, location=location, found=found, expected="at least one row"
+            )
+        )
+        return None, problems
+
+    rows: list[tuple[str, tuple[MishapEffect, ...]]] = []
+    ok = True
+    for index, item in enumerate(raw):
+        row, sub_problems = _parse_mishap_row(item, file, f"{location}[{index}]")
+        problems.extend(sub_problems)
+        if row is None:
+            ok = False
+        else:
+            rows.append(row)
+    if not ok:
+        return None, problems
+    return rows, problems
+
+
+def parse_mishap_table(
+    data: Mapping[str, object], file: str
+) -> tuple[MishapTable | None, tuple[ValidationProblem, ...]]:
+    problems: list[ValidationProblem] = []
+    problems.extend(
+        _unrecognized_key_problems(
+            data, _HEADER_KEYS | {"roll", "injury-roll", "mishaps", "injuries"}, file
+        )
+    )
+
+    roll = _require_roll(data, "roll", file, "roll", problems)
+    injury_roll = _require_roll(data, "injury-roll", file, "injury-roll", problems)
+
+    mishaps: list[tuple[str, tuple[MishapEffect, ...]]] | None = None
+    if "mishaps" not in data:
+        problems.append(
+            ValidationProblem(file=file, location="mishaps", found="missing", expected="an array")
+        )
+    else:
+        mishaps, sub_problems = _parse_row_array(data["mishaps"], file, "mishaps")
+        problems.extend(sub_problems)
+
+    injuries: list[tuple[str, tuple[MishapEffect, ...]]] | None = None
+    if "injuries" not in data:
+        problems.append(
+            ValidationProblem(file=file, location="injuries", found="missing", expected="an array")
+        )
+    else:
+        injuries, sub_problems = _parse_row_array(data["injuries"], file, "injuries")
+        problems.extend(sub_problems)
+
+    if problems or roll is None or injury_roll is None or mishaps is None or injuries is None:
+        return None, tuple(problems)
+    return (
+        MishapTable(
+            roll=roll,
+            rows=tuple(MishapRow(description=d, effects=e) for d, e in mishaps),
+            injury_roll=injury_roll,
+            injuries=tuple(InjuryRow(description=d, effects=e) for d, e in injuries),
+        ),
+        (),
+    )
