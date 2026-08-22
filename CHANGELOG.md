@@ -188,3 +188,14 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   gained a keyword-only `full` flag, rejected by every registration that
   has no fuller form; `as_dict` and `as_json` now render `Character` and
   `CharacterBatch` as well.
+- **`cetools npc --count`.** Generates several characters from one master
+  seed: `--count N` produces `N` sheets from the same `--seed`, one blank
+  line between consecutive ones and nothing else, so a batch of one is
+  byte-identical to the single character of that seed and quoting the
+  master seed back reproduces the whole table. `--count` below 1 is a
+  usage error naming `--count`; `--name` together with `--count` above 1
+  is a usage error naming both, since a personal name names one character
+  and applying it to the rest, or discarding it, would each silently drop
+  part of what was asked for. `generate_batch` and `character_seed` were
+  already reachable from the library; this wires the option through to
+  them.

@@ -304,8 +304,8 @@ character of that seed.
 
 ### Implementation for User Story 3
 
-- [ ] T128 [US3] Add `--count` to the `npc` command in `src/cetools/cli.py`, passing it to `generate_batch` and turning the library's two `CetoolsError` refusals into usage errors naming the options at fault
-- [ ] T129 [US3] Add help strings for `npc` and every option in `src/cetools/cli.py`, with no help string naming the trademark as something this tool works with
+- [X] T128 [US3] Add `--count` to the `npc` command in `src/cetools/cli.py`, passing it to `generate_batch` and turning the library's two `CetoolsError` refusals into usage errors naming the options at fault
+- [X] T129 [US3] Add help strings for `npc` and every option in `src/cetools/cli.py`, with no help string naming the trademark as something this tool works with
 
 **Checkpoint**: all three referee-facing stories work independently.
 

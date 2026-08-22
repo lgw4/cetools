@@ -160,6 +160,9 @@ def npc(
     seed: Optional[str] = typer.Option(
         None, "--seed", help="Integer or arbitrary text. Omitted: drawn from secrets."
     ),
+    count: int = typer.Option(
+        1, "--count", help="How many characters to generate from one master seed."
+    ),
     name: Optional[str] = typer.Option(
         None,
         "--name",
@@ -184,10 +187,16 @@ def npc(
         raise typer.BadParameter(
             "--name must not be empty or whitespace-only", param_hint="--name"
         )
+    if count < 1:
+        raise typer.BadParameter(f"--count must be at least 1, got {count}", param_hint="--count")
+    if name is not None and count > 1:
+        raise typer.BadParameter(
+            "--name may not be combined with --count above 1", param_hint="--name"
+        )
     rules_data = _check_override_location(rules_data, "--rules-data")
     try:
         rules = load_rules(rules_data)
-        batch = generate_batch(seed, rules, count=1, name=name)
+        batch = generate_batch(seed, rules, count=count, name=name)
     except CetoolsError as exc:
         if isinstance(exc, RulesDataError) and exc.problems:
             for problem in exc.problems:
@@ -201,7 +210,7 @@ def npc(
     typer.echo(f"{'Seed:'.ljust(_RULES_LABEL_WIDTH)}{batch.seed}", err=True)
     for line in _provenance_lines(batch.provenance, indent=0):
         typer.echo(line, err=True)
-    typer.echo(as_text(batch.characters[0], full=full))
+    typer.echo(as_text(batch, full=full))
 
 
 def main() -> None:
