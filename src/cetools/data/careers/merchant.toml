@@ -1,0 +1,66 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# The eighth career, completing the professional medical tier (research R6).
+# A civilian rank ladder, proving rank titles are not a military-only shape,
+# and the lowest re-enlistment target in the shipped set.
+
+schema = "career"
+schema-version = 2
+
+name = "Merchant"
+medical-tier = "professional"
+
+[throws.qualification]
+characteristic = "INT"
+target = 5
+
+[throws.survival]
+characteristic = "INT"
+target = 5
+
+[throws.commission]
+characteristic = "INT"
+target = 5
+
+[throws.promotion]
+characteristic = "EDU"
+target = 6
+
+[throws.re-enlistment]
+target = 2
+
+[tables.personal]
+entries = ["STR +1", "DEX +1", "INT +1", "EDU +1", "SOC +1", "Carouse"]
+
+[tables.service]
+entries = ["Athletics", "Broker", "Electronics", "Mechanic", "Steward", "Vehicle"]
+
+[tables.specialist]
+entries = ["Broker", "Persuade", "Streetwise", "Electronics", "Vehicle", "Navigation"]
+
+[tables.advanced-education]
+requires = "EDU 8+"
+entries = ["Admin", "Advocate", "Broker", "Computer", "Medicine", "Navigation"]
+
+[[ladders]]
+name = "crew"
+role = "entry"
+ranks = [
+  { rank = 0, title = "Crew" },
+]
+
+[[ladders]]
+name = "officer"
+role = "commissioned"
+ranks = [
+  { rank = 1, title = "Fourth Officer", bonus = "Broker 1" },
+  { rank = 2, title = "Third Officer" },
+  { rank = 3, title = "Second Officer", bonus = "Vehicle (Watercraft) 1" },
+  { rank = 4, title = "First Officer" },
+  { rank = 5, title = "Chief Officer" },
+  { rank = 6, title = "Master" },
+]
+
+[mustering-out]
+cash = [1000, 5000, 10000, 20000, 20000, 40000]
+benefits = ["Low Passage", "Trade Goods", "Ship Share", "Mid Passage", "SOC +1", "High Passage"]

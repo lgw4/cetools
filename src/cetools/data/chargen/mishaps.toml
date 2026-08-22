@@ -1,0 +1,62 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# Rows 4 and 5 carry both `forfeit-career-benefits` and the extra four years
+# on top of the two the mishap term itself costs (research R10 items 5, 6).
+
+schema = "mishap-table"
+schema-version = 1
+
+roll = "1d6"
+injury-roll = "1d6"
+
+[[mishaps]]
+description = "Injured in action."
+effects = [{ kind = "characteristic-class", class = "physical", count = 1, amount = "-1d6" }]
+
+[[mishaps]]
+description = "Honorably discharged from the service."
+effects = []
+
+[[mishaps]]
+description = "Honorably discharged after a long legal battle."
+effects = [{ kind = "debt", amount = "10000" }]
+
+[[mishaps]]
+description = "Seriously injured and given a dishonorable discharge."
+effects = [
+  { kind = "roll-injury" },
+  { kind = "forfeit-career-benefits" },
+  { kind = "years", amount = "4" },
+]
+
+[[mishaps]]
+description = "Imprisoned for four years on false charges."
+effects = [{ kind = "forfeit-career-benefits" }, { kind = "years", amount = "4" }]
+
+[[mishaps]]
+description = "Gravely injured and forced out of the service."
+effects = [{ kind = "roll-injury" }, { kind = "forfeit-term-benefit" }]
+
+[[injuries]]
+description = "Lightly injured."
+effects = []
+
+[[injuries]]
+description = "Injured. A physical characteristic is reduced."
+effects = [{ kind = "characteristic-class", class = "physical", count = 1, amount = "-1d6" }]
+
+[[injuries]]
+description = "Badly injured. Two physical characteristics are reduced."
+effects = [{ kind = "characteristic-class", class = "physical", count = 2, amount = "-1d6" }]
+
+[[injuries]]
+description = "Severely injured. A physical characteristic is reduced substantially."
+effects = [{ kind = "characteristic-class", class = "physical", count = 1, amount = "-2d6" }]
+
+[[injuries]]
+description = "Grievously injured. Two physical characteristics are reduced substantially."
+effects = [{ kind = "characteristic-class", class = "physical", count = 2, amount = "-2d6" }]
+
+[[injuries]]
+description = "Critically injured. Three physical characteristics are reduced substantially."
+effects = [{ kind = "characteristic-class", class = "physical", count = 3, amount = "-2d6" }]

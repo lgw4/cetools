@@ -17,6 +17,8 @@ from cetools.rules import validate_rules
 _DATA = Path(__file__).resolve().parents[2] / "src" / "cetools" / "data"
 NAVY = (_DATA / "careers" / "navy.toml").read_text(encoding="utf-8")
 CHARACTERISTICS = (_DATA / "registries" / "characteristics.toml").read_text(encoding="utf-8")
+DRAFT = (_DATA / "chargen" / "draft.toml").read_text(encoding="utf-8")
+AGING = (_DATA / "chargen" / "aging.toml").read_text(encoding="utf-8")
 
 
 def _write(tmp_path: Path, name: str, text: str) -> Path:
@@ -416,14 +418,30 @@ def test_a_problem_naming_two_files_still_carries_one_composition_key(tmp_path):
     _write(tmp_path, "characteristics2.toml", CHARACTERISTICS)
     report = validate_rules(tmp_path)
     assert not report.valid
+    # The ambiguous "characteristics" kind falls back to an empty registry
+    # (research R13), so every career's characteristic reference cascades
+    # into its own problem — every packaged career, not just navy/scouts.
     composed = {
         "tasks.toml",
         "characteristics.toml",
         "characteristics2.toml",
         "skills.toml",
         "benefits.toml",
+        "draft.toml",
+        "aging.toml",
+        "mishaps.toml",
+        "background-skills.toml",
+        "medical-tiers.toml",
+        "chargen-parameters.toml",
         "navy.toml",
         "scouts.toml",
+        "aerospace-defense.toml",
+        "marine.toml",
+        "maritime-defense.toml",
+        "scout.toml",
+        "surface-defense.toml",
+        "drifter.toml",
+        "merchant.toml",
     }
     for problem in report.problems:
         assert problem.file in composed, problem
@@ -477,3 +495,76 @@ def test_sc003_four_distinct_problems_in_one_file_report_together(tmp_path):
     assert not report.valid
     navy_problems = [p for p in report.problems if p.file == "navy.toml"]
     assert len(navy_problems) >= 4
+
+
+# --- this feature's six new cross-file rules (contracts/data-files.md) -----
+
+
+def test_a_draft_table_career_that_resolves_to_nothing_fails_the_whole_set(tmp_path):
+    text = DRAFT.replace('"Navy"', '"Naval Service"', 1)
+    assert text != DRAFT
+    _write(tmp_path, "draft.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        p.file == "draft.toml"
+        and p.location == "careers[3]"
+        and "Naval Service" in p.found
+        and "career" in p.expected
+        for p in report.problems
+    )
+
+
+def test_a_career_naming_a_medical_tier_that_does_not_exist_is_rejected(tmp_path):
+    text = NAVY.replace('medical-tier = "service"', 'medical-tier = "premium"', 1)
+    assert text != NAVY
+    _write(tmp_path, "navy.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        p.file == "navy.toml"
+        and p.location == "medical-tier"
+        and "premium" in p.found
+        and "medical tiers" in p.expected
+        for p in report.problems
+    )
+
+
+def test_a_career_with_a_commission_throw_and_no_commissioned_ladder_is_rejected(tmp_path):
+    # Removing the whole officer ladder, rather than only recoloring its
+    # role, keeps the file structurally valid on its own terms (still
+    # exactly one `entry` ladder) so this cross-file rule is what rejects
+    # it, not careers.py's own ladder-role count.
+    officer_ladder = (
+        '[[ladders]]\nname = "officer"\nrole = "commissioned"\nranks = [\n  '
+        '{ rank = 1, title = "Midshipman", bonus = "Melee Combat (Slashing Weapons) 1" },\n  '
+        '{ rank = 2, title = "Lieutenant" },\n  '
+        '{ rank = 3, title = "Lt Commander", bonus = "Tactics 1" },\n  '
+        '{ rank = 4, title = "Commander" },\n  { rank = 5, title = "Captain" },\n  '
+        '{ rank = 6, title = "Commodore" },\n]\n\n'
+    )
+    assert officer_ladder in NAVY
+    text = NAVY.replace(officer_ladder, "", 1)
+    assert text != NAVY
+    _write(tmp_path, "navy.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        p.file == "navy.toml" and p.location == "ladders" and "commissioned" in p.found
+        for p in report.problems
+    )
+
+
+def test_a_characteristic_class_no_registry_declares_is_rejected(tmp_path):
+    text = AGING.replace('class = "physical", count = 3', 'class = "cybernetic", count = 3', 1)
+    assert text != AGING
+    _write(tmp_path, "aging.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        p.file == "aging.toml"
+        and p.location == "rows[0].effects[0].class"
+        and "cybernetic" in p.found
+        and "characteristic classes" in p.expected
+        for p in report.problems
+    )

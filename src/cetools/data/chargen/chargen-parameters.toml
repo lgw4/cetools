@@ -1,0 +1,70 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# Every rules constant the walk depends on (FR-038). None of these appear in
+# engine code.
+
+schema = "chargen-parameters"
+schema-version = 1
+
+[characteristics]
+roll = "2d6"
+
+[background-skills]
+base = 3
+characteristic = "EDU"
+homeworld-first = 2
+
+[terms]
+starting-age = 18
+term-years = 4
+mishap-term-years = 2
+cap = 7
+aging-begins-at-age = 34
+
+[qualification]
+penalty-per-previous-career = -2
+draft-entries-allowed = 1
+
+[basic-training]
+first-career-all = true
+subsequent-career-count = 1
+
+[survival]
+natural-failure = 2
+
+[skill-rolls]
+per-term = 1
+per-term-without-throws = 2
+on-commission = 1
+on-advancement = 1
+
+[commission]
+drafted-first-term-barred = true
+
+[continuation]
+roll = "1d6"
+target = 4
+
+[mustering-out]
+roll = "1d6"
+cash-choice-roll = "1d6"
+cash-choice-target = 4
+maximum-cash-rolls = 3
+retired-cash-dm = 1
+rank-benefits = [
+  { rank = 4, extra = 1 },
+  { rank = 5, extra = 2 },
+  { rank = 6, extra = 3 },
+]
+material-rank-dm = [{ rank = 5, dm = 1 }]
+
+[pension]
+minimum-terms = 5
+base = 10000
+per-additional-term = 2000
+
+[medical]
+crisis-roll = "1d6"
+crisis-multiplier = 10000
+crisis-restores-to = 1
+restore-cost-per-point = 5000

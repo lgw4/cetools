@@ -57,7 +57,13 @@ def test_removing_a_registry_entry_breaks_every_career_reference_to_it(tmp_path)
     report = validate_rules(tmp_path)
 
     assert not report.valid
-    tactics_locations = {p.location for p in report.problems if "Tactics" in p.found}
+    # Scoped to navy.toml: the packaged set now ships seven other careers
+    # (003-npc-generator), several of which also name Tactics, and this test
+    # demonstrates the rule against the one reference career rather than
+    # against the whole set.
+    tactics_locations = {
+        p.location for p in report.problems if p.file == "navy.toml" and "Tactics" in p.found
+    }
     assert tactics_locations == {
         "tables.advanced-education.entries[5]",
         "ladders[1].ranks[2].bonus",
@@ -84,7 +90,11 @@ def test_removing_a_characteristic_from_the_registry_breaks_every_career_referen
     report = validate_rules(tmp_path)
 
     assert not report.valid
-    edu_locations = {p.location for p in report.problems if p.found == "EDU"}
+    # Scoped to navy.toml for the same reason as the skills case above: the
+    # packaged set now ships other careers that also reference EDU.
+    edu_locations = {
+        p.location for p in report.problems if p.file == "navy.toml" and p.found == "EDU"
+    }
     assert edu_locations == {
         "throws.promotion.characteristic",
         "tables.personal.entries[4]",

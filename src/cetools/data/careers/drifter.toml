@@ -1,0 +1,48 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# The always-available fallback (FR-006) and the one re-enterable career
+# (FR-015). Neither commission nor promotion. Rank zero grants no bonus at
+# all, which the source gives no other career.
+
+schema = "career"
+schema-version = 2
+
+name = "Drifter"
+medical-tier = "fringe"
+always-available = true
+re-enterable = true
+
+[throws.qualification]
+characteristic = "END"
+target = 3
+
+[throws.survival]
+characteristic = "END"
+target = 5
+
+[throws.re-enlistment]
+target = 5
+
+[tables.personal]
+entries = ["STR +1", "DEX +1", "END +1", "SOC -1", "Streetwise", "Carouse"]
+
+[tables.service]
+entries = ["Carouse", "Gambler", "Recon", "Stealth", "Streetwise", "Survival"]
+
+[tables.specialist]
+entries = ["Gambler", "Jack-of-All-Trades", "Melee Combat", "Recon", "Stealth", "Streetwise"]
+
+[tables.advanced-education]
+requires = "EDU 6+"
+entries = ["Admin", "Advocate", "Broker", "Electronics", "Medicine", "Navigation"]
+
+[[ladders]]
+name = "drifter"
+role = "entry"
+ranks = [
+  { rank = 0, title = "Drifter" },
+]
+
+[mustering-out]
+cash = [1000, 1000, 2000, 2000, 5000, 5000]
+benefits = ["Low Passage", "Weapon", "Trade Goods", "Mid Passage", "SOC -1", "Personal Vehicle"]

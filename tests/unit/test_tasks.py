@@ -3,10 +3,63 @@ from types import MappingProxyType
 import pytest
 
 from cetools import Band, Modifier, Roller, TaskParameters, check
+from cetools.chargen import (
+    AgingTable,
+    BackgroundSkills,
+    ChargenParameters,
+    DraftTable,
+    MedicalTiers,
+    MishapTable,
+)
 from cetools.errors import RulesDataError, TaskError
 from cetools.provenance import Provenance
 from cetools.registries import BenefitRegistry, CharacteristicRegistry, SkillRegistry
 from cetools.rules import RulesData
+
+# Placeholder values for the fields `check` never reads: only task resolution
+# is under test here, so these need only satisfy `RulesData`'s shape.
+_EMPTY_DRAFT = DraftTable(roll="1d6", careers=("Placeholder",))
+_EMPTY_AGING = AgingTable(roll="2d6", rows=())
+_EMPTY_MISHAPS = MishapTable(roll="1d6", rows=(), injury_roll="1d6", injuries=())
+_EMPTY_BACKGROUND_SKILLS = BackgroundSkills(law_level=(), trade_code=(), education=())
+_EMPTY_MEDICAL_TIERS = MedicalTiers(roll="2d6", rank_dm=False, tiers=MappingProxyType({}))
+_EMPTY_CHARGEN = ChargenParameters(
+    characteristics_roll="2d6",
+    background_skills_base=3,
+    background_skills_characteristic="EDU",
+    background_skills_homeworld_first=2,
+    terms_starting_age=18,
+    terms_term_years=4,
+    terms_mishap_term_years=2,
+    terms_cap=7,
+    terms_aging_begins_at_age=34,
+    qualification_penalty_per_previous_career=-2,
+    qualification_draft_entries_allowed=1,
+    basic_training_first_career_all=True,
+    basic_training_subsequent_career_count=1,
+    survival_natural_failure=2,
+    skill_rolls_per_term=1,
+    skill_rolls_per_term_without_throws=2,
+    skill_rolls_on_commission=1,
+    skill_rolls_on_advancement=1,
+    commission_drafted_first_term_barred=True,
+    continuation_roll="1d6",
+    continuation_target=4,
+    mustering_out_roll="1d6",
+    mustering_out_cash_choice_roll="1d6",
+    mustering_out_cash_choice_target=4,
+    mustering_out_maximum_cash_rolls=3,
+    mustering_out_retired_cash_dm=1,
+    mustering_out_rank_benefits=(),
+    mustering_out_material_rank_dm=(),
+    pension_minimum_terms=5,
+    pension_base=10000,
+    pension_per_additional_term=2000,
+    medical_crisis_roll="1d6",
+    medical_crisis_multiplier=10000,
+    medical_crisis_restores_to=1,
+    medical_restore_cost_per_point=5000,
+)
 
 DIFFICULTY_LADDER = {
     "Simple": 6,
@@ -63,6 +116,12 @@ def _rules(*, characteristic_bands=CHARACTERISTIC_BANDS, **overrides):
         skills=SkillRegistry(skills=MappingProxyType({})),
         benefits=BenefitRegistry(items=()),
         careers=MappingProxyType({}),
+        draft=_EMPTY_DRAFT,
+        aging=_EMPTY_AGING,
+        mishaps=_EMPTY_MISHAPS,
+        background_skills=_EMPTY_BACKGROUND_SKILLS,
+        medical_tiers=_EMPTY_MEDICAL_TIERS,
+        chargen=_EMPTY_CHARGEN,
         provenance=_EMPTY_PROVENANCE,
     )
 

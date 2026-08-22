@@ -1,0 +1,64 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# Draft row 1.
+
+schema = "career"
+schema-version = 2
+
+name = "Aerospace Defense"
+medical-tier = "service"
+
+[throws.qualification]
+characteristic = "DEX"
+target = 6
+
+[throws.survival]
+characteristic = "END"
+target = 5
+
+[throws.commission]
+characteristic = "SOC"
+target = 6
+
+[throws.promotion]
+characteristic = "EDU"
+target = 6
+
+[throws.re-enlistment]
+target = 5
+
+[tables.personal]
+entries = ["STR +1", "DEX +1", "END +1", "INT +1", "EDU +1", "Gunnery"]
+
+[tables.service]
+entries = ["Flyer", "Gunnery", "Gun Combat", "Mechanic", "Vehicle", "Electronics"]
+
+[tables.specialist]
+entries = ["Vehicle", "Gunnery", "Tactics", "Electronics", "Mechanic", "Jack-of-All-Trades"]
+
+[tables.advanced-education]
+requires = "EDU 8+"
+entries = ["Admin", "Computer", "Engineering", "Navigation", "Tactics", "Electronics"]
+
+[[ladders]]
+name = "enlisted"
+role = "entry"
+ranks = [
+  { rank = 0, title = "Airman", bonus = "Flyer 1" },
+]
+
+[[ladders]]
+name = "officer"
+role = "commissioned"
+ranks = [
+  { rank = 1, title = "Flight Officer", bonus = "Gunnery (Turret Weapons) 1" },
+  { rank = 2, title = "Flight Lieutenant" },
+  { rank = 3, title = "Squadron Leader", bonus = "Tactics 1" },
+  { rank = 4, title = "Wing Commander" },
+  { rank = 5, title = "Group Captain" },
+  { rank = 6, title = "Air Commodore" },
+]
+
+[mustering-out]
+cash = [1000, 5000, 5000, 10000, 10000, 20000]
+benefits = ["Low Passage", "Personal Vehicle", "Weapon", "Mid Passage", "SOC +1", "Armor"]

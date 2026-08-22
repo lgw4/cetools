@@ -19,6 +19,20 @@ from types import MappingProxyType
 
 from cetools.careers import CareerDefinition
 from cetools.careers import parse_career as _parse_career
+from cetools.chargen import (
+    AgingTable,
+    BackgroundSkills,
+    ChargenParameters,
+    DraftTable,
+    MedicalTiers,
+    MishapTable,
+    parse_aging_table,
+    parse_background_skills,
+    parse_chargen_parameters,
+    parse_draft_table,
+    parse_medical_tiers,
+    parse_mishap_table,
+)
 from cetools.errors import RulesDataError, ValidationProblem, type_name
 from cetools.provenance import (
     Disposition,
@@ -45,13 +59,36 @@ _SUPPORTED_VERSION = {
     "skills": 1,
     "benefits": 1,
     "career": 2,
+    "draft-table": 1,
+    "aging-table": 1,
+    "mishap-table": 1,
+    "background-skills": 1,
+    "medical-tiers": 1,
+    "chargen-parameters": 1,
 }
-_SINGLETON_KINDS = ("task-parameters", "characteristics", "skills", "benefits")
+_SINGLETON_KINDS = (
+    "task-parameters",
+    "characteristics",
+    "skills",
+    "benefits",
+    "draft-table",
+    "aging-table",
+    "mishap-table",
+    "background-skills",
+    "medical-tiers",
+    "chargen-parameters",
+)
 _CANONICAL_FILE = {
     "task-parameters": "tasks.toml",
     "characteristics": "characteristics.toml",
     "skills": "skills.toml",
     "benefits": "benefits.toml",
+    "draft-table": "draft.toml",
+    "aging-table": "aging.toml",
+    "mishap-table": "mishaps.toml",
+    "background-skills": "background-skills.toml",
+    "medical-tiers": "medical-tiers.toml",
+    "chargen-parameters": "chargen-parameters.toml",
 }
 _KIND_AT_CANONICAL_FILE = {file: kind for kind, file in _CANONICAL_FILE.items()}
 
@@ -65,6 +102,12 @@ class RulesData:
     skills: SkillRegistry
     benefits: BenefitRegistry
     careers: Mapping[str, CareerDefinition]
+    draft: DraftTable
+    aging: AgingTable
+    mishaps: MishapTable
+    background_skills: BackgroundSkills
+    medical_tiers: MedicalTiers
+    chargen: ChargenParameters
     provenance: Provenance
 
 
@@ -237,14 +280,20 @@ def _require_int(
     return value
 
 
-# Kind to parse function, one entry per single-instance kind. A table rather
-# than a repeated if-block, so the kind count can go from four to eleven
-# without repeating the same four lines seven more times.
+# Kind to parse function, one entry per single-instance kind whose parser
+# needs nothing beyond its own file's data. `background-skills` is the one
+# exception: its parser also takes the skills registry, so it is parsed
+# separately once that registry is resolved, below.
 _SINGLETON_PARSERS = {
     "task-parameters": parse_task_parameters,
     "characteristics": parse_characteristics,
     "skills": parse_skills,
     "benefits": parse_benefits,
+    "draft-table": parse_draft_table,
+    "aging-table": parse_aging_table,
+    "mishap-table": parse_mishap_table,
+    "medical-tiers": parse_medical_tiers,
+    "chargen-parameters": parse_chargen_parameters,
 }
 
 
@@ -671,6 +720,11 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
     characteristics: CharacteristicRegistry | None = singletons.get("characteristics")
     skills: SkillRegistry | None = singletons.get("skills")
     benefits: BenefitRegistry | None = singletons.get("benefits")
+    draft: DraftTable | None = singletons.get("draft-table")
+    aging: AgingTable | None = singletons.get("aging-table")
+    mishaps: MishapTable | None = singletons.get("mishap-table")
+    medical_tiers: MedicalTiers | None = singletons.get("medical-tiers")
+    chargen: ChargenParameters | None = singletons.get("chargen-parameters")
 
     # Career validation proceeds even when a registry is missing or invalid,
     # against an empty substitute, so every reference cascades into its own
@@ -678,6 +732,14 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
     career_characteristics = characteristics or CharacteristicRegistry(names=MappingProxyType({}))
     career_skills = skills or SkillRegistry(skills=MappingProxyType({}))
     career_benefits = benefits or BenefitRegistry(items=())
+
+    background_skills: BackgroundSkills | None = None
+    if "background-skills" in resolved_singleton:
+        bg_basename = resolved_singleton["background-skills"]
+        background_skills, bg_problems = parse_background_skills(
+            parsed[bg_basename][1], bg_basename, career_skills
+        )
+        problems.extend(bg_problems)
 
     careers: dict[str, CareerDefinition] = {}
     career_names_seen: dict[str, str] = {}
@@ -705,6 +767,95 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
         career_names_seen[career.name] = basename
         careers[basename.removesuffix(".toml")] = career
 
+    # --- cross-file rules (contracts/data-files.md) ---------------------
+
+    if draft is not None:
+        draft_basename = resolved_singleton["draft-table"]
+        for index, name in enumerate(draft.careers):
+            if name not in career_names_seen:
+                problems.append(
+                    ValidationProblem(
+                        file=draft_basename,
+                        location=f"careers[{index}]",
+                        found=repr(name),
+                        expected="a career's declared name, in force",
+                    )
+                )
+
+    # A missing or invalid medical-tiers file leaves no tier name to match,
+    # so every career's reference cascades into its own problem here too
+    # (research R13), rather than this rule being silently skipped.
+    tier_names = frozenset(medical_tiers.tiers) if medical_tiers is not None else frozenset()
+    for stem, career in careers.items():
+        career_basename = f"{stem}.toml"
+        if career.medical_tier not in tier_names:
+            problems.append(
+                ValidationProblem(
+                    file=career_basename,
+                    location="medical-tier",
+                    found=repr(career.medical_tier),
+                    expected=(
+                        f"one of the declared medical tiers: {', '.join(sorted(tier_names))}"
+                        if tier_names
+                        else "a name declared by the medical-tiers file"
+                    ),
+                )
+            )
+        if "commission" in career.throws and not any(
+            ladder.role == "commissioned" for ladder in career.ladders
+        ):
+            problems.append(
+                ValidationProblem(
+                    file=career_basename,
+                    location="ladders",
+                    found="throws.commission with no ladder of role 'commissioned'",
+                    expected="exactly one ladder with role 'commissioned'",
+                )
+            )
+
+    characteristic_classes = (
+        frozenset(characteristics.classes.values()) if characteristics is not None else frozenset()
+    )
+
+    def _class_effect_problems(file: str, location: str, characteristic_class: str) -> None:
+        if characteristic_class not in characteristic_classes:
+            problems.append(
+                ValidationProblem(
+                    file=file,
+                    location=location,
+                    found=repr(characteristic_class),
+                    expected=(
+                        f"one of the declared characteristic classes: "
+                        f"{', '.join(sorted(characteristic_classes))}"
+                        if characteristic_classes
+                        else "a class declared by the characteristics registry"
+                    ),
+                )
+            )
+
+    if aging is not None:
+        aging_basename = resolved_singleton["aging-table"]
+        for row_index, row in enumerate(aging.rows):
+            for effect_index, effect in enumerate(row.effects):
+                _class_effect_problems(
+                    aging_basename,
+                    f"rows[{row_index}].effects[{effect_index}].class",
+                    effect.characteristic_class,
+                )
+
+    if mishaps is not None:
+        mishaps_basename = resolved_singleton["mishap-table"]
+        for section, section_rows in (("mishaps", mishaps.rows), ("injuries", mishaps.injuries)):
+            for row_index, row in enumerate(section_rows):
+                for effect_index, effect in enumerate(row.effects):
+                    if effect.kind != "characteristic-class":
+                        continue
+                    _class_effect_problems(
+                        mishaps_basename,
+                        f"{section}[{row_index}].effects[{effect_index}].class",
+                        effect.characteristic_class,
+                    )
+
     problems.sort()
     report = ValidationReport(
         provenance=provenance, file_count=len(composed), problems=tuple(problems)
@@ -716,6 +867,12 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
         or characteristics is None
         or skills is None
         or benefits is None
+        or draft is None
+        or aging is None
+        or mishaps is None
+        or background_skills is None
+        or medical_tiers is None
+        or chargen is None
     ):
         return None, report
 
@@ -726,6 +883,12 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
             skills=skills,
             benefits=benefits,
             careers=MappingProxyType(careers),
+            draft=draft,
+            aging=aging,
+            mishaps=mishaps,
+            background_skills=background_skills,
+            medical_tiers=medical_tiers,
+            chargen=chargen,
             provenance=provenance,
         ),
         report,

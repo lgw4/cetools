@@ -1,0 +1,46 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# Draft row 5. Neither commission nor promotion: FR-009's two skill rolls a
+# term follow from the absence of both throws rather than from a flag. The
+# single ladder names no distinct rank title, matching the source.
+
+schema = "career"
+schema-version = 2
+
+name = "Scout"
+medical-tier = "service"
+
+[throws.qualification]
+characteristic = "INT"
+target = 5
+
+[throws.survival]
+characteristic = "END"
+target = 7
+
+[throws.re-enlistment]
+target = 3
+
+[tables.personal]
+entries = ["STR +1", "DEX +1", "END +1", "INT +1", "EDU +1", "Gun Combat"]
+
+[tables.service]
+entries = ["Piloting", "Navigation", "Mechanic", "Electronics", "Vehicle", "Gunnery"]
+
+[tables.specialist]
+entries = ["Piloting", "Navigation", "Electronics", "Survival", "Recon", "Jack-of-All-Trades"]
+
+[tables.advanced-education]
+requires = "EDU 8+"
+entries = ["Admin", "Advocate", "Computer", "Engineering", "Medicine", "Navigation"]
+
+[[ladders]]
+name = "scout"
+role = "entry"
+ranks = [
+  { rank = 0, title = "Scout", bonus = "Survival 1" },
+]
+
+[mustering-out]
+cash = [20000, 20000, 30000, 30000, 50000, 50000]
+benefits = ["Low Passage", "Ship Share", "Weapon", "Explorers' Society", "High Passage", "INT +1"]

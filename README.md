@@ -53,14 +53,14 @@ the same package version. `cetools --version` prints the installed package
 version.
 
 `check` resolves against the rules data packaged with `cetools`: a task
-definition, three registries of names, and a career. `cetools validate`
-checks that data set, or a house rule composed over it, and reports every
-problem it finds in one run:
+definition, three registries of names, the universal chargen tables, and
+eight careers. `cetools validate` checks that data set, or a house rule
+composed over it, and reports every problem it finds in one run:
 
 ```sh
 $ cetools validate
 Rules data is valid.
-  Files: 5
+  Files: 18
   Rules: packaged (cetools 2026.8.1)
 ```
 

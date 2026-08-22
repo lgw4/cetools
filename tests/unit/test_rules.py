@@ -219,6 +219,19 @@ def test_load_rules_reads_the_packaged_data_set():
     assert rules.provenance.is_packaged
 
 
+def test_load_rules_exposes_the_six_universal_chargen_tables():
+    # RulesData gained six fields for the universal chargen tables
+    # (data-model.md); `given_names` and `surnames` follow with the name
+    # tables, not yet shipped.
+    rules = load_rules()
+    assert rules.draft.careers[3] == "Navy"
+    assert any(row.effects for row in rules.aging.rows)
+    assert rules.mishaps.rows and rules.mishaps.injuries
+    assert rules.background_skills.law_level
+    assert "service" in rules.medical_tiers.tiers
+    assert rules.chargen.terms_cap == 7
+
+
 def test_load_rules_is_cached_for_the_no_override_call():
     first = load_rules()
     second = load_rules()
@@ -229,27 +242,27 @@ def test_validate_rules_reports_the_packaged_data_set_as_valid():
     report = validate_rules()
     assert report.valid
     assert report.problems == ()
-    assert report.file_count == 5
+    assert report.file_count == 18
 
 
 def test_validate_rules_file_count_counts_every_composed_toml():
     report = validate_rules()
-    assert report.file_count == 5
+    assert report.file_count == 18
 
 
 def test_file_count_counts_an_override_addition_not_only_the_packaged_set(tmp_path):
     # `Files:` is documented (data-model.md, contracts/json-output.md) as the
     # files composed and checked, not the files that shipped; every existing
-    # assertion on `file_count` happens to equal 5 under either reading,
-    # because none of them composes an addition. `scouts.toml` matches no
-    # packaged basename, so it is an addition rather than a replacement
-    # (FR-032), and is left invalid on purpose — `file_count` is checked
-    # before validity, exactly as it is known even on a failing report.
+    # assertion on `file_count` happens to equal the packaged count under
+    # either reading, because none of them composes an addition. `scouts.toml`
+    # matches no packaged basename, so it is an addition rather than a
+    # replacement (FR-032), and is left invalid on purpose — `file_count` is
+    # checked before validity, exactly as it is known even on a failing report.
     (tmp_path / "scouts.toml").write_text(
         'schema = "career"\nschema-version = 1\n', encoding="utf-8"
     )
     report = validate_rules(tmp_path)
-    assert report.file_count == 6
+    assert report.file_count == 19
 
 
 def test_load_rules_rejects_a_nonexistent_override_location_as_a_usage_error(tmp_path):
@@ -532,6 +545,10 @@ def test_canonical_file_names_the_packaged_declarer_of_every_single_instance_kin
     for kind, basename in rules_module._CANONICAL_FILE.items():
         assert declarers.get(basename) == kind
     assert sorted(rules_module._CANONICAL_FILE) == sorted(rules_module._SINGLETON_KINDS)
+    # Four inherited kinds plus the six universal chargen tables; the
+    # eleventh, `given-names`, and the second repeatable kind, `surnames`,
+    # follow with the name tables and the licensing split (research R9).
+    assert len(rules_module._SINGLETON_KINDS) == 10
 
 
 def test_problems_arrive_sorted_by_file_then_location(tmp_path):
@@ -547,6 +564,10 @@ def test_problems_arrive_sorted_by_file_then_location(tmp_path):
     on both axes: `tasks.toml` is validated first but sorts last, and within
     `navy.toml` the throws are read before the mustering-out block but sort
     after it (FR-022).
+
+    Invalidating `navy.toml`'s survival throw also drops "Navy" out of
+    `careers`, which the draft-table cross-file rule then reports too: a
+    third file, sorting before both of the others.
     """
     (tmp_path / "tasks.toml").write_text(
         TASKS.replace("target = 8", 'target = "eight"', 1), encoding="utf-8"
@@ -561,6 +582,7 @@ def test_problems_arrive_sorted_by_file_then_location(tmp_path):
     assert not report.valid
     pairs = [(p.file, p.location) for p in report.problems]
     assert pairs == [
+        ("draft.toml", "careers[3]"),
         ("navy.toml", "mustering-out.cash[0]"),
         ("navy.toml", "throws.survival.target"),
         ("tasks.toml", "task.target"),

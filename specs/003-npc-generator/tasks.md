@@ -106,11 +106,11 @@ behind the licensing work of Phase 2H.
 
 ### Phase 2F: Loader integration (`rules.py`)
 
-- [ ] T034 [TEST] Extend `tests/unit/test_rules.py` for the eleven singleton kinds and the second repeatable kind: `_SINGLETON_KINDS` grows to eleven, `surnames` is keyed by file stem, `RulesData` gains its eight fields, and `sorted(_CANONICAL_FILE) == sorted(_SINGLETON_KINDS)` still holds
-- [ ] T035 Register the seven new singleton kinds and the `surnames` repeatable kind in `src/cetools/rules.py`, add the eight `RulesData` fields, and route each through the T007 dispatch table
-- [ ] T036 [TEST] Add `tests/integration/test_validation_categories.py` cases for the six new cross-file rules: an unresolvable draft-table career (FR-005), a career naming a medical tier that does not exist (FR-034), two surname tables declaring one region naming both files, no surname table in force (FR-043j), a characteristic class no registry declares (FR-040a), and a career whose ladders violate the `entry`/`commissioned` rule (FR-007b) — each failing the whole data set before any character is produced
-- [ ] T037 Implement the six cross-file rules in `src/cetools/rules.py` alongside the two the previous feature has
-- [ ] T038 [TEST] Add `tests/unit/test_rules_agreement.py` cases asserting every skill any new shipped table can grant resolves against the skills registry (FR-040) and every characteristic class resolves (FR-040a)
+- [X] T034 [TEST] Extend `tests/unit/test_rules.py` for the eleven singleton kinds and the second repeatable kind: `_SINGLETON_KINDS` grows to eleven, `surnames` is keyed by file stem, `RulesData` gains its eight fields, and `sorted(_CANONICAL_FILE) == sorted(_SINGLETON_KINDS)` still holds
+- [X] T035 Register the seven new singleton kinds and the `surnames` repeatable kind in `src/cetools/rules.py`, add the eight `RulesData` fields, and route each through the T007 dispatch table
+- [X] T036 [TEST] Add `tests/integration/test_validation_categories.py` cases for the six new cross-file rules: an unresolvable draft-table career (FR-005), a career naming a medical tier that does not exist (FR-034), two surname tables declaring one region naming both files, no surname table in force (FR-043j), a characteristic class no registry declares (FR-040a), and a career whose ladders violate the `entry`/`commissioned` rule (FR-007b) — each failing the whole data set before any character is produced
+- [X] T037 Implement the six cross-file rules in `src/cetools/rules.py` alongside the two the previous feature has
+- [X] T038 [TEST] Add `tests/unit/test_rules_agreement.py` cases asserting every skill any new shipped table can grant resolves against the skills registry (FR-040) and every characteristic class resolves (FR-040a)
 
 ### Phase 2G: The shipped Open Game Content data files
 
@@ -122,23 +122,23 @@ unchanged throughout it. The eight name tables are **not** in this phase: they a
 shipped data the Open Game Content designation does not reach, and they cannot land until
 the guards can tell the two designations apart. That is Phase 2H, and it comes first.
 
-- [ ] T039 [P] Author `src/cetools/data/chargen/draft.toml` (OGC designation, `1d6`, six careers in row order — Aerospace Defense, Marine, Maritime Defense, **Navy**, Scout, Surface Defense, which is rows 1 through 6 — career-table spellings not the source's parenthetical aliases; row order is significant because the die that reads it is positional, FR-005, research R6)
-- [ ] T040 [P] Author `src/cetools/data/chargen/aging.toml` (OGC designation, `2d6`, `modifier = "terms-served"`, eight banded rows from `-6` to `1+`)
-- [ ] T041 [P] Author `src/cetools/data/chargen/mishaps.toml` (OGC designation, `1d6`, six mishap rows with structured effects, plus the injury table and `injury-roll`; rows 4 and 5 carry `forfeit-career-benefits` and the extra years — research R10 items 5 and 6)
-- [ ] T042 [P] Author `src/cetools/data/chargen/background-skills.toml` (OGC designation; 4 law-level, 14 trade-code, 15 education entries; not named `skills.toml` because the registry holds that basename)
-- [ ] T043 [P] Author `src/cetools/data/chargen/medical-tiers.toml` (OGC designation, `2d6`, `rank-dm = true`, tiers `service`, `professional`, `fringe` with a comment recording that two of the three names are this project's labels — research R5)
-- [ ] T044 [P] Author `src/cetools/data/chargen/chargen-parameters.toml` (OGC designation; every key enumerated in `contracts/data-files.md`, including `mustering-out.cash-choice-roll` and `.cash-choice-target`, which are the throw FR-016 requires for the cash-against-material decision; not named `parameters.toml`)
-- [ ] T045 Rewrite `src/cetools/data/registries/characteristics.toml` to the v2 table-per-characteristic shape with `label` and `class`, keeping `[modifier-dms]` from T009 and adding `[pseudo-hex]` with `minimum = 0` and thirty-four symbols skipping I and O (research R13)
-- [ ] T046 Grow `src/cetools/data/registries/skills.toml` to cover the fifteen education skills, the homeworld skills, the skills the seven new careers use, and the cascade specialties, at schema version 1 unchanged (FR-040)
-- [ ] T047 Grow `src/cetools/data/registries/benefits.toml` to cover every material benefit the eight careers' tables name, at schema version 1 unchanged
-- [ ] T048 Bring `src/cetools/data/careers/navy.toml` to career schema v2: `medical-tier = "service"`, `ladders[].role`, `tables.advanced-education` required. Navy is **Draft row 4**, the one row T049–T053 do not cover, so its `name` must match `draft.toml`'s fourth entry exactly (FR-005)
-- [ ] T049 [P] Author `src/cetools/data/careers/aerospace-defense.toml` (career v2, service tier, both throws, Draft row 1)
-- [ ] T050 [P] Author `src/cetools/data/careers/marine.toml` (career v2, service tier, both throws, Draft row 2)
-- [ ] T051 [P] Author `src/cetools/data/careers/maritime-defense.toml` (career v2, service tier, both throws, Draft row 3)
-- [ ] T052 [P] Author `src/cetools/data/careers/scout.toml` (career v2, service tier, **neither** commission nor promotion, Draft row 5, a rank-zero bonus on a ladder naming no title)
-- [ ] T053 [P] Author `src/cetools/data/careers/surface-defense.toml` (career v2, service tier, both throws, Draft row 6)
-- [ ] T054 [P] Author `src/cetools/data/careers/drifter.toml` (career v2, fringe tier, neither throw, `always-available = true`, `re-enterable = true`, a rank zero granting no bonus)
-- [ ] T055 [P] Author `src/cetools/data/careers/merchant.toml` (career v2, professional tier, both throws, a civilian rank ladder, the lowest re-enlistment target — research R6)
+- [X] T039 [P] Author `src/cetools/data/chargen/draft.toml` (OGC designation, `1d6`, six careers in row order — Aerospace Defense, Marine, Maritime Defense, **Navy**, Scout, Surface Defense, which is rows 1 through 6 — career-table spellings not the source's parenthetical aliases; row order is significant because the die that reads it is positional, FR-005, research R6)
+- [X] T040 [P] Author `src/cetools/data/chargen/aging.toml` (OGC designation, `2d6`, `modifier = "terms-served"`, eight banded rows from `-6` to `1+`)
+- [X] T041 [P] Author `src/cetools/data/chargen/mishaps.toml` (OGC designation, `1d6`, six mishap rows with structured effects, plus the injury table and `injury-roll`; rows 4 and 5 carry `forfeit-career-benefits` and the extra years — research R10 items 5 and 6)
+- [X] T042 [P] Author `src/cetools/data/chargen/background-skills.toml` (OGC designation; 4 law-level, 14 trade-code, 15 education entries; not named `skills.toml` because the registry holds that basename)
+- [X] T043 [P] Author `src/cetools/data/chargen/medical-tiers.toml` (OGC designation, `2d6`, `rank-dm = true`, tiers `service`, `professional`, `fringe` with a comment recording that two of the three names are this project's labels — research R5)
+- [X] T044 [P] Author `src/cetools/data/chargen/chargen-parameters.toml` (OGC designation; every key enumerated in `contracts/data-files.md`, including `mustering-out.cash-choice-roll` and `.cash-choice-target`, which are the throw FR-016 requires for the cash-against-material decision; not named `parameters.toml`)
+- [X] T045 Rewrite `src/cetools/data/registries/characteristics.toml` to the v2 table-per-characteristic shape with `label` and `class`, keeping `[modifier-dms]` from T009 and adding `[pseudo-hex]` with `minimum = 0` and thirty-four symbols skipping I and O (research R13)
+- [X] T046 Grow `src/cetools/data/registries/skills.toml` to cover the fifteen education skills, the homeworld skills, the skills the seven new careers use, and the cascade specialties, at schema version 1 unchanged (FR-040)
+- [X] T047 Grow `src/cetools/data/registries/benefits.toml` to cover every material benefit the eight careers' tables name, at schema version 1 unchanged
+- [X] T048 Bring `src/cetools/data/careers/navy.toml` to career schema v2: `medical-tier = "service"`, `ladders[].role`, `tables.advanced-education` required. Navy is **Draft row 4**, the one row T049–T053 do not cover, so its `name` must match `draft.toml`'s fourth entry exactly (FR-005)
+- [X] T049 [P] Author `src/cetools/data/careers/aerospace-defense.toml` (career v2, service tier, both throws, Draft row 1)
+- [X] T050 [P] Author `src/cetools/data/careers/marine.toml` (career v2, service tier, both throws, Draft row 2)
+- [X] T051 [P] Author `src/cetools/data/careers/maritime-defense.toml` (career v2, service tier, both throws, Draft row 3)
+- [X] T052 [P] Author `src/cetools/data/careers/scout.toml` (career v2, service tier, **neither** commission nor promotion, Draft row 5, a rank-zero bonus on a ladder naming no title)
+- [X] T053 [P] Author `src/cetools/data/careers/surface-defense.toml` (career v2, service tier, both throws, Draft row 6)
+- [X] T054 [P] Author `src/cetools/data/careers/drifter.toml` (career v2, fringe tier, neither throw, `always-available = true`, `re-enterable = true`, a rank zero granting no bonus)
+- [X] T055 [P] Author `src/cetools/data/careers/merchant.toml` (career v2, professional tier, both throws, a civilian rank ladder, the lowest re-enlistment target — research R6)
 
 **Checkpoint**: eighteen Open Game Content files in place, every one passing the existing
 licensing guards unchanged.

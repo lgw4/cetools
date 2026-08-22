@@ -1,0 +1,64 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# Draft row 6.
+
+schema = "career"
+schema-version = 2
+
+name = "Surface Defense"
+medical-tier = "service"
+
+[throws.qualification]
+characteristic = "END"
+target = 5
+
+[throws.survival]
+characteristic = "END"
+target = 5
+
+[throws.commission]
+characteristic = "SOC"
+target = 6
+
+[throws.promotion]
+characteristic = "EDU"
+target = 6
+
+[throws.re-enlistment]
+target = 5
+
+[tables.personal]
+entries = ["STR +1", "DEX +1", "END +1", "INT +1", "SOC +1", "Melee Combat"]
+
+[tables.service]
+entries = ["Athletics", "Drive", "Gun Combat", "Melee Combat", "Recon", "Vehicle"]
+
+[tables.specialist]
+entries = ["Gun Combat", "Recon", "Tactics", "Drive", "Vehicle", "Jack-of-All-Trades"]
+
+[tables.advanced-education]
+requires = "EDU 8+"
+entries = ["Admin", "Electronics", "Engineering", "Medicine", "Navigation", "Tactics"]
+
+[[ladders]]
+name = "enlisted"
+role = "entry"
+ranks = [
+  { rank = 0, title = "Trooper", bonus = "Gun Combat 1" },
+]
+
+[[ladders]]
+name = "officer"
+role = "commissioned"
+ranks = [
+  { rank = 1, title = "Lieutenant", bonus = "Melee Combat (Bludgeoning Weapons) 1" },
+  { rank = 2, title = "Captain" },
+  { rank = 3, title = "Major", bonus = "Tactics 1" },
+  { rank = 4, title = "Lt Colonel" },
+  { rank = 5, title = "Colonel" },
+  { rank = 6, title = "General" },
+]
+
+[mustering-out]
+cash = [1000, 5000, 5000, 10000, 10000, 20000]
+benefits = ["Low Passage", "Weapon", "Armor", "Mid Passage", "STR +1", "Personal Vehicle"]
