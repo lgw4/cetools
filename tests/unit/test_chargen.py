@@ -2,10 +2,12 @@ from cetools.chargen import (
     AgingTable,
     BackgroundSkills,
     DraftTable,
+    MedicalTiers,
     MishapTable,
     parse_aging_table,
     parse_background_skills,
     parse_draft_table,
+    parse_medical_tiers,
     parse_mishap_table,
 )
 from cetools.errors import ValidationProblem
@@ -446,5 +448,115 @@ class TestBackgroundSkills:
         table, problems = parse_background_skills(
             self._data(extra="nope"), "background-skills.toml", self.SKILLS
         )
+        assert table is None
+        assert any(p.location == "extra" for p in problems)
+
+
+class TestMedicalTiers:
+    def _data(self, **overrides):
+        data = {
+            "schema": "medical-tiers",
+            "schema-version": 1,
+            "roll": "2d6",
+            "rank-dm": True,
+            "tiers": [
+                {
+                    "name": "service",
+                    "thresholds": [
+                        {"target": 4, "paid-percent": 75},
+                        {"target": 8, "paid-percent": 100},
+                    ],
+                },
+                {
+                    "name": "fringe",
+                    "thresholds": [
+                        {"target": 8, "paid-percent": 50},
+                        {"target": 12, "paid-percent": 75},
+                    ],
+                },
+            ],
+        }
+        data.update(overrides)
+        return data
+
+    def test_parses_valid_file(self):
+        table, problems = parse_medical_tiers(self._data(), "medical-tiers.toml")
+        assert problems == ()
+        assert isinstance(table, MedicalTiers)
+        assert table.roll == "2d6"
+        assert table.rank_dm is True
+        assert set(table.tiers) == {"service", "fringe"}
+
+    def test_thresholds_sort_highest_target_first(self):
+        table, _ = parse_medical_tiers(self._data(), "medical-tiers.toml")
+        targets = [threshold.target for threshold in table.tiers["service"]]
+        assert targets == [8, 4]
+
+    def test_thresholds_sort_regardless_of_file_order(self):
+        data = self._data()
+        data["tiers"][0]["thresholds"] = list(reversed(data["tiers"][0]["thresholds"]))
+        table, problems = parse_medical_tiers(data, "medical-tiers.toml")
+        assert problems == ()
+        targets = [threshold.target for threshold in table.tiers["service"]]
+        assert targets == [8, 4]
+
+    def test_paid_percent_out_of_range_is_a_problem(self):
+        data = self._data()
+        data["tiers"][0]["thresholds"][0]["paid-percent"] = 101
+        table, problems = parse_medical_tiers(data, "medical-tiers.toml")
+        assert table is None
+        assert any("paid-percent" in p.location for p in problems)
+
+    def test_negative_paid_percent_is_a_problem(self):
+        data = self._data()
+        data["tiers"][0]["thresholds"][0]["paid-percent"] = -1
+        table, problems = parse_medical_tiers(data, "medical-tiers.toml")
+        assert table is None
+        assert any("paid-percent" in p.location for p in problems)
+
+    def test_paid_percent_boundary_values_are_valid(self):
+        data = self._data()
+        data["tiers"][0]["thresholds"][0]["paid-percent"] = 0
+        data["tiers"][0]["thresholds"][1]["paid-percent"] = 100
+        table, problems = parse_medical_tiers(data, "medical-tiers.toml")
+        assert problems == ()
+
+    def test_duplicate_tier_name_is_a_problem(self):
+        data = self._data()
+        data["tiers"].append(dict(data["tiers"][0]))
+        table, problems = parse_medical_tiers(data, "medical-tiers.toml")
+        assert table is None
+        assert any("service" in p.found for p in problems)
+
+    def test_rank_dm_must_be_a_boolean_not_assumed(self):
+        # Declared rather than assumed: a missing rank-dm is a problem, not a
+        # default of False the engine holds.
+        data = self._data()
+        del data["rank-dm"]
+        table, problems = parse_medical_tiers(data, "medical-tiers.toml")
+        assert table is None
+        assert any(p.location == "rank-dm" and p.found == "missing" for p in problems)
+
+    def test_empty_tiers_array_is_a_problem(self):
+        table, problems = parse_medical_tiers(self._data(tiers=[]), "medical-tiers.toml")
+        assert table is None
+        assert any(p.location == "tiers" for p in problems)
+
+    def test_empty_thresholds_array_is_a_problem(self):
+        data = self._data()
+        data["tiers"][0]["thresholds"] = []
+        table, problems = parse_medical_tiers(data, "medical-tiers.toml")
+        assert table is None
+        assert any("thresholds" in p.location for p in problems)
+
+    def test_duplicate_target_within_a_tier_is_a_problem(self):
+        data = self._data()
+        data["tiers"][0]["thresholds"].append({"target": 4, "paid-percent": 90})
+        table, problems = parse_medical_tiers(data, "medical-tiers.toml")
+        assert table is None
+        assert any("4" in p.found for p in problems)
+
+    def test_unrecognized_top_level_key_is_a_problem(self):
+        table, problems = parse_medical_tiers(self._data(extra="nope"), "medical-tiers.toml")
         assert table is None
         assert any(p.location == "extra" for p in problems)
