@@ -268,8 +268,9 @@ rather than a `KeyError` mid-walk. Grouped as: the characteristic roll; the back
 skill count rule; the term parameters (starting age, term years, mishap term years, cap,
 the age aging begins at); qualification (penalty per previous career, draft entries
 allowed); basic training; survival's natural failure; the skill-roll counts; the commission
-restriction; the continuation throw; mustering out (roll, cash cap, retired cash modifier,
-rank benefit bonuses, material rank modifier); the pension; and the medical costs.
+restriction; the continuation throw; mustering out (roll, the cash-against-material throw and
+its target, cash cap, retired cash modifier, rank benefit bonuses, material rank modifier);
+the pension; and the medical costs.
 
 ## The name tables (`cetools/names.py`)
 

@@ -250,6 +250,15 @@ benefits = [ ... ]
 grants two skill rolls a term; no flag says so, and the absence of both is what says it
 (FR-009). The shipped `scout.toml` and `drifter.toml` are the two careers that prove it.
 
+**`promotion` is the schema's name for what the specification calls advancement.** The two
+name one throw. The field is `throws.promotion` because that is what the career schema has
+called it since the previous feature and renaming it would invalidate every user file written
+against v1 for no gain, while the specification says "advancement" because that is the source
+material's word (FR-009, FR-012, FR-035). `chargen-parameters` says `skill-rolls.on-advancement`
+for the roll a successful one grants, following the specification rather than the schema, since
+that key is new here and has no v1 spelling to keep. Anywhere the two appear together they mean
+the same throw; nothing in the data or the engine distinguishes them.
+
 Only Drifter ships with `always-available` or `re-enterable` set. A career that is always
 available is still thrown for when the ordinary random selection picks it, and entered
 automatically only when it is reached as the fallback (spec Assumptions, research R10).
@@ -279,6 +288,8 @@ reason a characteristic outside the pseudo-hex range is: it depends on the throw
 ## `aging-table` (`chargen/aging.toml`)
 
 ```toml
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+
 schema = "aging-table"
 schema-version = 1
 
@@ -319,6 +330,8 @@ that class in force, every one of them is affected and no more.
 ## `mishap-table` (`chargen/mishaps.toml`)
 
 ```toml
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+
 schema = "mishap-table"
 schema-version = 1
 
@@ -360,6 +373,8 @@ them would let a referee replace one and leave a dangling reference in the other
 ## `background-skills` (`chargen/background-skills.toml`)
 
 ```toml
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+
 schema = "background-skills"
 schema-version = 1
 
@@ -386,6 +401,8 @@ homeworld skill tables" as one item and one rule draws over all three.
 ## `medical-tiers` (`chargen/medical-tiers.toml`)
 
 ```toml
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+
 schema = "medical-tiers"
 schema-version = 1
 
@@ -439,6 +456,8 @@ Every rules constant the walk depends on (FR-038). None of these may appear in e
 and SC-013 demonstrates a behavior change from editing them.
 
 ```toml
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+
 schema = "chargen-parameters"
 schema-version = 1
 
@@ -483,6 +502,8 @@ target = 4
 
 [mustering-out]
 roll = "1d6"
+cash-choice-roll = "1d6"
+cash-choice-target = 4
 maximum-cash-rolls = 3
 retired-cash-dm = 1
 rank-benefits = [
@@ -513,13 +534,15 @@ not obvious from the name:
 | `background-skills.base` / `.characteristic` | The count is `base` plus that characteristic's modifier. A count below one is raised to one, which is the spec's answer to a character entitled to exactly one background skill (FR-003). |
 | `background-skills.homeworld-first` | How many of the count come from the homeworld lists before the education list is reached. When the count is smaller, every skill comes from the homeworld lists. |
 | `qualification.draft-entries-allowed` | How many times one character may be routed to the draft. Beyond it, a failed qualification routes to the always-available career instead. |
-| `basic-training.first-career-all` | `true` grants every entry of the service table at level zero on entering the first career. `subsequent-career-count` is how many are drawn for any later career. |
+| `basic-training.first-career-all` | `true` grants every entry of the service table at level zero on entering the first career. `false` grants `subsequent-career-count` entries there too, making the first career no different from a later one — which is the reading FR-007a exists to keep reachable, for a referee whose setting trains every career alike. Both values are defined, because a flag with one defined value is a branch the engine holds rather than a constant the data supplies. `subsequent-career-count` is how many are drawn for any later career, and under `false` for the first as well. |
 | `survival.natural-failure` | An unmodified total equal to this always fails, whatever the modifiers. |
 | `skill-rolls.on-commission` / `.on-advancement` | Further rolls granted by a successful throw. Shipped at one each, following the source material; setting both to zero gives FR-009's strict reading with no code edit (research R12). |
 | `commission.drafted-first-term-barred` | A character who was drafted into a career may not attempt its commission in the first term. |
 | `continuation.roll` / `.target` | The throw for whether the character wishes to continue serving. `1d6` against 4 is an even chance, which is the spec's chosen default (spec Assumptions). Passing it does not by itself continue the career: the re-enlistment throw still applies (FR-014). |
 | `pension.minimum-terms` | Terms required **in a single career**, not across all of them (FR-018). A character with three terms in each of two careers qualifies for nothing. |
 | `pension.base` / `.per-additional-term` | The amount is the base plus the increment for each term in that career above the minimum. |
+| `mustering-out.roll` | The die each benefit table is read with. Enumerated in FR-038 alongside the characteristic roll, because unlike a universal table's own die it is not declared by the table it reads: the cash and benefit tables live in each career's file and the die that reads them spans careers. |
+| `mustering-out.cash-choice-roll` / `.cash-choice-target` | The throw that decides whether a roll is taken as cash or as a material benefit (FR-016). `1d6` against 4 is an even chance, the same shipped default and the same shape as `[continuation]`, and for the same reason: it is a random choice the source hands to the player, so the engine must not hold it. A referee who wants characters to prefer cash lowers the target. Applied only while the character is under `maximum-cash-rolls`; once the cap is reached every remaining roll is material and the throw is not made. |
 | `mustering-out.rank-benefits` | Extra benefit rolls by rank reached. **Not cumulative**: the highest matching row wins (research R10). |
 | `mustering-out.material-rank-dm` | A modifier on material benefit rolls by rank. Highest matching row wins. |
 | `medical.crisis-roll` / `.crisis-multiplier` | A crisis costs the throw times the multiplier, and becomes a debt (FR-021). A crisis is triggered by an aging effect reducing a characteristic to the bottom of the declared pseudo-hex range. |
@@ -596,7 +619,7 @@ gives it the same weight as each of the others.
 Composition is unchanged: basename keying, whole-file replacement, dot-prefixed files passed
 over when found by a walk, non-`.toml` files ignored and named.
 
-The inherited cross-file rules still hold. This feature adds five, checked after every file
+The inherited cross-file rules still hold. This feature adds six, checked after every file
 has been read.
 
 | Rule | Requirement |

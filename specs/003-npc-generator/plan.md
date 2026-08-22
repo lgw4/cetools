@@ -67,7 +67,9 @@ already has), `dataclasses`, `tomllib`, `importlib.resources`, `functools.single
 **Storage**: 26 packaged read-only data files under `src/cetools/data/`, up from 5. Six
 universal chargen tables, eight name tables, eight careers, four registries and task
 parameters. Plus, at the caller's explicit request only, an override location. No search
-path, no configuration directory, no environment variable, unchanged from FR-027.
+path, no configuration directory, no environment variable, unchanged from
+`002-rules-data-loading` FR-027. (Qualified by feature, because FR-027 of *this* spec is the
+material-benefit rule and an unqualified reference lands a reader on the wrong requirement.)
 
 **Testing**: pytest, Typer's `CliRunner`, committed golden files compared as **bytes**
 (research R7), the JSON contract suite, Hypothesis, the audit-hook guard, and two sampled
@@ -105,7 +107,8 @@ excluding a seed.
   absorbed.
 
 **Scale/Scope**: FR-001 through FR-058 with lettered insertions, 89 numbered functional
-requirements after the readiness review of 2026-08-21 added twelve, 20 success criteria, four
+requirements after the readiness review of 2026-08-21 added twelve, 22 success criteria
+(SC-001 through SC-020, plus the lettered SC-015a and SC-015b), four
 user stories. Four new
 library modules, five existing modules changed, three schema versions raised, 21 new data
 files. On the order of 1,600 lines of implementation and a substantially larger test suite
@@ -154,6 +157,11 @@ time they are not all Open Game Content. Concretely:
    That sentence becomes false the moment the first name table lands and must change in
    the same commit; `CONTRIBUTING.md`'s "Licensing, which is not optional" section says the
    same thing twice and must change with it.
+7. **All six of the above land before the first name table, not after it.** Items 3, 4, and 5
+   change checks that the name tables would otherwise break on arrival, and every one of them
+   passes against the data set as it stands with no name table in it. This is the ordering
+   `tasks.md` encodes as Phase 2H before Phase 2I, and it is what keeps the suite green
+   through the sharpest edge in the feature rather than through none of it.
 
 **Post-Phase-1 re-check**: still **PASS**. The Phase 1 design added no runtime dependency
 and no hard-coded rules content. Four new modules is the largest structural addition and is
@@ -305,12 +313,23 @@ deviation, so the commit separation is the deliverable, not a nicety.
 
 Structural work above, then: `seeds` (`derive_seed`) → `registries` (bands, pseudo-hex) →
 `chargen` → `names` → `careers` (v2) → `rules` (new kinds, the draft cross-file rule) →
-data files → `character` → `generator` → `render` → `cli` → goldens → guards → the sampled
-audits → property tests → README, CHANGELOG, CONTRIBUTING.
+the Open Game Content data files → **the licensing checks, widened** → the name tables →
+`character` → `generator` → `render` → `cli` → goldens → guards → the sampled
+audits → property tests → README, CHANGELOG.
 
 The data files come after the schemas that validate them and before the walk that reads
 them, because a walk written against data that does not exist yet is a walk written against
 what its author remembers of the source material.
+
+**The licensing checks widen between the two groups of data files, and the order is not a
+preference.** `_assert_shipped_rules_data` asserts `"Open Game Content" in text` of every
+`.toml` in the wheel and the sdist. Every file in the first group satisfies it; the first
+file in the second group does not, and would not until the check is widened. Authoring the
+name tables first therefore puts the whole of that work on the wrong side of the rule that a
+commit lands only with the suite green. Widening first costs nothing: an exactly-one-of-two
+check over files that all carry the first designation passes, and the GPL mirror passes
+vacuously. `README.md` and `CONTRIBUTING.md` change in this group too, before the sentence
+they carry becomes false rather than after.
 
 ### Per the project's global instruction, the `fluent-python:*` skills that apply
 
@@ -351,6 +370,13 @@ one is a place where the obvious implementation is wrong.
   assertion, and any option added later breaks it deliberately.
 - **The seed-contract guard's library list is manual.** `generate_character` and
   `generate_batch` must be added to it or a stray `random` call is unguarded.
+- **The npc goldens are rendered from hand-constructed `Character` values, not captured from
+  a seed.** Which character a given seed produces is unknowable until the walk exists, so a
+  golden captured from a finished implementation is not an expected value written before it,
+  which is what SC-016 asks for. The six SC-009 references, the fuller sheet, and the batch
+  reference are each a constructed character plus a hand-authored byte string with the
+  renderer in between. What the command owes them is a derivation, not a second expectation:
+  its stdout equals `as_text(...)` of the character it generated.
 - **`read_golden` reads text, which silently normalizes CRLF.** The Universal Character
   Format is tab separated, and a golden that pins tabs and line endings has to be compared
   as bytes. New fixture, and `.gitattributes` marks the npc goldens so no tool touches

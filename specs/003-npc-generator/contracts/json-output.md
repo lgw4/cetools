@@ -98,6 +98,11 @@ rather than branching on how many characters it asked for.
 
 Key order: `kind`, `seed`, `provenance`, `characters`.
 
+There is no top-level `version` key. FR-050a requires the package version reachable from the
+top level without descending into a character, and `provenance.version` is that: one version
+in the document rather than two that can disagree, and the same provenance object the `check`
+and `validate` payloads already carry.
+
 The seed, the version, and the provenance sit here rather than being echoed to standard
 error, so the document is self-contained and the stream is not split. FR-051's routing to
 standard error is a text-mode arrangement, made so that a redirected sheet is exactly a

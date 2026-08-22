@@ -222,6 +222,16 @@ by a later one, and a character carrying a cascade specialization. SC-011 requir
 committed batch reference whose bytes are exactly its sheets with one blank line between
 consecutive ones.
 
+**Each reference is rendered from a hand-constructed `Character` committed beside it, not
+captured from a seed.** Which character a seed produces cannot be known until the walk
+exists, so a captured sheet is a record of what the implementation did rather than an
+expectation written before it, and SC-016 asks for the second. The constructed characters
+are chosen to carry exactly the shapes listed above. What the command owes these references
+is a derivation rather than a second expectation: for a generated seed, the command's
+standard output equals `as_text(character)` for the character it generated, plus the
+trailing newline. That ties the CLI to the bytes without pretending a captured sheet was
+authored in advance.
+
 ## Help text
 
 `npc` and each of its options carry help strings. The licensing guard treats CLI help as a

@@ -512,7 +512,12 @@ value on its own as the house-rule path for all character generation.
   looser phrasing of the summary checklist, and MUST decide at random for each roll whether it
   is taken as cash or as a material benefit. How many of a character's rolls may be taken as
   cash MUST be capped, and a modifier on material benefit rolls MUST apply by the rank reached.
-  Both MUST be rules constants held in data.
+  The throw that decides cash against material MUST itself be a rules constant held in data,
+  stated as a throw and a target exactly as the continuation decision of FR-014 is, because it
+  is the same kind of decision: a random choice the source hands to the player, which this
+  generator makes. A decision made at random by arithmetic the engine holds is a rules constant
+  in code however evenly it falls, and a referee who wants characters to prefer cash MUST reach
+  it by editing a file. All three MUST be rules constants held in data.
 - **FR-017**: The cash benefit modifier that applies to a retired character MUST apply exactly
   when the character qualified for the pension, and MUST NOT be applied on any other reading of
   "retired".
@@ -645,13 +650,21 @@ value on its own as the house-rule path for all character generation.
   and on a later one (FR-007a); the unmodified survival result that always fails (FR-008a); the
   four skill-roll counts of FR-009; whether a drafted character is barred from a first-term
   commission (FR-012a); the continuation throw and its target; the benefit-roll count rule and
-  its rank thresholds; the cap on rolls taken as cash and the rank modifier on material rolls
-  (FR-016); the cash benefit modifier; the pension minimum, base, and per-term increment
+  its rank thresholds; the die the benefit tables are read with; the throw and target that
+  decide whether a roll is taken as cash or as a material benefit (FR-016); the cap on rolls
+  taken as cash and the rank modifier on material rolls (FR-016); the cash benefit modifier;
+  the pension minimum, base, and per-term increment
   (FR-018); the aging-crisis throw, its multiplier, and the score settling it restores to
   (FR-021); and the per-point cost of restoring a characteristic (FR-025). The list is stated
   in full rather than as examples because a constant it omits is a constant SC-013 does not
   reach: an enumeration is what gives a check something to fail against, and any constant the
   walk turns out to need that is not on this list is itself a defect in this requirement.
+  The die a universal chargen table is read with — the Draft table's, the aging table's, the
+  Survival Mishaps table's, the medical tiers' — is not enumerated here because it is declared
+  by that table's own file as part of that table's shape, which FR-037 already puts in data. The
+  distinction is which file a constant lives in, never whether it lives in one: no die anywhere
+  in the walk is held in engine code, and a table whose die the engine supplied would fail this
+  requirement as surely as a term cap would.
 - **FR-039**: The characteristics registry MUST gain the characteristic modifier bands, the
   pseudo-hex letters, the bottom of the range those letters cover, and a class for each
   characteristic (the shipped data distinguishes physical from mental), all of which are facts
@@ -823,9 +836,11 @@ value on its own as the house-rule path for all character generation.
 - **FR-050a**: Machine-readable output MUST have one shape whatever the count. Every run MUST
   emit a single document carrying the characters as a list, a list of one when one character was
   asked for, so that a consumer writes one code path rather than branching on how many characters
-  it requested. The master seed, the package version, and the provenance MUST sit at the top
-  level of that document, and each character MUST carry the derived seed that reproduces that
-  character alone, so that a consumer can tell the seed a referee quotes for the table from the
+  it requested. The master seed and the provenance MUST sit at the top level of that document,
+  and the package version MUST be reachable from the top level without descending into any
+  character: the provenance object already carries it, and carrying it there rather than
+  beside it keeps one version in the document rather than two that can disagree. Each
+  character MUST carry the derived seed that reproduces that character alone, so that a consumer can tell the seed a referee quotes for the table from the
   seed that regenerates one person.
 - **FR-051**: In text mode, standard output MUST carry exactly the character sheet and nothing
   else, and the seed, the package version, and the provenance MUST be written to standard
@@ -990,7 +1005,10 @@ criterion that proves nothing.
   surprising sheet can be diagnosed from output alone.
 - **SC-006**: Over that same sample, ages are spread rather than parked at the cap: characters
   finish with a range of term counts, at least five distinct counts occur, and no more than one
-  character in four reaches the seven-term cap.
+  character in four reaches the term cap. The cap is read from the chargen parameters rather
+  than written as seven here, for the reason SC-008 gives for the medical tiers: FR-038 puts it
+  in a file a referee may edit, and a criterion that hard-codes it would contradict the
+  requirement it is checking and would fail on a data set it has no business judging.
 - **SC-007**: Over that same sample, multi-career characters occur, with characters carrying
   two careers and characters carrying three both present, so that the multi-career path is
   exercised by ordinary generation rather than only by a contrived seed.
@@ -1072,8 +1090,16 @@ criterion that proves nothing.
   expected share outside that band, so that the mistake this criterion exists to catch fails it
   rather than passing by coincidence.
 - **SC-020**: A referee generating an NPC for play needs one command and no follow-up
-  question: the sheet as rendered carries everything needed to run the character in a scene,
-  with nothing about the generator's internals on it.
+  question, checked as two automated assertions over the same sample rather than as a
+  judgement about how a sheet reads. Completeness: every field the default rendering is
+  required to carry is non-empty on every sampled character, so no sheet sends a referee back
+  for something the format had a place for. Absence of internals: the default rendering emits
+  no seed, no package version, no provenance, no history step, no step kind, no throw, and no
+  debt or pension figure — the sample's rendered sheets are searched for each and none is
+  found. Stated this way because "everything needed to run the character in a scene" is a
+  claim about play that no test can settle, while "the format's own lines are filled and
+  nothing from the walk leaks onto them" is the part of it this generator is answerable for,
+  and a criterion nothing can fail is a criterion the preamble above already forbids.
 
 ## Out of Scope
 
