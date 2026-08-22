@@ -301,3 +301,13 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   closed set: `career` is already traceable through `HistoryStep.career`
   and `.selected` without a duplicate effect, and none of the five appears
   in FR-030's enumerated list of what must trace to a step (T151).
+- **A mustering-out material benefit that adjusts a characteristic was
+  invisible to anything grouping the history by `characteristic` effects.**
+  `muster_out_service` already ran the change through
+  `_apply_characteristic_delta`, which returns correctly-kinded
+  `characteristic` effects — including the called-for/applied pair a floor
+  clamp produces — but then discarded them and rewrapped a bare scalar as a
+  single `benefit`-kind effect instead. Found while strengthening SC-005's
+  traceability check (T153) to replay characteristics from history and
+  reconcile them against the sheet, which this defect made fail. Now uses
+  `_apply_characteristic_delta`'s own effects directly.

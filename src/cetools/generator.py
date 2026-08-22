@@ -1086,14 +1086,21 @@ class _Walk:
                 item = career.mustering_out.benefits[index]
                 if isinstance(item, BenefitItem):
                     self.benefits.append(item.name)
-                    subject = item.name
-                    amount = 0
-                else:
-                    delta = _apply_characteristic_delta(
-                        self.characteristics, item.characteristic, item.amount, self.floor()
+                    effects: tuple[StepEffect, ...] = (
+                        StepEffect(kind="benefit", subject=item.name, amount=0),
                     )
-                    subject = item.characteristic
-                    amount = delta[-1].amount
+                else:
+                    # `_apply_characteristic_delta` already returns
+                    # correctly-kinded `characteristic` effects, including
+                    # the called-for/applied pair a floor clamp produces
+                    # (research R13) — used directly, not rewrapped as a
+                    # scalar `benefit` effect that hid this from anything
+                    # grouping by `characteristic` (SC-005).
+                    effects = tuple(
+                        _apply_characteristic_delta(
+                            self.characteristics, item.characteristic, item.amount, self.floor()
+                        )
+                    )
                 self.history.append(
                     HistoryStep(
                         kind="benefit",
@@ -1101,7 +1108,7 @@ class _Walk:
                         term=0,
                         throw=None,
                         selected="",
-                        effects=(StepEffect(kind="benefit", subject=subject, amount=amount),),
+                        effects=effects,
                     )
                 )
         self.settle_debts(career.name, 0)
