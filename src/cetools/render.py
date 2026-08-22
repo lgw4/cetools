@@ -1,6 +1,7 @@
 import json
 from functools import singledispatch
 
+from cetools.character import Character, CharacterBatch
 from cetools.dice import ThrowResult
 from cetools.errors import CetoolsError, ValidationProblem
 from cetools.provenance import Provenance
@@ -181,6 +182,97 @@ def _(result: ValidationReport, *, full: bool = False) -> str:
 
     lines.extend(_provenance_lines(result.provenance, label_width=width))
     return "\n".join(lines) + "\n"
+
+
+def _skill_label(skill) -> str:
+    if skill.specialty is None:
+        return skill.name
+    return f"{skill.name} ({skill.specialty})"
+
+
+def _sort_key(text: str) -> tuple[str, str]:
+    """`(casefold, codepoint)`, alphabetical and locale-independent (FR-046,
+    SC-012, research R8). Never `locale.strxfrm`.
+    """
+    return text.casefold(), text
+
+
+def _characteristic_profile(character: Character) -> str:
+    """One pseudo-hex symbol per characteristic, in `character.characteristics`'
+    own order, which is already the characteristics registry's file order
+    (data-model.md) — the generator built that mapping by iterating the
+    registry, so no separate registry lookup is needed for order.
+
+    The *symbols themselves* do need the registry, which `as_text` has no
+    parameter to receive (contracts/library-api.md pins its signature to
+    `(result, *, full=False)`). This loads the packaged rules for that lookup
+    alone, the same fallback `tasks.check` uses for its own `rules=None`. A
+    character generated under an overridden pseudo-hex table renders against
+    the *packaged* one here, which is a known gap `--rules-data` characters
+    may hit; there is no override-carrying seam in this contract to close it
+    through.
+    """
+    from cetools.rules import load_rules
+
+    registry = load_rules().characteristics
+    return "".join(registry.symbol(score) for score in character.characteristics.values())
+
+
+def _careers_line(character: Character) -> str:
+    parts = []
+    for service in character.careers:
+        unit = "term" if service.terms == 1 else "terms"
+        parts.append(f"{service.career} ({service.terms} {unit})")
+    return ", ".join(parts)
+
+
+def _skills_line(character: Character) -> str:
+    rendered = [f"{_skill_label(skill)}-{skill.level}" for skill in character.skills]
+    rendered.sort(key=_sort_key)
+    return ", ".join(rendered)
+
+
+def _benefits_line(character: Character) -> str | None:
+    if not character.benefits:
+        return None
+    counts: dict[str, int] = {}
+    for name in character.benefits:
+        counts[name] = counts.get(name, 0) + 1
+    names = sorted(counts, key=_sort_key)
+    return ", ".join(name if counts[name] == 1 else f"{name} (x{counts[name]})" for name in names)
+
+
+@as_text.register
+def _(character: Character, *, full: bool = False) -> str:
+    """The Universal Character Format (contracts/cli.md): three fixed lines
+    and a fourth omitted when the character holds no benefit items. Tab
+    separated, exactly one tab between fields.
+
+    Carries **no** trailing newline of its own — unlike every other `as_text`
+    registration — because a batch joins sheets on a blank line with nothing
+    before or after (FR-048a), and the CLI is what appends the one final
+    newline a redirected sheet ends with (contracts/cli.md T106: the command's
+    stdout is `as_text(character)` plus that one trailing newline).
+    """
+    _reject_full(character, full)
+    name_field = f"{character.title} {character.name}" if character.title else character.name
+    line1 = f"{name_field}\t{_characteristic_profile(character)}\tAge {character.age}"
+    line2 = f"{_careers_line(character)}\tCr{character.funds:,}"
+    line3 = _skills_line(character)
+    lines = [line1, line2, line3]
+    benefits = _benefits_line(character)
+    if benefits is not None:
+        lines.append(benefits)
+    return "\n".join(lines)
+
+
+@as_text.register
+def _(batch: CharacterBatch, *, full: bool = False) -> str:
+    """Sheets separated by exactly one blank line and nothing else (FR-048a):
+    a batch of one is byte-identical to the single character of that seed.
+    """
+    _reject_full(batch, full)
+    return "\n\n".join(as_text(character) for character in batch.characters)
 
 
 @singledispatch
