@@ -9,7 +9,7 @@ hand-picking a single "lucky" seed, which would make the test fragile to an
 unrelated draw-order change.
 """
 
-from cetools.character import Character
+from cetools.character import Character, StepEffect
 from cetools.dice import Roller
 from cetools.generator import generate_character
 from cetools.rules import load_rules
@@ -383,6 +383,115 @@ class TestMusteringOut:
 
         walk.muster_out_service(career, terms=4, ladder="", rank=0, benefit_rolls=6)
         assert _credits_steps(walk.history[first_call_end:]) == []
+
+
+class TestDebtSettlement:
+    def test_a_partial_payment_that_alone_is_short_of_a_point_carries_its_remainder(self):
+        # FR-025a: "the points restored MUST be those the covered amount
+        # pays for". Two settlements of Cr50 each against a Cr100-per-point
+        # debt must together restore one point, even though neither payment
+        # alone reaches the cost (T157).
+        from cetools.generator import _Debt, _Walk
+
+        walk = _Walk(Roller("t157"), RULES)
+        code = next(iter(RULES.characteristics.names))
+        walk.characteristics = {code: 5}
+        debt = _Debt(amount=100, restore="medical", characteristics=(code,), cost_per_point=100)
+        walk.debt = debt.amount
+        walk.debts = [debt]
+
+        walk.funds = 50
+        walk.settle_debts()
+        assert walk.characteristics[code] == 5  # short of a full point, nothing restored yet
+
+        walk.funds = 50
+        walk.settle_debts()
+        assert walk.characteristics[code] == 6  # the two payments together cover one point
+        assert walk.debts == []
+
+    def test_settlement_is_recorded_in_the_history(self):
+        # FR-030, FR-025a, T144: a `debt-settled` step per debt paid this
+        # call, carrying the amount paid and which characteristics were
+        # restored and by how much — never only the arithmetic on the
+        # character's own fields.
+        from cetools.generator import _Debt, _Walk
+
+        walk = _Walk(Roller("t144"), RULES)
+        code = next(iter(RULES.characteristics.names))
+        walk.characteristics = {code: 5}
+        debt = _Debt(amount=100, restore="medical", characteristics=(code,), cost_per_point=100)
+        walk.debt = debt.amount
+        walk.debts = [debt]
+        walk.funds = 100
+
+        walk.settle_debts(career="Navy", term=2)
+
+        step = walk.history[-1]
+        assert step.kind == "debt-settled"
+        assert step.career == "Navy"
+        assert step.term == 2
+        assert StepEffect(kind="debt", subject="", amount=100) in step.effects
+        assert StepEffect(kind="characteristic", subject=code, amount=1) in step.effects
+
+    def test_a_medical_crisis_debts_creation_step_is_not_named_debt_settled(self):
+        # The step `_trigger_medical_crisis` records fires when the debt is
+        # *created*, not settled; `debt-settled` is reserved for the step
+        # `settle_debts` now records, or the two are indistinguishable in
+        # the history (T144).
+        from cetools.generator import _Walk
+
+        walk = _Walk(Roller("t144-crisis"), RULES)
+        walk.characteristics = {code: 0 for code in RULES.characteristics.names}
+        walk._trigger_medical_crisis("Navy", 1, ("STR",))
+        creation_step = next(s for s in walk.history if s.throw is not None)
+        assert creation_step.kind == "medical-crisis"
+        assert creation_step.kind != "debt-settled"
+
+
+class TestMedicalBills:
+    def test_the_bill_is_per_point_reduced_not_per_characteristic_at_the_floor(self):
+        # FR-025: the cost is the per-point rate times the points an injury
+        # actually reduced, not one flat point per characteristic that
+        # happens to be sitting at the floor when the bill is raised — an
+        # aging-floored characteristic the injury never touched must not be
+        # billed, and an injury that reduces a score by several points
+        # without flooring it must still be billed for all of them (T143).
+        from cetools.generator import _Walk
+
+        cost_per_point = RULES.chargen.medical_restore_cost_per_point
+        career = next(c for c in RULES.careers.values() if not c.always_available)
+
+        walk = _Walk(Roller(1), RULES)
+        floor = walk.floor()
+        walk.characteristics = {code: floor for code in RULES.characteristics.names}
+        # STR reduced by 3 points, well above the floor: not a `<= floor`
+        # characteristic, so the old post-state scan would have missed it.
+        walk.characteristics["STR"] = floor + 10
+        walk._raise_medical_bill(career.name, 1, 0, {"STR": 3})
+        # Only the cost of STR's 3 points is owed; every other
+        # already-floored characteristic (aging's doing, not this
+        # injury's) contributes nothing.
+        assert walk.debt <= cost_per_point * 3
+        assert walk.debt > 0
+
+    def test_rank_dm_is_applied_at_the_time_the_bill_is_raised(self):
+        # FR-025, T150: `medical-tiers.rank-dm` adds the character's rank
+        # to the bill's throw. Same career, same dice (same seed, called
+        # before anything else consumes the roller), different ranks.
+        from cetools.generator import _Walk
+
+        career = next(iter(RULES.careers.values()))
+        reduced = {"STR": 1}
+
+        low_rank = _Walk(Roller(1), RULES)
+        low_rank.characteristics = {code: 7 for code in RULES.characteristics.names}
+        low_rank._raise_medical_bill(career.name, 1, 0, reduced)
+
+        high_rank = _Walk(Roller(1), RULES)
+        high_rank.characteristics = {code: 7 for code in RULES.characteristics.names}
+        high_rank._raise_medical_bill(career.name, 1, 6, reduced)
+
+        assert low_rank.debt != high_rank.debt
 
 
 class TestCareerEndAndMultiCareer:

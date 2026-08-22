@@ -162,6 +162,7 @@ class TestHistoryStepClosedKind:
             "mustering-out",
             "benefit",
             "medical-bills",
+            "medical-crisis",
             "debt-settled",
             "pension",
         ],
