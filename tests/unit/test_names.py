@@ -1,5 +1,11 @@
 from cetools.errors import ValidationProblem
-from cetools.names import GivenNameTable, SurnameEntry, SurnameTable, parse_given_names, parse_surnames
+from cetools.names import (
+    GivenNameTable,
+    SurnameEntry,
+    SurnameTable,
+    parse_given_names,
+    parse_surnames,
+)
 
 
 class TestGivenNameTable:
@@ -23,9 +29,7 @@ class TestGivenNameTable:
     def test_gender_key_is_rejected(self):
         # FR-043b: no name table may carry a gender field. The key set is
         # closed, so a `gender` key is an unrecognized key.
-        table, problems = parse_given_names(
-            self._data(gender="neutral"), "given-names.toml"
-        )
+        table, problems = parse_given_names(self._data(gender="neutral"), "given-names.toml")
         assert table is None
         assert any(p.location == "gender" for p in problems)
 
@@ -96,9 +100,7 @@ class TestSurnameTable:
         assert table.names[1] == SurnameEntry(name="Other", people="")
 
     def test_gender_key_is_rejected(self):
-        table, problems = parse_surnames(
-            self._data(gender="neutral"), "surnames-europe.toml"
-        )
+        table, problems = parse_surnames(self._data(gender="neutral"), "surnames-europe.toml")
         assert table is None
         assert any(p.location == "gender" for p in problems)
 
