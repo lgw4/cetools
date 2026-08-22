@@ -76,9 +76,10 @@ def test_removing_a_characteristic_from_the_registry_breaks_every_career_referen
     # position in the shipped career: a throw's characteristic, a skill
     # table's characteristic adjustment entry, a table's gate, and a
     # mustering-out benefit's characteristic adjustment.
-    assert 'EDU = "Education"\n' in CHARACTERISTICS
+    edu_block = '[characteristics.EDU]\nlabel = "Education"\nclass = "mental"\n\n'
+    assert edu_block in CHARACTERISTICS
     override = tmp_path / "characteristics.toml"
-    override.write_text(CHARACTERISTICS.replace('EDU = "Education"\n', "", 1), encoding="utf-8")
+    override.write_text(CHARACTERISTICS.replace(edu_block, "", 1), encoding="utf-8")
 
     report = validate_rules(tmp_path)
 

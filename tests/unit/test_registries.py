@@ -31,22 +31,39 @@ VALID_MODIFIER_DMS = {
     "33+": 9,
 }
 
+# A valid `[pseudo-hex]` table, matching the shipped file's shape (research
+# R13): four symbols is enough to exercise `symbol()` and `floor()` without
+# reproducing all thirty-four.
+VALID_PSEUDO_HEX = {"minimum": 0, "symbols": ["0", "1", "2", "3"]}
+
+
+def _entry(label: str, characteristic_class: str = "physical") -> dict:
+    return {"label": label, "class": characteristic_class}
+
 
 class TestCharacteristicRegistry:
     def test_parses_valid_file(self):
         data = {
             "schema": "characteristics",
             "schema-version": 2,
-            "characteristics": {"STR": "Strength", "INT": "Intellect"},
+            "characteristics": {
+                "STR": _entry("Strength"),
+                "INT": _entry("Intellect", "mental"),
+            },
             "modifier-dms": VALID_MODIFIER_DMS,
+            "pseudo-hex": VALID_PSEUDO_HEX,
         }
         registry, problems = parse_characteristics(data, "characteristics.toml")
         assert problems == ()
         assert isinstance(registry, CharacteristicRegistry)
         assert registry.names["STR"] == "Strength"
         assert registry.names["INT"] == "Intellect"
+        assert registry.classes["STR"] == "physical"
+        assert registry.classes["INT"] == "mental"
         assert len(registry.bands) == 12
         assert registry.characteristic_dm(7) == 0
+        assert registry.pseudo_hex_minimum == 0
+        assert registry.pseudo_hex == ("0", "1", "2", "3")
 
     def test_contains_delegates_to_names(self):
         registry = CharacteristicRegistry(names={"STR": "Strength"})
@@ -58,6 +75,7 @@ class TestCharacteristicRegistry:
             "schema": "characteristics",
             "schema-version": 2,
             "modifier-dms": VALID_MODIFIER_DMS,
+            "pseudo-hex": VALID_PSEUDO_HEX,
         }
         registry, problems = parse_characteristics(data, "characteristics.toml")
         assert registry is None
@@ -71,23 +89,26 @@ class TestCharacteristicRegistry:
             "schema-version": 2,
             "characteristics": {},
             "modifier-dms": VALID_MODIFIER_DMS,
+            "pseudo-hex": VALID_PSEUDO_HEX,
         }
         registry, problems = parse_characteristics(data, "characteristics.toml")
         assert registry is None
         assert len(problems) == 1
 
-    def test_non_string_label_is_a_type_problem(self):
+    def test_non_table_entry_is_a_type_problem(self):
         data = {
             "schema": "characteristics",
             "schema-version": 2,
             "characteristics": {"STR": 5},
             "modifier-dms": VALID_MODIFIER_DMS,
+            "pseudo-hex": VALID_PSEUDO_HEX,
         }
         registry, problems = parse_characteristics(data, "characteristics.toml")
         assert registry is None
         assert problems[0].location == "characteristics.STR"
+        assert problems[0].found == "an integer"
 
-    def test_every_non_string_label_is_reported_not_only_the_first(self):
+    def test_every_bad_entry_is_reported_not_only_the_first(self):
         # The standard T076 held `parse_skills` to, asserted at the sibling it
         # was compared against: changing this loop's `continue` to `break` left
         # the whole suite green, so the asymmetry that justified the fix could
@@ -97,6 +118,7 @@ class TestCharacteristicRegistry:
             "schema-version": 2,
             "characteristics": {"STR": 5, "DEX": 7, "END": 9},
             "modifier-dms": VALID_MODIFIER_DMS,
+            "pseudo-hex": VALID_PSEUDO_HEX,
         }
         registry, problems = parse_characteristics(data, "characteristics.toml")
         assert registry is None
@@ -106,12 +128,68 @@ class TestCharacteristicRegistry:
             "characteristics.END",
         ]
 
+    def test_missing_label_is_a_problem(self):
+        data = {
+            "schema": "characteristics",
+            "schema-version": 2,
+            "characteristics": {"STR": {"class": "physical"}},
+            "modifier-dms": VALID_MODIFIER_DMS,
+            "pseudo-hex": VALID_PSEUDO_HEX,
+        }
+        registry, problems = parse_characteristics(data, "characteristics.toml")
+        assert registry is None
+        matching = [p for p in problems if p.location == "characteristics.STR.label"]
+        assert len(matching) == 1
+        assert matching[0].found == "missing"
+
+    def test_missing_class_is_a_problem(self):
+        data = {
+            "schema": "characteristics",
+            "schema-version": 2,
+            "characteristics": {"STR": {"label": "Strength"}},
+            "modifier-dms": VALID_MODIFIER_DMS,
+            "pseudo-hex": VALID_PSEUDO_HEX,
+        }
+        registry, problems = parse_characteristics(data, "characteristics.toml")
+        assert registry is None
+        matching = [p for p in problems if p.location == "characteristics.STR.class"]
+        assert len(matching) == 1
+        assert matching[0].found == "missing"
+
+    def test_empty_label_is_a_problem(self):
+        data = {
+            "schema": "characteristics",
+            "schema-version": 2,
+            "characteristics": {"STR": _entry("")},
+            "modifier-dms": VALID_MODIFIER_DMS,
+            "pseudo-hex": VALID_PSEUDO_HEX,
+        }
+        registry, problems = parse_characteristics(data, "characteristics.toml")
+        assert registry is None
+        matching = [p for p in problems if p.location == "characteristics.STR.label"]
+        assert matching[0].found == "an empty string"
+
+    def test_unrecognized_key_inside_an_entry_is_a_problem(self):
+        entry = _entry("Strength")
+        entry["gender"] = "neutral"
+        data = {
+            "schema": "characteristics",
+            "schema-version": 2,
+            "characteristics": {"STR": entry},
+            "modifier-dms": VALID_MODIFIER_DMS,
+            "pseudo-hex": VALID_PSEUDO_HEX,
+        }
+        registry, problems = parse_characteristics(data, "characteristics.toml")
+        assert registry is None
+        assert any(p.location == "characteristics.STR.gender" for p in problems)
+
     def test_unrecognized_top_level_key_is_a_problem(self):
         data = {
             "schema": "characteristics",
             "schema-version": 2,
-            "characteristics": {"STR": "Strength"},
+            "characteristics": {"STR": _entry("Strength")},
             "modifier-dms": VALID_MODIFIER_DMS,
+            "pseudo-hex": VALID_PSEUDO_HEX,
             "extra": "nope",
         }
         registry, problems = parse_characteristics(data, "characteristics.toml")
@@ -127,8 +205,9 @@ class TestCharacteristicRegistry:
         data = {
             "schema": "characteristics",
             "schema-version": 2,
-            "characteristics": {"STR": "Strength"},
+            "characteristics": {"STR": _entry("Strength")},
             "modifier-dms": VALID_MODIFIER_DMS,
+            "pseudo-hex": VALID_PSEUDO_HEX,
             "extra": "nope",
             "other": "also nope",
         }
@@ -147,8 +226,9 @@ class TestCharacteristicRegistryModifierBands:
         data = {
             "schema": "characteristics",
             "schema-version": 2,
-            "characteristics": {"STR": "Strength"},
+            "characteristics": {"STR": _entry("Strength")},
             "modifier-dms": modifier_dms,
+            "pseudo-hex": VALID_PSEUDO_HEX,
         }
         registry, problems = parse_characteristics(data, "characteristics.toml")
         assert not problems, problems
@@ -159,8 +239,9 @@ class TestCharacteristicRegistryModifierBands:
         data = {
             "schema": "characteristics",
             "schema-version": 2,
-            "characteristics": {"STR": "Strength"},
+            "characteristics": {"STR": _entry("Strength")},
             "modifier-dms": modifier_dms,
+            "pseudo-hex": VALID_PSEUDO_HEX,
         }
         registry, problems = parse_characteristics(data, "characteristics.toml")
         assert registry is None
@@ -183,7 +264,12 @@ class TestCharacteristicRegistryModifierBands:
         assert registry.characteristic_dm(7) == -2
 
     def test_missing_modifier_dms_table_is_a_problem(self):
-        data = {"schema": "characteristics", "schema-version": 2, "characteristics": {"STR": "S"}}
+        data = {
+            "schema": "characteristics",
+            "schema-version": 2,
+            "characteristics": {"STR": _entry("Strength")},
+            "pseudo-hex": VALID_PSEUDO_HEX,
+        }
         registry, problems = parse_characteristics(data, "characteristics.toml")
         assert registry is None
         assert any(p.location == "modifier-dms" and p.found == "missing" for p in problems)
@@ -229,6 +315,92 @@ class TestCharacteristicRegistryModifierBands:
         registry = self._parsed(VALID_MODIFIER_DMS)
         with pytest.raises(TaskError):
             registry.characteristic_dm(-1)
+
+
+class TestCharacteristicRegistryPseudoHex:
+    """`[pseudo-hex]` parsing, `symbol()`, and `floor()` (research R13,
+    003-npc-generator FR-039).
+    """
+
+    def _parsed(self, pseudo_hex):
+        data = {
+            "schema": "characteristics",
+            "schema-version": 2,
+            "characteristics": {"STR": _entry("Strength")},
+            "modifier-dms": VALID_MODIFIER_DMS,
+            "pseudo-hex": pseudo_hex,
+        }
+        registry, problems = parse_characteristics(data, "characteristics.toml")
+        assert not problems, problems
+        assert registry is not None
+        return registry
+
+    def _problems(self, pseudo_hex):
+        data = {
+            "schema": "characteristics",
+            "schema-version": 2,
+            "characteristics": {"STR": _entry("Strength")},
+            "modifier-dms": VALID_MODIFIER_DMS,
+            "pseudo-hex": pseudo_hex,
+        }
+        registry, problems = parse_characteristics(data, "characteristics.toml")
+        assert registry is None
+        return problems
+
+    def test_symbol_reads_by_offset_from_minimum(self):
+        registry = self._parsed({"minimum": 0, "symbols": ["0", "1", "2", "3"]})
+        assert registry.symbol(0) == "0"
+        assert registry.symbol(3) == "3"
+
+    def test_symbol_reads_with_a_nonzero_minimum(self):
+        registry = self._parsed({"minimum": 10, "symbols": ["A", "B", "C"]})
+        assert registry.symbol(10) == "A"
+        assert registry.symbol(12) == "C"
+
+    def test_symbol_below_minimum_raises_naming_score_and_range(self):
+        registry = self._parsed({"minimum": 0, "symbols": ["0", "1", "2", "3"]})
+        with pytest.raises(RulesDataError, match="-1") as exc_info:
+            registry.symbol(-1)
+        assert "0-3" in str(exc_info.value)
+
+    def test_symbol_above_top_raises_naming_score_and_range(self):
+        registry = self._parsed({"minimum": 0, "symbols": ["0", "1", "2", "3"]})
+        with pytest.raises(RulesDataError, match="4") as exc_info:
+            registry.symbol(4)
+        assert "0-3" in str(exc_info.value)
+
+    def test_floor_returns_pseudo_hex_minimum(self):
+        registry = self._parsed({"minimum": 0, "symbols": ["0", "1", "2", "3"]})
+        assert registry.floor() == 0
+        registry = self._parsed({"minimum": 5, "symbols": ["A", "B"]})
+        assert registry.floor() == 5
+
+    def test_missing_pseudo_hex_table_is_a_problem(self):
+        data = {
+            "schema": "characteristics",
+            "schema-version": 2,
+            "characteristics": {"STR": _entry("Strength")},
+            "modifier-dms": VALID_MODIFIER_DMS,
+        }
+        registry, problems = parse_characteristics(data, "characteristics.toml")
+        assert registry is None
+        assert any(p.location == "pseudo-hex" and p.found == "missing" for p in problems)
+
+    def test_missing_minimum_is_a_problem(self):
+        problems = self._problems({"symbols": ["0", "1"]})
+        assert any(p.location == "pseudo-hex.minimum" and p.found == "missing" for p in problems)
+
+    def test_empty_symbols_array_is_a_problem(self):
+        problems = self._problems({"minimum": 0, "symbols": []})
+        assert any(p.location == "pseudo-hex.symbols" for p in problems)
+
+    def test_non_string_symbol_is_a_type_problem(self):
+        problems = self._problems({"minimum": 0, "symbols": ["0", 1]})
+        assert any(p.location == "pseudo-hex.symbols[1]" for p in problems)
+
+    def test_unrecognized_key_is_a_problem(self):
+        problems = self._problems({"minimum": 0, "symbols": ["0"], "maximum": 9})
+        assert any(p.location == "maximum" for p in problems)
 
 
 class TestSkillRegistry:

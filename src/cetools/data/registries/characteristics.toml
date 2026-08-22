@@ -1,17 +1,35 @@
 # Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
 #
-# The six characteristics.
+# The six characteristics. `class` is "physical" or "mental", read by the
+# aging and mishap tables to select which characteristics an effect may land
+# on (003-npc-generator FR-039, research R12).
 
 schema = "characteristics"
 schema-version = 2
 
-[characteristics]
-STR = "Strength"
-DEX = "Dexterity"
-END = "Endurance"
-INT = "Intellect"
-EDU = "Education"
-SOC = "Social Standing"
+[characteristics.STR]
+label = "Strength"
+class = "physical"
+
+[characteristics.DEX]
+label = "Dexterity"
+class = "physical"
+
+[characteristics.END]
+label = "Endurance"
+class = "physical"
+
+[characteristics.INT]
+label = "Intellect"
+class = "mental"
+
+[characteristics.EDU]
+label = "Education"
+class = "mental"
+
+[characteristics.SOC]
+label = "Social Standing"
+class = "mental"
 
 [modifier-dms]
 "0-2" = -2
@@ -26,3 +44,12 @@ SOC = "Social Standing"
 "27-29" = 7
 "30-32" = 8
 "33+" = 9
+
+# The pseudo-hex profile symbols, skipping I and O so they cannot be misread
+# as 1 and 0 (research R13). `minimum` is the score the first symbol stands
+# for; a characteristic reduction floors here rather than going negative.
+[pseudo-hex]
+minimum = 0
+symbols = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+           "A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M",
+           "N", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
