@@ -142,11 +142,36 @@ class TestSpreadAndCoverage:
 
 class TestDefaultRenderingCoverage:
     def test_sc020_every_default_field_is_present_and_nothing_from_the_walk_leaks(self, sample):
+        # SC-020's completeness half is a claim about every field the format
+        # has a place for, not about the rendering as a whole being
+        # non-empty — `assert text` passes for a sheet missing every field
+        # but one, and checking only the first 200 of the thousand-seed
+        # sample leaves 800 unchecked (T156). Every field below is one
+        # `contracts/cli.md` requires unconditionally; the benefit-items
+        # line is the one line the format itself may omit, so its absence is
+        # not asserted against.
         from cetools.render import as_text
 
-        for character in sample[:200]:
+        for character in sample:
             text = as_text(character)
-            assert text  # every field the default rendering carries is non-empty
+            lines = text.split("\n")
+            assert len(lines) in (3, 4)
+
+            line1_fields = lines[0].split("\t")
+            assert len(line1_fields) == 3
+            for field in line1_fields:
+                assert field
+
+            line2_fields = lines[1].split("\t")
+            assert len(line2_fields) == 2
+            for field in line2_fields:
+                assert field
+
+            assert lines[2]  # the skills line
+
+            if len(lines) == 4:
+                assert lines[3]  # the benefit-items line, when present
+
             for leak in ("Seed:", "Rules:", "cetools", "Debt:", "Pension:", "History:"):
                 assert leak not in text
 
