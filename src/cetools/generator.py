@@ -561,13 +561,14 @@ class _Walk:
                         )
                     elif effect.kind == "years":
                         extra_years += _parse_amount(effect.amount, self.roller)
-                    elif effect.kind == "forfeit-term-benefit":
-                        forfeited_terms += 1
                     elif effect.kind == "forfeit-career-benefits":
                         forfeit_all = True
                     elif effect.kind == "roll-injury":
                         self._roll_injury(career.name, term)
                 terms += 1
+                # Every mishap-ended term forfeits its own benefit roll
+                # unconditionally (FR-020); this is the only place that
+                # happens (T145).
                 forfeited_terms += 1
                 self.total_terms_served += 1
                 self.age += params.terms_mishap_term_years + extra_years

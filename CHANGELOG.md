@@ -238,3 +238,11 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   produce a character whose `name` is `""` — which would render a title
   with a dangling separator and nothing after it (FR-047, FR-053c, SC-018,
   T148).
+- **A mishap-ended term could forfeit its benefit roll twice.** One shipped
+  mishap row ("Gravely injured and forced out of the service") carried its
+  own `forfeit-term-benefit` effect on top of the forfeiture every
+  mishap-ended term already incurs unconditionally (FR-020), so a character
+  ending a service on that row lost two rolls instead of one. `mishaps.toml`
+  no longer declares it, and `forfeit-term-benefit` is dropped from the
+  mishap effect schema entirely — the unconditional per-term rule is the
+  only place this ever belonged (T145).

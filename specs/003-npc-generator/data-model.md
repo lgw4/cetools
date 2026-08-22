@@ -226,7 +226,7 @@ characteristic by 1" be one row of data rather than a branch in the engine.
 
 | `MishapEffect` field | Type | Notes |
 |---|---|---|
-| `kind` | `str` | One of `characteristic-class`, `debt`, `years`, `forfeit-term-benefit`, `forfeit-career-benefits`, `roll-injury`. |
+| `kind` | `str` | One of `characteristic-class`, `debt`, `years`, `forfeit-career-benefits`, `roll-injury`. `forfeit-term-benefit` was dropped (Phase 8 T145): every mishap-ended term forfeits its own benefit roll unconditionally in engine code (FR-020), so a row-level effect for the same thing could only ever double it. |
 | `characteristic_class` | `str` | For `characteristic-class`; `""` otherwise. |
 | `count` | `int` | How many characteristics; `0` where not applicable. |
 | `amount` | `str` | Dice notation or a plain integer as text. A characteristic reduction may be `1d6` and a debt may be `10000`, so the field admits both and the parser types it. |

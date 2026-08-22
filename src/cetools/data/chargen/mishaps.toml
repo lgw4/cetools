@@ -2,6 +2,10 @@
 #
 # Rows 4 and 5 carry both `forfeit-career-benefits` and the extra four years
 # on top of the two the mishap term itself costs (research R10 items 5, 6).
+#
+# No row declares a term-only forfeiture: FR-020 forfeits every mishap
+# term's own benefit roll unconditionally, so a row-level effect for it
+# would only ever double it (T145).
 
 schema = "mishap-table"
 schema-version = 1
@@ -35,7 +39,7 @@ effects = [{ kind = "forfeit-career-benefits" }, { kind = "years", amount = "4" 
 
 [[mishaps]]
 description = "Gravely injured and forced out of the service."
-effects = [{ kind = "roll-injury" }, { kind = "forfeit-term-benefit" }]
+effects = [{ kind = "roll-injury" }]
 
 [[injuries]]
 description = "Lightly injured."

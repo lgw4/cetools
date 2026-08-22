@@ -467,7 +467,6 @@ _MISHAP_EFFECT_KINDS = frozenset(
         "characteristic-class",
         "debt",
         "years",
-        "forfeit-term-benefit",
         "forfeit-career-benefits",
         "roll-injury",
     }
