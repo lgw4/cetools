@@ -85,13 +85,19 @@ def _problem_line(problem: ValidationProblem) -> str:
 
 
 @singledispatch
-def as_text(result) -> str:
+def as_text(result, *, full: bool = False) -> str:
     """Render a result (`ThrowResult` or `CheckResult`) as human-readable text.
 
     Follows the rendering rules pinned by the golden files in
     `tests/golden/`: labels padded to the longest present, values signed,
     a trailing newline, and no `Modifier:`/sum noise when there is no
     modifier to show.
+
+    `full=True` asks for a fuller rendering. Every registration below has no
+    fuller form and raises `CetoolsError` when it is passed, on the same
+    reasoning this fallback already applies one level up: a rendering that
+    silently gave less than was asked for is worse than one that says it
+    cannot (003-npc-generator plan.md).
 
     An unregistered type raises `CetoolsError`. Unlike an empty modifier
     list, which renders because it is a check with nothing applied rather
@@ -106,8 +112,14 @@ def as_text(result) -> str:
     raise CetoolsError(f"no as_text rendering registered for {type(result).__name__}")
 
 
+def _reject_full(result, full: bool) -> None:
+    if full:
+        raise CetoolsError(f"{type(result).__name__} has no fuller as_text rendering")
+
+
 @as_text.register
-def _(result: ThrowResult) -> str:
+def _(result: ThrowResult, *, full: bool = False) -> str:
+    _reject_full(result, full)
     labels = ["Dice:"]
     if result.modifier != 0:
         labels.append("Modifier:")
@@ -128,7 +140,8 @@ def _(result: ThrowResult) -> str:
 
 
 @as_text.register
-def _(result: CheckResult) -> str:
+def _(result: CheckResult, *, full: bool = False) -> str:
+    _reject_full(result, full)
     outer_width = max(len(label) for label in ("Dice:", "Total:", "Seed:", "Rules:")) + 1
     # `check` always applies at least a difficulty and a skill-or-unskilled row,
     # so the CLI never sees an empty list. `CheckResult` is public, though, and a
@@ -151,7 +164,8 @@ def _(result: CheckResult) -> str:
 
 
 @as_text.register
-def _(result: ValidationReport) -> str:
+def _(result: ValidationReport, *, full: bool = False) -> str:
+    _reject_full(result, full)
     problem_lines = [_problem_line(p) for p in result.problems]
 
     if result.problems:
