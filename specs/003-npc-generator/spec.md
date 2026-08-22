@@ -70,6 +70,37 @@ forbids what the next one requires would leave the two contradicting each other.
   traditions rather than one, its entries must each name the people they come from, so that the
   data does not flatten them into a single undifferentiated category.
 
+### Session 2026-08-21
+
+- Q: When a character served more than one career and holds a rank on more than one ladder,
+  which career's rank title gets attached to the rendered name? → A: The title from the most
+  recently served career in which the character holds a rank the ladder names a title for.
+  This is decidable from what the character already carries, whereas taking the highest rank
+  would require comparing a rank on one ladder against a rank on another, and no shipped data
+  declares how ladders compare.
+- Q: Is each entry in the generation history a structured record with named parts, or a line of
+  prose? → A: A structured record with named parts. The fuller text rendering formats a line from
+  the parts and machine-readable output emits the parts themselves. Prose was rejected because
+  SC-005's traceability check and SC-004's consistency audit would then have to parse sentences,
+  and a machine-readable history of strings is one a consumer cannot query.
+- Q: In default text mode, what goes between one character sheet and the next in a batch? → A: A
+  single blank line and nothing else. The name line at the top of each sheet is what identifies
+  it. A numbered or seed-bearing header was rejected because it would put text on standard output
+  that belongs to no sheet, which is what FR-051 exists to prevent.
+- Q: In machine-readable mode, does a batch emit a document shaped differently from a single
+  character's, and where does the seed live? → A: One shape always. Every run emits a
+  batch-shaped document carrying a list of characters, a list of one when one character was
+  asked for. The master seed, the package version, and the provenance sit at the top level; each
+  character carries the derived seed that reproduces it alone. A consumer therefore writes one
+  code path rather than branching on how many characters it asked for.
+- Q: Does the character carry its name as a single string or as separate parts? → A: Both, at
+  different jobs. One name string is always present and is what renders. The given name, the
+  surname, and the region the surname came from are recorded separately when the name was rolled,
+  and are empty when the caller supplied the name. Splitting a supplied name on a space was
+  rejected, because a supplied name may be one word or five and FR-047 requires it verbatim;
+  recording only the string was rejected because SC-019's weighting check would then have to
+  recover a region by splitting rendered text.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Get a usable NPC from a seed (Priority: P1)
@@ -111,8 +142,9 @@ feature exists to be.
    character carries a given name and a surname rolled from the shipped name tables, so that
    the sheet names a person rather than an anonymous profile.
 7. **Given** the same seed run twice, once with a caller-supplied name and once without,
-   **When** the two characters are compared, **Then** they differ in the name and in nothing
-   else, so that naming a character does not change who they turned out to be.
+   **When** the two characters are compared, **Then** they differ in the name and in the name
+   parts that record how a rolled name was composed, and in nothing else, so that naming a
+   character does not change who they turned out to be.
 
 ---
 
@@ -178,10 +210,12 @@ from the same seed. Delivers value on its own as the bulk form of Story 1.
    characters are identical to a batch of a smaller count from the same seed, so a count is
    a request for more of one sequence rather than for a different sequence.
 3. **Given** a batch and the default text rendering, **When** the output is written, **Then**
-   standard output carries the character sheets and nothing else, separated so that each is
-   identifiable, with the seed and provenance reporting on standard error.
+   standard output carries the character sheets and nothing else, one blank line between
+   consecutive sheets and no other separating text, with the seed and provenance reporting on
+   standard error.
 4. **Given** a batch and machine-readable output, **When** the output is written, **Then** a
-   single document carries all the characters, consumable without splitting a stream.
+   single document carries all the characters as a list, consumable without splitting a stream,
+   in the same shape a run of one character emits.
 
 ---
 
@@ -283,8 +317,15 @@ value on its own as the house-rule path for all character generation.
 - What happens when no name is supplied? A name is rolled: a given name from the given-names
   table and a surname from one of the regional surname tables. The rank title from the career
   ladder is attached to it if the character holds one.
-- What happens when a name is supplied? It is used verbatim and no name is rolled, and the
-  character is otherwise identical to the one that seed produces unnamed.
+- What happens when a name is supplied? It is used verbatim and no name is rolled. The character
+  is otherwise identical to the one that seed produces unnamed, except that the fields recording
+  which given name, surname, and region a rolled name came from are empty, there being no rolled
+  name to record.
+- What happens when a character holds a titled rank in two careers, such as a commissioned
+  officer who later served as a Drifter? The title attached is the one from the most recent
+  career that titled them, so the officer keeps the title and the untitled later career does not
+  erase it. Ranks on different ladders are never compared, because nothing in the data says how
+  they would compare.
 - What happens when a batch is generated and two characters roll the same name? Nothing. A
   repeated name is not prevented, because preventing it would make each character depend on the
   ones generated before it, and a character in a batch must be reproducible from its own
@@ -414,7 +455,8 @@ value on its own as the house-rule path for all character generation.
 
 #### The character
 
-- **FR-029**: The generated character MUST carry: its name, its characteristics with their
+- **FR-029**: The generated character MUST carry: its name and, where the name was rolled, the
+  parts it was composed from, its characteristics with their
   current scores, its skills with their levels including level zero, every career it served
   with the terms served and rank reached in each, its age, its funds, its outstanding debt, its
   pension, its named benefit items, and its generation history.
@@ -423,6 +465,14 @@ value on its own as the house-rule path for all character generation.
   makes a surprising sheet diagnosable as a wrong engine rather than interesting dice, and it
   MUST be complete enough that every characteristic, skill, career, credit, and item on the
   sheet traces to a step that produced it.
+- **FR-030a**: Each history step MUST be a structured record whose parts are separately
+  addressable: at minimum which kind of step it was, the career and term it occurred in where
+  those apply, what was thrown or decided, and what followed. A step MUST NOT be recorded only as
+  a line of prose. Machine-readable output MUST emit the parts, and the fuller text rendering
+  MUST compose its line from them, so that the text form is a rendering of the record rather than
+  the record itself. Under any other reading, SC-004's consistency audit and SC-005's
+  traceability check would have to parse sentences, and a consumer of the machine-readable
+  history could not query it.
 - **FR-031**: The character MUST be reachable programmatically as a value, so that a consumer
   can read it without parsing any rendering of it.
 
@@ -549,16 +599,42 @@ value on its own as the house-rule path for all character generation.
   surname, and MUST NOT be reordered, abbreviated, or otherwise adjusted to suit the naming
   conventions of the region a surname came from. The generator composes two independently drawn
   parts and does not claim to be modelling any one tradition's name order.
-- **FR-047b**: Whether a character's name was supplied or rolled MUST NOT change any other
-  field of that character for a given seed. A caller who names a character gets the character
-  that seed produces, named; not a different character.
+- **FR-047b**: Whether a character's name was supplied or rolled MUST NOT change any field of
+  that character for a given seed other than the name itself and the name parts of FR-047d, which
+  record how a rolled name was composed and are empty for a supplied one. A caller who names a
+  character gets the character that seed produces, named; not a different character.
+- **FR-047c**: Where a character holds a titled rank on more than one ladder, the title attached
+  MUST be the one from the most recently served career in which the character holds a rank the
+  ladder names a title for. A career that left the character untitled MUST NOT erase a title an
+  earlier career granted. The rule MUST NOT compare a rank on one ladder against a rank on
+  another, because no shipped data declares how ladders compare and any such comparison would be
+  a rule held in engine code.
+- **FR-047d**: The character MUST carry one name string that is always present and is what every
+  rendering writes. Where the name was rolled, the character MUST additionally carry the given
+  name, the surname, and the region the surname was drawn from, recorded separately. Where the
+  caller supplied the name, those three MUST be empty, and the supplied name MUST NOT be split,
+  reordered, or otherwise decomposed to fill them, since a supplied name may be one word or
+  several and FR-047 requires it verbatim. Machine-readable output MUST carry all four fields
+  unconditionally per FR-050, the three parts present and empty for a supplied name.
 - **FR-048**: Noble titles MUST NOT be rendered, on either the name or elsewhere.
+- **FR-048a**: In either text rendering, consecutive character sheets in a batch MUST be
+  separated by exactly one blank line and by nothing else. No index, count, seed, or other header
+  may be written between or above sheets, because every byte on standard output in text mode
+  belongs to some sheet. A batch of one MUST therefore render byte for byte as the single
+  character of that seed and position renders.
 - **FR-049**: The system MUST provide a second, fuller text rendering that carries what the
   Universal Character Format has nowhere to put: the outstanding debt, the pension, and the
   generation history.
 - **FR-050**: Machine-readable output MUST carry every field of the character unconditionally,
   including the history, the debt, the pension, the seed, and the provenance, present whether
   or not each is non-empty, so that a consumer never has to infer a field's absence.
+- **FR-050a**: Machine-readable output MUST have one shape whatever the count. Every run MUST
+  emit a single document carrying the characters as a list, a list of one when one character was
+  asked for, so that a consumer writes one code path rather than branching on how many characters
+  it requested. The master seed, the package version, and the provenance MUST sit at the top
+  level of that document, and each character MUST carry the derived seed that reproduces that
+  character alone, so that a consumer can tell the seed a referee quotes for the table from the
+  seed that regenerates one person.
 - **FR-051**: In text mode, standard output MUST carry exactly the character sheet and nothing
   else, and the seed, the package version, and the provenance MUST be written to standard
   error. Redirecting the command's output MUST therefore produce a file that is a character
@@ -599,13 +675,17 @@ value on its own as the house-rule path for all character generation.
 
 ### Key Entities
 
-- **Character**: The finished person the generator produces. Carries a name, characteristics,
+- **Character**: The finished person the generator produces. Carries a name, always present and
+  always what renders, together with the given name, surname, and surname region it was composed
+  from when the name was rolled and empty when the caller supplied it; characteristics,
   skills with levels, the careers served with terms and rank in each, age, funds, outstanding
   debt, pension, named benefit items, and the generation history. Always named, always alive,
   always internally consistent.
 - **Generation history**: The ordered record of the walk that produced a character. Every step
-  names what was decided or thrown and what followed. It is the evidence by which a surprising
-  sheet is diagnosed, and every number on the sheet traces to a step in it.
+  is a structured record with separately addressable parts naming which kind of step it was, the
+  career and term it fell in where those apply, what was decided or thrown, and what followed. It
+  is the evidence by which a surprising sheet is diagnosed, and every number on the sheet traces
+  to a step in it. The text rendering of a step is a rendering of the record, never the record.
 - **Career service**: One character's time in one career: which career, how many terms, which
   ladder they were on and what rank they reached, how the service ended, and what it earned at
   mustering out. A character has one or more, in the order they were entered.
@@ -659,7 +739,8 @@ value on its own as the house-rule path for all character generation.
   are non-negative, and no consequence appears that no step in the history produced.
 - **SC-005**: Every characteristic, skill, career, credit, and item on a generated sheet traces
   to a recorded step in that character's history, verified as an automated check over the
-  sample, so that a surprising sheet can be diagnosed from output alone.
+  sample that reads the steps' named parts rather than parsing any rendered text, so that a
+  surprising sheet can be diagnosed from output alone.
 - **SC-006**: Over that same sample, ages are spread rather than parked at the cap: characters
   finish with a range of term counts, at least five distinct counts occur, and no more than one
   character in four reaches the seven-term cap.
@@ -673,14 +754,19 @@ value on its own as the house-rule path for all character generation.
 - **SC-009**: The default rendering is byte-faithful Universal Character Format, verified
   against committed reference outputs covering, between them, a character with and without each
   omissible line, a character holding a rank title, a character holding none, a
-  multi-career character, and a character carrying a cascade specialization.
+  multi-career character, a multi-career character holding a titled rank in an earlier career
+  and none in a later one, and a character carrying a cascade specialization.
 - **SC-010**: The fuller text rendering carries the outstanding debt, the pension, and the
   history for a character that has all three, and the machine-readable output carries every
   field unconditionally, verified against a character for which several of those fields are
-  empty.
+  empty. A run of one character and a run of twelve emit the same document shape, verified by
+  checking both against one contract, and the derived seed a batch reports for a character
+  regenerates that character alone.
 - **SC-011**: Redirecting the command's standard output produces a file that is exactly a
   character sheet, containing no seed line, no version, and no provenance, while all three
-  appear on standard error in the same run.
+  appear on standard error in the same run. The same holds for a batch, whose redirected output
+  is exactly its sheets with one blank line between consecutive sheets and no other text,
+  verified against a committed batch reference.
 - **SC-012**: The same seed renders identically under a different locale, verified by an
   automated check that runs the comparison under at least one locale whose collation differs
   from the default, so that the alphabetical ordering the format requires cannot depend on the
@@ -717,11 +803,13 @@ value on its own as the house-rule path for all character generation.
   library directly without invoking the command line.
 - **SC-018**: Every generated character has a name, verified over the same sample as SC-003
   with no character rendering nameless, and a seed run with and without a caller-supplied name
-  produces characters that differ in the name alone, compared field by field.
+  produces characters that differ in the name and its recorded parts alone, compared field by
+  field.
 - **SC-019**: Over a sample of ten thousand rolled names, each surname region appears within a
   narrow band of an equal share, so that no region dominates and none is effectively
   unreachable, and the observed share does not track the number of entries the regions' tables
-  hold. Table sizes are deliberately made to differ in the shipped data so that this criterion
+  hold. The check counts the surname region each character records (FR-047d) rather than
+  recovering it by splitting a rendered name. Table sizes are deliberately made to differ in the shipped data so that this criterion
   can fail if weighting is ever taken over names rather than over regions.
 - **SC-020**: A referee generating an NPC for play needs one command and no follow-up
   question: the sheet as rendered carries everything needed to run the character in a scene,
@@ -805,7 +893,9 @@ Defaults chosen where the decisions brief did not specify:
   spreads ages without preferring either end.
 - **Per-character seeds in a batch are derived deterministically from the master seed and the
   character's position**, which is what makes FR-057's prefix property hold and what lets a
-  referee quote one seed for a whole table.
+  referee quote one seed for a whole table. The derived seed is reported on each character in
+  machine-readable output (FR-050a), so a referee who wants one person out of a table has the
+  seed that reproduces that person alone.
 - **In machine-readable mode the emitted document carries the seed, the version, and the
   provenance in-document**, and they are not additionally echoed to standard error, so that the
   document is self-contained and the stream is not split. FR-051's routing to standard error
