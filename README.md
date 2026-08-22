@@ -92,11 +92,15 @@ licensing constraints on new files, and `CHANGELOG.md` for release history.
 ## Licensing
 
 This repository carries two licenses. Every `.toml` file under
-`src/cetools/data/` — the rules data, which ships as `cetools/data/` in an
-installed package — is Open Game Content under the Open Game License v1.0a
-(see `LICENSE-OGL.txt`). Everything else — the library and CLI source, the
-`__init__.py` that makes the data directory importable, tests, and packaging
-— is licensed under the GNU General Public License v3.0 (see `LICENSE`).
+`src/cetools/data/registries/`, `src/cetools/data/chargen/`, and
+`src/cetools/data/careers/`, plus `src/cetools/data/tasks.toml` itself — the
+rules data, which ships as `cetools/data/` in an installed package — is Open
+Game Content under the Open Game License v1.0a (see `LICENSE-OGL.txt`).
+Every `.toml` file under `src/cetools/data/names/` is this project's own
+content, not Open Game Content, and is licensed GPL-3.0-only along with
+everything else — the library and CLI source, the `__init__.py` that makes
+the data directory importable, tests, and packaging — under the GNU General
+Public License v3.0 (see `LICENSE`).
 
 A house rule supplied through `--rules-data` or `cetools validate PATH`
 carries no such obligation: it is your own content, not something this

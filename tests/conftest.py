@@ -54,8 +54,11 @@ SECTION_15_NOTICES = (
     "Publishing Ltd Authorized User.",
     "Cepheus Engine System Reference Document, Copyright © 2016 Samardan Press; "
     'Author Jason "Flynn" Kemp.',
-    "cetools rules data, every .toml file under (src/cetools/data/) as distributed in "
-    "source and under (cetools/data/) as installed, Copyright 2026, the cetools "
+    "cetools rules data—every .toml file under (src/cetools/data/registries/), "
+    "(src/cetools/data/chargen/), or (src/cetools/data/careers/), and "
+    "(src/cetools/data/tasks.toml) itself, as distributed in source, and under "
+    "(cetools/data/registries/), (cetools/data/chargen/), or (cetools/data/careers/), and "
+    "(cetools/data/tasks.toml) itself, as installed—Copyright 2026, the cetools "
     "contributors.",
 )
 
@@ -98,6 +101,12 @@ def section_15_notices() -> tuple[str, ...]:
 # the tree.
 DESIGNATION = b"Open Game Content" b" per OGL 1.0a"
 
+# The GPL-3.0 designation, carried by project content that is not Open Game
+# Content (003-npc-generator's name tables). Two fragments for the same
+# reason `DESIGNATION` is: this module ships in the sdist, and a contiguous
+# literal here would make it designate itself.
+GPL_DESIGNATION = b"GPL-3.0-only project content" b"; not Open Game Content"
+
 _NOTICE_PATH = re.compile(r"\(([^()]+)\)")
 _NOTICE_SUFFIX = re.compile(r"every (\.[a-z0-9]+) file")
 
@@ -113,6 +122,21 @@ def _uncovered(paths, covered: tuple[str, ...], suffix: str) -> list[str]:
         path
         for path in paths
         if not (path.endswith(suffix) and any(path.startswith(p) for p in covered))
+    ]
+
+
+def _wrongly_covered(paths, covered: tuple[str, ...], suffix: str) -> list[str]:
+    """The mirror of `_uncovered`: which of `paths` — GPL-designated files —
+    the OGC notice's paths and suffix wrongly claim.
+
+    A name table that drifts into an OGC subtree (`registries/`, `chargen/`,
+    `careers/`, or `tasks.toml`) would otherwise ship there silently, sold
+    under a licence its GPL designation contradicts.
+    """
+    return [
+        path
+        for path in paths
+        if path.endswith(suffix) and any(path.startswith(p) for p in covered)
     ]
 
 

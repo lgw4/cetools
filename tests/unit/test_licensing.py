@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import DESIGNATION, _uncovered
+from tests.conftest import DESIGNATION, GPL_DESIGNATION, _uncovered, _wrongly_covered
 
 ATTRIBUTION = "Cepheus Engine and Samardan Press are the trademarks of Jason 'Flynn' Kemp"
 NON_AFFILIATION_PHRASES = ("not affiliated", "no affiliation")
@@ -316,6 +316,48 @@ def test_the_coverage_check_sees_a_designated_file_the_old_scan_missed(
         planted.unlink()
 
 
+def _gpl_designated_in_tree(repo_root: Path) -> list[str]:
+    return sorted(
+        path.relative_to(repo_root).as_posix()
+        for path in _shipped_files(repo_root)
+        if GPL_DESIGNATION in path.read_bytes()
+    )
+
+
+def test_an_ogc_file_outside_the_covered_subtrees_fails_the_coverage_check(
+    repo_root, game_data_covered_paths, game_data_covered_suffix
+):
+    # SC-015a: narrowing the notice to the OGC subtrees (T057) means an OGC
+    # file sitting directly under `src/cetools/data/`, outside all four of
+    # them, must fail the check that used to cover the whole directory.
+    planted = repo_root / "src" / "cetools" / "data" / "rogue-ogc.toml"
+    assert not planted.exists()
+    planted.write_bytes(b"# " + DESIGNATION + b"; see LICENSE-OGL.txt\n")
+    try:
+        designated = _designated_in_tree(repo_root)
+        assert planted.relative_to(repo_root).as_posix() in designated
+        assert _uncovered(designated, game_data_covered_paths, game_data_covered_suffix)
+    finally:
+        planted.unlink()
+
+
+def test_a_gpl_file_inside_a_covered_subtree_fails_the_mirror_check(
+    repo_root, game_data_covered_paths, game_data_covered_suffix
+):
+    # The mirror of the case above: a name table that drifted into an OGC
+    # subtree would otherwise ship there and be covered by a notice its own
+    # designation contradicts.
+    planted = repo_root / "src" / "cetools" / "data" / "registries" / "rogue-gpl.toml"
+    assert not planted.exists()
+    planted.write_bytes(b"# " + GPL_DESIGNATION + b". See LICENSE.\n")
+    try:
+        designated = _gpl_designated_in_tree(repo_root)
+        assert planted.relative_to(repo_root).as_posix() in designated
+        assert _wrongly_covered(designated, game_data_covered_paths, game_data_covered_suffix)
+    finally:
+        planted.unlink()
+
+
 def test_shipped_files_still_finds_a_root_level_include_anchored_with_a_leading_slash(repo_root):
     # T138 anchored `"README.md"` and `"CHANGELOG.md"` to `"/README.md"` and
     # `"/CHANGELOG.md"` in the sdist `include` list, so hatchling stops
@@ -336,3 +378,56 @@ def test_packaged_tasks_toml_opens_with_ogc_designation_and_omits_pi_strings():
     assert "Open Game Content" in text
     assert "Cepheus Engine" not in text
     assert "Samardan Press" not in text
+
+
+# --- the GPL-3.0 designation (003-npc-generator FR-042, SC-015) ------------
+#
+# A shipped rules-data file carries exactly one of the two designations:
+# 003-npc-generator's name tables are project content, not Open Game
+# Content, and the two must be distinguishable by a check rather than by a
+# human reading each file. These cases stand before any name table exists,
+# planted rather than read from the tree.
+
+
+# Decoded once, rather than written contiguously below: this module ships in
+# the sdist, and `DESIGNATION` is already split for exactly this reason.
+_OGC_MARKER = DESIGNATION.decode()
+_GPL_MARKER = GPL_DESIGNATION.decode()
+
+
+def _assert_exactly_one_designation(text: str, where: str) -> None:
+    # The full OGC marker phrase, not the bare "Open Game Content" substring:
+    # the GPL marker's own "not Open Game Content" clause contains that
+    # substring too, and would otherwise read as both designations at once.
+    has_ogc = _OGC_MARKER in text
+    has_gpl = _GPL_MARKER in text
+    assert has_ogc or has_gpl, f"{where} carries neither the OGC nor the GPL designation"
+    assert not (has_ogc and has_gpl), f"{where} carries both the OGC and GPL designations"
+
+
+def test_a_file_carrying_only_the_ogc_designation_passes(tmp_path):
+    planted = tmp_path / "ogc.toml"
+    planted.write_bytes(b"# " + DESIGNATION + b"; see LICENSE-OGL.txt\n")
+    _assert_exactly_one_designation(planted.read_text(encoding="utf-8"), "ogc.toml")
+
+
+def test_a_file_carrying_only_the_gpl_designation_passes(tmp_path):
+    planted = tmp_path / "gpl.toml"
+    planted.write_bytes(b"# " + GPL_DESIGNATION + b". See LICENSE.\n")
+    _assert_exactly_one_designation(planted.read_text(encoding="utf-8"), "gpl.toml")
+
+
+def test_a_file_carrying_both_designations_fails(tmp_path):
+    planted = tmp_path / "both.toml"
+    planted.write_bytes(
+        b"# " + DESIGNATION + b"; see LICENSE-OGL.txt\n# " + GPL_DESIGNATION + b". See LICENSE.\n"
+    )
+    with pytest.raises(AssertionError):
+        _assert_exactly_one_designation(planted.read_text(encoding="utf-8"), "both.toml")
+
+
+def test_a_file_carrying_neither_designation_fails(tmp_path):
+    planted = tmp_path / "neither.toml"
+    planted.write_text("# just a comment\n", encoding="utf-8")
+    with pytest.raises(AssertionError):
+        _assert_exactly_one_designation(planted.read_text(encoding="utf-8"), "neither.toml")

@@ -134,8 +134,11 @@ Publishing Ltd Authorized User.
 Cepheus Engine System Reference Document, Copyright © 2016 Samardan Press;
 Author Jason "Flynn" Kemp.
 
-cetools rules data, every .toml file under (src/cetools/data/) as
-distributed in source and under (cetools/data/) as installed, Copyright
-2026, the cetools contributors.
+cetools rules data—every .toml file under (src/cetools/data/registries/),
+(src/cetools/data/chargen/), or (src/cetools/data/careers/), and
+(src/cetools/data/tasks.toml) itself, as distributed in source, and under
+(cetools/data/registries/), (cetools/data/chargen/), or
+(cetools/data/careers/), and (cetools/data/tasks.toml) itself, as
+installed—Copyright 2026, the cetools contributors.
 
 END OF LICENSE

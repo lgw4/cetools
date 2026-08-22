@@ -19,9 +19,15 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import DESIGNATION, _uncovered
+from tests.conftest import DESIGNATION, GPL_DESIGNATION, _uncovered
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+# Decoded once, rather than written contiguously below: this module ships in
+# the sdist, and the two designation constants are already split for exactly
+# this reason.
+_OGC_MARKER = DESIGNATION.decode()
+_GPL_MARKER = GPL_DESIGNATION.decode()
 
 
 def _build(tmp_path_factory, flag: str, suffix: str) -> Path:
@@ -58,8 +64,17 @@ def _assert_shipped_rules_data(text: str, where: str) -> None:
     lived only in a test reading through `importlib.resources`, which under
     an editable install resolves into the working tree and so verifies
     nothing about a distribution.
+
+    Widened to an exactly-one-of-two check (FR-042a): 003-npc-generator's
+    name tables carry the GPL-3.0 designation instead of the OGC one, and a
+    file carrying both, or neither, is a labeling error the check must catch
+    rather than pass on the strength of the one designation it used to look
+    for.
     """
-    assert "Open Game Content" in text, f"{where} lost its Open Game Content designation"
+    has_ogc = _OGC_MARKER in text
+    has_gpl = _GPL_MARKER in text
+    assert has_ogc or has_gpl, f"{where} carries neither the OGC nor the GPL designation"
+    assert not (has_ogc and has_gpl), f"{where} carries both the OGC and GPL designations"
     assert "Cepheus Engine" not in text, f"{where} carries a Product Identity string"
     assert "Samardan Press" not in text, f"{where} carries a Product Identity string"
 

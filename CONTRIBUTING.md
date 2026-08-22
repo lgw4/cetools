@@ -174,18 +174,25 @@ line it sits on.
 
 - **Code, tests, packaging, and docs are GPL-3.0** (`LICENSE`). By
   contributing them you agree to license them that way.
-- **Every `.toml` file under `src/cetools/data/` is Open Game Content under
-  OGL 1.0a** (`LICENSE-OGL.txt`). It cannot be sublicensed under the GPL. Any
-  new file containing content derived from the Cepheus Engine SRD is also
-  OGC, must carry the OGC designation in a header comment the way
-  `tasks.toml` does, and must be a `.toml` under `src/cetools/data/`, which
-  is what the README's licensing section and the Section 15 game-data notice
-  both designate. The extension is part of the designation and not an
-  accident of the current contents: `src/cetools/data/__init__.py` ships
-  there to make the directory importable and is GPL-3.0 code like every other
-  Python file. Putting a data file anywhere else, or shipping OGC in another
+- **Every `.toml` file under `src/cetools/data/registries/`,
+  `src/cetools/data/chargen/`, or `src/cetools/data/careers/`, plus
+  `src/cetools/data/tasks.toml` itself, is Open Game Content under OGL 1.0a**
+  (`LICENSE-OGL.txt`). It cannot be sublicensed under the GPL. Any new file
+  containing content derived from the Cepheus Engine SRD is also OGC, must
+  carry the OGC designation in a header comment the way `tasks.toml` does,
+  and must be a `.toml` under one of those subtrees, which is what the
+  README's licensing section and the Section 15 game-data notice both
+  designate. Putting a data file anywhere else, or shipping OGC in another
   format, means widening that notice in the same change; the guard below will
   tell you so.
+- **Every `.toml` file under `src/cetools/data/names/` is this project's own
+  content, not Open Game Content**, and is licensed GPL-3.0 with a
+  `GPL-3.0-only project content` designation in its own header comment
+  instead of the OGC one. A shipped rules-data file carries exactly one of
+  the two designations; carrying both, or neither, fails the packaging guard
+  (FR-042a). `src/cetools/data/__init__.py` is also plain GPL-3.0 code, and
+  ships there only to make the directory importable — it is not itself rules
+  data and carries no designation at all.
 - **Section 15 is verbatim.** Every distribution bundles the full OGL 1.0a
   text and reproduces the SRD's complete Section 15 copyright-notice chain
   exactly as received, extended with this project's own game-data copyright
@@ -209,11 +216,15 @@ documented surface makes a compatibility claim without its attribution, and
 that the chain's game-data notice covers every file carrying the OGC
 designation — a check that reads the covered paths *and* the covered
 extension out of the notice itself, so narrowing the notice fails rather than
-passing unnoticed. Its scope is every file a source distribution would ship,
-read out of the `include` list in `pyproject.toml`, so a designated file
-outside `src/` or in another format is caught rather than filtered away.
-`tests/guards/test_packaging.py` runs the same coverage check against the
-built wheel and sdist, which is what SC-014 binds.
+passing unnoticed. It also checks the mirror: no file carrying the GPL
+designation falls under a path or extension the OGC notice claims, so a name
+table that drifts into an OGC subtree is caught rather than shipped there
+silently. Its scope is every file a source distribution would ship, read out
+of the `include` list in `pyproject.toml`, so a designated file outside
+`src/` or in another format is caught rather than filtered away.
+`tests/guards/test_packaging.py` runs the same coverage check, plus the
+exactly-one-of-two designation check (FR-042a), against the built wheel and
+sdist, which is what SC-014 binds.
 
 ## Changelog and releases
 
