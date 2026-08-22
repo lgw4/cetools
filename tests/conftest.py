@@ -86,8 +86,34 @@ def section_15_notices() -> tuple[str, ...]:
     return SECTION_15_NOTICES
 
 
+# The designation as the data files actually write it, not the bare phrase.
+# Keying on "Open Game Content" alone would match every file that merely
+# discusses the licence — this module, the README, CONTRIBUTING, the OGL text
+# itself — so the obligation set has to be derived from the designation, which
+# only a designated file carries.
+#
+# Written in two fragments on purpose. `tests/` ships in the sdist, so a
+# contiguous literal here would make this guard designate its own source and
+# then report it uncovered, which is a guard failing on itself rather than on
+# the tree.
+DESIGNATION = b"Open Game Content" b" per OGL 1.0a"
+
 _NOTICE_PATH = re.compile(r"\(([^()]+)\)")
 _NOTICE_SUFFIX = re.compile(r"every (\.[a-z0-9]+) file")
+
+
+def _uncovered(paths, covered: tuple[str, ...], suffix: str) -> list[str]:
+    """Which of `paths` the notice does not designate.
+
+    Both halves of the notice's scope, because it names directories *and*
+    qualifies them with an extension: a designated file inside a covered
+    directory but of another kind is not covered by a notice that says `.toml`.
+    """
+    return [
+        path
+        for path in paths
+        if not (path.endswith(suffix) and any(path.startswith(p) for p in covered))
+    ]
 
 
 @pytest.fixture

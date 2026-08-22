@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.conftest import DESIGNATION, _uncovered
+
 ATTRIBUTION = "Cepheus Engine and Samardan Press are the trademarks of Jason 'Flynn' Kemp"
 NON_AFFILIATION_PHRASES = ("not affiliated", "no affiliation")
 TRADEMARK = "Cepheus Engine"
@@ -204,32 +206,6 @@ def test_the_guard_reads_a_compatibility_claim_as_a_claim():
         with pytest.raises(AssertionError):
             _assert_claim_carries_attribution(claim, "a synthetic claim")
 
-
-def _uncovered(paths, covered: tuple[str, ...], suffix: str) -> list[str]:
-    """Which of `paths` the notice does not designate.
-
-    Both halves of the notice's scope, because it names directories *and*
-    qualifies them with an extension: a designated file inside a covered
-    directory but of another kind is not covered by a notice that says `.toml`.
-    """
-    return [
-        path
-        for path in paths
-        if not (path.endswith(suffix) and any(path.startswith(p) for p in covered))
-    ]
-
-
-# The designation as the data files actually write it, not the bare phrase.
-# Keying on `"Open Game Content"` alone would match every file that merely
-# discusses the licence — this module, the README, CONTRIBUTING, the OGL text
-# itself — so the obligation set has to be derived from the designation, which
-# only a designated file carries.
-#
-# Written in two fragments on purpose. `tests/` ships in the sdist, so a
-# contiguous literal here would make this guard designate its own source and
-# then report it uncovered, which is a guard failing on itself rather than on
-# the tree.
-DESIGNATION = b"Open Game Content" b" per OGL 1.0a"
 
 # Never shipped, whatever `rglob` finds: hatchling's sdist honours the VCS
 # ignore list, and a compiled cache holds this module's own constants — which

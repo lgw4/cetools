@@ -19,6 +19,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.conftest import DESIGNATION, _uncovered
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -91,21 +93,6 @@ def test_the_data_set_read_from_the_wheel_validates_without_a_problem(wheel, tmp
         (tmp_path / basename).write_bytes(wheel.read(name))
     report = validate_rules(tmp_path)
     assert report.valid, report.problems
-
-
-def _uncovered(paths, covered: tuple[str, ...], suffix: str) -> list[str]:
-    """Both halves of the notice's scope; see tests/unit/test_licensing.py."""
-    return [
-        path
-        for path in paths
-        if not (path.endswith(suffix) and any(path.startswith(p) for p in covered))
-    ]
-
-
-# The designation as the data files write it, split into two fragments so this
-# module does not carry it and designate itself; see the same constant in
-# tests/unit/test_licensing.py, where the reasoning is recorded.
-DESIGNATION = b"Open Game Content" b" per OGL 1.0a"
 
 
 def test_the_notice_covers_every_open_game_content_file_in_the_wheel(
