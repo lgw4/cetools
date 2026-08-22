@@ -1,12 +1,15 @@
 from cetools.chargen import (
     AgingTable,
+    BackgroundSkills,
     DraftTable,
     MishapTable,
     parse_aging_table,
+    parse_background_skills,
     parse_draft_table,
     parse_mishap_table,
 )
 from cetools.errors import ValidationProblem
+from cetools.registries import SkillRegistry
 
 
 class TestDraftTable:
@@ -355,5 +358,91 @@ class TestMishapTable:
 
     def test_unrecognized_top_level_key_is_a_problem(self):
         table, problems = parse_mishap_table(self._data(extra="nope"), "mishaps.toml")
+        assert table is None
+        assert any(p.location == "extra" for p in problems)
+
+
+class TestBackgroundSkills:
+    SKILLS = SkillRegistry(
+        skills={"Gun Combat": ("Slug Rifle", "Energy Rifle"), "Melee Combat": (), "Animals": ()}
+    )
+
+    def _data(self, **overrides):
+        data = {
+            "schema": "background-skills",
+            "schema-version": 1,
+            "law-level": ["Gun Combat 0", "Gun Combat 0", "Melee Combat 0"],
+            "trade-code": ["Animals 0", "Gun Combat 0"],
+            "education": ["Melee Combat 1"],
+        }
+        data.update(overrides)
+        return data
+
+    def test_parses_valid_file(self):
+        table, problems = parse_background_skills(self._data(), "background-skills.toml", self.SKILLS)
+        assert problems == ()
+        assert isinstance(table, BackgroundSkills)
+        assert len(table.law_level) == 3
+        assert len(table.trade_code) == 2
+        assert len(table.education) == 1
+        assert table.law_level[0].skill.name == "Gun Combat"
+        assert table.law_level[0].level == 0
+
+    def test_duplicates_within_a_list_are_preserved(self):
+        # research R5: a skill named twice in one list is twice as likely to
+        # be drawn, so the parser must not deduplicate.
+        table, _ = parse_background_skills(self._data(), "background-skills.toml", self.SKILLS)
+        names = [grant.skill.name for grant in table.law_level]
+        assert names == ["Gun Combat", "Gun Combat", "Melee Combat"]
+
+    def test_duplicates_across_law_level_and_trade_code_are_independent_lists(self):
+        # The same skill appearing in both lists is meaningful weighting
+        # across the concatenation the walk draws from, not something the
+        # parser reconciles between the two fields.
+        table, _ = parse_background_skills(self._data(), "background-skills.toml", self.SKILLS)
+        assert any(grant.skill.name == "Gun Combat" for grant in table.law_level)
+        assert any(grant.skill.name == "Gun Combat" for grant in table.trade_code)
+
+    def test_unresolvable_skill_name_is_a_problem(self):
+        table, problems = parse_background_skills(
+            self._data(education=["Not A Skill 0"]), "background-skills.toml", self.SKILLS
+        )
+        assert table is None
+        assert any(p.location == "education[0]" for p in problems)
+
+    def test_a_bare_skill_reference_with_no_level_is_rejected(self):
+        # data-model.md types every entry as a SkillGrant: a level is always
+        # explicit in this table, unlike a career's tables.
+        table, problems = parse_background_skills(
+            self._data(**{"law-level": ["Gun Combat"]}), "background-skills.toml", self.SKILLS
+        )
+        assert table is None
+        assert any(p.location == "law-level[0]" for p in problems)
+
+    def test_a_characteristic_adjustment_is_rejected(self):
+        table, problems = parse_background_skills(
+            self._data(**{"law-level": ["STR +1"]}), "background-skills.toml", self.SKILLS
+        )
+        assert table is None
+        assert any(p.location == "law-level[0]" for p in problems)
+
+    def test_empty_law_level_array_is_a_problem(self):
+        table, problems = parse_background_skills(
+            self._data(**{"law-level": []}), "background-skills.toml", self.SKILLS
+        )
+        assert table is None
+        assert any(p.location == "law-level" for p in problems)
+
+    def test_missing_trade_code_is_a_problem(self):
+        data = self._data()
+        del data["trade-code"]
+        table, problems = parse_background_skills(data, "background-skills.toml", self.SKILLS)
+        assert table is None
+        assert any(p.location == "trade-code" and p.found == "missing" for p in problems)
+
+    def test_unrecognized_top_level_key_is_a_problem(self):
+        table, problems = parse_background_skills(
+            self._data(extra="nope"), "background-skills.toml", self.SKILLS
+        )
         assert table is None
         assert any(p.location == "extra" for p in problems)
