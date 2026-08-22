@@ -42,20 +42,24 @@ def _parameters(**overrides):
         target=8,
         unskilled_dm=-3,
         difficulty_dms=DIFFICULTY_LADDER,
-        characteristic_bands=CHARACTERISTIC_BANDS,
     )
     fields.update(overrides)
     return TaskParameters(**fields)
 
 
-def _rules(**overrides):
+def _characteristics(bands=CHARACTERISTIC_BANDS):
+    return CharacteristicRegistry(names=MappingProxyType({}), bands=bands)
+
+
+def _rules(*, characteristic_bands=CHARACTERISTIC_BANDS, **overrides):
     """A synthetic `RulesData` wrapping `_parameters(**overrides)`, for tests
     that exercise `check`'s task-resolution logic without a data set on disk
-    (contracts/library-api.md).
+    (contracts/library-api.md). `characteristic_bands` builds the
+    `CharacteristicRegistry` `check` now reads `characteristic_dm` from.
     """
     return RulesData(
         task_parameters=_parameters(**overrides),
-        characteristics=CharacteristicRegistry(names=MappingProxyType({})),
+        characteristics=_characteristics(characteristic_bands),
         skills=SkillRegistry(skills=MappingProxyType({})),
         benefits=BenefitRegistry(items=()),
         careers=MappingProxyType({}),
@@ -117,8 +121,8 @@ def test_difficulty_ladder_steps_by_two_with_fixed_dice_and_target(name, expecte
     ],
 )
 def test_characteristic_bands_including_unbounded_top(score, expected_dm):
-    parameters = _parameters()
-    assert parameters.characteristic_dm(score) == expected_dm
+    registry = _characteristics()
+    assert registry.characteristic_dm(score) == expected_dm
 
 
 def test_default_difficulty_is_the_sole_zero_modifier_rung_by_value():
@@ -227,8 +231,8 @@ def test_characteristic_score_in_no_band_raises_rules_data_error():
     # force is a rules-data error, never a silent zero. Gap detection is
     # deliberately deferred to lookup time, which makes this raise the only
     # thing between a holed table and a wrong answer.
-    gapped = _parameters(
-        characteristic_bands=(
+    gapped = _characteristics(
+        bands=(
             Band(minimum=0, maximum=2, dm=-2),
             Band(minimum=6, maximum=8, dm=0),
             Band(minimum=9, maximum=None, dm=1),

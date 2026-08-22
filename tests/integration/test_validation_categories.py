@@ -200,7 +200,7 @@ def test_unsupported_schema_version_on_a_single_instance_kind_reports_nothing_el
     # than a career: a career is the one kind the absent-kind check cannot
     # reach, so it cannot show that a file rejected at the header stage is
     # then also reported missing (contracts/data-files.md rule 2, FR-002).
-    text = CHARACTERISTICS.replace("schema-version = 1", "schema-version = 99", 1)
+    text = CHARACTERISTICS.replace("schema-version = 2", "schema-version = 99", 1)
     assert text != CHARACTERISTICS
     _write(tmp_path, "characteristics.toml", text)
     report = validate_rules(tmp_path)

@@ -5,16 +5,16 @@ import pytest
 
 from cetools.errors import RulesDataError, TaskError
 from cetools.rules import load_rules, parse_task_parameters, validate_rules
-from cetools.tasks import Band
 
 _DATA = Path(__file__).resolve().parents[2] / "src" / "cetools" / "data"
 CHARACTERISTICS = (_DATA / "registries" / "characteristics.toml").read_text(encoding="utf-8")
+SKILLS = (_DATA / "registries" / "skills.toml").read_text(encoding="utf-8")
 TASKS = (_DATA / "tasks.toml").read_text(encoding="utf-8")
 NAVY = (_DATA / "careers" / "navy.toml").read_text(encoding="utf-8")
 
 VALID_TOML = """
 schema = "task-parameters"
-schema-version = 1
+schema-version = 2
 
 [task]
 roll = "2d6"
@@ -29,20 +29,6 @@ unskilled-dm = -3
 "Difficult" = -2
 "Very Difficult" = -4
 "Formidable" = -6
-
-[characteristic-dms]
-"0-2" = -2
-"3-5" = -1
-"6-8" = 0
-"9-11" = 1
-"12-14" = 2
-"15-17" = 3
-"18-20" = 4
-"21-23" = 5
-"24-26" = 6
-"27-29" = 7
-"30-32" = 8
-"33+" = 9
 """
 
 
@@ -59,7 +45,7 @@ def _parsed(text: str):
 # --- parse_task_parameters: collected-problems restatement of the old reader ---
 
 
-def test_valid_toml_parses_expected_target_dm_roll_ladder_and_bands():
+def test_valid_toml_parses_expected_target_dm_and_roll_ladder():
     parameters = _parsed(VALID_TOML)
     assert parameters.roll == "2d6"
     assert parameters.target == 8
@@ -73,38 +59,6 @@ def test_valid_toml_parses_expected_target_dm_roll_ladder_and_bands():
         ("Very Difficult", -4),
         ("Formidable", -6),
     ]
-    assert len(parameters.characteristic_bands) == 12
-    assert parameters.characteristic_bands[0] == Band(minimum=0, maximum=2, dm=-2)
-    assert parameters.characteristic_bands[-1] == Band(minimum=33, maximum=None, dm=9)
-
-
-def test_characteristic_bands_sort_by_minimum_regardless_of_file_order():
-    # `Band`'s own docstring states the unbounded band "sorts last" as an
-    # invariant `characteristic_dm`'s linear first-match scan depends on;
-    # nothing forbids overlapping bands, so file order — not declaration
-    # order — must decide which of two overlapping bands a shadowed score
-    # resolves to (FR-026, plan.md trap list).
-    text = """
-schema = "task-parameters"
-schema-version = 1
-
-[task]
-roll = "2d6"
-target = 8
-unskilled-dm = -3
-
-[difficulty-dms]
-"Average" = 0
-
-[characteristic-dms]
-"5-15" = 5
-"0-10" = -2
-"33+" = 9
-"""
-    parameters = _parsed(text)
-    minimums = [band.minimum for band in parameters.characteristic_bands]
-    assert minimums == [0, 5, 33]
-    assert parameters.characteristic_dm(7) == -2
 
 
 def test_missing_task_table_reports_a_problem():
@@ -126,43 +80,17 @@ def test_missing_difficulty_dms_table_refuses_rather_than_falling_back():
 
     text = """
 schema = "task-parameters"
-schema-version = 1
+schema-version = 2
 
 [task]
 roll = "2d6"
 target = 8
 unskilled-dm = -3
-
-[characteristic-dms]
-"0-10" = -2
-"11+" = 0
 """
     data = tomllib.loads(text)
     parameters, problems = parse_task_parameters(data, "tasks.toml")
     assert parameters is None
     assert any(p.location == "difficulty-dms" and p.found == "missing" for p in problems)
-
-
-def test_missing_characteristic_dms_table_refuses_rather_than_falling_back():
-    # The same guarantee, the other required top-level table (FR-026).
-    import tomllib
-
-    text = """
-schema = "task-parameters"
-schema-version = 1
-
-[task]
-roll = "2d6"
-target = 8
-unskilled-dm = -3
-
-[difficulty-dms]
-"Average" = 0
-"""
-    data = tomllib.loads(text)
-    parameters, problems = parse_task_parameters(data, "tasks.toml")
-    assert parameters is None
-    assert any(p.location == "characteristic-dms" and p.found == "missing" for p in problems)
 
 
 def test_non_integer_target_reports_a_problem_locating_the_field():
@@ -229,26 +157,6 @@ def test_two_zero_modifier_rungs_reports_a_problem():
     assert matching[0].expected == "exactly one rung at modifier 0"
 
 
-def test_several_unbounded_bands_reports_a_problem():
-    import tomllib
-
-    text = VALID_TOML.replace('"30-32" = 8', '"30+" = 8')
-    data = tomllib.loads(text)
-    parameters, problems = parse_task_parameters(data, "tasks.toml")
-    assert parameters is None
-    assert any(p.location == "characteristic-dms" for p in problems)
-
-
-def test_malformed_band_key_reports_a_problem():
-    import tomllib
-
-    text = VALID_TOML.replace('"0-2" = -2', '"low" = -2')
-    data = tomllib.loads(text)
-    parameters, problems = parse_task_parameters(data, "tasks.toml")
-    assert parameters is None
-    assert any(p.location == "characteristic-dms.low" for p in problems)
-
-
 def test_unrecognized_key_reports_a_problem():
     import tomllib
 
@@ -274,20 +182,17 @@ def test_two_unrecognized_top_level_keys_are_both_reported():
     assert {"nonsense", "more-nonsense"} <= {p.location for p in problems}
 
 
-def test_fr022_edited_target_difficulty_unskilled_dm_and_band_bound_are_reflected():
+def test_fr022_edited_target_difficulty_and_unskilled_dm_are_reflected():
     text = (
         VALID_TOML.replace("target = 8", "target = 10")
         .replace('"Average" = 0', '"Balanced" = 0')
         .replace("unskilled-dm = -3", "unskilled-dm = -5")
-        .replace('"0-2" = -2', '"0-4" = -2')
-        .replace('"3-5" = -1', '"5-5" = -1')
     )
     parameters = _parsed(text)
     assert parameters.target == 10
     assert parameters.unskilled_dm == -5
     assert parameters.difficulty_dm("Balanced") == 0
     assert parameters.default_difficulty() == "Balanced"
-    assert parameters.characteristic_bands[0].maximum == 4
 
 
 def test_fr022_removed_difficulty_rung_raises_task_error_listing_the_remainder():
@@ -300,17 +205,6 @@ def test_fr022_removed_difficulty_rung_raises_task_error_listing_the_remainder()
     assert "Formidable" in message
     for remaining in parameters.difficulty_dms:
         assert remaining in message
-
-
-def test_fr022_removed_characteristic_band_leaves_a_gap_that_raises():
-    text = VALID_TOML.replace('"15-17" = 3\n', "")
-    parameters = _parsed(text)
-    assert len(parameters.characteristic_bands) == 11
-    for score in (15, 16, 17):
-        with pytest.raises(RulesDataError, match="no characteristic band covers"):
-            parameters.characteristic_dm(score)
-    assert parameters.characteristic_dm(14) == 2
-    assert parameters.characteristic_dm(18) == 4
 
 
 # --- load_rules / validate_rules: discovery, the whole packaged set ---
@@ -396,34 +290,35 @@ def test_a_supported_schema_version_is_counted_per_kind(tmp_path, monkeypatch):
     # FR-002a states the claim: "a change to one kind's shape MUST NOT
     # invalidate a user-supplied file of a kind whose shape did not change".
     # It is the sole justification the spec's Assumptions give for the version
-    # field existing at all, and with every file in the suite declaring
-    # version 1 for every kind, nothing could falsify it.
+    # field existing at all. `skills` is used here rather than
+    # `characteristics`, which is genuinely at version 2 in this feature: the
+    # claim needs a kind whose packaged file still declares version 1.
     from cetools import rules as rules_module
 
-    monkeypatch.setitem(rules_module._SUPPORTED_VERSION, "characteristics", 2)
-    (tmp_path / "characteristics.toml").write_text(
-        CHARACTERISTICS.replace("schema-version = 1", "schema-version = 2", 1), encoding="utf-8"
+    monkeypatch.setitem(rules_module._SUPPORTED_VERSION, "skills", 2)
+    (tmp_path / "skills.toml").write_text(
+        SKILLS.replace("schema-version = 1", "schema-version = 2", 1), encoding="utf-8"
     )
     report = validate_rules(tmp_path)
     assert report.valid, report.problems
 
 
 def test_raising_one_kinds_version_rejects_that_kinds_file_and_no_others(tmp_path, monkeypatch):
-    # The same claim from the other side: with characteristics at 2 and every
-    # packaged file still declaring 1, the characteristics registry is the only
-    # file whose version is refused, and the files of the untouched kinds
-    # validate as they did. navy.toml is not among those, because a rejected
-    # characteristics registry cascades into every name it would have
-    # resolved — which is research R13's deliberate choice, not a version
-    # judgement about the career.
+    # The same claim from the other side: with skills at 2 and every packaged
+    # file still declaring 1, the skills registry is the only file whose
+    # version is refused, and the files of the untouched kinds validate as
+    # they did. navy.toml is not among those, because a rejected skills
+    # registry cascades into every name it would have resolved — which is
+    # research R13's deliberate choice, not a version judgement about the
+    # career.
     from cetools import rules as rules_module
 
-    monkeypatch.setitem(rules_module._SUPPORTED_VERSION, "characteristics", 2)
+    monkeypatch.setitem(rules_module._SUPPORTED_VERSION, "skills", 2)
     report = validate_rules(tmp_path)
     assert not report.valid
     version_problems = [p for p in report.problems if p.expected.startswith("version ")]
-    assert [p.file for p in version_problems] == ["characteristics.toml"]
-    for untouched in ("tasks.toml", "skills.toml", "benefits.toml"):
+    assert [p.file for p in version_problems] == ["skills.toml"]
+    for untouched in ("tasks.toml", "characteristics.toml", "benefits.toml"):
         assert not [p for p in report.problems if p.file == untouched]
 
 
@@ -459,12 +354,6 @@ class TestBooleansAreNotIntegers:
     def test_a_boolean_difficulty_modifier(self):
         problems = self._problems(VALID_TOML.replace('"Difficult" = -2', '"Difficult" = true'))
         matching = [p for p in problems if p.location == "difficulty-dms.Difficult"]
-        assert len(matching) == 1
-        assert matching[0].found == "a boolean"
-
-    def test_a_boolean_characteristic_band_modifier(self):
-        problems = self._problems(VALID_TOML.replace('"9-11" = 1', '"9-11" = true'))
-        matching = [p for p in problems if p.location == "characteristic-dms.9-11"]
         assert len(matching) == 1
         assert matching[0].found == "a boolean"
 
@@ -599,7 +488,7 @@ class TestRegistrySubProblemsAllReachTheReport:
 
     def test_two_bad_characteristic_labels(self, tmp_path):
         (tmp_path / "characteristics.toml").write_text(
-            'schema = "characteristics"\nschema-version = 1\n\n'
+            'schema = "characteristics"\nschema-version = 2\n\n'
             "[characteristics]\nSTR = 5\nDEX = 7\n",
             encoding="utf-8",
         )

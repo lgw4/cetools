@@ -1,6 +1,9 @@
-from cetools.errors import ValidationProblem
+import pytest
+
+from cetools.errors import RulesDataError, TaskError, ValidationProblem
 from cetools.notation import SkillReference
 from cetools.registries import (
+    Band,
     BenefitRegistry,
     CharacteristicRegistry,
     SkillRegistry,
@@ -10,19 +13,40 @@ from cetools.registries import (
     parse_skills,
 )
 
+# A valid `[modifier-dms]` table, reused across `TestCharacteristicRegistry`
+# so each test can isolate the field it means to break (003-npc-generator
+# FR-039). Twelve bands, matching the shipped file.
+VALID_MODIFIER_DMS = {
+    "0-2": -2,
+    "3-5": -1,
+    "6-8": 0,
+    "9-11": 1,
+    "12-14": 2,
+    "15-17": 3,
+    "18-20": 4,
+    "21-23": 5,
+    "24-26": 6,
+    "27-29": 7,
+    "30-32": 8,
+    "33+": 9,
+}
+
 
 class TestCharacteristicRegistry:
     def test_parses_valid_file(self):
         data = {
             "schema": "characteristics",
-            "schema-version": 1,
+            "schema-version": 2,
             "characteristics": {"STR": "Strength", "INT": "Intellect"},
+            "modifier-dms": VALID_MODIFIER_DMS,
         }
         registry, problems = parse_characteristics(data, "characteristics.toml")
         assert problems == ()
         assert isinstance(registry, CharacteristicRegistry)
         assert registry.names["STR"] == "Strength"
         assert registry.names["INT"] == "Intellect"
+        assert len(registry.bands) == 12
+        assert registry.characteristic_dm(7) == 0
 
     def test_contains_delegates_to_names(self):
         registry = CharacteristicRegistry(names={"STR": "Strength"})
@@ -30,7 +54,11 @@ class TestCharacteristicRegistry:
         assert "str" not in registry  # case sensitive
 
     def test_missing_characteristics_table_is_a_problem(self):
-        data = {"schema": "characteristics", "schema-version": 1}
+        data = {
+            "schema": "characteristics",
+            "schema-version": 2,
+            "modifier-dms": VALID_MODIFIER_DMS,
+        }
         registry, problems = parse_characteristics(data, "characteristics.toml")
         assert registry is None
         assert len(problems) == 1
@@ -38,7 +66,12 @@ class TestCharacteristicRegistry:
         assert problems[0].location == "characteristics"
 
     def test_empty_characteristics_table_is_a_problem(self):
-        data = {"schema": "characteristics", "schema-version": 1, "characteristics": {}}
+        data = {
+            "schema": "characteristics",
+            "schema-version": 2,
+            "characteristics": {},
+            "modifier-dms": VALID_MODIFIER_DMS,
+        }
         registry, problems = parse_characteristics(data, "characteristics.toml")
         assert registry is None
         assert len(problems) == 1
@@ -46,8 +79,9 @@ class TestCharacteristicRegistry:
     def test_non_string_label_is_a_type_problem(self):
         data = {
             "schema": "characteristics",
-            "schema-version": 1,
+            "schema-version": 2,
             "characteristics": {"STR": 5},
+            "modifier-dms": VALID_MODIFIER_DMS,
         }
         registry, problems = parse_characteristics(data, "characteristics.toml")
         assert registry is None
@@ -60,8 +94,9 @@ class TestCharacteristicRegistry:
         # regress here unnoticed (FR-021, SC-003).
         data = {
             "schema": "characteristics",
-            "schema-version": 1,
+            "schema-version": 2,
             "characteristics": {"STR": 5, "DEX": 7, "END": 9},
+            "modifier-dms": VALID_MODIFIER_DMS,
         }
         registry, problems = parse_characteristics(data, "characteristics.toml")
         assert registry is None
@@ -74,8 +109,9 @@ class TestCharacteristicRegistry:
     def test_unrecognized_top_level_key_is_a_problem(self):
         data = {
             "schema": "characteristics",
-            "schema-version": 1,
+            "schema-version": 2,
             "characteristics": {"STR": "Strength"},
+            "modifier-dms": VALID_MODIFIER_DMS,
             "extra": "nope",
         }
         registry, problems = parse_characteristics(data, "characteristics.toml")
@@ -90,14 +126,109 @@ class TestCharacteristicRegistry:
         # (FR-021, SC-003).
         data = {
             "schema": "characteristics",
-            "schema-version": 1,
+            "schema-version": 2,
             "characteristics": {"STR": "Strength"},
+            "modifier-dms": VALID_MODIFIER_DMS,
             "extra": "nope",
             "other": "also nope",
         }
         registry, problems = parse_characteristics(data, "characteristics.toml")
         assert registry is None
         assert {p.location for p in problems} >= {"extra", "other"}
+
+
+class TestCharacteristicRegistryModifierBands:
+    """`[modifier-dms]` parsing, moved here from the previous feature's
+    `tasks.toml` reader when the bands moved to the characteristics registry
+    (003-npc-generator FR-039, T009).
+    """
+
+    def _parsed(self, modifier_dms):
+        data = {
+            "schema": "characteristics",
+            "schema-version": 2,
+            "characteristics": {"STR": "Strength"},
+            "modifier-dms": modifier_dms,
+        }
+        registry, problems = parse_characteristics(data, "characteristics.toml")
+        assert not problems, problems
+        assert registry is not None
+        return registry
+
+    def _problems(self, modifier_dms):
+        data = {
+            "schema": "characteristics",
+            "schema-version": 2,
+            "characteristics": {"STR": "Strength"},
+            "modifier-dms": modifier_dms,
+        }
+        registry, problems = parse_characteristics(data, "characteristics.toml")
+        assert registry is None
+        return problems
+
+    def test_all_twelve_bands_parse_sorted_by_minimum(self):
+        registry = self._parsed(VALID_MODIFIER_DMS)
+        assert len(registry.bands) == 12
+        assert registry.bands[0] == Band(minimum=0, maximum=2, dm=-2)
+        assert registry.bands[-1] == Band(minimum=33, maximum=None, dm=9)
+
+    def test_bands_sort_by_minimum_regardless_of_file_order(self):
+        # `Band`'s own docstring states the unbounded band "sorts last" as an
+        # invariant `characteristic_dm`'s linear first-match scan depends on;
+        # nothing forbids overlapping bands, so file order — not declaration
+        # order — must decide which of two overlapping bands a shadowed score
+        # resolves to (FR-026, plan.md trap list).
+        registry = self._parsed({"5-15": 5, "0-10": -2, "33+": 9})
+        assert [band.minimum for band in registry.bands] == [0, 5, 33]
+        assert registry.characteristic_dm(7) == -2
+
+    def test_missing_modifier_dms_table_is_a_problem(self):
+        data = {"schema": "characteristics", "schema-version": 2, "characteristics": {"STR": "S"}}
+        registry, problems = parse_characteristics(data, "characteristics.toml")
+        assert registry is None
+        assert any(p.location == "modifier-dms" and p.found == "missing" for p in problems)
+
+    def test_empty_modifier_dms_table_is_a_problem(self):
+        problems = self._problems({})
+        assert any(p.location == "modifier-dms" and p.found == "an empty table" for p in problems)
+
+    def test_several_unbounded_bands_reports_a_problem(self):
+        modifier_dms = dict(VALID_MODIFIER_DMS)
+        del modifier_dms["30-32"]
+        modifier_dms["30+"] = 8
+        problems = self._problems(modifier_dms)
+        assert any(p.location == "modifier-dms" for p in problems)
+
+    def test_malformed_band_key_reports_a_problem(self):
+        modifier_dms = dict(VALID_MODIFIER_DMS)
+        del modifier_dms["0-2"]
+        modifier_dms["low"] = -2
+        problems = self._problems(modifier_dms)
+        assert any(p.location == "modifier-dms.low" for p in problems)
+
+    def test_boolean_modifier_dm_value_is_a_type_problem(self):
+        modifier_dms = dict(VALID_MODIFIER_DMS)
+        modifier_dms["9-11"] = True
+        problems = self._problems(modifier_dms)
+        matching = [p for p in problems if p.location == "modifier-dms.9-11"]
+        assert len(matching) == 1
+        assert matching[0].found == "a boolean"
+
+    def test_removed_band_leaves_a_gap_that_raises(self):
+        modifier_dms = dict(VALID_MODIFIER_DMS)
+        del modifier_dms["15-17"]
+        registry = self._parsed(modifier_dms)
+        assert len(registry.bands) == 11
+        for score in (15, 16, 17):
+            with pytest.raises(RulesDataError, match="no characteristic band covers"):
+                registry.characteristic_dm(score)
+        assert registry.characteristic_dm(14) == 2
+        assert registry.characteristic_dm(18) == 4
+
+    def test_negative_score_raises_task_error(self):
+        registry = self._parsed(VALID_MODIFIER_DMS)
+        with pytest.raises(TaskError):
+            registry.characteristic_dm(-1)
 
 
 class TestSkillRegistry:

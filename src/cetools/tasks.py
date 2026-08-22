@@ -41,18 +41,6 @@ def _check_dice(roll: str) -> tuple[int, int, int]:
 
 
 @dataclass(frozen=True, slots=True)
-class Band:
-    """One row of the characteristic table.
-
-    `maximum` is `None` for the sole unbounded top band, which sorts last.
-    """
-
-    minimum: int
-    maximum: int | None
-    dm: int
-
-
-@dataclass(frozen=True, slots=True)
 class TaskParameters:
     """The parsed contents of `tasks.toml`. Loaded once and cached."""
 
@@ -60,7 +48,6 @@ class TaskParameters:
     target: int
     unskilled_dm: int
     difficulty_dms: Mapping[str, int]
-    characteristic_bands: tuple[Band, ...]
 
     def difficulty_dm(self, name: str) -> int:
         try:
@@ -74,14 +61,6 @@ class TaskParameters:
             if value == 0:
                 return name
         raise RulesDataError("no difficulty rung has a modifier of 0")
-
-    def characteristic_dm(self, score: int) -> int:
-        if score < 0:
-            raise TaskError(f"characteristic must be non-negative, got {score}")
-        for band in self.characteristic_bands:
-            if band.minimum <= score and (band.maximum is None or score <= band.maximum):
-                return band.dm
-        raise RulesDataError(f"no characteristic band covers score {score}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -154,7 +133,8 @@ def check(
     if characteristic is not None:
         applied.append(
             Modifier(
-                f"Characteristic {characteristic}", parameters.characteristic_dm(characteristic)
+                f"Characteristic {characteristic}",
+                rules.characteristics.characteristic_dm(characteristic),
             )
         )
 

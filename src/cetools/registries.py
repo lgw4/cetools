@@ -8,25 +8,53 @@ here as known keys but not interpreted; the kind-and-version check itself is
 `rules.py`'s job (T023), which runs before these functions are reached.
 """
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum, auto
 from types import MappingProxyType
 
-from cetools.errors import ValidationProblem, type_name
+from cetools.errors import RulesDataError, TaskError, ValidationProblem, type_name
 from cetools.notation import SkillReference
 
 _HEADER_KEYS = frozenset({"schema", "schema-version"})
 
+_BAND_RANGE = re.compile(r"^(\d+)-(\d+)$")
+_BAND_UNBOUNDED = re.compile(r"^(\d+)\+$")
+
+
+@dataclass(frozen=True, slots=True)
+class Band:
+    """One row of the characteristic modifier table.
+
+    `maximum` is `None` for the sole unbounded top band, which sorts last.
+    """
+
+    minimum: int
+    maximum: int | None
+    dm: int
+
 
 @dataclass(frozen=True, slots=True)
 class CharacteristicRegistry:
-    """Code (`"INT"`) to label (`"Intellect"`), in the file's order."""
+    """Code (`"INT"`) to label (`"Intellect"`), in the file's order, plus the
+    modifier bands every characteristic score is looked up against
+    (003-npc-generator FR-039).
+    """
 
     names: Mapping[str, str]
+    bands: tuple[Band, ...] = ()
 
     def __contains__(self, code: object) -> bool:
         return code in self.names
+
+    def characteristic_dm(self, score: int) -> int:
+        if score < 0:
+            raise TaskError(f"characteristic must be non-negative, got {score}")
+        for band in self.bands:
+            if band.minimum <= score and (band.maximum is None or score <= band.maximum):
+                return band.dm
+        raise RulesDataError(f"no characteristic band covers score {score}")
 
 
 class SkillResolution(Enum):
@@ -84,10 +112,89 @@ def _unrecognized_key_problems(
     ]
 
 
+def _parse_bands(
+    data: object, file: str, location: str
+) -> tuple[tuple[Band, ...] | None, list[ValidationProblem]]:
+    """Parse a `key -> modifier` table (`"N-M"` or `"N+"`) into bands sorted
+    by `minimum`, exactly one unbounded (003-npc-generator contracts/data-files.md).
+
+    Moved here, verbatim in shape, from the reader that used to parse
+    `tasks.toml`'s `[characteristic-dms]`; the characteristics registry is
+    where the bands live now (FR-039).
+    """
+    problems: list[ValidationProblem] = []
+    if not isinstance(data, dict) or not data:
+        problems.append(
+            ValidationProblem(
+                file=file,
+                location=location,
+                found=(
+                    "missing"
+                    if data is None
+                    else ("an empty table" if data == {} else type_name(data))
+                ),
+                expected=f"a [{location}] table with at least one entry",
+            )
+        )
+        return None, problems
+
+    bands: list[Band] = []
+    unbounded_count = 0
+    ok = True
+    for key, value in data.items():
+        if not isinstance(value, int) or isinstance(value, bool):
+            problems.append(
+                ValidationProblem(
+                    file=file,
+                    location=f"{location}.{key}",
+                    found=type_name(value),
+                    expected="an integer",
+                )
+            )
+            ok = False
+            continue
+        range_match = _BAND_RANGE.match(key)
+        unbounded_match = _BAND_UNBOUNDED.match(key)
+        if range_match:
+            minimum, maximum = int(range_match.group(1)), int(range_match.group(2))
+        elif unbounded_match:
+            minimum, maximum = int(unbounded_match.group(1)), None
+            unbounded_count += 1
+        else:
+            problems.append(
+                ValidationProblem(
+                    file=file,
+                    location=f"{location}.{key}",
+                    found=repr(key),
+                    expected="a key of the form N-M or N+",
+                )
+            )
+            ok = False
+            continue
+        bands.append(Band(minimum=minimum, maximum=maximum, dm=value))
+
+    if ok and unbounded_count != 1:
+        problems.append(
+            ValidationProblem(
+                file=file,
+                location=location,
+                found=f"{unbounded_count} unbounded bands",
+                expected="exactly one unbounded band",
+            )
+        )
+
+    if problems:
+        return None, problems
+    bands.sort(key=lambda band: band.minimum)
+    return tuple(bands), problems
+
+
 def parse_characteristics(
     data: Mapping[str, object], file: str
 ) -> tuple[CharacteristicRegistry | None, tuple[ValidationProblem, ...]]:
-    problems = _unrecognized_key_problems(data, _HEADER_KEYS | {"characteristics"}, file)
+    problems = _unrecognized_key_problems(
+        data, _HEADER_KEYS | {"characteristics", "modifier-dms"}, file
+    )
 
     table = data.get("characteristics")
     if not isinstance(table, dict):
@@ -99,9 +206,8 @@ def parse_characteristics(
                 expected="a [characteristics] table with at least one entry",
             )
         )
-        return None, tuple(problems)
-
-    if not table:
+        table = None
+    elif not table:
         problems.append(
             ValidationProblem(
                 file=file,
@@ -110,25 +216,29 @@ def parse_characteristics(
                 expected="at least one entry",
             )
         )
-        return None, tuple(problems)
+        table = None
 
     names: dict[str, str] = {}
-    for code, label in table.items():
-        if not isinstance(label, str):
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location=f"characteristics.{code}",
-                    found=type_name(label),
-                    expected="a string",
+    if table is not None:
+        for code, label in table.items():
+            if not isinstance(label, str):
+                problems.append(
+                    ValidationProblem(
+                        file=file,
+                        location=f"characteristics.{code}",
+                        found=type_name(label),
+                        expected="a string",
+                    )
                 )
-            )
-            continue
-        names[code] = label
+                continue
+            names[code] = label
+
+    bands, band_problems = _parse_bands(data.get("modifier-dms"), file, "modifier-dms")
+    problems.extend(band_problems)
 
     if problems:
         return None, tuple(problems)
-    return CharacteristicRegistry(names=MappingProxyType(names)), ()
+    return CharacteristicRegistry(names=MappingProxyType(names), bands=bands), ()
 
 
 def parse_skills(

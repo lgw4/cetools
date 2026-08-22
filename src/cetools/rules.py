@@ -8,7 +8,6 @@ a `RulesData` (if the whole set is clean) alongside a `ValidationReport`.
 with the result (research R7).
 """
 
-import re
 import tomllib
 from collections import defaultdict
 from collections.abc import Mapping
@@ -36,15 +35,13 @@ from cetools.registries import (
     parse_characteristics,
     parse_skills,
 )
-from cetools.tasks import Band, TaskParameters, _check_dice
+from cetools.tasks import TaskParameters, _check_dice
 
 _HEADER_KEYS = frozenset({"schema", "schema-version"})
-_BAND_RANGE = re.compile(r"^(\d+)-(\d+)$")
-_BAND_UNBOUNDED = re.compile(r"^(\d+)\+$")
 
 _SUPPORTED_VERSION = {
-    "task-parameters": 1,
-    "characteristics": 1,
+    "task-parameters": 2,
+    "characteristics": 2,
     "skills": 1,
     "benefits": 1,
     "career": 1,
@@ -114,9 +111,7 @@ def parse_task_parameters(
     """
     problems: list[ValidationProblem] = []
     problems.extend(
-        _unrecognized_key_problems(
-            data, _HEADER_KEYS | {"task", "difficulty-dms", "characteristic-dms"}, file
-        )
+        _unrecognized_key_problems(data, _HEADER_KEYS | {"task", "difficulty-dms"}, file)
     )
 
     task = data.get("task")
@@ -206,64 +201,6 @@ def parse_task_parameters(
                 )
             )
 
-    bands: list[Band] = []
-    cd = data.get("characteristic-dms")
-    if not isinstance(cd, dict) or not cd:
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location="characteristic-dms",
-                found=(
-                    "missing" if cd is None else ("an empty table" if cd == {} else type_name(cd))
-                ),
-                expected="a [characteristic-dms] table with at least one entry",
-            )
-        )
-    else:
-        unbounded_count = 0
-        ok = True
-        for key, value in cd.items():
-            if not isinstance(value, int) or isinstance(value, bool):
-                problems.append(
-                    ValidationProblem(
-                        file=file,
-                        location=f"characteristic-dms.{key}",
-                        found=type_name(value),
-                        expected="an integer",
-                    )
-                )
-                ok = False
-                continue
-            range_match = _BAND_RANGE.match(key)
-            unbounded_match = _BAND_UNBOUNDED.match(key)
-            if range_match:
-                minimum, maximum = int(range_match.group(1)), int(range_match.group(2))
-            elif unbounded_match:
-                minimum, maximum = int(unbounded_match.group(1)), None
-                unbounded_count += 1
-            else:
-                problems.append(
-                    ValidationProblem(
-                        file=file,
-                        location=f"characteristic-dms.{key}",
-                        found=repr(key),
-                        expected="a key of the form N-M or N+",
-                    )
-                )
-                ok = False
-                continue
-            bands.append(Band(minimum=minimum, maximum=maximum, dm=value))
-        if ok and unbounded_count != 1:
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location="characteristic-dms",
-                    found=f"{unbounded_count} unbounded bands",
-                    expected="exactly one unbounded band",
-                )
-            )
-    bands.sort(key=lambda band: band.minimum)
-
     if problems:
         return None, tuple(problems)
     return (
@@ -272,7 +209,6 @@ def parse_task_parameters(
             target=target,
             unskilled_dm=unskilled_dm,
             difficulty_dms=difficulty_dms,
-            characteristic_bands=tuple(bands),
         ),
         (),
     )

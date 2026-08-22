@@ -26,6 +26,7 @@ from cetools.notation import (
 )
 from cetools.provenance import Disposition, FileProvenance, Provenance
 from cetools.registries import (
+    Band,
     BenefitRegistry,
     CharacteristicRegistry,
     SkillRegistry,
@@ -33,7 +34,7 @@ from cetools.registries import (
 )
 from cetools.render import as_dict, as_json, as_text
 from cetools.rules import RulesData, ValidationReport, load_rules, validate_rules
-from cetools.tasks import Band, CheckResult, Modifier, TaskParameters, check
+from cetools.tasks import CheckResult, Modifier, TaskParameters, check
 
 __all__ = [
     "CetoolsError",
