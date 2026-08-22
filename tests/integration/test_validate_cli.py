@@ -85,6 +85,14 @@ def test_validate_packaged_set_reports_valid_in_json():
     assert payload["problems"] == []
 
 
+def test_validate_packaged_set_reports_twenty_six_files():
+    # Four singleton files, six universal chargen tables, eight careers, and
+    # eight name tables (003-npc-generator, research R6).
+    result = runner.invoke(app, ["validate", "--json"])
+    payload = json.loads(result.stdout)
+    assert payload["file_count"] == 26
+
+
 @BOTH_OUTPUT_MODES
 def test_validate_reports_all_four_problems_in_one_run(monkeypatch, mode):
     monkeypatch.setattr("cetools.cli.validate_rules", _invalid_report)

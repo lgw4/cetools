@@ -1,3 +1,6 @@
+import tomllib
+from pathlib import Path
+
 from cetools.dice import Roller
 from cetools.errors import ValidationProblem
 from cetools.names import (
@@ -9,6 +12,38 @@ from cetools.names import (
     parse_surnames,
     roll_name,
 )
+
+_DATA = Path(__file__).resolve().parents[2] / "src" / "cetools" / "data" / "names"
+
+# The shipped surname table sizes, recorded here rather than only asserted
+# to be "different": SC-019 requires the sizes to differ by enough that
+# weighting taken over names, rather than over the seven tables in force,
+# would put at least one region's expected share outside the ten-percent
+# band a correct, per-table weighting holds every region inside (research,
+# 003-npc-generator T071).
+_SHIPPED_SURNAME_SIZES = {
+    "surnames-africa.toml": 45,
+    "surnames-asia.toml": 45,
+    "surnames-central-america.toml": 45,
+    "surnames-europe.toml": 99,
+    "surnames-indigenous.toml": 45,
+    "surnames-north-america.toml": 45,
+    "surnames-south-america.toml": 44,
+}
+
+
+def test_shipped_surname_table_sizes_are_recorded_accurately():
+    for basename, expected in _SHIPPED_SURNAME_SIZES.items():
+        data = tomllib.loads((_DATA / basename).read_text(encoding="utf-8"))
+        assert len(data["names"]) == expected, basename
+
+
+def test_the_shipped_sizes_would_fail_sc019_if_weighted_by_name_instead_of_by_region():
+    total = sum(_SHIPPED_SURNAME_SIZES.values())
+    region_count = len(_SHIPPED_SURNAME_SIZES)
+    lower, upper = 0.9 / region_count, 1.1 / region_count
+    shares = {name: size / total for name, size in _SHIPPED_SURNAME_SIZES.items()}
+    assert any(not (lower <= share <= upper) for share in shares.values()), shares
 
 
 class TestGivenNameTable:

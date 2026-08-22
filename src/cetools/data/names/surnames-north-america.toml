@@ -1,0 +1,22 @@
+# GPL-3.0-only project content; not Open Game Content. See LICENSE.
+
+schema = "surnames"
+schema-version = 1
+
+region = "North America"
+source = "Common surnames reflecting Anglo, French-Canadian, and Jewish immigrant naming traditions in North America."
+
+names = [
+  { name = "Anderson" }, { name = "Miller" }, { name = "Moore" }, { name = "Baker" },
+  { name = "Carter" }, { name = "Mitchell" }, { name = "Perry" }, { name = "Cook" },
+  { name = "Bell" }, { name = "Cohen" }, { name = "Katz" }, { name = "Friedman" },
+  { name = "Goldberg" }, { name = "Silverman" }, { name = "Klein" }, { name = "Rosen" },
+  { name = "Weiss" }, { name = "Stein" }, { name = "Levine" }, { name = "Kaplan" },
+  { name = "Tremblay" }, { name = "Gagnon" }, { name = "Roy" }, { name = "Cote" },
+  { name = "Levesque" }, { name = "Beaulieu" }, { name = "Gauthier" }, { name = "Morin" },
+  { name = "Lavoie" }, { name = "Fortin" }, { name = "Pelletier" }, { name = "Bergeron" },
+  { name = "Girard" }, { name = "Bouchard" }, { name = "Caron" }, { name = "Fitzgerald" },
+  { name = "Kennedy" }, { name = "Sullivan" }, { name = "Murphy" }, { name = "MacKenzie" },
+  { name = "Reid" }, { name = "Young" }, { name = "King" }, { name = "Scott" },
+  { name = "Adams" },
+]

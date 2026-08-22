@@ -242,12 +242,12 @@ def test_validate_rules_reports_the_packaged_data_set_as_valid():
     report = validate_rules()
     assert report.valid
     assert report.problems == ()
-    assert report.file_count == 18
+    assert report.file_count == 26
 
 
 def test_validate_rules_file_count_counts_every_composed_toml():
     report = validate_rules()
-    assert report.file_count == 18
+    assert report.file_count == 26
 
 
 def test_file_count_counts_an_override_addition_not_only_the_packaged_set(tmp_path):
@@ -262,7 +262,7 @@ def test_file_count_counts_an_override_addition_not_only_the_packaged_set(tmp_pa
         'schema = "career"\nschema-version = 1\n', encoding="utf-8"
     )
     report = validate_rules(tmp_path)
-    assert report.file_count == 19
+    assert report.file_count == 27
 
 
 def test_load_rules_rejects_a_nonexistent_override_location_as_a_usage_error(tmp_path):
@@ -545,10 +545,10 @@ def test_canonical_file_names_the_packaged_declarer_of_every_single_instance_kin
     for kind, basename in rules_module._CANONICAL_FILE.items():
         assert declarers.get(basename) == kind
     assert sorted(rules_module._CANONICAL_FILE) == sorted(rules_module._SINGLETON_KINDS)
-    # Four inherited kinds plus the six universal chargen tables; the
-    # eleventh, `given-names`, and the second repeatable kind, `surnames`,
-    # follow with the name tables and the licensing split (research R9).
-    assert len(rules_module._SINGLETON_KINDS) == 10
+    # Four inherited kinds, the six universal chargen tables, and
+    # `given-names`; `surnames` is the second repeatable kind, alongside
+    # `career`, and carries no canonical file of its own.
+    assert len(rules_module._SINGLETON_KINDS) == 11
 
 
 def test_problems_arrive_sorted_by_file_then_location(tmp_path):

@@ -34,6 +34,8 @@ from cetools.chargen import (
     parse_mishap_table,
 )
 from cetools.errors import RulesDataError, ValidationProblem, type_name
+from cetools.names import GivenNameTable, SurnameTable, parse_given_names
+from cetools.names import parse_surnames as _parse_surnames
 from cetools.provenance import (
     Disposition,
     FileProvenance,
@@ -65,6 +67,8 @@ _SUPPORTED_VERSION = {
     "background-skills": 1,
     "medical-tiers": 1,
     "chargen-parameters": 1,
+    "given-names": 1,
+    "surnames": 1,
 }
 _SINGLETON_KINDS = (
     "task-parameters",
@@ -77,6 +81,7 @@ _SINGLETON_KINDS = (
     "background-skills",
     "medical-tiers",
     "chargen-parameters",
+    "given-names",
 )
 _CANONICAL_FILE = {
     "task-parameters": "tasks.toml",
@@ -88,6 +93,7 @@ _CANONICAL_FILE = {
     "mishap-table": "mishaps.toml",
     "background-skills": "background-skills.toml",
     "medical-tiers": "medical-tiers.toml",
+    "given-names": "given-names.toml",
     "chargen-parameters": "chargen-parameters.toml",
 }
 _KIND_AT_CANONICAL_FILE = {file: kind for kind, file in _CANONICAL_FILE.items()}
@@ -108,6 +114,8 @@ class RulesData:
     background_skills: BackgroundSkills
     medical_tiers: MedicalTiers
     chargen: ChargenParameters
+    given_names: GivenNameTable
+    surnames: Mapping[str, SurnameTable]
     provenance: Provenance
 
 
@@ -294,6 +302,7 @@ _SINGLETON_PARSERS = {
     "mishap-table": parse_mishap_table,
     "medical-tiers": parse_medical_tiers,
     "chargen-parameters": parse_chargen_parameters,
+    "given-names": parse_given_names,
 }
 
 
@@ -725,6 +734,7 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
     mishaps: MishapTable | None = singletons.get("mishap-table")
     medical_tiers: MedicalTiers | None = singletons.get("medical-tiers")
     chargen: ChargenParameters | None = singletons.get("chargen-parameters")
+    given_names: GivenNameTable | None = singletons.get("given-names")
 
     # Career validation proceeds even when a registry is missing or invalid,
     # against an empty substitute, so every reference cascades into its own
@@ -766,6 +776,41 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
             continue
         career_names_seen[career.name] = basename
         careers[basename.removesuffix(".toml")] = career
+
+    surnames: dict[str, SurnameTable] = {}
+    surname_regions_seen: dict[str, str] = {}
+    for basename, (kind, toml_data) in sorted(parsed.items()):
+        if kind != "surnames":
+            continue
+        table, sub_problems = _parse_surnames(toml_data, basename)
+        problems.extend(sub_problems)
+        if table is None:
+            continue
+        if table.region in surname_regions_seen:
+            both = sorted((basename, surname_regions_seen[table.region]))
+            problems.append(
+                ValidationProblem(
+                    file=both[0],
+                    found=f"both declare the region {table.region!r}: {', '.join(both)}",
+                    expected="a region distinct across surname tables in force",
+                )
+            )
+            continue
+        surname_regions_seen[table.region] = basename
+        surnames[basename.removesuffix(".toml")] = table
+
+    if not surnames:
+        # `surnames` is repeatable, like `career`, so there is no one
+        # canonical file to name the way a singleton kind's absence does
+        # (FR-043f: weighting is over the tables in force, and none in force
+        # means no surname can be drawn).
+        problems.append(
+            ValidationProblem(
+                file="names/surnames-*.toml",
+                found="no file",
+                expected="at least one file declaring kind 'surnames'",
+            )
+        )
 
     # --- cross-file rules (contracts/data-files.md) ---------------------
 
@@ -873,6 +918,8 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
         or background_skills is None
         or medical_tiers is None
         or chargen is None
+        or given_names is None
+        or not surnames
     ):
         return None, report
 
@@ -889,6 +936,8 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
             background_skills=background_skills,
             medical_tiers=medical_tiers,
             chargen=chargen,
+            given_names=given_names,
+            surnames=MappingProxyType(surnames),
             provenance=provenance,
         ),
         report,

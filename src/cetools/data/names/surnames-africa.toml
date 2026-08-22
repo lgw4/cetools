@@ -1,0 +1,22 @@
+# GPL-3.0-only project content; not Open Game Content. See LICENSE.
+
+schema = "surnames"
+schema-version = 1
+
+region = "Africa"
+source = "Common surnames drawn from West, East, and Southern African naming traditions."
+
+names = [
+  { name = "Mensah" }, { name = "Okafor" }, { name = "Adeyemi" }, { name = "Nwosu" },
+  { name = "Diallo" }, { name = "Traore" }, { name = "Keita" }, { name = "Toure" },
+  { name = "Camara" }, { name = "Cisse" }, { name = "Osei" }, { name = "Boateng" },
+  { name = "Asante" }, { name = "Owusu" }, { name = "Appiah" },
+  { name = "Mwangi" }, { name = "Kamau" }, { name = "Otieno" }, { name = "Wanjiru" },
+  { name = "Wanjala" }, { name = "Njoroge" }, { name = "Achieng" }, { name = "Odhiambo" },
+  { name = "Wafula" }, { name = "Kariuki" }, { name = "Muthoni" }, { name = "Onyango" },
+  { name = "Kimani" }, { name = "Mutua" }, { name = "Ochieng" },
+  { name = "Nkosi" }, { name = "Dlamini" }, { name = "Zuma" }, { name = "Khumalo" },
+  { name = "Moyo" }, { name = "Ndlovu" }, { name = "Sithole" }, { name = "Mahlangu" },
+  { name = "Mokoena" }, { name = "Nkomo" }, { name = "Chikwava" }, { name = "Banda" },
+  { name = "Phiri" }, { name = "Zulu" }, { name = "Ngwenya" },
+]

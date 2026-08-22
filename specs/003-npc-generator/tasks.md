@@ -170,17 +170,17 @@ subtrees and nothing else, and the suite is green with the data set still wholly
 
 Depends on Phase 2H. These are the files the widened checks were widened for.
 
-- [ ] T063 [P] Author `src/cetools/data/names/given-names.toml` (GPL-3.0 designation, `source` recorded, at least sixty gender-neutral entries — FR-043b, FR-043e, FR-043i)
-- [ ] T064 [P] Author `src/cetools/data/names/surnames-africa.toml` (GPL-3.0 designation, `region`, `source`, at least forty entries)
-- [ ] T065 [P] Author `src/cetools/data/names/surnames-asia.toml` (same shape)
-- [ ] T066 [P] Author `src/cetools/data/names/surnames-central-america.toml` (same shape)
-- [ ] T067 [P] Author `src/cetools/data/names/surnames-europe.toml` (same shape)
-- [ ] T068 [P] Author `src/cetools/data/names/surnames-north-america.toml` (same shape)
-- [ ] T069 [P] Author `src/cetools/data/names/surnames-south-america.toml` (same shape)
-- [ ] T070 [P] Author `src/cetools/data/names/surnames-indigenous.toml` (GPL-3.0 designation; every entry carries `people` — FR-043d)
-- [ ] T071 Verify the shipped surname tables differ in size by enough that a weighting taken over names rather than over regions would put at least one region outside SC-019's band, and record the sizes in `tests/unit/test_names.py`
-- [ ] T072 [P] Add `tests/unit/test_name_tables.py` for SC-015b: every name table records a `source`, every indigenous-peoples entry names its people, no name table carries a gender field, the given names table holds ≥60 entries and each surname table ≥40
-- [ ] T073 Extend `tests/integration/test_validate_cli.py` and `tests/guards/test_data_layout.py` for twenty-six files, unique basenames tree-wide, and the two new subdirectories traversing without `__init__.py`
+- [X] T063 [P] Author `src/cetools/data/names/given-names.toml` (GPL-3.0 designation, `source` recorded, at least sixty gender-neutral entries — FR-043b, FR-043e, FR-043i)
+- [X] T064 [P] Author `src/cetools/data/names/surnames-africa.toml` (GPL-3.0 designation, `region`, `source`, at least forty entries)
+- [X] T065 [P] Author `src/cetools/data/names/surnames-asia.toml` (same shape)
+- [X] T066 [P] Author `src/cetools/data/names/surnames-central-america.toml` (same shape)
+- [X] T067 [P] Author `src/cetools/data/names/surnames-europe.toml` (same shape)
+- [X] T068 [P] Author `src/cetools/data/names/surnames-north-america.toml` (same shape)
+- [X] T069 [P] Author `src/cetools/data/names/surnames-south-america.toml` (same shape)
+- [X] T070 [P] Author `src/cetools/data/names/surnames-indigenous.toml` (GPL-3.0 designation; every entry carries `people` — FR-043d)
+- [X] T071 Verify the shipped surname tables differ in size by enough that a weighting taken over names rather than over regions would put at least one region outside SC-019's band, and record the sizes in `tests/unit/test_names.py`
+- [X] T072 [P] Add `tests/unit/test_name_tables.py` for SC-015b: every name table records a `source`, every indigenous-peoples entry names its people, no name table carries a gender field, the given names table holds ≥60 entries and each surname table ≥40
+- [X] T073 Extend `tests/integration/test_validate_cli.py` and `tests/guards/test_data_layout.py` for twenty-six files, unique basenames tree-wide, and the two new subdirectories traversing without `__init__.py`
 
 ### Phase 2J: The produced value (`character.py`)
 

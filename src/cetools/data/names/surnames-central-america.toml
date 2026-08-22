@@ -1,0 +1,22 @@
+# GPL-3.0-only project content; not Open Game Content. See LICENSE.
+
+schema = "surnames"
+schema-version = 1
+
+region = "Central America"
+source = "Common Spanish-language surnames prevalent in Central America."
+
+names = [
+  { name = "Hernandez" }, { name = "Garcia" }, { name = "Martinez" }, { name = "Lopez" },
+  { name = "Gonzalez" }, { name = "Rodriguez" }, { name = "Perez" }, { name = "Sanchez" },
+  { name = "Ramirez" }, { name = "Torres" }, { name = "Flores" }, { name = "Rivera" },
+  { name = "Gomez" }, { name = "Diaz" }, { name = "Cruz" }, { name = "Morales" },
+  { name = "Ortiz" }, { name = "Gutierrez" }, { name = "Chavez" }, { name = "Ramos" },
+  { name = "Reyes" }, { name = "Jimenez" }, { name = "Mendoza" }, { name = "Ruiz" },
+  { name = "Alvarez" }, { name = "Castillo" }, { name = "Vargas" }, { name = "Romero" },
+  { name = "Herrera" }, { name = "Medina" }, { name = "Aguilar" }, { name = "Salazar" },
+  { name = "Guerrero" }, { name = "Nunez" }, { name = "Rios" }, { name = "Delgado" },
+  { name = "Cabrera" }, { name = "Contreras" }, { name = "Espinoza" }, { name = "Fuentes" },
+  { name = "Maldonado" }, { name = "Paz" }, { name = "Solis" }, { name = "Aguirre" },
+  { name = "Barrios" },
+]

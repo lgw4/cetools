@@ -12,6 +12,7 @@ from cetools.chargen import (
     MishapTable,
 )
 from cetools.errors import RulesDataError, TaskError
+from cetools.names import GivenNameTable
 from cetools.provenance import Provenance
 from cetools.registries import BenefitRegistry, CharacteristicRegistry, SkillRegistry
 from cetools.rules import RulesData
@@ -23,6 +24,7 @@ _EMPTY_AGING = AgingTable(roll="2d6", rows=())
 _EMPTY_MISHAPS = MishapTable(roll="1d6", rows=(), injury_roll="1d6", injuries=())
 _EMPTY_BACKGROUND_SKILLS = BackgroundSkills(law_level=(), trade_code=(), education=())
 _EMPTY_MEDICAL_TIERS = MedicalTiers(roll="2d6", rank_dm=False, tiers=MappingProxyType({}))
+_EMPTY_GIVEN_NAMES = GivenNameTable(source="test", names=("Placeholder",))
 _EMPTY_CHARGEN = ChargenParameters(
     characteristics_roll="2d6",
     background_skills_base=3,
@@ -122,6 +124,8 @@ def _rules(*, characteristic_bands=CHARACTERISTIC_BANDS, **overrides):
         background_skills=_EMPTY_BACKGROUND_SKILLS,
         medical_tiers=_EMPTY_MEDICAL_TIERS,
         chargen=_EMPTY_CHARGEN,
+        given_names=_EMPTY_GIVEN_NAMES,
+        surnames=MappingProxyType({}),
         provenance=_EMPTY_PROVENANCE,
     )
 

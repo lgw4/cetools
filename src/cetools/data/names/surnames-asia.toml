@@ -1,0 +1,22 @@
+# GPL-3.0-only project content; not Open Game Content. See LICENSE.
+
+schema = "surnames"
+schema-version = 1
+
+region = "Asia"
+source = "Common surnames drawn from East, South, and Southeast Asian naming traditions."
+
+names = [
+  { name = "Tanaka" }, { name = "Yamamoto" }, { name = "Suzuki" }, { name = "Watanabe" },
+  { name = "Sato" }, { name = "Takahashi" }, { name = "Kobayashi" }, { name = "Hayashi" },
+  { name = "Kim" }, { name = "Park" }, { name = "Lee" }, { name = "Choi" },
+  { name = "Jung" }, { name = "Kang" }, { name = "Wang" }, { name = "Chen" },
+  { name = "Zhang" }, { name = "Liu" }, { name = "Huang" }, { name = "Wu" },
+  { name = "Singh" }, { name = "Sharma" }, { name = "Patel" }, { name = "Gupta" },
+  { name = "Khan" }, { name = "Ahmed" }, { name = "Rahman" }, { name = "Kumar" },
+  { name = "Rao" }, { name = "Reddy" }, { name = "Iyer" }, { name = "Chowdhury" },
+  { name = "Das" }, { name = "Roy" }, { name = "Banerjee" },
+  { name = "Nguyen" }, { name = "Tran" }, { name = "Pham" }, { name = "Le" },
+  { name = "Hoang" }, { name = "Vu" }, { name = "Santos" }, { name = "Cruz" },
+  { name = "Reyes" }, { name = "Bautista" },
+]

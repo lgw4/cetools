@@ -19,6 +19,7 @@ NAVY = (_DATA / "careers" / "navy.toml").read_text(encoding="utf-8")
 CHARACTERISTICS = (_DATA / "registries" / "characteristics.toml").read_text(encoding="utf-8")
 DRAFT = (_DATA / "chargen" / "draft.toml").read_text(encoding="utf-8")
 AGING = (_DATA / "chargen" / "aging.toml").read_text(encoding="utf-8")
+SURNAMES_EUROPE = (_DATA / "names" / "surnames-europe.toml").read_text(encoding="utf-8")
 
 
 def _write(tmp_path: Path, name: str, text: str) -> Path:
@@ -568,3 +569,38 @@ def test_a_characteristic_class_no_registry_declares_is_rejected(tmp_path):
         and "characteristic classes" in p.expected
         for p in report.problems
     )
+
+
+def test_two_surname_tables_declaring_one_region_names_both_files(tmp_path):
+    # Added as a new file rather than a replacement, so both the packaged
+    # surnames-europe.toml and this one are in force and collide.
+    _write(tmp_path, "surnames-europe-2.toml", SURNAMES_EUROPE)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        "surnames-europe-2.toml" in p.found
+        and "surnames-europe.toml" in p.found
+        and "Europe" in p.found
+        and p.location == ""
+        for p in report.problems
+    )
+
+
+def test_no_surname_table_in_force_is_rejected(monkeypatch):
+    # FR-043f: weighting is over the tables in force, and none in force
+    # means no surname can be drawn. Absence has to be produced at the
+    # packaged set, the same way test_rules.py's single-instance-kind
+    # absence case is, since an override can only add or replace a file.
+    real_discover = rules._discover_packaged
+
+    def without_surnames():
+        files, problems = real_discover()
+        for basename in list(files):
+            if basename.startswith("surnames-"):
+                del files[basename]
+        return files, problems
+
+    monkeypatch.setattr(rules, "_discover_packaged", without_surnames)
+    report = validate_rules()
+    assert not report.valid
+    assert any("surnames" in p.expected and "at least one" in p.expected for p in report.problems)

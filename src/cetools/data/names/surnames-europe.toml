@@ -1,0 +1,41 @@
+# GPL-3.0-only project content; not Open Game Content. See LICENSE.
+#
+# Deliberately the largest of the seven shipped surname tables: the shipped
+# tables differ in size by enough that weighting taken over names rather
+# than over regions would put at least one region's expected share outside
+# SC-019's band (research, tests/unit/test_names.py).
+
+schema = "surnames"
+schema-version = 1
+
+region = "Europe"
+source = "Common surnames drawn from British, Irish, Italian, German, French, Polish, and Scandinavian naming traditions."
+
+names = [
+  { name = "Smith" }, { name = "Jones" }, { name = "Williams" }, { name = "Brown" },
+  { name = "Taylor" }, { name = "Wilson" }, { name = "Davies" }, { name = "Evans" },
+  { name = "Thomas" }, { name = "Roberts" }, { name = "Johnson" }, { name = "Walker" },
+  { name = "Wright" }, { name = "Robinson" }, { name = "Thompson" }, { name = "White" },
+  { name = "Hughes" }, { name = "Edwards" }, { name = "Green" }, { name = "Hall" },
+  { name = "Wood" }, { name = "Harris" }, { name = "Martin" }, { name = "Jackson" },
+  { name = "Clarke" },
+  { name = "Murphy" }, { name = "Kelly" }, { name = "Sullivan" }, { name = "Walsh" },
+  { name = "Ryan" }, { name = "MacDonald" }, { name = "Fraser" }, { name = "Stewart" },
+  { name = "Campbell" }, { name = "Cameron" }, { name = "Ross" }, { name = "Graham" },
+  { name = "Burns" }, { name = "Douglas" },
+  { name = "Rossi" }, { name = "Ferrari" }, { name = "Russo" }, { name = "Bianchi" },
+  { name = "Romano" }, { name = "Colombo" }, { name = "Ricci" }, { name = "Marino" },
+  { name = "Greco" }, { name = "Bruno" }, { name = "Conti" }, { name = "Costa" },
+  { name = "Muller" }, { name = "Schmidt" }, { name = "Schneider" }, { name = "Fischer" },
+  { name = "Weber" }, { name = "Meyer" }, { name = "Wagner" }, { name = "Becker" },
+  { name = "Hoffmann" }, { name = "Schulz" }, { name = "Koch" }, { name = "Richter" },
+  { name = "Dubois" }, { name = "Bernard" }, { name = "Petit" }, { name = "Durand" },
+  { name = "Leroy" }, { name = "Moreau" }, { name = "Simon" }, { name = "Laurent" },
+  { name = "Lefebvre" }, { name = "Michel" }, { name = "Roux" }, { name = "Fournier" },
+  { name = "Nowak" }, { name = "Kowalski" }, { name = "Wojcik" }, { name = "Kaminski" },
+  { name = "Lewandowski" }, { name = "Zielinski" }, { name = "Szymanski" }, { name = "Wozniak" },
+  { name = "Andersson" }, { name = "Johansson" }, { name = "Karlsson" }, { name = "Nilsson" },
+  { name = "Eriksson" }, { name = "Larsson" }, { name = "Olsen" }, { name = "Hansen" },
+  { name = "Pedersen" }, { name = "Kristiansen" }, { name = "Jensen" }, { name = "Nielsen" },
+  { name = "Berg" }, { name = "Lund" }, { name = "Sorensen" }, { name = "Christensen" },
+]

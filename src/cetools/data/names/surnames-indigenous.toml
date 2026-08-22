@@ -1,0 +1,59 @@
+# GPL-3.0-only project content; not Open Game Content. See LICENSE.
+#
+# Every entry carries `people` (FR-043d): a list labeled "Indigenous
+# peoples" and attributing none of its entries to one is a category
+# describing nothing it contains.
+
+schema = "surnames"
+schema-version = 1
+
+region = "Indigenous peoples"
+source = "Common surnames documented among the Diné (Navajo), Quechua and Aymara, Māori, Native Hawaiian, and Sámi peoples."
+
+names = [
+  { name = "Begay", people = "Diné (Navajo)" },
+  { name = "Yazzie", people = "Diné (Navajo)" },
+  { name = "Tsosie", people = "Diné (Navajo)" },
+  { name = "Etsitty", people = "Diné (Navajo)" },
+  { name = "Nez", people = "Diné (Navajo)" },
+  { name = "Yellowhair", people = "Diné (Navajo)" },
+  { name = "Bitsuie", people = "Diné (Navajo)" },
+  { name = "Nakai", people = "Diné (Navajo)" },
+  { name = "Tso", people = "Diné (Navajo)" },
+  { name = "Chee", people = "Diné (Navajo)" },
+  { name = "Bahe", people = "Diné (Navajo)" },
+  { name = "Notah", people = "Diné (Navajo)" },
+  { name = "Kanuho", people = "Diné (Navajo)" },
+  { name = "Mamani", people = "Quechua and Aymara" },
+  { name = "Condori", people = "Quechua and Aymara" },
+  { name = "Huanca", people = "Quechua and Aymara" },
+  { name = "Apaza", people = "Quechua and Aymara" },
+  { name = "Ccahuana", people = "Quechua and Aymara" },
+  { name = "Huayta", people = "Quechua and Aymara" },
+  { name = "Ticona", people = "Quechua and Aymara" },
+  { name = "Yupanqui", people = "Quechua and Aymara" },
+  { name = "Poma", people = "Quechua and Aymara" },
+  { name = "Vilca", people = "Quechua and Aymara" },
+  { name = "Ngata", people = "Māori" },
+  { name = "Mahuta", people = "Māori" },
+  { name = "Rata", people = "Māori" },
+  { name = "Tamihere", people = "Māori" },
+  { name = "Ihaka", people = "Māori" },
+  { name = "Wetere", people = "Māori" },
+  { name = "Tawhiao", people = "Māori" },
+  { name = "Pomare", people = "Māori" },
+  { name = "Ratana", people = "Māori" },
+  { name = "Kealoha", people = "Native Hawaiian" },
+  { name = "Kahananui", people = "Native Hawaiian" },
+  { name = "Kamaka", people = "Native Hawaiian" },
+  { name = "Akana", people = "Native Hawaiian" },
+  { name = "Naeole", people = "Native Hawaiian" },
+  { name = "Kahoohanohano", people = "Native Hawaiian" },
+  { name = "Kanahele", people = "Native Hawaiian" },
+  { name = "Kalama", people = "Native Hawaiian" },
+  { name = "Somby", people = "Sámi" },
+  { name = "Sara", people = "Sámi" },
+  { name = "Gaup", people = "Sámi" },
+  { name = "Utsi", people = "Sámi" },
+  { name = "Eira", people = "Sámi" },
+]

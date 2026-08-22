@@ -1,0 +1,19 @@
+# GPL-3.0-only project content; not Open Game Content. See LICENSE.
+#
+# Gender-neutral given names (FR-043b): no `gender` field exists in this
+# schema, and none of these entries lean toward one.
+
+schema = "given-names"
+schema-version = 1
+
+source = "Common gender-neutral given names in contemporary English-language usage."
+
+names = [
+  "Alex", "Jordan", "Sam", "Taylor", "Morgan", "Casey", "Riley", "Jamie", "Avery", "Quinn",
+  "Skyler", "Rowan", "Reese", "Charlie", "Drew", "Emerson", "Finley", "Harper", "Hayden", "Jesse",
+  "Kendall", "Logan", "Peyton", "Sage", "Shawn", "Blake", "Cameron", "Dakota", "Elliot", "Frankie",
+  "Gray", "Indigo", "Jules", "Kai", "Lane", "Micah", "Noel", "Oakley", "Parker", "River",
+  "Sawyer", "Sydney", "Tatum", "Wren", "Ashton", "Bailey", "Corey", "Dana", "Eden", "Flynn",
+  "Glenn", "Hollis", "Ira", "Jaylen", "Kyler", "Lennon", "Marlowe", "Nico", "Ollie", "Phoenix",
+  "Remy", "Story", "True", "Val", "Winter", "Zion",
+]

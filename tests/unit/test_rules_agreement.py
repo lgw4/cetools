@@ -71,3 +71,10 @@ def test_every_characteristic_class_the_packaged_mishap_table_names_resolves(tmp
     assert not report.valid
     with pytest.raises(RulesDataError):
         load_rules(tmp_path)
+
+
+def test_the_packaged_name_tables_load_with_seven_distinct_surname_regions():
+    rules = load_rules()
+    assert rules.given_names.names
+    assert len(rules.surnames) == 7
+    assert len({table.region for table in rules.surnames.values()}) == 7

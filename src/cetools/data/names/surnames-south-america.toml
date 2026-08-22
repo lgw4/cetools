@@ -1,0 +1,22 @@
+# GPL-3.0-only project content; not Open Game Content. See LICENSE.
+
+schema = "surnames"
+schema-version = 1
+
+region = "South America"
+source = "Common Portuguese-language surnames from Brazil and Spanish-language Andean surnames."
+
+names = [
+  { name = "Silva" }, { name = "Santos" }, { name = "Oliveira" }, { name = "Souza" },
+  { name = "Rodrigues" }, { name = "Ferreira" }, { name = "Alves" }, { name = "Pereira" },
+  { name = "Lima" }, { name = "Gomes" }, { name = "Costa" }, { name = "Ribeiro" },
+  { name = "Martins" }, { name = "Carvalho" }, { name = "Almeida" }, { name = "Lopes" },
+  { name = "Soares" }, { name = "Fernandes" }, { name = "Vieira" }, { name = "Barbosa" },
+  { name = "Rocha" }, { name = "Dias" }, { name = "Monteiro" }, { name = "Cardoso" },
+  { name = "Teixeira" },
+  { name = "Quispe" }, { name = "Mamani" }, { name = "Condori" }, { name = "Choque" },
+  { name = "Huanca" }, { name = "Apaza" }, { name = "Paredes" }, { name = "Villanueva" },
+  { name = "Chura" }, { name = "Calle" }, { name = "Ccahuana" }, { name = "Huayta" },
+  { name = "Coila" }, { name = "Ticona" }, { name = "Yupanqui" }, { name = "Poma" },
+  { name = "Vilca" }, { name = "Fernandez" }, { name = "Gonzales" },
+]
