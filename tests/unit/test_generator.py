@@ -185,6 +185,22 @@ class TestSkillRolls:
                     ]
                     assert len(rolls) == RULES.chargen.skill_rolls_per_term_without_throws
 
+    def test_a_characteristic_gate_excludes_the_table_rather_than_failing(self):
+        from cetools.generator import _eligible_tables
+
+        navy = next(c for c in RULES.careers.values() if c.name == "Navy")
+        assert "requires" not in navy.tables or navy.tables["advanced-education"].requires
+        gated = navy.tables["advanced-education"].requires
+        below_gate = {code: 7 for code in RULES.characteristics.names}
+        below_gate[gated.characteristic] = gated.target - 1
+        at_gate = dict(below_gate)
+        at_gate[gated.characteristic] = gated.target
+
+        below_keys = {key for key, _ in _eligible_tables(navy, below_gate)}
+        at_keys = {key for key, _ in _eligible_tables(navy, at_gate)}
+        assert "advanced-education" not in below_keys
+        assert "advanced-education" in at_keys
+
     def test_cascade_rule_chooses_a_permitted_specialty_and_records_it(self):
         cascading_skills = {
             name for name, specialties in RULES.skills.skills.items() if specialties
