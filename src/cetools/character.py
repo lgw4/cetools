@@ -41,6 +41,7 @@ _HISTORY_STEP_KINDS = frozenset(
         "mustering-out",
         "benefit",
         "medical-bills",
+        "medical-crisis",
         "debt-settled",
         "pension",
     }

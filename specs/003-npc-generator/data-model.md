@@ -122,7 +122,14 @@ Step kinds, closed: `characteristics`, `background-skills`, `career-selected`,
 `qualification`, `draft`, `career-entered`, `basic-training`, `rank-bonus`, `survival`,
 `mishap`, `injury`, `commission`, `advancement`, `skill-roll`, `aging`, `continuation`,
 `re-enlistment`, `career-ended`, `mustering-out`, `benefit`, `medical-bills`,
-`debt-settled`, `pension`.
+`medical-crisis`, `debt-settled`, `pension`.
+
+`medical-crisis` (Phase 8 T144) records an aging or mishap crisis debt's *creation* —
+the throw, and the amount owed. `debt-settled` is reserved for what `settle_debts`
+itself now records: one step per debt paid on a given call, carrying the amount paid and
+which characteristics were restored and by how much, so funds and characteristics on the
+sheet replay from the history (FR-030, FR-025a). Before T144, `debt-settled` was
+misapplied to the crisis-creation event and no settlement was ever recorded at all.
 
 The set is closed for the same reason the career schema's table names are: an open set
 makes a misspelled kind a new kind rather than a typo, and SC-005's automated traceability

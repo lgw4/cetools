@@ -181,11 +181,29 @@ def _eligible_tables(
 class _Debt:
     """One outstanding debt, in the order it arose (FR-025a). `restore`
     describes what a full or partial settlement buys back: `crisis` restores
-    every covered characteristic to a fixed score; `medical` restores points
-    at a fixed cost per point, in the order the walk records.
+    every covered characteristic to a fixed score; `medical` restores one
+    point at `cost_per_point` each, to the characteristics named in
+    `characteristics` — one entry per point owed, so a characteristic
+    reduced by several points appears that many times — in the order the
+    walk records (research/T143).
+
+    `remainder` and `restored_count` (T157) carry a `medical` debt's
+    progress across more than one partial settlement: a payment that alone
+    is not enough for a full point must still count toward the next one
+    that a later payment completes, and a characteristic already restored
+    by an earlier settlement must not be restored again by a later one over
+    the same debt.
     """
 
-    __slots__ = ("amount", "restore", "characteristics", "restore_to", "cost_per_point")
+    __slots__ = (
+        "amount",
+        "restore",
+        "characteristics",
+        "restore_to",
+        "cost_per_point",
+        "remainder",
+        "restored_count",
+    )
 
     def __init__(
         self,
@@ -200,6 +218,8 @@ class _Debt:
         self.characteristics = characteristics
         self.restore_to = restore_to
         self.cost_per_point = cost_per_point
+        self.remainder = 0
+        self.restored_count = 0
 
 
 class _Walk:
@@ -233,9 +253,13 @@ class _Walk:
             return 0
         return self.rules.characteristics.characteristic_dm(self.characteristics[code])
 
-    def settle_debts(self) -> None:
+    def settle_debts(self, career: str = "", term: int = 0) -> None:
         """Pay outstanding debts, oldest first, from `self.funds`, never
-        taking funds below zero (FR-025a, FR-026).
+        taking funds below zero (FR-025a, FR-026). A debt that receives a
+        payment this call records its own `debt-settled` step: the amount
+        paid and which characteristics were restored and by how much, in
+        the order they were considered, so funds and characteristics on
+        the sheet replay from the history (FR-030, T144).
         """
         remaining: list[_Debt] = []
         for debt in self.debts:
@@ -246,21 +270,48 @@ class _Walk:
             self.funds -= payment
             self.debt -= payment
             debt.amount -= payment
+            effects: list[StepEffect] = [StepEffect(kind="debt", subject="", amount=payment)]
             if debt.restore == "crisis" and debt.amount == 0:
                 for code in debt.characteristics:
-                    self.characteristics[code] = max(self.characteristics[code], debt.restore_to)
+                    old = self.characteristics[code]
+                    new = max(old, debt.restore_to)
+                    self.characteristics[code] = new
+                    if new != old:
+                        effects.append(
+                            StepEffect(kind="characteristic", subject=code, amount=new - old)
+                        )
             elif debt.restore == "medical" and debt.cost_per_point > 0:
-                points = payment // debt.cost_per_point
-                for code in sorted(debt.characteristics)[:points]:
+                # A payment too small for a full point still counts toward
+                # the next one a later settlement of this same debt
+                # completes, and a characteristic already restored is
+                # never restored again (T157).
+                debt.remainder += payment
+                new_points = debt.remainder // debt.cost_per_point
+                debt.remainder -= new_points * debt.cost_per_point
+                start = debt.restored_count
+                candidates = sorted(debt.characteristics)[start : start + new_points]
+                for code in candidates:
                     self.characteristics[code] += 1
+                    effects.append(StepEffect(kind="characteristic", subject=code, amount=1))
+                debt.restored_count += len(candidates)
+            self.history.append(
+                HistoryStep(
+                    kind="debt-settled",
+                    career=career,
+                    term=term,
+                    throw=None,
+                    selected="",
+                    effects=tuple(effects),
+                )
+            )
             if debt.amount > 0:
                 remaining.append(debt)
         self.debts = remaining
 
-    def add_debt(self, debt: _Debt) -> None:
+    def add_debt(self, debt: _Debt, career: str = "", term: int = 0) -> None:
         self.debt += debt.amount
         self.debts.append(debt)
-        self.settle_debts()
+        self.settle_debts(career, term)
 
     def roll_characteristics(self) -> None:
         effects = []
@@ -549,7 +600,7 @@ class _Walk:
                         self._apply_class_effect(effect, career.name, term)
                     elif effect.kind == "debt":
                         amount = _parse_amount(effect.amount, self.roller)
-                        self.add_debt(_Debt(amount=amount, restore="none"))
+                        self.add_debt(_Debt(amount=amount, restore="none"), career.name, term)
                         self.history.append(
                             HistoryStep(
                                 kind="mishap",
@@ -565,7 +616,7 @@ class _Walk:
                     elif effect.kind == "forfeit-career-benefits":
                         forfeit_all = True
                     elif effect.kind == "roll-injury":
-                        self._roll_injury(career.name, term)
+                        self._roll_injury(career.name, term, current_rank)
                 terms += 1
                 # Every mishap-ended term forfeits its own benefit roll
                 # unconditionally (FR-020); this is the only place that
@@ -751,7 +802,15 @@ class _Walk:
             forfeit_all,
         )
 
-    def _apply_class_effect(self, effect, career_name: str, term: int) -> None:
+    def _apply_class_effect(self, effect, career_name: str, term: int) -> dict[str, int]:
+        """Apply the effect and return the magnitude of each characteristic
+        it actually reduced (research R13's applied amount, never the
+        called-for one), keyed by code. Empty for a characteristic already
+        at the floor and chosen again, which applies a delta of zero
+        (T146). The caller decides what the reduction is worth — the term
+        loop's direct mishap effects ignore it, `_roll_injury` accumulates
+        it into a medical bill (T143).
+        """
         classes = self.rules.characteristics.classes
         candidates = sorted(
             code for code, cls in classes.items() if cls == effect.characteristic_class
@@ -765,6 +824,7 @@ class _Walk:
         amount = _parse_amount(effect.amount, self.roller)
         effects: list[StepEffect] = []
         crisis_codes: list[str] = []
+        reduced: dict[str, int] = {}
         for code in sorted(chosen):
             applied = _apply_characteristic_delta(self.characteristics, code, amount, self.floor())
             effects.extend(applied)
@@ -774,8 +834,10 @@ class _Walk:
             # floor and chosen again applies a delta of zero and must not
             # raise a fresh debt for a reduction that did not occur (T146).
             applied_delta = applied[-1].amount
-            if applied_delta < 0 and self.characteristics[code] <= self.floor():
-                crisis_codes.append(code)
+            if applied_delta < 0:
+                reduced[code] = -applied_delta
+                if self.characteristics[code] <= self.floor():
+                    crisis_codes.append(code)
         self.history.append(
             HistoryStep(
                 kind="mishap",
@@ -788,6 +850,7 @@ class _Walk:
         )
         if crisis_codes:
             self._trigger_medical_crisis(career_name, term, tuple(crisis_codes))
+        return reduced
 
     def _trigger_medical_crisis(self, career_name: str, term: int, codes: tuple[str, ...]) -> None:
         params = self.rules.chargen
@@ -799,11 +862,16 @@ class _Walk:
                 restore="crisis",
                 characteristics=codes,
                 restore_to=params.medical_crisis_restores_to,
-            )
+            ),
+            career_name,
+            term,
         )
         self.history.append(
             HistoryStep(
-                kind="debt-settled",
+                # A crisis debt is *created* here, not settled — that is
+                # `settle_debts`'s own step, which this name is reserved
+                # for once it actually records settlement (T144).
+                kind="medical-crisis",
                 career=career_name,
                 term=term,
                 throw=StepThrow(
@@ -814,7 +882,7 @@ class _Walk:
             )
         )
 
-    def _roll_injury(self, career_name: str, term: int) -> None:
+    def _roll_injury(self, career_name: str, term: int, rank: int) -> None:
         faces = _dice(self.roller, self.rules.mishaps.injury_roll)
         row = self.rules.mishaps.injuries[sum(faces) - 1]
         self.history.append(
@@ -829,47 +897,55 @@ class _Walk:
                 effects=(),
             )
         )
-        raised = False
+        reduced: dict[str, int] = {}
         for effect in row.effects:
             if effect.kind == "characteristic-class":
-                self._apply_class_effect(effect, career_name, term)
-                raised = True
-        if raised:
-            self._raise_medical_bill(career_name, term)
+                for code, amount in self._apply_class_effect(effect, career_name, term).items():
+                    reduced[code] = reduced.get(code, 0) + amount
+        if reduced:
+            self._raise_medical_bill(career_name, term, rank, reduced)
 
-    def _raise_medical_bill(self, career_name: str, term: int) -> None:
+    def _raise_medical_bill(
+        self, career_name: str, term: int, rank: int, reduced: dict[str, int]
+    ) -> None:
         career = next(c for c in self.rules.careers.values() if c.name == career_name)
         tier = self.rules.medical_tiers.tiers[career.medical_tier]
         faces = _dice(self.roller, self.rules.medical_tiers.roll)
-        # `rank_dm` would add the character's rank at the time of the bill; the
-        # walk does not track an in-progress rank snapshot separately from the
-        # term loop's local state, so this reads the tier's thresholds unmodified.
-        total = sum(faces)
+        rank_bonus = rank if self.rules.medical_tiers.rank_dm else 0
+        total = sum(faces) + rank_bonus
         paid_percent = 0
         for threshold in tier:
             if total >= threshold.target:
                 paid_percent = threshold.paid_percent
                 break
-        # The full cost is one point per reduced characteristic per its reduced amount;
-        # tracked here as a flat one-point bill per affected characteristic, since the
-        # walk does not retain the raw reduced-point total separately from the applied
-        # score. This is a simplification of FR-025's "times the points reduced".
+        # The bill is the per-point cost times the points actually reduced
+        # by this injury, never the number of characteristics currently
+        # sitting at the floor: an injury that reduces a score without
+        # flooring it still owes for the points it took, and an
+        # aging-floored characteristic is never billed to the employer for
+        # an injury it played no part in (T143). One entry of
+        # `characteristics` per point owed, so `settle_debts` restores
+        # exactly the points this bill covers.
         params = self.rules.chargen
-        floor = self.floor()
-        reduced = sorted(code for code, score in self.characteristics.items() if score <= floor)
-        if not reduced:
+        total_points = sum(reduced.values())
+        if total_points <= 0:
             return
-        total_cost = params.medical_restore_cost_per_point * len(reduced)
+        total_cost = params.medical_restore_cost_per_point * total_points
         owed = total_cost - (total_cost * paid_percent // 100)
         if owed <= 0:
             return
+        characteristics = tuple(
+            sorted(code for code, points in reduced.items() for _ in range(points))
+        )
         self.add_debt(
             _Debt(
                 amount=owed,
                 restore="medical",
-                characteristics=tuple(reduced),
+                characteristics=characteristics,
                 cost_per_point=params.medical_restore_cost_per_point,
-            )
+            ),
+            career_name,
+            term,
         )
         self.history.append(
             HistoryStep(
@@ -1028,7 +1104,7 @@ class _Walk:
                         effects=(StepEffect(kind="benefit", subject=subject, amount=amount),),
                     )
                 )
-        self.settle_debts()
+        self.settle_debts(career.name, 0)
         if qualifies_for_pension:
             amount = params.pension_base + params.pension_per_additional_term * (
                 terms - params.pension_minimum_terms

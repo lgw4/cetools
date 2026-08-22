@@ -260,3 +260,27 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   rolls as cash than `mustering-out.maximum-cash-rolls` allows across their
   whole life. It is now `_Walk` state carried across every service the
   character musters out of (FR-016, T147).
+- **A medical bill was one flat point per characteristic sitting at the
+  floor, not the per-point cost times the points an injury actually
+  reduced.** An injury that reduced a score without flooring it raised no
+  bill at all, and a characteristic an aging crisis had already floored —
+  the same injury never touched — was billed to the employer regardless.
+  `_apply_class_effect` now reports the magnitude of each characteristic it
+  actually reduces, and `_raise_medical_bill` bills for exactly those
+  points (FR-025, T143).
+- **The medical tier's rank modifier was declared in data and read by
+  nothing.** `medical-tiers.toml`'s `rank-dm` was parsed but the character's
+  rank was never carried into `_raise_medical_bill`, so it always read the
+  tier's thresholds unmodified. The term loop's current rank is now passed
+  through `_roll_injury` and added to the bill's throw wherever `rank-dm`
+  is set (FR-025, T150).
+- **Debt settlement restored nothing and left no trace.** Two problems in
+  one: a medical bill's partial payment discarded whatever fraction fell
+  short of a full point, so two payments that together covered one point
+  restored none of it; and no step recorded a settlement at all — the
+  `debt-settled` kind was misapplied to a crisis debt's *creation* instead.
+  `_Debt` now carries a payment remainder and a restored-point count across
+  settlements, and `settle_debts` records the amount paid and which
+  characteristics were restored and by how much, per debt, per call; the
+  crisis-creation step is renamed `medical-crisis` so `debt-settled` names
+  only real settlement (FR-025a, FR-030, T144, T157).
