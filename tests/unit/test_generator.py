@@ -302,6 +302,57 @@ class TestCharacteristicFloors:
         assert effects[0].amount == -1
 
 
+class TestMedicalCrisisTriggersOnlyOnAnActualReduction:
+    """FR-021: a crisis fires when a reduction *brings* a characteristic to
+    the floor, not merely when the characteristic *is* at the floor and a
+    zero-effect reduction is applied to it again (T146).
+    """
+
+    def test_a_characteristic_already_at_the_floor_raises_no_fresh_crisis(self):
+        from cetools.chargen import MishapEffect
+        from cetools.generator import _Walk
+
+        walk = _Walk(Roller("t146-already-floored"), RULES)
+        floor = RULES.characteristics.floor()
+        walk.characteristics = {code: floor for code in RULES.characteristics.names}
+        physical_class = next(
+            cls
+            for code, cls in RULES.characteristics.classes.items()
+            if code in walk.characteristics
+        )
+        effect = MishapEffect(
+            kind="characteristic-class",
+            characteristic_class=physical_class,
+            count=1,
+            amount="-1d6",
+        )
+        walk._apply_class_effect(effect, "TestCareer", 1)
+        assert walk.debt == 0
+        assert walk.debts == []
+
+    def test_a_reduction_that_actually_reaches_the_floor_still_raises_one(self):
+        from cetools.chargen import MishapEffect
+        from cetools.generator import _Walk
+
+        walk = _Walk(Roller("t146-reaches-floor"), RULES)
+        floor = RULES.characteristics.floor()
+        walk.characteristics = {code: floor + 1 for code in RULES.characteristics.names}
+        physical_class = next(
+            cls
+            for code, cls in RULES.characteristics.classes.items()
+            if code in walk.characteristics
+        )
+        effect = MishapEffect(
+            kind="characteristic-class",
+            characteristic_class=physical_class,
+            count=1,
+            amount="-6d6",
+        )
+        walk._apply_class_effect(effect, "TestCareer", 1)
+        assert walk.debt > 0
+        assert walk.debts
+
+
 class TestCareerEndAndMultiCareer:
     def test_the_cap_forces_mustering_out_regardless(self):
         cap = RULES.chargen.terms_cap
