@@ -174,7 +174,16 @@ def _readme_blocks() -> dict[str, str]:
             command = command[:-1].rstrip() + " " + lines[index].strip()
             index += 1
         output: list[str] = []
-        while index < len(lines) and lines[index].strip() and not lines[index].startswith("```"):
+        while index < len(lines) and not lines[index].startswith("```"):
+            # A blank line ends the block only when it separates two
+            # documented commands sharing one fence; a blank line inside a
+            # command's own output (the separator between npc batch sheets)
+            # stays part of the block.
+            if not lines[index].strip() and (
+                index + 1 >= len(lines) or lines[index + 1].startswith("$ ")
+            ):
+                index += 1
+                break
             output.append(lines[index])
             index += 1
         blocks[command] = "\n".join(output) + "\n"
@@ -199,6 +208,14 @@ README_EXAMPLES = {
         "session-alpha",
     ],
     "cetools validate": ["validate"],
+    "cetools npc --seed session-alpha": ["npc", "--seed", "session-alpha"],
+    "cetools npc --seed table-of-twelve --count 3": [
+        "npc",
+        "--seed",
+        "table-of-twelve",
+        "--count",
+        "3",
+    ],
 }
 
 # Worked examples the README shows with elided or otherwise non-literal

@@ -335,18 +335,24 @@ rm tests/fixtures_ogc.toml
 ```
 
 Expected: a failure naming the uncovered file. Then the mirror, a GPL-designated file
-inside a covered subtree:
+inside a covered subtree. The mirror check itself (`_wrongly_covered`) is exercised directly
+by `tests/unit/test_licensing.py::test_a_gpl_file_inside_a_covered_subtree_fails_the_mirror_check`,
+which plants and removes its own file; nothing scans the working tree live for a
+misdesignated file the way the OGC-direction check above does, so reproducing the failure
+by hand means letting the packaged data set notice the extra file instead:
 
 ```sh
 printf '# GPL-3.0-only project content; not Open Game Content. See LICENSE.\n' \
   > src/cetools/data/chargen/probe.toml
-uv run pytest tests/unit/test_licensing.py
+uv run pytest tests/guards/test_packaging.py tests/unit/test_licensing.py
 rm src/cetools/data/chargen/probe.toml
 ```
 
-Expected: a failure too. A check that passes unchanged when a file is added is a check that
-will pass while a name table travels under a notice that does not cover it, or while a
-career table travels under no notice at all.
+Expected: a failure, from the packaging guard's own build-and-validate check rather than from
+`test_licensing.py` in isolation — the planted file has no recognized `schema`, so the wheel
+and the sdist both fail to validate. A check that passes unchanged when a file is added is a
+check that will pass while a name table travels under a notice that does not cover it, or
+while a career table travels under no notice at all.
 
 Every name the generator can produce comes from a table recording where its entries were
 drawn from, every entry in the indigenous-peoples table names the people it comes from, no

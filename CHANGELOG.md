@@ -24,6 +24,20 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   `rules=`, which takes a `RulesData` rather than a bare `TaskParameters`.
   Package version `2026.08.1` is unreleased, so no published consumer is
   affected.
+- **`TaskParameters` no longer carries `characteristic_bands` or
+  `characteristic_dm()`.** Both moved to `CharacteristicRegistry`, fed by a
+  new `[modifier-dms]` table in `characteristics.toml`; `check` now reads
+  `rules.characteristics.characteristic_dm(...)`. `tasks.toml` drops
+  `[characteristic-dms]`, and both files rise to `schema-version = 2`. No
+  check result changes as a consequence — the committed
+  `tests/golden/check_*.txt` files and the existing JSON fixtures are
+  byte-identical before and after.
+- **A seed's output is a promise only within one package version.**
+  Nothing here changes the draw order of the NPC generator's lifepath walk,
+  but any future change that reorders, adds, or removes a draw changes
+  every character a seed produces from that version forward, and must be
+  recorded under this heading as breaking rather than as a fix or an
+  enhancement.
 
 ### Added
 

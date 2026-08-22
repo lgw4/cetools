@@ -337,12 +337,12 @@ the override.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T135 [P] Add the `npc` command, both text renderings, and the batch document to `README.md`, including the licensing sentence that now distinguishes the two designations
-- [ ] T136 [P] Write the `CHANGELOG.md` entry set for this feature, with a **Breaking changes** heading covering the `TaskParameters` move (T009) and a note that any change reordering, adding, or removing a draw changes every character a seed produces (FR-056b)
-- [ ] T137 [P] Verify SC-017 by listing each capability in this feature against a test that exercises it without invoking the command line, recorded in `tests/unit/test_library_api.py`
-- [ ] T138 Run every scenario in `specs/003-npc-generator/quickstart.md` by hand and correct any drift between it and the shipped behavior
-- [ ] T139 Confirm SC-016 from the git history: for each behavior in the functional requirements, the commit carrying the expected values precedes the commit carrying the implementation
-- [ ] T140 Run the complete suite including `-m slow`, confirm zero skips that a criterion depends on, and confirm no `tests/golden/check_*.txt` or existing JSON fixture was modified anywhere in the branch
+- [X] T135 [P] Add the `npc` command, both text renderings, and the batch document to `README.md`, including the licensing sentence that now distinguishes the two designations
+- [X] T136 [P] Write the `CHANGELOG.md` entry set for this feature, with a **Breaking changes** heading covering the `TaskParameters` move (T009) and a note that any change reordering, adding, or removing a draw changes every character a seed produces (FR-056b)
+- [X] T137 [P] Verify SC-017 by listing each capability in this feature against a test that exercises it without invoking the command line, recorded in `tests/unit/test_library_api.py`
+- [X] T138 Run every scenario in `specs/003-npc-generator/quickstart.md` by hand and correct any drift between it and the shipped behavior
+- [X] T139 Confirm SC-016 from the git history: for each behavior in the functional requirements, the commit carrying the expected values precedes the commit carrying the implementation — **not fully satisfied**; six commits bundle or invert the ordering, recorded as a Recorded Deviation in `plan.md` rather than fixed by rewriting history
+- [X] T140 Run the complete suite including `-m slow`, confirm zero skips that a criterion depends on, and confirm no `tests/golden/check_*.txt` or existing JSON fixture was modified anywhere in the branch
 
 ---
 

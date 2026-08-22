@@ -46,11 +46,59 @@ Check: FAILURE
   Rules: packaged (cetools 2026.8.1)
 ```
 
-`roll`, `check`, and `validate` all accept `--json` for machine-readable
-output, and `roll` and `check` each print the seed used (fresh, if none was
-given), so any result is reproducible from `--seed <that seed> --json` given
-the same package version. `cetools --version` prints the installed package
-version.
+`roll`, `check`, `validate`, and `npc` all accept `--json` for
+machine-readable output, and `roll`, `check`, and `npc` each print the seed
+used (fresh, if none was given), so any result is reproducible from
+`--seed <that seed> --json` given the same package version. `cetools
+--version` prints the installed package version.
+
+`cetools npc` walks the source material's lifepath end to end and prints
+the Universal Character Format — the source material's own sheet, tab
+separated — to standard output, with the seed and provenance on standard
+error so a redirected sheet is exactly a sheet and nothing else:
+
+```sh
+$ cetools npc --seed session-alpha
+Lieutenant Kendall Traore	687A68	Age 30
+Aerospace Defense (2 terms), Surface Defense (1 term)	Cr5,000
+Animals-0, Electronics-0, Flyer-1, Gun Combat (Archery)-1, Gun Combat (Energy Pistol)-0, Gunnery (Screens)-0, Jack-of-All-Trades-0, Mechanic-0, Melee Combat (Bludgeoning Weapons)-1, Navigation-0, Vehicle (Aircraft)-0, Vehicle (Watercraft)-1
+Mid Passage, Weapon
+```
+
+The character is always alive, always named, and always internally
+consistent; nothing is discarded and re-rolled. `--full` adds the
+outstanding debt, the pension, and the generation history — one line per
+step, composed from the step's own kind, career, term, throw, and effects
+— so a surprising sheet is diagnosed from output rather than a debugger.
+`--json` emits the same character as a machine-readable document instead,
+with the seed and provenance in the document rather than on standard
+error; the two options combine without conflict. `--count N` generates
+`N` characters from the same seed, one blank line between consecutive
+sheets:
+
+```sh
+$ cetools npc --seed table-of-twelve --count 3
+Scout Riley Poma	5887BA	Age 22
+Scout (1 term)	Cr20,000
+Advocate-0, Electronics-1, Gambler-0, Gun Combat (Archery)-0, Gunnery (Turret Weapons)-0, Mechanic-0, Medicine-0, Navigation-0, Piloting-0, Survival-1, Vehicle (Tracked Vehicle)-0
+
+Flight Lieutenant Jules Gupta	68A868	Age 22
+Aerospace Defense (1 term)	Cr0
+Admin-0, Electronics-0, Flyer-1, Gun Combat (Energy Rifle)-0, Gunnery (Spinal Mounts)-0, Gunnery (Turret Weapons)-1, Mechanic-0, Vehicle (Tracked Vehicle)-0, Vehicle (Wheeled Vehicle)-0
+Personal Vehicle
+
+Captain Eden Perry	9A6636	Age 26
+Marine (2 terms)	Cr15,000
+Athletics-0, Gun Combat (Energy Rifle)-0, Gun Combat (Slug Pistol)-0, Gun Combat (Slug Rifle)-1, Melee Combat (Piercing Weapons)-1, Melee Combat (Slashing Weapons)-0, Recon-1, Vehicle (Tracked Vehicle)-0, Zero-G-0
+```
+
+A batch of one is byte-identical to the single character of that seed, and
+the same seed reproduces the whole batch: quoting a batch member's own
+seed (printed with `--json`) back to `--seed` regenerates that one person
+alone. `--name` supplies a name verbatim instead of rolling one, and
+changes nothing else about the character the seed produces; it cannot be
+combined with `--count` above 1, since a personal name names one
+character.
 
 `check` resolves against the rules data packaged with `cetools`: a task
 definition, three registries of names, the universal chargen tables, eight

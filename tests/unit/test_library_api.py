@@ -49,6 +49,14 @@ def _navy_source() -> str:
     )
 
 
+def _chargen_parameters_source() -> str:
+    return (
+        resources.files("cetools.data.chargen")
+        .joinpath("chargen-parameters.toml")
+        .read_text(encoding="utf-8")
+    )
+
+
 def test_load_rules_and_validate_rules_agree_on_the_packaged_set():
     rules = cetools.load_rules()
     report = cetools.validate_rules()
@@ -176,6 +184,59 @@ def test_check_result_and_validation_report_render_in_every_format():
     assert "Rules data is valid." in cetools.as_text(report)
     assert cetools.as_dict(report)["valid"] is True
     assert json.loads(cetools.as_json(report))["valid"] is True
+
+
+def test_generate_character_and_generate_batch_reached_from_the_library():
+    """SC-017 for `003-npc-generator`'s two generation entry points."""
+    rules = cetools.load_rules()
+    character = cetools.generate_character(cetools.Roller("session-alpha"), rules)
+    assert isinstance(character, cetools.Character)
+    assert character.name
+
+    batch = cetools.generate_batch("table-of-twelve", rules, count=3)
+    assert isinstance(batch, cetools.CharacterBatch)
+    assert len(batch.characters) == 3
+    assert all(isinstance(c, cetools.Character) for c in batch.characters)
+
+
+def test_a_supplied_name_and_batchs_two_refusals_reached_from_the_library():
+    rules = cetools.load_rules()
+    named = cetools.generate_character(cetools.Roller("session-alpha"), rules, name="Kestrel Vane")
+    assert named.name == "Kestrel Vane"
+    assert named.given_name == "" and named.surname == ""
+
+    with pytest.raises(cetools.CetoolsError):
+        cetools.generate_batch("table-of-twelve", rules, count=0)
+    with pytest.raises(cetools.CetoolsError):
+        cetools.generate_batch("table-of-twelve", rules, count=2, name="Kestrel Vane")
+
+
+def test_character_and_character_batch_render_in_every_format():
+    rules = cetools.load_rules()
+    character = cetools.generate_character(cetools.Roller("session-alpha"), rules)
+    batch = cetools.generate_batch("session-alpha", rules, count=1)
+
+    assert cetools.as_text(character) != cetools.as_text(character, full=True)
+    assert cetools.as_dict(character)["name"] == character.name
+    assert json.loads(cetools.as_json(character))["name"] == character.name
+
+    assert cetools.as_text(batch)
+    assert cetools.as_text(batch, full=True) != cetools.as_text(batch)
+    assert cetools.as_dict(batch)["characters"][0] == cetools.as_dict(batch.characters[0])
+    assert json.loads(cetools.as_json(batch))["seed"] == str(batch.seed)
+
+
+def test_a_house_rule_reaches_generate_character(tmp_path):
+    parameters = _chargen_parameters_source()
+    assert "cap = 7" in parameters
+    (tmp_path / "chargen-parameters.toml").write_text(
+        parameters.replace("cap = 7", "cap = 1", 1), encoding="utf-8"
+    )
+    rules = cetools.load_rules(tmp_path)
+    assert rules.chargen.terms_cap == 1
+
+    character = cetools.generate_character(cetools.Roller("session-alpha"), rules)
+    assert sum(service.terms for service in character.careers) <= 1
 
 
 class TestPublicSurfaceMatchesTheContract:

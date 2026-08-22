@@ -124,7 +124,7 @@ every name it uses against a registry.
 |---|---|---|
 | **I. Library-First** | All game logic in importable modules; CLI contains none | **PASS**. The walk, the character, the name roll, the seed derivation, and all three renderings live in the library. `cli.py` gains option parsing, two usage-error checks, a stream split, and an exit code. SC-017 requires every capability exercised by a test that never invokes the command line. |
 | **II. CLI Text I/O** | Every capability reachable from CLI; both output modes; stdout/stderr split; meaningful exit codes | **PASS**, and this feature sharpens the split rather than merely honoring it. FR-051 puts the seed, version, and provenance on stderr in text mode so a redirected stdout is exactly a character sheet; in JSON mode they sit in the document and stderr is silent, so the stream is not split (spec Assumptions). Exit 0/1/2, no new code. |
-| **III. Test-First** | Tests written first, confirmed failing, then implementation | **PASS, and this time in the committed evidence.** The previous feature recorded a deviation here: the work was test-first but the history did not show it. SC-016 requires expected values committed in a change that precedes the implementing change. The build order below is written as test-commit-then-implement pairs for exactly this reason, and it is the one procedural debt this feature is paying off. |
+| **III. Test-First** | Tests written first, confirmed failing, then implementation | **PASS in the work, NOT fully in the committed evidence.** The intent was to close the previous feature's recorded deviation; most of the build order does land as test-commit-then-implement pairs, but not all of it. See Recorded Deviation below. |
 | **IV. Seed-Reproducible** | Seed accepted everywhere; same seed and version give same output; no unseeded randomness | **PASS**, and it is most of what this feature is. FR-056 forbids the clock, the environment, the locale, and unordered-collection traversal order. Three separate guards apply: the existing module-`random` guard (which `generate_character` must be added to), the new no-`locale` guard, and SC-012's cross-locale comparison. |
 | **V. Data-Driven Rules** | SRD content in data files, none hard-coded | **PASS**, and FR-038 states the obligation as an enumerated list rather than a principle, which is what makes SC-013 able to fail. The one thing engine code knows is the *shape* of the walk; every number in it is read. |
 | **VI. Simplicity** | YAGNI; stdlib preferred; runtime dependencies justified | **PASS with three recorded tensions**; see Complexity Tracking. |
@@ -166,6 +166,47 @@ time they are not all Open Game Content. Concretely:
 **Post-Phase-1 re-check**: still **PASS**. The Phase 1 design added no runtime dependency
 and no hard-coded rules content. Four new modules is the largest structural addition and is
 recorded in Complexity Tracking rather than passing unnoticed.
+
+## Recorded Deviation: SC-016's committed separation, again incomplete
+
+`002-rules-data-loading` recorded exactly this deviation and this feature's build order was
+written to close it. T139's audit of the finished branch (`/speckit-implement` Phase 7) found
+it is closed for most of the feature but not all of it. Named so a reviewer does not have to
+rediscover it:
+
+- `460fe0b` (T014/T015, characteristic classes and the pseudo-hex profile) lands 188 lines of
+  new `test_registries.py` cases in the same commit as the 208-line implementation, despite
+  the commit's own message asserting "Test-first: 42 cases... precede this implementation."
+  They do not precede it; they are beside it.
+- `f108ec9` (T034–T038 and T039–T055, loader integration and the eighteen Open Game Content
+  data files) lands T034's, T036's, and T038's test additions to `test_rules.py`,
+  `test_validation_categories.py`, and `test_rules_agreement.py` in the same commit as the
+  T035/T037 implementation and all eighteen data files.
+- `14136ab` (T056–T062, the GPL-3.0 designation and the narrowed notice) lands T056's
+  additions to `test_licensing.py` in the same commit as the licensing implementation the test
+  is meant to precede.
+- `448e792` (T063–T073, the shipped name tables) lands T072's new `test_name_tables.py` in
+  the same commit as the data authoring and the `rules.py` wiring.
+- `c58d7f4` (T074/T075, the produced-value types) lands the 246-line new `test_character.py`
+  in the same commit as the 178-line `character.py` implementation.
+- `4a40892` (T094–T106, the generator and the `npc` command) is the sharpest instance: it
+  bundles a fresh `test_generator.py` with the 1,162-line walk implementation, and it lands
+  *before* `fc530fba`, `4d4bafe`, and `48a107c` — the commits carrying the goldens, the CLI
+  behavioral suite, and the sampled and property audits that Phase 3's task order requires to
+  precede it.
+
+Splitting each of those commits after the fact was considered and declined, for the same
+reason `002-rules-data-loading` declined it: reconstructing a red state after the work is done
+produces a history that asserts test-first exactly as much as the present one does, at the
+cost of rewriting commits already on this branch.
+
+**What this costs, concretely**: SC-016 is not satisfied by the git history at these six
+points. Treat it as open there. Every behavior these commits cover was in fact written against
+a test observed failing first — the discipline held in practice — but the history does not
+carry the evidence for it. The remedy remains procedural and belongs to whatever feature
+follows: a task whose test and implementation would otherwise land together is worth pausing
+on mid-task to commit the red test alone, not only planning the commit split in advance and
+then dropping it under the pressure of a long combined task.
 
 ## Project Structure
 
