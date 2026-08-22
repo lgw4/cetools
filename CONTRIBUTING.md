@@ -143,6 +143,12 @@ Line length is 99 for both black and flake8; isort uses the black profile.
 CI (`.github/workflows/ci.yaml`) runs `uv run pytest` on Linux, macOS, and
 Windows against Python 3.13 and 3.14. All six jobs must pass.
 
+Some tests exercise a large sampled population (a thousand seeds, ten
+thousand rolled names) and are marked `slow`. Run `uv run pytest -m "not
+slow"` as the inner loop after each step so the suite stays fast enough to
+run that often; run the full `uv run pytest` before every commit and rely on
+CI to run it unconditionally.
+
 `pyproject.toml` also carries a `[tool.rumdl]` section, configuring the
 [rumdl](https://github.com/rvben/rumdl) markdown linter for this repository:
 GitHub-flavored markdown, line length off, and the vendored `.claude` and

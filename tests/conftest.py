@@ -220,6 +220,19 @@ def read_golden():
 
 
 @pytest.fixture
+def read_golden_bytes():
+    """Read a golden file as raw bytes, so a tab or a CRLF it pins is not
+    normalized away the way ``Path.read_text``'s universal-newline mode
+    would normalize it."""
+    golden_dir = Path(__file__).resolve().parent / "golden"
+
+    def _read(name: str) -> bytes:
+        return (golden_dir / name).read_bytes()
+
+    return _read
+
+
+@pytest.fixture
 def normalize_version():
     """Substitute VERSION_PLACEHOLDER in golden/fixture text with the installed version."""
     from importlib.metadata import version

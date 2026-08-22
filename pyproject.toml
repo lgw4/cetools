@@ -66,4 +66,5 @@ testpaths = ["tests"]
 markers = [
     "needs_posix_special_files: builds a FIFO or points at a device node",
     "needs_enforced_chmod: needs chmod(0o000) to actually deny access",
+    "slow: exercises a large sampled population; excluded from the inner loop",
 ]

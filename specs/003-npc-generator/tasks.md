@@ -41,9 +41,9 @@ Single project: `src/cetools/`, `tests/` at repository root.
 
 **Purpose**: Test-harness affordances the rest of the feature depends on.
 
-- [ ] T001 [P] Register the `slow` marker in `pyproject.toml` beside the two existing markers, and document `uv run pytest -m "not slow"` as the inner loop (research R14)
-- [ ] T002 [P] Add a `tests/golden/npc_*.txt` rule to `.gitattributes` pinning LF and marking the files binary-safe so no tool rewrites their tabs or line endings (research R7)
-- [ ] T003 Add a `read_golden_bytes` fixture to `tests/conftest.py` that reads a golden file with `Path.read_bytes()`, leaving the existing `read_golden` untouched (research R7)
+- [X] T001 [P] Register the `slow` marker in `pyproject.toml` beside the two existing markers, and document `uv run pytest -m "not slow"` as the inner loop (research R14)
+- [X] T002 [P] Add a `tests/golden/npc_*.txt` rule to `.gitattributes` pinning LF and marking the files binary-safe so no tool rewrites their tabs or line endings (research R7)
+- [X] T003 Add a `read_golden_bytes` fixture to `tests/conftest.py` that reads a golden file with `Path.read_bytes()`, leaving the existing `read_golden` untouched (research R7)
 
 ---
 
