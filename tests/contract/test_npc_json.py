@@ -17,7 +17,7 @@ from cetools.character import (
     StepThrow,
 )
 from cetools.provenance import Provenance
-from cetools.render import as_dict, as_json
+from cetools.render import as_dict, as_json, as_text
 from cetools.tasks import Modifier
 
 _VERSION = version("cetools")
@@ -146,8 +146,19 @@ def test_specialty_is_null_never_empty_string():
 
 
 def test_skills_are_sorted_the_way_the_sheet_sorts_them():
-    names = [skill["name"] for skill in as_dict(_BATCH)["characters"][0]["skills"]]
-    assert names == sorted(names, key=str.casefold)
+    # Compared against the sheet itself, not against an independently sorted
+    # copy of the JSON names: a case where the label alone and the rendered
+    # "label-level" string disagree on order (T154, contracts/cli.md's "over
+    # the rendered name-and-specialty") would pass a self-referential
+    # `sorted(names, key=str.casefold)` check while actually disagreeing
+    # with `as_text`.
+    sheet_line3 = as_text(_CHARACTER).split("\n")[2]
+    sheet_labels = [entry.rsplit("-", 1)[0] for entry in sheet_line3.split(", ")]
+    json_labels = [
+        skill["name"] if skill["specialty"] is None else f"{skill['name']} ({skill['specialty']})"
+        for skill in as_dict(_BATCH)["characters"][0]["skills"]
+    ]
+    assert json_labels == sheet_labels
 
 
 def test_career_service_key_order():

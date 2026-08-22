@@ -295,6 +295,22 @@ class TestUniversalCharacterFormat:
             "Navigation-2, Tactics-1, Vehicle-0, Zero-G-1"
         )
 
+    def test_skills_sorted_by_label_not_by_label_and_level(self):
+        # `"Gun Combat"` is a prefix of `"Gun Combat (Slug Rifle)"`, so the
+        # shorter label sorts first (contracts/cli.md: sorted "over the
+        # rendered name-and-specialty"). Appending "-{level}" before sorting
+        # would compare "gun combat (slug rifle)-0" against "gun combat-1"
+        # instead, where the space in "(Slug..." (0x20) sorts before the
+        # hyphen in "-1" (0x2D) and reverses the order (T154).
+        character = _character(
+            skills=_skills(
+                ("Gun Combat", None, 1),
+                ("Gun Combat", "Slug Rifle", 0),
+            ),
+        )
+        line3 = as_text(character).split("\n")[2]
+        assert line3 == "Gun Combat-1, Gun Combat (Slug Rifle)-0"
+
     def test_cascade_specialization_qualified_by_parent(self):
         line3 = as_text(CASCADE).split("\n")[2]
         assert "Vehicle (Aircraft)-1" in line3
