@@ -301,6 +301,17 @@ def _require_int(
     return value
 
 
+# Kind to parse function, one entry per single-instance kind. A table rather
+# than a repeated if-block, so the kind count can go from four to eleven
+# without repeating the same four lines seven more times.
+_SINGLETON_PARSERS = {
+    "task-parameters": parse_task_parameters,
+    "characteristics": parse_characteristics,
+    "skills": parse_skills,
+    "benefits": parse_benefits,
+}
+
+
 # --- discovery ---------------------------------------------------------------
 
 
@@ -711,29 +722,19 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
         else:
             resolved_singleton[kind] = declarers[0]
 
-    task_parameters: TaskParameters | None = None
-    if "task-parameters" in resolved_singleton:
-        basename = resolved_singleton["task-parameters"]
-        task_parameters, sub_problems = parse_task_parameters(parsed[basename][1], basename)
+    singletons: dict[str, object] = {}
+    for kind, parser in _SINGLETON_PARSERS.items():
+        if kind not in resolved_singleton:
+            continue
+        basename = resolved_singleton[kind]
+        value, sub_problems = parser(parsed[basename][1], basename)
         problems.extend(sub_problems)
+        singletons[kind] = value
 
-    characteristics: CharacteristicRegistry | None = None
-    if "characteristics" in resolved_singleton:
-        basename = resolved_singleton["characteristics"]
-        characteristics, sub_problems = parse_characteristics(parsed[basename][1], basename)
-        problems.extend(sub_problems)
-
-    skills: SkillRegistry | None = None
-    if "skills" in resolved_singleton:
-        basename = resolved_singleton["skills"]
-        skills, sub_problems = parse_skills(parsed[basename][1], basename)
-        problems.extend(sub_problems)
-
-    benefits: BenefitRegistry | None = None
-    if "benefits" in resolved_singleton:
-        basename = resolved_singleton["benefits"]
-        benefits, sub_problems = parse_benefits(parsed[basename][1], basename)
-        problems.extend(sub_problems)
+    task_parameters: TaskParameters | None = singletons.get("task-parameters")
+    characteristics: CharacteristicRegistry | None = singletons.get("characteristics")
+    skills: SkillRegistry | None = singletons.get("skills")
+    benefits: BenefitRegistry | None = singletons.get("benefits")
 
     # Career validation proceeds even when a registry is missing or invalid,
     # against an empty substitute, so every reference cascades into its own
