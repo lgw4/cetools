@@ -12,6 +12,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from cetools.errors import RulesDataError, ValidationProblem, type_name
+from cetools.notation import EntryContext, NotationProblem, SkillGrant, parse_entry
+from cetools.registries import SkillRegistry, SkillResolution
 from cetools.tasks import _check_dice
 
 _HEADER_KEYS = frozenset({"schema", "schema-version"})
@@ -731,6 +733,123 @@ def parse_mishap_table(
             rows=tuple(MishapRow(description=d, effects=e) for d, e in mishaps),
             injury_roll=injury_roll,
             injuries=tuple(InjuryRow(description=d, effects=e) for d, e in injuries),
+        ),
+        (),
+    )
+
+
+# --- background-skills (contracts/data-files.md) -----------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class BackgroundSkills:
+    """The homeworld draw is uniform over the concatenation of `law_level`
+    and `trade_code`; duplicates within and across those two lists are
+    preserved and meaningful (research R5): a skill named by three trade
+    codes is three times as likely as one named by a single code.
+    """
+
+    law_level: tuple[SkillGrant, ...]
+    trade_code: tuple[SkillGrant, ...]
+    education: tuple[SkillGrant, ...]
+
+
+def _parse_skill_grant(
+    text: object, file: str, location: str, skills: SkillRegistry
+) -> tuple[SkillGrant | None, ValidationProblem | None]:
+    if not isinstance(text, str):
+        return None, ValidationProblem(
+            file=file, location=location, found=type_name(text), expected="a notation string"
+        )
+
+    parsed = parse_entry(text, EntryContext.SKILL_TABLE)
+    if isinstance(parsed, NotationProblem):
+        return None, ValidationProblem(
+            file=file, location=location, found=parsed.found, expected=parsed.expected
+        )
+    if not isinstance(parsed, SkillGrant):
+        return None, ValidationProblem(
+            file=file,
+            location=location,
+            found=text,
+            expected="a skill granted at an explicit level, e.g. 'Gun Combat 0'",
+        )
+
+    resolution = skills.resolve(parsed.skill)
+    if resolution is SkillResolution.VALID:
+        return parsed, None
+    reference = parsed.skill
+    if resolution is SkillResolution.UNRECOGNIZED_SKILL:
+        found = (
+            f"{reference.name} ({reference.specialty})"
+            if reference.specialty is not None
+            else reference.name
+        )
+        expected = "a name in the skills registry"
+    elif resolution is SkillResolution.SPECIALTY_NOT_ALLOWED:
+        found = f"{reference.name} ({reference.specialty})"
+        expected = f"a bare {reference.name}: the skills registry gives it no specialties"
+    else:
+        found = f"{reference.name} ({reference.specialty})"
+        expected = f"a specialty the skills registry gives {reference.name}"
+    return None, ValidationProblem(file=file, location=location, found=found, expected=expected)
+
+
+def _parse_skill_grant_list(
+    raw: object, file: str, location: str, skills: SkillRegistry
+) -> tuple[tuple[SkillGrant, ...] | None, list[ValidationProblem]]:
+    if not isinstance(raw, list) or not raw:
+        found = type_name(raw) if not isinstance(raw, list) else "an empty array"
+        return None, [
+            ValidationProblem(
+                file=file, location=location, found=found, expected="at least one entry"
+            )
+        ]
+
+    problems: list[ValidationProblem] = []
+    grants: list[SkillGrant] = []
+    ok = True
+    for index, item in enumerate(raw):
+        grant, problem = _parse_skill_grant(item, file, f"{location}[{index}]", skills)
+        if problem is not None:
+            problems.append(problem)
+            ok = False
+        else:
+            grants.append(grant)
+    if not ok:
+        return None, problems
+    return tuple(grants), problems
+
+
+def parse_background_skills(
+    data: Mapping[str, object], file: str, skills: SkillRegistry
+) -> tuple[BackgroundSkills | None, tuple[ValidationProblem, ...]]:
+    problems: list[ValidationProblem] = []
+    problems.extend(
+        _unrecognized_key_problems(
+            data, _HEADER_KEYS | {"law-level", "trade-code", "education"}, file
+        )
+    )
+
+    lists: dict[str, tuple[SkillGrant, ...] | None] = {}
+    for key in ("law-level", "trade-code", "education"):
+        if key not in data:
+            problems.append(
+                ValidationProblem(file=file, location=key, found="missing", expected="an array")
+            )
+            lists[key] = None
+            continue
+        parsed, sub_problems = _parse_skill_grant_list(data[key], file, key, skills)
+        problems.extend(sub_problems)
+        lists[key] = parsed
+
+    if problems or any(value is None for value in lists.values()):
+        return None, tuple(problems)
+    return (
+        BackgroundSkills(
+            law_level=lists["law-level"],
+            trade_code=lists["trade-code"],
+            education=lists["education"],
         ),
         (),
     )

@@ -379,7 +379,9 @@ class TestBackgroundSkills:
         return data
 
     def test_parses_valid_file(self):
-        table, problems = parse_background_skills(self._data(), "background-skills.toml", self.SKILLS)
+        table, problems = parse_background_skills(
+            self._data(), "background-skills.toml", self.SKILLS
+        )
         assert problems == ()
         assert isinstance(table, BackgroundSkills)
         assert len(table.law_level) == 3
