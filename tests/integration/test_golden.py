@@ -4,6 +4,9 @@ import pytest
 from typer.testing import CliRunner
 
 from cetools.cli import app
+from cetools.generator import generate_batch
+from cetools.render import as_text
+from cetools.rules import load_rules
 
 runner = CliRunner()
 
@@ -232,3 +235,18 @@ def test_the_readme_shows_what_the_command_actually_prints(documented):
     result = runner.invoke(app, README_EXAMPLES[documented])
     assert result.exit_code == 0
     assert _readme_blocks()[documented] == result.stdout
+
+
+def test_npc_stdout_is_the_renderers_own_output_plus_one_newline(read_golden_bytes):
+    """T106: the command's stdout is a derivation from the renderer, not a
+    second expectation. The six committed `npc_*.txt` references are wired
+    against `as_text` directly in `tests/unit/test_render_character.py`; this
+    is the one assertion that ties the *command* to them, checkable without
+    a captured expectation.
+    """
+    result = runner.invoke(app, ["npc", "--seed", "session-alpha"])
+    assert result.exit_code == 0
+    rules = load_rules()
+    batch = generate_batch("session-alpha", rules, count=1)
+    expected = as_text(batch.characters[0]).encode("utf-8") + b"\n"
+    assert result.stdout.encode("utf-8") == expected
