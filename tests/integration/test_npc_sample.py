@@ -50,6 +50,10 @@ class TestAlwaysLivingAndConsistency:
             assert {service.career for service in character.careers} <= entered_careers
 
     def test_sc005_every_field_traces_to_a_history_step(self, sample):
+        """Every characteristic, skill, career, credit, and item on a sheet
+        traces to a step (US2 goal), read from the steps' named parts and
+        never from rendered text.
+        """
         for character in sample:
             skill_effects = {
                 effect.subject
@@ -62,6 +66,37 @@ class TestAlwaysLivingAndConsistency:
                     skill.name if skill.specialty is None else f"{skill.name} ({skill.specialty})"
                 )
                 assert label in skill_effects
+
+            characteristic_effects = {
+                effect.subject
+                for step in character.history
+                for effect in step.effects
+                if effect.kind == "characteristic"
+            }
+            assert set(character.characteristics) <= characteristic_effects
+
+            entered_careers = {
+                step.career for step in character.history if step.kind == "career-entered"
+            }
+            assert {service.career for service in character.careers} <= entered_careers
+
+            credit_effects = [
+                effect
+                for step in character.history
+                for effect in step.effects
+                if effect.kind == "credits"
+            ]
+            if character.funds > 0:
+                assert credit_effects
+
+            benefit_effects = {
+                effect.subject
+                for step in character.history
+                for effect in step.effects
+                if effect.kind == "benefit"
+            }
+            for item in character.benefits:
+                assert item in benefit_effects
 
 
 class TestSpreadAndCoverage:

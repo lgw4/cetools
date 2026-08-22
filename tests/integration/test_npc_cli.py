@@ -1,7 +1,8 @@
-"""FR-051, FR-053c, FR-054, SC-012: the `npc` command's streams, exit
-codes, and cross-locale behavior.
+"""FR-051, FR-053c, FR-053d, FR-054, SC-012: the `npc` command's streams,
+exit codes, and cross-locale behavior.
 """
 
+import json
 import os
 import re
 import subprocess
@@ -52,6 +53,38 @@ def test_an_empty_or_whitespace_only_name_is_a_usage_error():
     result = runner.invoke(app, ["npc", "--name", "   "])
     assert result.exit_code == 2
     assert result.stdout == ""
+
+
+def test_json_standard_error_is_silent_on_success():
+    result = runner.invoke(app, ["npc", "--seed", "session-alpha", "--json"])
+    assert result.exit_code == 0
+    assert result.stderr == ""
+
+
+def test_json_carries_the_seed_version_and_provenance_in_document():
+    result = runner.invoke(app, ["npc", "--seed", "session-alpha", "--json"])
+    payload = json.loads(result.stdout)
+    assert payload["kind"] == "npc"
+    assert payload["seed"]
+    assert payload["provenance"]["version"]
+
+
+def test_full_with_json_is_accepted_and_changes_nothing():
+    with_full = runner.invoke(app, ["npc", "--seed", "session-alpha", "--json", "--full"])
+    without_full = runner.invoke(app, ["npc", "--seed", "session-alpha", "--json"])
+    assert with_full.exit_code == 0
+    assert with_full.stdout == without_full.stdout
+
+
+def test_json_never_changes_an_exit_code():
+    ok = runner.invoke(app, ["npc", "--seed", "session-alpha", "--json"])
+    assert ok.exit_code == 0
+
+    load_failure = runner.invoke(app, ["npc", "--rules-data", "/does/not/exist", "--json"])
+    assert load_failure.exit_code == 2
+
+    usage_error = runner.invoke(app, ["npc", "--name", "   ", "--json"])
+    assert usage_error.exit_code == 2
 
 
 def _run_in_subprocess(locale_name: str) -> subprocess.CompletedProcess:

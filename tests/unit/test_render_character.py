@@ -7,8 +7,18 @@ implementation they check, not a captured one (T091). The six references
 these characters render to are `tests/golden/npc_*.txt`, compared as bytes.
 """
 
-from cetools.character import CareerService, Character, CharacterSkill, HistoryStep
+import dataclasses
+
+from cetools.character import (
+    CareerService,
+    Character,
+    CharacterSkill,
+    HistoryStep,
+    StepEffect,
+    StepThrow,
+)
 from cetools.render import as_text
+from cetools.tasks import Modifier
 
 _DUMMY_HISTORY = (
     HistoryStep(kind="characteristics", career="", term=0, throw=None, selected="", effects=()),
@@ -171,6 +181,83 @@ CASCADE = _character(
 )
 
 
+_FULL_HISTORY = (
+    HistoryStep(
+        kind="characteristics",
+        career="",
+        term=0,
+        throw=None,
+        selected="",
+        effects=(
+            StepEffect(kind="characteristic", subject="STR", amount=8),
+            StepEffect(kind="characteristic", subject="DEX", amount=7),
+            StepEffect(kind="characteristic", subject="END", amount=9),
+            StepEffect(kind="characteristic", subject="INT", amount=6),
+            StepEffect(kind="characteristic", subject="EDU", amount=5),
+            StepEffect(kind="characteristic", subject="SOC", amount=4),
+        ),
+    ),
+    HistoryStep(
+        kind="qualification",
+        career="Navy",
+        term=1,
+        throw=StepThrow(
+            faces=(2, 5),
+            modifiers=(Modifier(label="Characteristic 6", value=1),),
+            total=8,
+            target=6,
+            success=True,
+        ),
+        selected="",
+        effects=(),
+    ),
+    HistoryStep(
+        kind="career-entered", career="Navy", term=1, throw=None, selected="selected", effects=()
+    ),
+    HistoryStep(
+        kind="mishap",
+        career="Navy",
+        term=2,
+        throw=StepThrow(faces=(3, 2), modifiers=(), total=5, target=0, success=True),
+        selected="Injury",
+        effects=(),
+    ),
+    HistoryStep(
+        kind="mishap",
+        career="Navy",
+        term=2,
+        throw=None,
+        selected="",
+        effects=(StepEffect(kind="debt", subject="", amount=1200),),
+    ),
+)
+
+FULL = _character(
+    name="Jonah Vance",
+    title="Sergeant",
+    characteristics={"STR": 8, "DEX": 7, "END": 9, "INT": 6, "EDU": 5, "SOC": 4},
+    age=26,
+    funds=4000,
+    debt=1200,
+    careers=(
+        _service(
+            career="Navy",
+            terms=2,
+            ladder="enlisted",
+            rank=0,
+            title="",
+            commissioned=False,
+            entered_by="selected",
+            ended="term cap",
+            benefit_rolls=2,
+        ),
+    ),
+    skills=_skills(("Gunnery", None, 1)),
+    benefits=("Weapon",),
+    history=_FULL_HISTORY,
+)
+
+
 class TestUniversalCharacterFormat:
     def test_four_lines_one_tab_between_fields(self):
         text = as_text(TITLED)
@@ -253,3 +340,76 @@ def test_goldens(read_golden_bytes):
         ("npc_cascade.txt", CASCADE),
     ):
         assert as_text(character).encode("utf-8") == read_golden_bytes(filename), filename
+
+
+class TestFullerSheet:
+    """`--full` (contracts/cli.md FR-049): the Universal Character Format,
+    a blank line, then what the format has nowhere to put.
+    """
+
+    def test_starts_with_the_universal_character_format_then_a_blank_line(self):
+        text = as_text(FULL, full=True)
+        base_lines = as_text(FULL).split("\n")
+        full_lines = text.split("\n")
+        assert full_lines[: len(base_lines)] == base_lines
+        assert full_lines[len(base_lines)] == ""
+
+    def test_debt_reads_the_amount_and_pension_reads_none_rather_than_cr0(self):
+        text = as_text(FULL, full=True)
+        assert "  Debt:    Cr1,200" in text
+        assert "  Pension: none" in text
+
+    def test_history_heading_and_one_line_per_step(self):
+        text = as_text(FULL, full=True)
+        assert "  History:" in text
+        lines = text.split("\n")
+        heading = lines.index("  History:")
+        history_lines = lines[heading + 1 :]
+        assert len(history_lines) == len(FULL.history)
+
+    def test_each_history_line_is_composed_from_the_steps_named_parts(self):
+        lines = as_text(FULL, full=True).split("\n")
+        heading = lines.index("  History:")
+        history_lines = lines[heading + 1 :]
+        # "qualification": a throw with an itemized modifier, a total that
+        # differs from the raw dice sum, and a target and outcome.
+        qualification = next(line for line in history_lines if "qualification" in line)
+        assert "2, 5 (sum 7)" in qualification
+        assert "Characteristic 6 +1" in qualification
+        assert "= 8 vs 6  SUCCESS" in qualification
+        # "career-entered": selected only, no throw and no effects.
+        entered = next(line for line in history_lines if "career-entered" in line)
+        assert entered.endswith("selected")
+        # A mishap effect carries the debt amount, composed from its kind,
+        # subject, and amount rather than a stored line.
+        debt_line = next(line for line in history_lines if "Cr1,200 debt" in line)
+        assert debt_line
+
+    def test_columns_padded_to_the_longest_value_present(self):
+        lines = as_text(FULL, full=True).split("\n")
+        heading = lines.index("  History:")
+        history_lines = lines[heading + 1 :]
+        kind_width = max(len(step.kind) for step in FULL.history)
+        for line in history_lines:
+            # Every kind column starts at the same offset, so the character
+            # immediately after it — whatever comes next — lines up too.
+            assert line[4 : 4 + kind_width].rstrip() in {step.kind for step in FULL.history}
+
+    def test_no_field_of_a_history_step_holds_a_line_composed_from_its_other_parts(self):
+        # FR-030a is checkable from the record's shape: `HistoryStep` carries
+        # only `kind`, `career`, `term`, `throw`, `selected`, and `effects` —
+        # no field meant to hold prose composed elsewhere, unlike
+        # `MishapRow.description`, which is a source-material label rather
+        # than a rendering of a step.
+        assert [f.name for f in dataclasses.fields(HistoryStep)] == [
+            "kind",
+            "career",
+            "term",
+            "throw",
+            "selected",
+            "effects",
+        ]
+
+
+def test_full_golden(read_golden_bytes):
+    assert as_text(FULL, full=True).encode("utf-8") == read_golden_bytes("npc_full.txt")
