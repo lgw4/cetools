@@ -4,7 +4,7 @@ from unittest.mock import patch
 import pytest
 
 from cetools.errors import DiceError
-from cetools.seeds import resolve_seed, rng_seed
+from cetools.seeds import derive_seed, resolve_seed, rng_seed
 
 
 def test_none_draws_64_bits_from_secrets():
@@ -120,3 +120,48 @@ def test_rng_seed_is_deterministic_for_the_same_negative_seed():
 
 def test_rng_seed_distinguishes_negative_seeds_from_one_another():
     assert rng_seed(-5) != rng_seed(-6)
+
+
+# --- derive_seed: batch positions and the name stream (research R2) ---
+
+
+def test_derive_seed_is_stable_across_runs():
+    # No literal from an earlier run to pin against yet, so stability is
+    # checked by calling it twice rather than against a published constant —
+    # the same guarantee resolve_seed's own "session-alpha" test states
+    # differently because that one has a value to pin.
+    assert derive_seed(1, "name") == derive_seed(1, "name")
+
+
+def test_derive_seed_returns_a_non_negative_value_resolve_seed_accepts():
+    derived = derive_seed(14333185781139156525, "name")
+    assert isinstance(derived, int)
+    assert derived >= 0
+    assert resolve_seed(derived) == derived
+
+
+def test_derive_seed_round_trips_as_a_decimal_string():
+    derived = derive_seed(14333185781139156525, "name")
+    assert resolve_seed(str(derived)) == derived
+
+
+def test_derive_seed_distinguishes_different_parts():
+    assert derive_seed(1, "name") != derive_seed(1, "given-name")
+    assert derive_seed(1, 0) != derive_seed(1, 1)
+
+
+def test_derive_seed_distinguishes_different_master_seeds():
+    assert derive_seed(1, "name") != derive_seed(2, "name")
+
+
+def test_derive_seed_folds_through_the_same_digest_as_a_text_seed():
+    # research R2 requires derive_seed to reuse the existing blake2b fold
+    # rather than introduce a second digest; pinned here by reaching the
+    # module's own fold rather than by re-deriving the algorithm.
+    from cetools.seeds import _fold
+
+    assert derive_seed(1, "name") == _fold("1\x1fname")
+
+
+def test_derive_seed_accepts_int_and_string_parts():
+    assert derive_seed(1, 2, "three") == derive_seed(1, 2, "three")
