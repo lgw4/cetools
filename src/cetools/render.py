@@ -295,7 +295,7 @@ def _effect_text(effect: StepEffect) -> str:
     `amount` (FR-030a) rather than read from a stored prose field.
     """
     match effect.kind:
-        case "characteristic" | "skill" | "rank":
+        case "characteristic" | "skill":
             return f"{effect.subject} {effect.amount}"
         case "credits":
             return f"Cr{effect.amount:,}"
@@ -303,13 +303,7 @@ def _effect_text(effect: StepEffect) -> str:
             return f"Cr{effect.amount:,} debt"
         case "pension":
             return f"Cr{effect.amount:,} pension"
-        case "age":
-            return f"+{effect.amount} years"
-        case "commission":
-            return "commissioned"
-        case "benefit-roll-forfeit":
-            return "benefit roll forfeited"
-        case "career" | "benefit":
+        case "benefit":
             return effect.subject if effect.amount == 0 else f"{effect.subject} {effect.amount}"
         case _:
             return effect.subject

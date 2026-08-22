@@ -284,3 +284,10 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   characteristics were restored and by how much, per debt, per call; the
   crisis-creation step is renamed `medical-crisis` so `debt-settled` names
   only real settlement (FR-025a, FR-030, T144, T157).
+- **Five `StepEffect` kinds — `age`, `rank`, `commission`, `career`,
+  `benefit-roll-forfeit` — were declared and never produced.** `render.py`
+  carried a rendering case for each, but the walk never constructed one, so
+  the cases were dead code reachable only in principle. Dropped from the
+  closed set: `career` is already traceable through `HistoryStep.career`
+  and `.selected` without a duplicate effect, and none of the five appears
+  in FR-030's enumerated list of what must trace to a step (T151).

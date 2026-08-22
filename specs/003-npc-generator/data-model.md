@@ -163,8 +163,16 @@ being inferred from the total.
 | `subject` | `str` | Which one: a characteristic code, a rendered skill, a career name, a benefit item's name. `""` where the effect names nothing. |
 | `amount` | `int` | The signed change, or `0` where the effect is not numeric. |
 
-Effect kinds, closed: `characteristic`, `skill`, `credits`, `benefit`, `debt`, `pension`,
-`age`, `rank`, `commission`, `career`, `benefit-roll-forfeit`.
+Effect kinds, closed: `characteristic`, `skill`, `credits`, `benefit`, `debt`, `pension`.
+
+Five kinds that were originally declared here — `age`, `rank`, `commission`, `career`,
+`benefit-roll-forfeit` — were dropped in Phase 8 convergence (T151): the walk never
+constructed a single one of them, though `render.py`'s `_effect_text` carried a rendering
+case for each. `career` in particular is already traceable through `HistoryStep.career` and
+`.selected` on the `career-entered` step without a duplicate effect, and none of the five
+appears in FR-030's enumerated list of what must trace to a step (characteristic, skill,
+career, credit, item). An effect kind is a real consequence the chain carries (FR-028), not
+a case reserved for a future one.
 
 A characteristic reduction floored at the bottom of the declared pseudo-hex range records
 two effects: the reduction the rule called for, and the amount actually applied, when they

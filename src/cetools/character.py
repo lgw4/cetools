@@ -55,11 +55,6 @@ _STEP_EFFECT_KINDS = frozenset(
         "benefit",
         "debt",
         "pension",
-        "age",
-        "rank",
-        "commission",
-        "career",
-        "benefit-roll-forfeit",
     }
 )
 
