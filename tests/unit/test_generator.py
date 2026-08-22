@@ -353,6 +353,38 @@ class TestMedicalCrisisTriggersOnlyOnAnActualReduction:
         assert walk.debts
 
 
+def _credits_steps(steps):
+    return [
+        step
+        for step in steps
+        if step.kind == "benefit" and any(e.kind == "credits" for e in step.effects)
+    ]
+
+
+class TestMusteringOut:
+    def test_the_cash_roll_cap_is_shared_across_a_characters_whole_life(self):
+        # FR-016 caps "how many of a character's rolls" may be taken as
+        # cash — a character-wide count, not one that resets with every
+        # `CareerService` mustered out. Seed 0 reaches the cap of 3 within
+        # the first of two `muster_out_service` calls on the same `_Walk`
+        # (simulating a two-career character); a per-service reset would let
+        # the second call take more cash rolls than the character-wide cap
+        # permits (T147).
+        from cetools.generator import _Walk
+
+        cap = RULES.chargen.mustering_out_maximum_cash_rolls
+        walk = _Walk(Roller(0), RULES)
+        walk.characteristics = {code: 7 for code in RULES.characteristics.names}
+        career = next(iter(RULES.careers.values()))
+
+        walk.muster_out_service(career, terms=4, ladder="", rank=0, benefit_rolls=6)
+        first_call_end = len(walk.history)
+        assert len(_credits_steps(walk.history[:first_call_end])) == cap
+
+        walk.muster_out_service(career, terms=4, ladder="", rank=0, benefit_rolls=6)
+        assert _credits_steps(walk.history[first_call_end:]) == []
+
+
 class TestCareerEndAndMultiCareer:
     def test_the_cap_forces_mustering_out_regardless(self):
         cap = RULES.chargen.terms_cap
