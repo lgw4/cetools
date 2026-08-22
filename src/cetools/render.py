@@ -10,25 +10,33 @@ from cetools.tasks import CheckResult
 _RULES_LABEL_WIDTH = len("Rules:") + 1
 
 
-def _provenance_lines(provenance: Provenance, label_width: int = _RULES_LABEL_WIDTH) -> list[str]:
+def _provenance_lines(
+    provenance: Provenance, label_width: int = _RULES_LABEL_WIDTH, indent: int = 2
+) -> list[str]:
     """The shared `Rules:` block, appended after a result's `Seed:` line and
     after a `validate` report's summary (contracts/cli.md).
 
     `label_width` lets a caller line the `Rules:` label up with sibling
     summary labels of different lengths (`Files:`, `Problems:`); it defaults
     to `Rules:`'s own width, which is what `CheckResult` needs since `Rules:`
-    is its widest label. The file column is padded to the longest name present
-    across both lists — a composition key for a file that took effect, a path
-    within the override for an ignored one — and the disposition column to the
-    longest disposition present (`"ignored"` counts as one), matching the
-    padding rule the `Modifiers` block already uses. Files that took effect
-    are listed first, already sorted by name, then ignored files, already
-    sorted by name. An ignored
-    file's line ends at the disposition: it carries no fingerprint to pad
-    toward.
+    is its widest label. `indent` is the left margin of the `Rules:` line
+    itself, in spaces; the per-file lines beneath it are always two spaces
+    further in, which is what keeps them visually nested under it whatever
+    `indent` is. It defaults to the two spaces every existing caller relies
+    on, and the npc command writes the block to stderr with no surrounding
+    result, so it passes `indent=0`. The file column is padded to the longest
+    name present across both lists — a composition key for a file that took
+    effect, a path within the override for an ignored one — and the
+    disposition column to the longest disposition present (`"ignored"` counts
+    as one), matching the padding rule the `Modifiers` block already uses.
+    Files that took effect are listed first, already sorted by name, then
+    ignored files, already sorted by name. An ignored file's line ends at the
+    disposition: it carries no fingerprint to pad toward.
     """
+    outer = " " * indent
+    inner = " " * (indent + 2)
     source = "packaged" if provenance.is_packaged else "overridden"
-    lines = [f"  {'Rules:'.ljust(label_width)}{source} (cetools {provenance.version})"]
+    lines = [f"{outer}{'Rules:'.ljust(label_width)}{source} (cetools {provenance.version})"]
 
     names = [fp.file for fp in provenance.files] + list(provenance.ignored)
     if not names:
@@ -42,11 +50,11 @@ def _provenance_lines(provenance: Provenance, label_width: int = _RULES_LABEL_WI
 
     for fp in provenance.files:
         lines.append(
-            f"    {fp.file.ljust(basename_width)}   "
+            f"{inner}{fp.file.ljust(basename_width)}   "
             f"{fp.disposition.value.ljust(disposition_width)}  {fp.fingerprint}"
         )
     for name in provenance.ignored:
-        lines.append(f"    {name.ljust(basename_width)}   ignored")
+        lines.append(f"{inner}{name.ljust(basename_width)}   ignored")
     return lines
 
 
