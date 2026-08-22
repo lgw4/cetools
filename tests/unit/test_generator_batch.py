@@ -63,6 +63,18 @@ class TestUsageErrors:
         with pytest.raises(CetoolsError):
             generate_batch("session-alpha", RULES, count=2, name="Alex Rivera")
 
+    def test_an_empty_or_whitespace_only_name_raises(self):
+        # FR-047, FR-053c, SC-018: the refusal cli.py:186 already makes is a
+        # property of the capability, not only of the command line (T148) —
+        # the same reasoning FR-053a gives for the name-with-count refusal.
+        # Without it the library can produce a character whose `name` is
+        # `""`, whose sheet renders a dangling title separator.
+        for name in ("", "   ", "\t\n"):
+            with pytest.raises(CetoolsError):
+                generate_character(Roller("session-alpha"), RULES, name=name)
+            with pytest.raises(CetoolsError):
+                generate_batch("session-alpha", RULES, name=name)
+
 
 def test_generate_batch_from_none_reached_from_the_library():
     """FR-053b, reached without the command line: `generate_batch(None,
