@@ -184,14 +184,14 @@ Depends on Phase 2H. These are the files the widened checks were widened for.
 
 ### Phase 2J: The produced value (`character.py`)
 
-- [ ] T074 [TEST] Write `tests/unit/test_character.py` for the seven types: field names and order per `contracts/library-api.md`, frozen and slotted, `HistoryStep.kind` and `StepEffect.kind` closed sets, `StepThrow.total == sum(faces) + modifiers`, a table-reading throw carrying `target = 0` and `success = True`. The closed `StepEffect.kind` set is where FR-028 is enforced: the eleven kinds are exactly the consequences the chain carries, and a twelfth would be the chain running past the numbers on the sheet, so the closed-set assertion is what makes FR-028 fail rather than merely be intended
-- [ ] T075 Implement `Character`, `CharacterSkill`, `CareerService`, `HistoryStep`, `StepThrow`, `StepEffect`, and `CharacterBatch` in `src/cetools/character.py`
+- [X] T074 [TEST] Write `tests/unit/test_character.py` for the seven types: field names and order per `contracts/library-api.md`, frozen and slotted, `HistoryStep.kind` and `StepEffect.kind` closed sets, `StepThrow.total == sum(faces) + modifiers`, a table-reading throw carrying `target = 0` and `success = True`. The closed `StepEffect.kind` set is where FR-028 is enforced: the eleven kinds are exactly the consequences the chain carries, and a twelfth would be the chain running past the numbers on the sheet, so the closed-set assertion is what makes FR-028 fail rather than merely be intended
+- [X] T075 Implement `Character`, `CharacterSkill`, `CareerService`, `HistoryStep`, `StepThrow`, `StepEffect`, and `CharacterBatch` in `src/cetools/character.py`
 
 ### Phase 2K: Public surface and guards
 
 - [ ] T076 Extend the contract parser in `tests/unit/test_library_api.py` to read `specs/003-npc-generator/contracts/library-api.md` as a third contract, taking `## Public surface added` and `## Public surface removed` from it — **before** any export lands, or the suite fails with a set difference that does not say why
 - [ ] T077 Add the new exports to `src/cetools/__init__.py` per `contracts/library-api.md`, keeping `Band` re-exported from `registries`
-- [ ] T078 [P] Add a no-`locale` guard to `tests/guards/` asserting that nothing under `src/` imports `locale`, which is what makes SC-012 unfalsifiable by omission (research R8)
+- [X] T078 [P] Add a no-`locale` guard to `tests/guards/` asserting that nothing under `src/` imports `locale`, which is what makes SC-012 unfalsifiable by omission (research R8)
 - [ ] T079 [P] Add `generate_character` and `generate_batch` to the manual library list in `tests/guards/test_seed_contract.py`, so a stray `random` call in the walk is guarded
 
 **Checkpoint**: the data set validates at twenty-six files, every schema parses, every
