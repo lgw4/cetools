@@ -118,7 +118,8 @@ def test_removing_every_rank_ladder_is_rejected(tmp_path):
     _validate_missing(
         tmp_path,
         '[[ladders]]\nname = "enlisted"\nrole = "entry"\nranks = [\n  '
-        '{ rank = 0, title = "Starman", bonus = "Zero-G 1" },\n]\n\n',
+        '{ rank = 0, title = "Starman", bonus = "Zero-G 1" },\n  '
+        '{ rank = 5, title = "Petty Officer", bonus = "Gunnery 1" },\n]\n\n',
         '[[ladders]]\nname = "officer"\nrole = "commissioned"\nranks = [\n  '
         '{ rank = 1, title = "Midshipman", bonus = "Melee Combat (Slashing Weapons) 1" },\n  '
         '{ rank = 2, title = "Lieutenant" },\n  '

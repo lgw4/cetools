@@ -139,6 +139,16 @@ class TestSpreadAndCoverage:
         }
         assert draft_rows_reached == set(RULES.draft.careers)
 
+        # FR-033, FR-007b (T155): promotion off the entry ladder is a shape
+        # the engine already handles, but until the shipped data gives at
+        # least one entry ladder a rank above zero, `ranks_above` is always
+        # empty for an uncommissioned character and the path goes
+        # unexercised by every shipped career.
+        uncommissioned_rank_above_zero = any(
+            not service.commissioned and service.rank > 0 for c in sample for service in c.careers
+        )
+        assert uncommissioned_rank_above_zero
+
 
 class TestDefaultRenderingCoverage:
     def test_sc020_every_default_field_is_present_and_nothing_from_the_walk_leaks(self, sample):
