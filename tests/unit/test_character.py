@@ -122,11 +122,6 @@ class TestStepEffectClosedKind:
             "benefit",
             "debt",
             "pension",
-            "age",
-            "rank",
-            "commission",
-            "career",
-            "benefit-roll-forfeit",
         ],
     )
     def test_every_closed_kind_constructs(self, kind):
@@ -135,6 +130,22 @@ class TestStepEffectClosedKind:
     def test_an_unrecognized_kind_raises(self):
         with pytest.raises(ValueError):
             StepEffect(kind="nonexistent-kind", subject="", amount=0)
+
+    @pytest.mark.parametrize(
+        "kind", ["age", "rank", "commission", "career", "benefit-roll-forfeit"]
+    )
+    def test_the_five_kinds_the_walk_never_produced_are_dropped(self, kind):
+        # `character.py` declared five `StepEffect` kinds — `age`, `rank`,
+        # `commission`, `career`, `benefit-roll-forfeit` — the walk never
+        # constructed a single one of, though `render.py`'s `_effect_text`
+        # carried a dispatch case for each. "Career" is already traceable
+        # through `HistoryStep.career`/`.selected` on `career-entered`
+        # without a duplicate effect, and none of the five is in FR-030's
+        # enumerated list of what must trace (characteristic, skill,
+        # career, credit, item) — an effect kind is a real consequence the
+        # chain carries (FR-028), not a case reserved for later (T151).
+        with pytest.raises(ValueError):
+            StepEffect(kind=kind, subject="", amount=0)
 
 
 class TestHistoryStepClosedKind:
