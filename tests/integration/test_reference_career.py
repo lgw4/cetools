@@ -42,7 +42,7 @@ def test_removing_the_medical_tier_is_rejected(tmp_path):
 def test_removing_the_qualification_throw_is_rejected(tmp_path):
     _validate_missing(
         tmp_path,
-        '[throws.qualification]\ncharacteristic = "INT"\ntarget = 6\n\n',
+        '[throws.qualification]\ncharacteristic = "INT"\ntarget = 6\ndice = "2d6"\n\n',
         location="throws.qualification",
     )
 
@@ -50,7 +50,7 @@ def test_removing_the_qualification_throw_is_rejected(tmp_path):
 def test_removing_the_survival_throw_is_rejected(tmp_path):
     _validate_missing(
         tmp_path,
-        '[throws.survival]\ncharacteristic = "INT"\ntarget = 5\n\n',
+        '[throws.survival]\ncharacteristic = "INT"\ntarget = 5\ndice = "2d6"\n\n',
         location="throws.survival",
     )
 
@@ -60,7 +60,9 @@ def test_promotion_throw_may_be_removed_without_rejection(tmp_path):
     # together with no throws.commission grants two skill rolls a term
     # instead (FR-009); this file still declares commission, so removing
     # promotion alone must not invalidate it.
-    text = NAVY.replace('[throws.promotion]\ncharacteristic = "EDU"\ntarget = 6\n\n', "", 1)
+    text = NAVY.replace(
+        '[throws.promotion]\ncharacteristic = "EDU"\ntarget = 6\ndice = "2d6"\n\n', "", 1
+    )
     assert text != NAVY
     (tmp_path / "navy.toml").write_text(text, encoding="utf-8")
     report = validate_rules(tmp_path)
@@ -69,7 +71,9 @@ def test_promotion_throw_may_be_removed_without_rejection(tmp_path):
 
 def test_removing_the_re_enlistment_throw_is_rejected(tmp_path):
     _validate_missing(
-        tmp_path, "[throws.re-enlistment]\ntarget = 5\n\n", location="throws.re-enlistment"
+        tmp_path,
+        '[throws.re-enlistment]\ntarget = 5\ndice = "2d6"\n\n',
+        location="throws.re-enlistment",
     )
 
 

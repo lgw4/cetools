@@ -69,15 +69,15 @@ def benefits():
 def valid_data():
     return {
         "schema": "career",
-        "schema-version": 2,
+        "schema-version": 3,
         "name": "Navy",
         "medical-tier": "service",
         "throws": {
-            "qualification": {"characteristic": "INT", "target": 8},
-            "survival": {"characteristic": "INT", "target": 5},
-            "commission": {"characteristic": "SOC", "target": 10},
-            "promotion": {"characteristic": "EDU", "target": 8},
-            "re-enlistment": {"target": 6},
+            "qualification": {"characteristic": "INT", "target": 8, "dice": "2d6"},
+            "survival": {"characteristic": "INT", "target": 5, "dice": "2d6"},
+            "commission": {"characteristic": "SOC", "target": 10, "dice": "2d6"},
+            "promotion": {"characteristic": "EDU", "target": 8, "dice": "2d6"},
+            "re-enlistment": {"target": 6, "dice": "2d6"},
         },
         "tables": {
             "personal": {"entries": ["STR +1", "DEX +1", "END +1", "INT +1", "EDU +1", "SOC +1"]},
@@ -147,12 +147,12 @@ class TestValidCareer:
 
     def test_throws(self, valid_data, characteristics, skills, benefits):
         career, _ = parse_career(valid_data, FILE, characteristics, skills, benefits)
-        assert career.throws["qualification"] == Throw(characteristic="INT", target=8)
-        assert career.throws["re-enlistment"] == Throw(characteristic=None, target=6)
+        assert career.throws["qualification"] == Throw(characteristic="INT", target=8, dice="2d6")
+        assert career.throws["re-enlistment"] == Throw(characteristic=None, target=6, dice="2d6")
 
     def test_commission_present(self, valid_data, characteristics, skills, benefits):
         career, _ = parse_career(valid_data, FILE, characteristics, skills, benefits)
-        assert career.throws["commission"] == Throw(characteristic="SOC", target=10)
+        assert career.throws["commission"] == Throw(characteristic="SOC", target=10, dice="2d6")
 
     def test_tables(self, valid_data, characteristics, skills, benefits):
         career, _ = parse_career(valid_data, FILE, characteristics, skills, benefits)
@@ -212,6 +212,8 @@ class TestMissingRequiredElements:
             (("throws", "qualification"), "throws.qualification"),
             (("throws", "survival"), "throws.survival"),
             (("throws", "re-enlistment"), "throws.re-enlistment"),
+            (("throws", "qualification", "dice"), "throws.qualification.dice"),
+            (("throws", "re-enlistment", "dice"), "throws.re-enlistment.dice"),
             (("tables", "personal"), "tables.personal"),
             (("tables", "service"), "tables.service"),
             (("tables", "specialist"), "tables.specialist"),
@@ -628,6 +630,38 @@ class TestEmptyStringsAreRejectedWhereANameIsRequired:
         career, problems = parse_career(data, FILE, characteristics, skills, benefits)
         assert career is None
         assert "ladders[0].name" in _problem_locations(problems)
+
+
+class TestThrowDice:
+    """`throws.*.dice` is what makes a throw's dice pool data rather than the
+    `_2D6` constant the engine used to hold (FR-038, Constitution V).
+    """
+
+    def test_a_non_string_dice_is_rejected(self, valid_data, characteristics, skills, benefits):
+        data = copy.deepcopy(valid_data)
+        data["throws"]["survival"]["dice"] = 26
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        matching = [p for p in problems if p.location == "throws.survival.dice"]
+        assert len(matching) == 1
+        assert matching[0].found == "an integer"
+
+    def test_d66_is_rejected(self, valid_data, characteristics, skills, benefits):
+        # The row a throw reads is the total of its dice, not a two-digit
+        # table value: the same reason `task.roll` and every chargen table's
+        # `roll` field reject `d66` (001-dice-task-engine FR-029).
+        data = copy.deepcopy(valid_data)
+        data["throws"]["survival"]["dice"] = "d66"
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "throws.survival.dice" in _problem_locations(problems)
+
+    def test_malformed_notation_is_rejected(self, valid_data, characteristics, skills, benefits):
+        data = copy.deepcopy(valid_data)
+        data["throws"]["survival"]["dice"] = "not dice"
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "throws.survival.dice" in _problem_locations(problems)
 
 
 class TestBooleansAreNotIntegers:

@@ -30,14 +30,14 @@ NAVY = (
 _NAMES_DIR = Path(__file__).resolve().parents[2] / "src" / "cetools" / "data" / "names"
 SURNAMES_EUROPE = (_NAMES_DIR / "surnames-europe.toml").read_text(encoding="utf-8")
 
-_COMMISSION_BLOCK = '[throws.commission]\ncharacteristic = "SOC"\ntarget = 7\n\n'
+_COMMISSION_BLOCK = '[throws.commission]\ncharacteristic = "SOC"\ntarget = 7\ndice = "2d6"\n\n'
 
 # A career the packaged data set does not ship, reusing Drifter's skills and
 # benefits so every name it references already resolves against the
 # packaged registries (FR-030, FR-031).
 _RAIDERS_CAREER = """\
 schema = "career"
-schema-version = 2
+schema-version = 3
 
 name = "Raiders"
 medical-tier = "fringe"
@@ -45,13 +45,16 @@ medical-tier = "fringe"
 [throws.qualification]
 characteristic = "END"
 target = 3
+dice = "2d6"
 
 [throws.survival]
 characteristic = "END"
 target = 5
+dice = "2d6"
 
 [throws.re-enlistment]
 target = 5
+dice = "2d6"
 
 [tables.personal]
 entries = ["STR +1", "DEX +1", "END +1", "SOC -1", "Streetwise", "Carouse"]
