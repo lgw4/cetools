@@ -222,14 +222,47 @@ class TestAlwaysLiving:
         assert "mishap" in mishap_kinds
 
     def test_a_mishap_ended_term_costs_two_years_and_forfeits_its_benefit_roll(self):
-        for character in _characters():
-            for service in character.careers:
+        # FR-020 forfeits the mishap term's benefit roll exactly once,
+        # whatever the specific mishap row — including the row that also
+        # carries its own `roll-injury` effect (T145: forfeiting twice for
+        # that row is a defect `<=` alone does not catch, since it still
+        # holds under double-forfeiture). A row that instead carries
+        # `forfeit-career-benefits` forfeits every roll from the whole
+        # service, not just the mishap term's, so it is excluded from the
+        # exact count and left to `TestCareerEndAndMultiCareer` below. A
+        # bigger sample than this module's default is used because the row
+        # that used to double-count needs several terms served first to be
+        # distinguishable from a single-term mishap, where both readings
+        # clip to zero the same way.
+        forfeit_all_kinds = {
+            row.description
+            for row in RULES.mishaps.rows
+            if any(effect.kind == "forfeit-career-benefits" for effect in row.effects)
+        }
+        found_multi_term_mishap = False
+        for character in _characters(2000):
+            # `character.careers` and the "career-entered" steps share one
+            # order, one per service, so a re-entered career (e.g. two
+            # separate Drifter stints) is disambiguated by position rather
+            # than by name alone.
+            service_index = -1
+            mishap_step_by_service_index = {}
+            for step in character.history:
+                if step.kind == "career-entered":
+                    service_index += 1
+                elif step.kind == "mishap" and step.throw:
+                    mishap_step_by_service_index[service_index] = step
+            for index, service in enumerate(character.careers):
                 if service.ended != "mishap":
                     continue
-                # The mishap term is always counted, and always forfeits a roll:
-                # benefit_rolls can never exceed terms - 1 for a mishap-ended service
-                # (unless a rank bonus adds one back).
-                assert service.benefit_rolls <= service.terms
+                mishap_step = mishap_step_by_service_index[index]
+                if mishap_step.selected in forfeit_all_kinds:
+                    assert service.benefit_rolls == 0
+                    continue
+                assert service.benefit_rolls == max(0, service.terms - 1)
+                if service.terms > 1:
+                    found_multi_term_mishap = True
+        assert found_multi_term_mishap
 
     def test_a_mishap_deferring_to_injury_records_its_own_step(self):
         found = False

@@ -300,13 +300,16 @@ class TestMishapTable:
         assert table.rows[1].effects[0].kind == "years"
         assert table.rows[1].effects[0].amount == "4"
 
-    def test_forfeit_term_benefit_kind_needs_no_amount(self):
+    def test_forfeit_term_benefit_is_not_a_recognized_kind(self):
+        # FR-020 forfeits every mishap-ended term's benefit roll
+        # unconditionally in engine code; a row-level effect for the same
+        # thing could only ever double it, so the kind was dropped from the
+        # closed set entirely rather than kept as a no-op (T145).
         data = self._data()
         data["mishaps"][1]["effects"] = [{"kind": "forfeit-term-benefit"}]
         table, problems = parse_mishap_table(data, "mishaps.toml")
-        assert problems == ()
-        assert table.rows[1].effects[0].kind == "forfeit-term-benefit"
-        assert table.rows[1].effects[0].amount == ""
+        assert table is None
+        assert any(p.location == "mishaps[1].effects[0].kind" for p in problems)
 
     def test_forfeit_career_benefits_kind_needs_no_amount(self):
         data = self._data()
