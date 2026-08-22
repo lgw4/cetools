@@ -1094,6 +1094,8 @@ def generate_character(roller: Roller, rules: RulesData, *, name: str | None = N
     (FR-001). Always alive, always named, always internally consistent
     (FR-022, FR-023, SC-003).
     """
+    if name is not None and not name.strip():
+        raise CetoolsError("name must not be empty or whitespace-only")
     walk = _Walk(roller, rules)
     walk.run()
 
@@ -1150,6 +1152,8 @@ def generate_batch(
         raise CetoolsError(f"--count must be at least 1, got {count}")
     if name is not None and count > 1:
         raise CetoolsError("--name may not be combined with --count above 1")
+    if name is not None and not name.strip():
+        raise CetoolsError("name must not be empty or whitespace-only")
 
     from cetools.seeds import resolve_seed
 

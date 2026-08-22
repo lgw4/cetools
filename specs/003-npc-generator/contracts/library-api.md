@@ -94,7 +94,10 @@ character's recorded seed regenerates that character alone (FR-050a). See resear
 `count` below one raises `CetoolsError`. `name` with `count` above one raises
 `CetoolsError` naming both, because a name names one character and applying it to all of
 them or to the first alone would each silently discard part of what was asked for
-(FR-053a). The CLI turns both into usage errors rather than restating the rule.
+(FR-053a). An empty or whitespace-only `name` also raises `CetoolsError` (FR-053c,
+Phase 8 T141+T148), on `generate_character` as well as `generate_batch`, so the library
+cannot itself produce a character whose `name` is `""`. The CLI turns all three into usage
+errors rather than restating the rule.
 
 It takes a seed rather than a `Roller`, unlike `generate_character`, because it owns the
 derivation: a partly consumed `Roller` would still report its original seed and would

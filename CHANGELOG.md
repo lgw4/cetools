@@ -232,3 +232,9 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   introducing the level. `as_text` now sorts skills by label first and
   appends the level afterward, matching `contracts/cli.md` and the order
   `as_dict`'s `skills` already agreed with (T154).
+- **An empty or whitespace-only `--name` was refused only by the CLI.**
+  `generate_character` and `generate_batch` now refuse it too, raising
+  `CetoolsError`, so a library consumer bypassing the command line cannot
+  produce a character whose `name` is `""` — which would render a title
+  with a dangling separator and nothing after it (FR-047, FR-053c, SC-018,
+  T148).
