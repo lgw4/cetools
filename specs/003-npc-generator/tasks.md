@@ -56,53 +56,53 @@ Single project: `src/cetools/`, `tests/` at repository root.
 These rearrange code without changing output. Each is its own commit, says "structural" in
 its message, and the suite is green before and after.
 
-- [ ] T004 [P] Hoist `DESIGNATION` and `_uncovered` into `tests/conftest.py` (keeping the two-adjacent-bytes-literals form) and import them from there in `tests/unit/test_licensing.py` and `tests/guards/test_packaging.py` (structural, research R9)
-- [ ] T005 [P] Add an `indent` parameter to `render._provenance_lines` in `src/cetools/render.py` and pass the existing indentation from both current call sites (structural)
-- [ ] T006 Add a keyword-only `full: bool = False` to `as_text` in `src/cetools/render.py`; every existing registration and the dispatch fallback accept it and raise `CetoolsError` when it is true, with a test for each in `tests/unit/test_render.py` (structural)
-- [ ] T007 Convert the per-kind blocks in `rules._validate` to a `kind -> parse function` mapping and one loop in `src/cetools/rules.py`, before the kind count goes from four to eleven (structural)
-- [ ] T008 [P] Rename `tables.advanced` to `tables.specialist` in `src/cetools/careers.py`, `src/cetools/data/careers/navy.toml`, and `tests/unit/test_careers.py` (structural; nothing reads it yet)
-- [ ] T009 Move `Band` and the characteristic modifier bands from `src/cetools/tasks.py` to `src/cetools/registries.py`: `TaskParameters` loses `characteristic_bands` and `characteristic_dm`, `CharacteristicRegistry` gains `bands` and `characteristic_dm`, `check` reads `rules.characteristics.characteristic_dm(...)`, `src/cetools/data/tasks.toml` drops `[characteristic-dms]` and rises to `schema-version = 2`, `src/cetools/data/registries/characteristics.toml` gains `[modifier-dms]` and rises to `schema-version = 2`, and `src/cetools/__init__.py` re-exports `Band` from its new home (structural, **breaking library change**, FR-039)
-- [ ] T010 Verify SC-014: assert in `tests/integration/test_golden.py` and `tests/contract/test_json_contract.py` that every committed `tests/golden/check_*.txt` and every existing JSON fixture is byte-identical after T009, with no fixture regenerated
-- [ ] T011 Confirm the module-level `_PARAMETERS = load_rules().task_parameters` in `tests/property/test_invariants.py` still reads only `difficulty_dms` after T009, and record the check rather than assuming it
+- [X] T004 [P] Hoist `DESIGNATION` and `_uncovered` into `tests/conftest.py` (keeping the two-adjacent-bytes-literals form) and import them from there in `tests/unit/test_licensing.py` and `tests/guards/test_packaging.py` (structural, research R9)
+- [X] T005 [P] Add an `indent` parameter to `render._provenance_lines` in `src/cetools/render.py` and pass the existing indentation from both current call sites (structural)
+- [X] T006 Add a keyword-only `full: bool = False` to `as_text` in `src/cetools/render.py`; every existing registration and the dispatch fallback accept it and raise `CetoolsError` when it is true, with a test for each in `tests/unit/test_render.py` (structural)
+- [X] T007 Convert the per-kind blocks in `rules._validate` to a `kind -> parse function` mapping and one loop in `src/cetools/rules.py`, before the kind count goes from four to eleven (structural)
+- [X] T008 [P] Rename `tables.advanced` to `tables.specialist` in `src/cetools/careers.py`, `src/cetools/data/careers/navy.toml`, and `tests/unit/test_careers.py` (structural; nothing reads it yet)
+- [X] T009 Move `Band` and the characteristic modifier bands from `src/cetools/tasks.py` to `src/cetools/registries.py`: `TaskParameters` loses `characteristic_bands` and `characteristic_dm`, `CharacteristicRegistry` gains `bands` and `characteristic_dm`, `check` reads `rules.characteristics.characteristic_dm(...)`, `src/cetools/data/tasks.toml` drops `[characteristic-dms]` and rises to `schema-version = 2`, `src/cetools/data/registries/characteristics.toml` gains `[modifier-dms]` and rises to `schema-version = 2`, and `src/cetools/__init__.py` re-exports `Band` from its new home (structural, **breaking library change**, FR-039)
+- [X] T010 Verify SC-014: assert in `tests/integration/test_golden.py` and `tests/contract/test_json_contract.py` that every committed `tests/golden/check_*.txt` and every existing JSON fixture is byte-identical after T009, with no fixture regenerated
+- [X] T011 Confirm the module-level `_PARAMETERS = load_rules().task_parameters` in `tests/property/test_invariants.py` still reads only `difficulty_dms` after T009, and record the check rather than assuming it
 
 **Checkpoint**: structural work complete, suite green, no output changed.
 
 ### Phase 2B: Seeds and the characteristics registry
 
-- [ ] T012 [P] [TEST] Write `tests/unit/test_seeds.py` cases for `derive_seed`: it folds a seed and parts through the existing blake2b digest, returns a value `resolve_seed` accepts, round-trips as a decimal string, and is stable across runs
-- [ ] T013 Implement `derive_seed(seed: int, *parts: int | str) -> int` in `src/cetools/seeds.py`, reusing the existing `rng_seed` fold rather than introducing a second digest (research R2), unexported
-- [ ] T014 [TEST] Extend `tests/unit/test_registries.py` for `CharacteristicRegistry`: `classes` mapping, `pseudo_hex_minimum`, `pseudo_hex`, `symbol(score)` raising `RulesDataError` naming the score and the range when outside it, and `floor()` returning `pseudo_hex_minimum`
-- [ ] T015 Implement `classes`, `pseudo_hex_minimum`, `pseudo_hex`, `symbol()`, and `floor()` on `CharacteristicRegistry` in `src/cetools/registries.py`, and parse `characteristics.<CODE>.label` / `.class` and `[pseudo-hex]` at schema version 2 (FR-039, research R12, R13)
+- [X] T012 [P] [TEST] Write `tests/unit/test_seeds.py` cases for `derive_seed`: it folds a seed and parts through the existing blake2b digest, returns a value `resolve_seed` accepts, round-trips as a decimal string, and is stable across runs
+- [X] T013 Implement `derive_seed(seed: int, *parts: int | str) -> int` in `src/cetools/seeds.py`, reusing the existing `rng_seed` fold rather than introducing a second digest (research R2), unexported
+- [X] T014 [TEST] Extend `tests/unit/test_registries.py` for `CharacteristicRegistry`: `classes` mapping, `pseudo_hex_minimum`, `pseudo_hex`, `symbol(score)` raising `RulesDataError` naming the score and the range when outside it, and `floor()` returning `pseudo_hex_minimum`
+- [X] T015 Implement `classes`, `pseudo_hex_minimum`, `pseudo_hex`, `symbol()`, and `floor()` on `CharacteristicRegistry` in `src/cetools/registries.py`, and parse `characteristics.<CODE>.label` / `.class` and `[pseudo-hex]` at schema version 2 (FR-039, research R12, R13)
 
 ### Phase 2C: The universal chargen tables (`chargen.py`)
 
-- [ ] T016 [TEST] Write `tests/unit/test_chargen.py` cases for `DraftTable`: `roll` rejects the `d66` literal, `careers` is non-empty, row order is preserved (FR-005)
-- [ ] T017 Implement `DraftTable` and its parse function in `src/cetools/chargen.py`
-- [ ] T018 [P] [TEST] Add `tests/unit/test_chargen.py` cases for `AgingTable`, `AgingRow`, and `ClassEffect`: `range` accepts `N`, `N-M`, `N+` including negatives, exactly one row unbounded above, the lowest row is a floor, `effects` may be empty, `modifier` accepts only `terms-served`
-- [ ] T019 Implement `AgingTable`, `AgingRow`, and `ClassEffect` with their parse functions in `src/cetools/chargen.py`
-- [ ] T020 [P] [TEST] Add `tests/unit/test_chargen.py` cases for `MishapTable`, `MishapRow`, `InjuryRow`, and `MishapEffect`: the closed `kind` set, `amount` accepting both `"-1d6"` and `"10000"` as text, and `injuries` reachable only from a `roll-injury` effect
-- [ ] T021 Implement `MishapTable`, `MishapRow`, `InjuryRow`, and `MishapEffect` with their parse functions in `src/cetools/chargen.py`
-- [ ] T022 [P] [TEST] Add `tests/unit/test_chargen.py` cases for `BackgroundSkills`: three non-empty notation lists in skill-table context, duplicates across `law-level` and `trade-code` preserved as meaningful weighting (research R5)
-- [ ] T023 Implement `BackgroundSkills` and its parse function in `src/cetools/chargen.py`
-- [ ] T024 [P] [TEST] Add `tests/unit/test_chargen.py` cases for `MedicalTiers` and `MedicalThreshold`: distinct tier names, thresholds sorted highest-target-first, `paid-percent` in 0–100, a total below every threshold paying nothing, `rank-dm` declared not assumed
-- [ ] T025 Implement `MedicalTiers` and `MedicalThreshold` with their parse function in `src/cetools/chargen.py`
-- [ ] T026 [TEST] Add `tests/unit/test_chargen.py` cases for `ChargenParameters`: every key in `contracts/data-files.md` is required, every table is a closed key set, and a misspelled key is reported rather than defaulted
-- [ ] T027 Implement `ChargenParameters` in `src/cetools/chargen.py`, exposing every scalar as a named attribute so a misspelling is an `AttributeError` at import rather than a `KeyError` mid-walk (FR-038)
+- [X] T016 [TEST] Write `tests/unit/test_chargen.py` cases for `DraftTable`: `roll` rejects the `d66` literal, `careers` is non-empty, row order is preserved (FR-005)
+- [X] T017 Implement `DraftTable` and its parse function in `src/cetools/chargen.py`
+- [X] T018 [P] [TEST] Add `tests/unit/test_chargen.py` cases for `AgingTable`, `AgingRow`, and `ClassEffect`: `range` accepts `N`, `N-M`, `N+` including negatives, exactly one row unbounded above, the lowest row is a floor, `effects` may be empty, `modifier` accepts only `terms-served`
+- [X] T019 Implement `AgingTable`, `AgingRow`, and `ClassEffect` with their parse functions in `src/cetools/chargen.py`
+- [X] T020 [P] [TEST] Add `tests/unit/test_chargen.py` cases for `MishapTable`, `MishapRow`, `InjuryRow`, and `MishapEffect`: the closed `kind` set, `amount` accepting both `"-1d6"` and `"10000"` as text, and `injuries` reachable only from a `roll-injury` effect
+- [X] T021 Implement `MishapTable`, `MishapRow`, `InjuryRow`, and `MishapEffect` with their parse functions in `src/cetools/chargen.py`
+- [X] T022 [P] [TEST] Add `tests/unit/test_chargen.py` cases for `BackgroundSkills`: three non-empty notation lists in skill-table context, duplicates across `law-level` and `trade-code` preserved as meaningful weighting (research R5)
+- [X] T023 Implement `BackgroundSkills` and its parse function in `src/cetools/chargen.py`
+- [X] T024 [P] [TEST] Add `tests/unit/test_chargen.py` cases for `MedicalTiers` and `MedicalThreshold`: distinct tier names, thresholds sorted highest-target-first, `paid-percent` in 0–100, a total below every threshold paying nothing, `rank-dm` declared not assumed
+- [X] T025 Implement `MedicalTiers` and `MedicalThreshold` with their parse function in `src/cetools/chargen.py`
+- [X] T026 [TEST] Add `tests/unit/test_chargen.py` cases for `ChargenParameters`: every key in `contracts/data-files.md` is required, every table is a closed key set, and a misspelled key is reported rather than defaulted
+- [X] T027 Implement `ChargenParameters` in `src/cetools/chargen.py`, exposing every scalar as a named attribute so a misspelling is an `AttributeError` at import rather than a `KeyError` mid-walk (FR-038)
 
 ### Phase 2D: The name table schemas and the name roll (`names.py`)
 
 This phase is the code that reads a name table. The shipped tables themselves are Phase 2I,
 behind the licensing work of Phase 2H.
 
-- [ ] T028 [TEST] Write `tests/unit/test_names.py` schema cases: `GivenNameTable` and `SurnameTable` key sets are closed so a `gender` key is rejected (FR-043b), `source` is required and non-empty (FR-043e), an empty `names` array is rejected naming the file (FR-043h), `SurnameEntry.people` is optional (FR-043d)
-- [ ] T029 Implement `GivenNameTable`, `SurnameTable`, `SurnameEntry`, and their parse functions in `src/cetools/names.py`
-- [ ] T030 [TEST] Add `tests/unit/test_names.py` cases for `roll_name`: a region is selected uniformly over the tables in force, then a surname within it, then a given name independently; `Name.full` is `f"{given} {surname}"` and is never reordered (FR-043f, FR-043g, FR-047a)
-- [ ] T031 Implement `Name` and `roll_name(roller, given, surnames)` in `src/cetools/names.py`, unexported (contracts/library-api.md)
+- [X] T028 [TEST] Write `tests/unit/test_names.py` schema cases: `GivenNameTable` and `SurnameTable` key sets are closed so a `gender` key is rejected (FR-043b), `source` is required and non-empty (FR-043e), an empty `names` array is rejected naming the file (FR-043h), `SurnameEntry.people` is optional (FR-043d)
+- [X] T029 Implement `GivenNameTable`, `SurnameTable`, `SurnameEntry`, and their parse functions in `src/cetools/names.py`
+- [X] T030 [TEST] Add `tests/unit/test_names.py` cases for `roll_name`: a region is selected uniformly over the tables in force, then a surname within it, then a given name independently; `Name.full` is `f"{given} {surname}"` and is never reordered (FR-043f, FR-043g, FR-047a)
+- [X] T031 Implement `Name` and `roll_name(roller, given, surnames)` in `src/cetools/names.py`, unexported (contracts/library-api.md)
 
 ### Phase 2E: Career schema v2
 
-- [ ] T032 [TEST] Extend `tests/unit/test_careers.py` for schema version 2: `medical-tier` required, `always-available` and `re-enterable` defaulting to `false`, `throws.promotion` optional, `tables.advanced-education` required with its own `requires` gate, and `ladders[].role` required as `"entry"` or `"commissioned"` with exactly one `entry` and at most one `commissioned`
-- [ ] T033 Implement the v2 changes on `CareerDefinition` and its parse function in `src/cetools/careers.py`, raising the declared schema version (FR-034, FR-035, FR-036, FR-007b)
+- [X] T032 [TEST] Extend `tests/unit/test_careers.py` for schema version 2: `medical-tier` required, `always-available` and `re-enterable` defaulting to `false`, `throws.promotion` optional, `tables.advanced-education` required with its own `requires` gate, and `ladders[].role` required as `"entry"` or `"commissioned"` with exactly one `entry` and at most one `commissioned`
+- [X] T033 Implement the v2 changes on `CareerDefinition` and its parse function in `src/cetools/careers.py`, raising the declared schema version (FR-034, FR-035, FR-036, FR-007b)
 
 ### Phase 2F: Loader integration (`rules.py`)
 
