@@ -266,20 +266,20 @@ parts are separately addressable.
 
 ### Tests for User Story 2 ⚠️ written and observed failing first
 
-- [ ] T112 [P] [US2] [TEST] Write `tests/unit/test_render_character.py` cases for the fuller sheet: the Universal Character Format, a blank line, then `Debt:` reading `none` rather than `Cr0`, `Pension:` likewise, and `History:` with each line **composed from the step's named parts** and columns padded to the longest value present (FR-049, `contracts/cli.md`)
-- [ ] T113 [P] [US2] [TEST] Add a `tests/unit/test_render_character.py` case asserting no field of a `HistoryStep` holds a line composed from the step's other parts, which is what makes FR-030a checkable from the record's shape
-- [ ] T114 [US2] [TEST] Commit `tests/golden/npc_full.txt` for a character carrying debt, pension, and history, compared as bytes and rendered from a hand-constructed `Character` literal for the same reason T091's six are
-- [ ] T115 [P] [US2] [TEST] Write `tests/contract/test_npc_json.py` against `contracts/json-output.md`: top-level key order `kind`, `seed`, `provenance`, `characters`; the character key order; the skill, career-service, history-step, throw, and effect key orders; every key present unconditionally; both seeds emitted as strings; `specialty` as `null` never `""`; `json.dumps(indent=2, ensure_ascii=False)` with a trailing newline and non-ASCII names emitted as themselves
-- [ ] T116 [P] [US2] [TEST] Add a `tests/contract/test_npc_json.py` case asserting `as_dict(batch)["characters"][i] == as_dict(batch.characters[i])` and that `total == sum(faces) + modifier values` in every throw
-- [ ] T117 [P] [US2] [TEST] Add SC-005's traceability audit to `tests/integration/test_npc_sample.py`, marked `slow`: over the same thousand-seed sample, every characteristic, skill, career, credit, and item traces to a step, read from the steps' named parts and never from rendered text
-- [ ] T118 [P] [US2] [TEST] Add `tests/integration/test_npc_cli.py` cases for `--json`: standard error is silent on success, `--full` with `--json` is accepted and changes nothing, and `--json` never changes an exit code (FR-053d)
+- [X] T112 [P] [US2] [TEST] Write `tests/unit/test_render_character.py` cases for the fuller sheet: the Universal Character Format, a blank line, then `Debt:` reading `none` rather than `Cr0`, `Pension:` likewise, and `History:` with each line **composed from the step's named parts** and columns padded to the longest value present (FR-049, `contracts/cli.md`)
+- [X] T113 [P] [US2] [TEST] Add a `tests/unit/test_render_character.py` case asserting no field of a `HistoryStep` holds a line composed from the step's other parts, which is what makes FR-030a checkable from the record's shape
+- [X] T114 [US2] [TEST] Commit `tests/golden/npc_full.txt` for a character carrying debt, pension, and history, compared as bytes and rendered from a hand-constructed `Character` literal for the same reason T091's six are
+- [X] T115 [P] [US2] [TEST] Write `tests/contract/test_npc_json.py` against `contracts/json-output.md`: top-level key order `kind`, `seed`, `provenance`, `characters`; the character key order; the skill, career-service, history-step, throw, and effect key orders; every key present unconditionally; both seeds emitted as strings; `specialty` as `null` never `""`; `json.dumps(indent=2, ensure_ascii=False)` with a trailing newline and non-ASCII names emitted as themselves
+- [X] T116 [P] [US2] [TEST] Add a `tests/contract/test_npc_json.py` case asserting `as_dict(batch)["characters"][i] == as_dict(batch.characters[i])` and that `total == sum(faces) + modifier values` in every throw
+- [X] T117 [P] [US2] [TEST] Add SC-005's traceability audit to `tests/integration/test_npc_sample.py`, marked `slow`: over the same thousand-seed sample, every characteristic, skill, career, credit, and item traces to a step, read from the steps' named parts and never from rendered text
+- [X] T118 [P] [US2] [TEST] Add `tests/integration/test_npc_cli.py` cases for `--json`: standard error is silent on success, `--full` with `--json` is accepted and changes nothing, and `--json` never changes an exit code (FR-053d)
 
 ### Implementation for User Story 2
 
-- [ ] T119 [US2] Implement `as_text(character, full=True)` in `src/cetools/render.py`: the format, a blank line, debt, pension, and the history composed from each step's parts, dispatching on step and effect kinds with pattern matching
-- [ ] T120 [US2] Implement `as_text(batch, full=True)` in `src/cetools/render.py`, fuller sheets separated by exactly one blank line
-- [ ] T121 [US2] Register `as_dict` for `Character` and `CharacterBatch` in `src/cetools/render.py` in the committed key order, with `as_json` following from it
-- [ ] T122 [US2] Add `--full` and `--json` to the `npc` command in `src/cetools/cli.py`, with `--full`'s help string saying it changes nothing under `--json`, and machine-readable mode putting the seed, version, and provenance in-document rather than on standard error
+- [X] T119 [US2] Implement `as_text(character, full=True)` in `src/cetools/render.py`: the format, a blank line, debt, pension, and the history composed from each step's parts, dispatching on step and effect kinds with pattern matching
+- [X] T120 [US2] Implement `as_text(batch, full=True)` in `src/cetools/render.py`, fuller sheets separated by exactly one blank line
+- [X] T121 [US2] Register `as_dict` for `Character` and `CharacterBatch` in `src/cetools/render.py` in the committed key order, with `as_json` following from it
+- [X] T122 [US2] Add `--full` and `--json` to the `npc` command in `src/cetools/cli.py`, with `--full`'s help string saying it changes nothing under `--json`, and machine-readable mode putting the seed, version, and provenance in-document rather than on standard error
 
 **Checkpoint**: Stories 1 and 2 both work. A surprising sheet is diagnosable from output.
 

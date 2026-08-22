@@ -170,6 +170,15 @@ def npc(
         "--rules-data",
         help="Override location, a directory or a single file, composed over the packaged data.",
     ),
+    full: bool = typer.Option(
+        False,
+        "--full",
+        help="The fuller text rendering. No effect under --json, which already carries "
+        "everything.",
+    ),
+    json_output: bool = typer.Option(
+        False, "--json", help="Emit machine-readable output instead of text."
+    ),
 ) -> None:
     if name is not None and not name.strip():
         raise typer.BadParameter(
@@ -186,10 +195,13 @@ def npc(
         else:
             typer.echo(str(exc), err=True)
         raise typer.Exit(code=1)
+    if json_output:
+        typer.echo(as_json(batch), nl=False)
+        return
     typer.echo(f"{'Seed:'.ljust(_RULES_LABEL_WIDTH)}{batch.seed}", err=True)
     for line in _provenance_lines(batch.provenance, indent=0):
         typer.echo(line, err=True)
-    typer.echo(as_text(batch.characters[0]))
+    typer.echo(as_text(batch.characters[0], full=full))
 
 
 def main() -> None:

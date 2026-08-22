@@ -175,3 +175,16 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   sheet, tab separated, four lines with the benefit-items line omitted when
   the character holds none — to standard output, and the seed, version, and
   provenance to standard error, so a redirected sheet is exactly a sheet.
+- **`cetools npc --full` and `--json`.** `--full` adds the outstanding debt,
+  the pension, and the generation history to the sheet: one line per step,
+  composed from the step's own kind, career, term, throw, and effects —
+  never from a stored line of prose — so a surprising character is
+  diagnosed from output rather than a debugger. `--json` emits the same
+  information as a machine-readable document instead: the master seed, the
+  provenance, and one entry per character, with every field present
+  unconditionally and both the master and each character's own derived seed
+  as strings. The two options combine without conflict; `--json` already
+  carries everything, so `--full` changes nothing under it. `as_text`
+  gained a keyword-only `full` flag, rejected by every registration that
+  has no fuller form; `as_dict` and `as_json` now render `Character` and
+  `CharacterBatch` as well.

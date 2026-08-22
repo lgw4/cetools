@@ -1,7 +1,15 @@
 import json
 from functools import singledispatch
 
-from cetools.character import Character, CharacterBatch
+from cetools.character import (
+    CareerService,
+    Character,
+    CharacterBatch,
+    CharacterSkill,
+    HistoryStep,
+    StepEffect,
+    StepThrow,
+)
 from cetools.dice import ThrowResult
 from cetools.errors import CetoolsError, ValidationProblem
 from cetools.provenance import Provenance
@@ -242,19 +250,11 @@ def _benefits_line(character: Character) -> str | None:
     return ", ".join(name if counts[name] == 1 else f"{name} (x{counts[name]})" for name in names)
 
 
-@as_text.register
-def _(character: Character, *, full: bool = False) -> str:
+def _universal_character_format(character: Character) -> str:
     """The Universal Character Format (contracts/cli.md): three fixed lines
     and a fourth omitted when the character holds no benefit items. Tab
     separated, exactly one tab between fields.
-
-    Carries **no** trailing newline of its own — unlike every other `as_text`
-    registration — because a batch joins sheets on a blank line with nothing
-    before or after (FR-048a), and the CLI is what appends the one final
-    newline a redirected sheet ends with (contracts/cli.md T106: the command's
-    stdout is `as_text(character)` plus that one trailing newline).
     """
-    _reject_full(character, full)
     name_field = f"{character.title} {character.name}" if character.title else character.name
     line1 = f"{name_field}\t{_characteristic_profile(character)}\tAge {character.age}"
     line2 = f"{_careers_line(character)}\tCr{character.funds:,}"
@@ -266,13 +266,126 @@ def _(character: Character, *, full: bool = False) -> str:
     return "\n".join(lines)
 
 
+def _throw_text(throw: StepThrow) -> str:
+    """One throw, composed from its own parts (FR-030a): the faces, each
+    modifier itemized, the total when it differs from the raw sum, and the
+    target and outcome for a throw that has one to beat. A table-reading
+    throw (`target == 0`, `success == True`) omits that last part; the row
+    it read is in the owning step's `selected`.
+    """
+    text = ", ".join(str(face) for face in throw.faces)
+    raw_sum = sum(throw.faces)
+    if len(throw.faces) > 1:
+        text += f" (sum {raw_sum})"
+    for modifier in throw.modifiers:
+        sign = "+" if modifier.value >= 0 else "-"
+        text += f" {modifier.label} {sign}{abs(modifier.value)}"
+    if throw.total != raw_sum:
+        text += f" = {throw.total}"
+    if throw.target != 0 or not throw.success:
+        text += f" vs {throw.target}  {'SUCCESS' if throw.success else 'FAILURE'}"
+    return text
+
+
+def _effect_text(effect: StepEffect) -> str:
+    """One consequence, composed from its own `kind`, `subject`, and
+    `amount` (FR-030a) rather than read from a stored prose field.
+    """
+    match effect.kind:
+        case "characteristic" | "skill" | "rank":
+            return f"{effect.subject} {effect.amount}"
+        case "credits":
+            return f"Cr{effect.amount:,}"
+        case "debt":
+            return f"Cr{effect.amount:,} debt"
+        case "pension":
+            return f"Cr{effect.amount:,} pension"
+        case "age":
+            return f"+{effect.amount} years"
+        case "commission":
+            return "commissioned"
+        case "benefit-roll-forfeit":
+            return "benefit roll forfeited"
+        case "career" | "benefit":
+            return effect.subject if effect.amount == 0 else f"{effect.subject} {effect.amount}"
+        case _:
+            return effect.subject
+
+
+def _step_message(step: HistoryStep) -> str:
+    """A history line's message, composed from the step's throw, its
+    `selected`, and its effects — never from a stored line of prose
+    (FR-030a).
+    """
+    parts = []
+    if step.throw is not None:
+        parts.append(_throw_text(step.throw))
+    if step.selected:
+        parts.append(step.selected)
+    if step.effects:
+        parts.append(", ".join(_effect_text(effect) for effect in step.effects))
+    return "  ".join(parts)
+
+
+def _history_lines(history: tuple[HistoryStep, ...]) -> list[str]:
+    """The `History:` block (FR-049): kind, career, and term columns padded
+    to the longest value present, matching the padding rule the `Modifiers`
+    block already uses, followed by the composed message.
+    """
+    kind_width = max(len(step.kind) for step in history)
+    career_width = max(len(step.career) for step in history)
+    term_texts = [f"t{step.term}" if step.term else "" for step in history]
+    term_width = max(len(text) for text in term_texts)
+
+    lines = ["  History:"]
+    for step, term_text in zip(history, term_texts):
+        line = (
+            f"    {step.kind.ljust(kind_width)}  "
+            f"{step.career.ljust(career_width)}  "
+            f"{term_text.ljust(term_width)}  {_step_message(step)}"
+        )
+        lines.append(line.rstrip())
+    return lines
+
+
+def _debt_pension_lines(character: Character) -> list[str]:
+    """`Debt:` and `Pension:` (FR-049), reading `none` rather than a zero
+    amount so a reader never has to tell a zero from an absence.
+    """
+    width = max(len("Debt:"), len("Pension:")) + 1
+    debt_text = "none" if character.debt == 0 else f"Cr{character.debt:,}"
+    pension_text = "none" if character.pension == 0 else f"Cr{character.pension:,}"
+    return [
+        f"  {'Debt:'.ljust(width)}{debt_text}",
+        f"  {'Pension:'.ljust(width)}{pension_text}",
+    ]
+
+
+@as_text.register
+def _(character: Character, *, full: bool = False) -> str:
+    """The Universal Character Format, or, with `full=True`, that format
+    plus a blank line, the debt, the pension, and the generation history
+    (contracts/cli.md).
+
+    Carries **no** trailing newline of its own — unlike every other `as_text`
+    registration — because a batch joins sheets on a blank line with nothing
+    before or after (FR-048a), and the CLI is what appends the one final
+    newline a redirected sheet ends with (contracts/cli.md T106: the command's
+    stdout is `as_text(character)` plus that one trailing newline).
+    """
+    base = _universal_character_format(character)
+    if not full:
+        return base
+    lines = [base, "", *_debt_pension_lines(character), "", *_history_lines(character.history)]
+    return "\n".join(lines)
+
+
 @as_text.register
 def _(batch: CharacterBatch, *, full: bool = False) -> str:
     """Sheets separated by exactly one blank line and nothing else (FR-048a):
     a batch of one is byte-identical to the single character of that seed.
     """
-    _reject_full(batch, full)
-    return "\n\n".join(as_text(character) for character in batch.characters)
+    return "\n\n".join(as_text(character, full=full) for character in batch.characters)
 
 
 @singledispatch
@@ -335,6 +448,86 @@ def _(result: ValidationReport) -> dict:
             }
             for p in result.problems
         ],
+    }
+
+
+def _skill_dict(skill: CharacterSkill) -> dict:
+    return {"name": skill.name, "specialty": skill.specialty, "level": skill.level}
+
+
+def _career_service_dict(service: CareerService) -> dict:
+    return {
+        "career": service.career,
+        "terms": service.terms,
+        "ladder": service.ladder,
+        "rank": service.rank,
+        "title": service.title,
+        "commissioned": service.commissioned,
+        "entered_by": service.entered_by,
+        "ended": service.ended,
+        "benefit_rolls": service.benefit_rolls,
+    }
+
+
+def _step_throw_dict(throw: StepThrow | None) -> dict | None:
+    if throw is None:
+        return None
+    return {
+        "faces": list(throw.faces),
+        "modifiers": [{"label": m.label, "value": m.value} for m in throw.modifiers],
+        "total": throw.total,
+        "target": throw.target,
+        "success": throw.success,
+    }
+
+
+def _step_effect_dict(effect: StepEffect) -> dict:
+    return {"kind": effect.kind, "subject": effect.subject, "amount": effect.amount}
+
+
+def _history_step_dict(step: HistoryStep) -> dict:
+    return {
+        "kind": step.kind,
+        "career": step.career,
+        "term": step.term,
+        "throw": _step_throw_dict(step.throw),
+        "selected": step.selected,
+        "effects": [_step_effect_dict(effect) for effect in step.effects],
+    }
+
+
+@as_dict.register
+def _(character: Character) -> dict:
+    # `skills` sorts by the same key the sheet sorts by, so the two agree
+    # (contracts/json-output.md), even though `Character.skills` itself is
+    # held in acquisition order (data-model.md).
+    sorted_skills = sorted(character.skills, key=lambda skill: _sort_key(_skill_label(skill)))
+    return {
+        "seed": str(character.seed),
+        "name": character.name,
+        "given_name": character.given_name,
+        "surname": character.surname,
+        "surname_region": character.surname_region,
+        "title": character.title,
+        "characteristics": dict(character.characteristics),
+        "skills": [_skill_dict(skill) for skill in sorted_skills],
+        "careers": [_career_service_dict(service) for service in character.careers],
+        "age": character.age,
+        "funds": character.funds,
+        "debt": character.debt,
+        "pension": character.pension,
+        "benefits": list(character.benefits),
+        "history": [_history_step_dict(step) for step in character.history],
+    }
+
+
+@as_dict.register
+def _(batch: CharacterBatch) -> dict:
+    return {
+        "kind": "npc",
+        "seed": str(batch.seed),
+        "provenance": _provenance_dict(batch.provenance),
+        "characters": [as_dict(character) for character in batch.characters],
     }
 
 
