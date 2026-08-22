@@ -246,3 +246,11 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   no longer declares it, and `forfeit-term-benefit` is dropped from the
   mishap effect schema entirely — the unconditional per-term rule is the
   only place this ever belonged (T145).
+- **A characteristic already at the floor could raise a fresh medical-crisis
+  debt for a reduction that never happened.** The aging and mishap
+  characteristic-class effects tested the characteristic's score *after*
+  applying the delta, rather than whether the delta actually reduced
+  anything, so a characteristic re-selected while already floored applied a
+  delta of zero and still triggered another throw-times-multiplier debt.
+  Both call sites now trigger only where the applied amount is itself
+  negative (FR-021, T146).

@@ -767,7 +767,13 @@ class _Walk:
         for code in sorted(chosen):
             applied = _apply_characteristic_delta(self.characteristics, code, amount, self.floor())
             effects.extend(applied)
-            if self.characteristics[code] <= self.floor() and amount < 0:
+            # A crisis is raised only where this reduction actually moved the
+            # characteristic (research R13's applied amount, `applied[-1]`,
+            # not the post-state alone): a characteristic already at the
+            # floor and chosen again applies a delta of zero and must not
+            # raise a fresh debt for a reduction that did not occur (T146).
+            applied_delta = applied[-1].amount
+            if applied_delta < 0 and self.characteristics[code] <= self.floor():
                 crisis_codes.append(code)
         self.history.append(
             HistoryStep(
@@ -906,7 +912,10 @@ class _Walk:
                     self.characteristics, code, class_effect.amount, self.floor()
                 )
                 effects.extend(applied)
-                if self.characteristics[code] <= self.floor() and class_effect.amount < 0:
+                # See the identical comment in `_apply_class_effect` (T146):
+                # trigger only where this reduction actually applied.
+                applied_delta = applied[-1].amount
+                if applied_delta < 0 and self.characteristics[code] <= self.floor():
                     crisis_codes.append(code)
             if crisis_codes:
                 self._trigger_medical_crisis(career_name, term, tuple(crisis_codes))
