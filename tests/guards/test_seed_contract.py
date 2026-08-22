@@ -8,6 +8,7 @@ from typer.testing import CliRunner
 
 from cetools import Roller, check, d66, load_rules, throw, throw_dice
 from cetools.cli import app
+from cetools.generator import generate_batch, generate_character
 
 runner = CliRunner()
 
@@ -42,6 +43,8 @@ def test_guard_a_library_calls_do_not_touch_module_random_state():
     d66(Roller("session-alpha"))
     check(Roller(1), difficulty="Difficult", characteristic=9, skill=2)
     check(Roller(None), rules=load_rules())
+    generate_character(Roller("session-alpha"), load_rules())
+    generate_batch("session-alpha", load_rules(), count=2)
     assert random.getstate() == before
 
 

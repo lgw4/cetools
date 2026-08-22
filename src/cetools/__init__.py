@@ -6,6 +6,29 @@ from cetools.careers import (
     SkillTable,
     Throw,
 )
+from cetools.character import (
+    CareerService,
+    Character,
+    CharacterBatch,
+    CharacterSkill,
+    HistoryStep,
+    StepEffect,
+    StepThrow,
+)
+from cetools.chargen import (
+    AgingRow,
+    AgingTable,
+    BackgroundSkills,
+    ChargenParameters,
+    ClassEffect,
+    DraftTable,
+    InjuryRow,
+    MedicalThreshold,
+    MedicalTiers,
+    MishapEffect,
+    MishapRow,
+    MishapTable,
+)
 from cetools.dice import Roller, ThrowResult, d66, parse_notation, throw, throw_dice
 from cetools.errors import (
     CetoolsError,
@@ -14,6 +37,8 @@ from cetools.errors import (
     TaskError,
     ValidationProblem,
 )
+from cetools.generator import generate_batch, generate_character
+from cetools.names import GivenNameTable, SurnameEntry, SurnameTable
 from cetools.notation import (
     BenefitItem,
     CharacteristicAdjustment,
@@ -81,4 +106,28 @@ __all__ = [
     "RankLadder",
     "Rank",
     "MusteringOut",
+    "generate_character",
+    "generate_batch",
+    "Character",
+    "CharacterBatch",
+    "CharacterSkill",
+    "CareerService",
+    "HistoryStep",
+    "StepThrow",
+    "StepEffect",
+    "DraftTable",
+    "AgingTable",
+    "AgingRow",
+    "ClassEffect",
+    "MishapTable",
+    "MishapRow",
+    "InjuryRow",
+    "MishapEffect",
+    "BackgroundSkills",
+    "MedicalTiers",
+    "MedicalThreshold",
+    "ChargenParameters",
+    "GivenNameTable",
+    "SurnameTable",
+    "SurnameEntry",
 ]

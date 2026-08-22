@@ -207,6 +207,22 @@ class TestPublicSurfaceMatchesTheContract:
             "Public surface (`cetools/__init__.py`)",
         )
     )
+    # A third contract (T076): `003-npc-generator` adds the generation
+    # surface. Its "Public surface added" block is the `from cetools import
+    # (...)` form the other two contracts use; "Public surface removed" is
+    # the literal word `nothing`, which `_names` reads as an empty set.
+    _ADDED_003 = _names(
+        _first_python_block(
+            _SPECS / "003-npc-generator" / "contracts" / "library-api.md",
+            "Public surface added",
+        )
+    )
+    _REMOVED_003 = _names(
+        _first_python_block(
+            _SPECS / "003-npc-generator" / "contracts" / "library-api.md",
+            "Public surface removed",
+        )
+    )
 
     def test_the_contracts_parsed_into_something(self):
         # A heading rename or a reformatted block would otherwise leave every
@@ -214,9 +230,13 @@ class TestPublicSurfaceMatchesTheContract:
         assert len(self._INHERITED) > 10
         assert len(self._ADDED) > 20
         assert self._REMOVED == {"load_task_parameters"}
+        assert len(self._ADDED_003) > 20
+        assert self._REMOVED_003 == set()
 
     def test_all_is_exactly_the_inherited_surface_less_what_was_removed_plus_what_was_added(self):
-        assert set(cetools.__all__) == (self._INHERITED - self._REMOVED) | self._ADDED
+        expected = (self._INHERITED - self._REMOVED) | self._ADDED
+        expected = (expected - self._REMOVED_003) | self._ADDED_003
+        assert set(cetools.__all__) == expected
 
     def test_all_has_no_duplicates(self):
         assert len(cetools.__all__) == len(set(cetools.__all__))
