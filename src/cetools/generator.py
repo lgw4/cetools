@@ -223,6 +223,7 @@ class _Walk:
         self.debts: list[_Debt] = []
         self.title = ""
         self.draft_uses = 0
+        self.cash_taken = 0
 
     def floor(self) -> int:
         return self.rules.characteristics.floor()
@@ -972,14 +973,16 @@ class _Walk:
     ) -> None:
         params = self.rules.chargen
         qualifies_for_pension = terms >= params.pension_minimum_terms
-        cash_taken = 0
         rank_bonus = self._highest_matching_rank_row(params.mustering_out_rank_benefits, rank)
         material_dm = self._highest_matching_rank_row(params.mustering_out_material_rank_dm, rank)
         rolls = benefit_rolls + rank_bonus
 
         for _ in range(rolls):
             take_cash = False
-            if cash_taken < params.mustering_out_maximum_cash_rolls:
+            # `self.cash_taken` is a whole-character count (FR-016): "how
+            # many of a character's rolls" are cash, not how many of one
+            # career service's are, so it is never reset per service (T147).
+            if self.cash_taken < params.mustering_out_maximum_cash_rolls:
                 faces_c = _dice(self.roller, params.mustering_out_cash_choice_roll)
                 take_cash = sum(faces_c) >= params.mustering_out_cash_choice_target
             if take_cash:
@@ -988,7 +991,7 @@ class _Walk:
                 index = max(0, min(len(career.mustering_out.cash) - 1, sum(faces) + dm - 1))
                 amount = career.mustering_out.cash[index]
                 self.funds += amount
-                cash_taken += 1
+                self.cash_taken += 1
                 self.history.append(
                     HistoryStep(
                         kind="benefit",

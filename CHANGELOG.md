@@ -254,3 +254,9 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   delta of zero and still triggered another throw-times-multiplier debt.
   Both call sites now trigger only where the applied amount is itself
   negative (FR-021, T146).
+- **The mustering-out cash-roll cap applied per career service rather than
+  per character.** `cash_taken` was a local reset to zero on every
+  `muster_out_service` call, so a multi-career character could take more
+  rolls as cash than `mustering-out.maximum-cash-rolls` allows across their
+  whole life. It is now `_Walk` state carried across every service the
+  character musters out of (FR-016, T147).
