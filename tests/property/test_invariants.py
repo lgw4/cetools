@@ -1,9 +1,10 @@
 import string
 
-from hypothesis import given
+from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from cetools.dice import Roller, d66, throw_dice
+from cetools.generator import generate_character
 from cetools.notation import (
     BenefitItem,
     CharacteristicAdjustment,
@@ -184,3 +185,24 @@ def test_bare_skill_reference_round_trips(name, specialty):
 @given(name=names)
 def test_bare_benefit_item_round_trips(name):
     assert parse_entry(name, EntryContext.BENEFIT_TABLE) == BenefitItem(name=name)
+
+
+# --- the walk (003-npc-generator T110): always alive, always internally
+# consistent, over Hypothesis-drawn seeds rather than a fixed sample ---
+
+_RULES = load_rules()
+
+
+@settings(max_examples=50, deadline=None)
+@given(seed=seeds)
+def test_the_walk_always_produces_a_living_named_consistent_character(seed):
+    character = generate_character(Roller(seed), _RULES)
+    assert character.name
+    assert character.careers
+    assert character.funds >= 0
+    assert character.debt >= 0
+    floor = _RULES.characteristics.floor()
+    for code, score in character.characteristics.items():
+        assert score >= floor
+        _RULES.characteristics.symbol(score)  # raises if out of the declared range
+    assert character.history

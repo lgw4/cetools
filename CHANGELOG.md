@@ -154,3 +154,24 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
 - **Project documentation.** `README.md` with installation and worked
   examples, and `CONTRIBUTING.md` covering the constitution, the spec-driven
   workflow, and the licensing rules.
+- **`cetools npc`.** Generates a complete NPC from a seed by walking the
+  source material's lifepath end to end: characteristics, background
+  skills, career selection with qualification, the draft, and the
+  always-available fallback, basic training, a term loop of survival,
+  commission, advancement, skill acquisition (including the cascade rule
+  for specialties), and aging, then mustering out with cash-or-material
+  benefit rolls, a pension, and ordered debt settlement. The character is
+  always alive, always named, and always internally consistent — there is
+  no death path and nothing is discarded and re-rolled. `--seed` and
+  `--name` behave as everywhere else in the tool; `--rules-data` composes
+  an override exactly as `check` and `validate` do. The rolled name comes
+  from a seed stream derived from the walk's own seed, which the walk's
+  roller never touches, so supplying `--name` changes nothing else about
+  the character a seed produces. `generate_character` and `generate_batch`
+  (with `character_seed` for a batch position's seed) are reachable from the
+  library without the command line; a batch's position 0 is the master seed
+  itself, so `--seed X` and a batch of one from that seed are the same
+  person. Prints the Universal Character Format — the source material's own
+  sheet, tab separated, four lines with the benefit-items line omitted when
+  the character holds none — to standard output, and the seed, version, and
+  provenance to standard error, so a redirected sheet is exactly a sheet.
