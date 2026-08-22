@@ -235,9 +235,12 @@ def _careers_line(character: Character) -> str:
 
 
 def _skills_line(character: Character) -> str:
-    rendered = [f"{_skill_label(skill)}-{skill.level}" for skill in character.skills]
-    rendered.sort(key=_sort_key)
-    return ", ".join(rendered)
+    # Sorted by the label alone (contracts/cli.md: "over the rendered
+    # name-and-specialty"), not by the label-and-level string: the level
+    # suffix must never perturb the order `as_dict`'s `skills` agrees with
+    # (FR-046, T154).
+    ordered = sorted(character.skills, key=lambda skill: _sort_key(_skill_label(skill)))
+    return ", ".join(f"{_skill_label(skill)}-{skill.level}" for skill in ordered)
 
 
 def _benefits_line(character: Character) -> str | None:

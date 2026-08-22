@@ -221,3 +221,14 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   part of what was asked for. `generate_batch` and `character_seed` were
   already reachable from the library; this wires the option through to
   them.
+
+### Fixed
+
+- **The Universal Character Format's skills line sorted by the rendered
+  `"Name-Level"` string instead of by the skill's name (and specialty)
+  alone.** A skill whose label is a prefix of another's — `Gun Combat`
+  against `Gun Combat (Slug Rifle)` — could render in the wrong order,
+  because the space introducing the specialty sorts before the hyphen
+  introducing the level. `as_text` now sorts skills by label first and
+  appends the level afterward, matching `contracts/cli.md` and the order
+  `as_dict`'s `skills` already agreed with (T154).
