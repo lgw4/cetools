@@ -1041,3 +1041,246 @@ def parse_medical_tiers(
     if problems or roll is None or rank_dm is None or tiers is None:
         return None, tuple(problems)
     return MedicalTiers(roll=roll, rank_dm=rank_dm, tiers=MappingProxyType(tiers)), ()
+
+
+# --- chargen-parameters (contracts/data-files.md) ----------------------------
+
+# Every scalar the walk depends on (FR-038), grouped exactly as the file
+# groups them. `(kind, minimum)`: `kind` is "roll", "int", "bool", or
+# "string"; `minimum` bounds an integer field, `None` where the field is a
+# signed modifier with no natural floor. Declarative, so ChargenParameters
+# exposes every one of these as a named attribute — a misspelling in this
+# table is an `AttributeError` at import, not a `KeyError` mid-walk — without
+# forty near-identical `_require_*` call sites to keep in sync with it.
+_CHARGEN_GROUPS: dict[str, dict[str, tuple[str, int | None]]] = {
+    "characteristics": {"roll": ("roll", None)},
+    "background-skills": {
+        "base": ("int", 0),
+        "characteristic": ("string", None),
+        "homeworld-first": ("int", 0),
+    },
+    "terms": {
+        "starting-age": ("int", 0),
+        "term-years": ("int", 1),
+        "mishap-term-years": ("int", 1),
+        "cap": ("int", 1),
+        "aging-begins-at-age": ("int", 0),
+    },
+    "qualification": {
+        "penalty-per-previous-career": ("int", None),
+        "draft-entries-allowed": ("int", 0),
+    },
+    "basic-training": {
+        "first-career-all": ("bool", None),
+        "subsequent-career-count": ("int", 0),
+    },
+    "survival": {"natural-failure": ("int", 0)},
+    "skill-rolls": {
+        "per-term": ("int", 0),
+        "per-term-without-throws": ("int", 0),
+        "on-commission": ("int", 0),
+        "on-advancement": ("int", 0),
+    },
+    "commission": {"drafted-first-term-barred": ("bool", None)},
+    "continuation": {"roll": ("roll", None), "target": ("int", 0)},
+    "mustering-out": {
+        "roll": ("roll", None),
+        "cash-choice-roll": ("roll", None),
+        "cash-choice-target": ("int", 0),
+        "maximum-cash-rolls": ("int", 0),
+        "retired-cash-dm": ("int", None),
+    },
+    "pension": {
+        "minimum-terms": ("int", 1),
+        "base": ("int", 0),
+        "per-additional-term": ("int", 0),
+    },
+    "medical": {
+        "crisis-roll": ("roll", None),
+        "crisis-multiplier": ("int", 0),
+        "crisis-restores-to": ("int", 0),
+        "restore-cost-per-point": ("int", 0),
+    },
+}
+
+# The two mustering-out fields that are arrays of rank-scoped rows rather
+# than scalars, keyed by the row's own value field name.
+_RANK_BONUS_ARRAYS = {"rank-benefits": "extra", "material-rank-dm": "dm"}
+
+
+def _chargen_attribute(group: str, key: str) -> str:
+    return f"{group.replace('-', '_')}_{key.replace('-', '_')}"
+
+
+@dataclass(frozen=True, slots=True)
+class RankBonus:
+    """One row of `mustering-out.rank-benefits` or `.material-rank-dm`: at
+    `rank` or above, `amount` applies. The highest matching row wins;
+    neither table is cumulative.
+    """
+
+    rank: int
+    amount: int
+
+
+@dataclass(frozen=True, slots=True)
+class ChargenParameters:
+    """Every rules constant the walk depends on, exposed as named
+    attributes rather than as a nested mapping (FR-038).
+    """
+
+    characteristics_roll: str
+    background_skills_base: int
+    background_skills_characteristic: str
+    background_skills_homeworld_first: int
+    terms_starting_age: int
+    terms_term_years: int
+    terms_mishap_term_years: int
+    terms_cap: int
+    terms_aging_begins_at_age: int
+    qualification_penalty_per_previous_career: int
+    qualification_draft_entries_allowed: int
+    basic_training_first_career_all: bool
+    basic_training_subsequent_career_count: int
+    survival_natural_failure: int
+    skill_rolls_per_term: int
+    skill_rolls_per_term_without_throws: int
+    skill_rolls_on_commission: int
+    skill_rolls_on_advancement: int
+    commission_drafted_first_term_barred: bool
+    continuation_roll: str
+    continuation_target: int
+    mustering_out_roll: str
+    mustering_out_cash_choice_roll: str
+    mustering_out_cash_choice_target: int
+    mustering_out_maximum_cash_rolls: int
+    mustering_out_retired_cash_dm: int
+    mustering_out_rank_benefits: tuple[RankBonus, ...]
+    mustering_out_material_rank_dm: tuple[RankBonus, ...]
+    pension_minimum_terms: int
+    pension_base: int
+    pension_per_additional_term: int
+    medical_crisis_roll: str
+    medical_crisis_multiplier: int
+    medical_crisis_restores_to: int
+    medical_restore_cost_per_point: int
+
+
+def _parse_rank_bonus(
+    value: object, file: str, location: str, value_key: str
+) -> tuple[RankBonus | None, list[ValidationProblem]]:
+    problems: list[ValidationProblem] = []
+    if not isinstance(value, dict):
+        problems.append(
+            ValidationProblem(
+                file=file, location=location, found=type_name(value), expected="a table"
+            )
+        )
+        return None, problems
+
+    problems.extend(_unrecognized_key_problems(value, {"rank", value_key}, file, f"{location}."))
+    rank = _require_int(value, "rank", file, f"{location}.rank", problems, minimum=0)
+    amount = _require_int(value, value_key, file, f"{location}.{value_key}", problems)
+
+    if rank is None or amount is None:
+        return None, problems
+    return RankBonus(rank=rank, amount=amount), problems
+
+
+def _parse_rank_bonus_list(
+    raw: object, file: str, location: str, value_key: str
+) -> tuple[tuple[RankBonus, ...] | None, list[ValidationProblem]]:
+    if not isinstance(raw, list) or not raw:
+        found = type_name(raw) if not isinstance(raw, list) else "an empty array"
+        return None, [
+            ValidationProblem(
+                file=file, location=location, found=found, expected="at least one entry"
+            )
+        ]
+    problems: list[ValidationProblem] = []
+    bonuses: list[RankBonus] = []
+    ok = True
+    for index, item in enumerate(raw):
+        bonus, sub_problems = _parse_rank_bonus(item, file, f"{location}[{index}]", value_key)
+        problems.extend(sub_problems)
+        if bonus is None:
+            ok = False
+        else:
+            bonuses.append(bonus)
+    if not ok:
+        return None, problems
+    return tuple(bonuses), problems
+
+
+def _parse_chargen_group(
+    data: Mapping[str, object], group: str, file: str, problems: list[ValidationProblem]
+) -> dict[str, object]:
+    location = group
+    fields = _CHARGEN_GROUPS[group]
+    allowed = set(fields)
+    if group == "mustering-out":
+        allowed |= set(_RANK_BONUS_ARRAYS)
+
+    table = data.get(group)
+    if not isinstance(table, dict):
+        problems.append(
+            ValidationProblem(
+                file=file,
+                location=location,
+                found="missing" if group not in data else type_name(table),
+                expected="a table",
+            )
+        )
+        return {}
+
+    problems.extend(_unrecognized_key_problems(table, allowed, file, f"{location}."))
+
+    values: dict[str, object] = {}
+    for key, (kind, minimum) in fields.items():
+        field_location = f"{location}.{key}"
+        attribute = _chargen_attribute(group, key)
+        if kind == "roll":
+            values[attribute] = _require_roll(table, key, file, field_location, problems)
+        elif kind == "bool":
+            values[attribute] = _require_bool(table, key, file, field_location, problems)
+        elif kind == "string":
+            values[attribute] = _require_string(table, key, file, field_location, problems)
+        else:
+            values[attribute] = _require_int(
+                table, key, file, field_location, problems, minimum=minimum
+            )
+
+    if group == "mustering-out":
+        for array_key, value_key in _RANK_BONUS_ARRAYS.items():
+            field_location = f"{location}.{array_key}"
+            attribute = _chargen_attribute(group, array_key)
+            if array_key not in table:
+                problems.append(
+                    ValidationProblem(
+                        file=file, location=field_location, found="missing", expected="an array"
+                    )
+                )
+                values[attribute] = None
+                continue
+            parsed, sub_problems = _parse_rank_bonus_list(
+                table[array_key], file, field_location, value_key
+            )
+            problems.extend(sub_problems)
+            values[attribute] = parsed
+
+    return values
+
+
+def parse_chargen_parameters(
+    data: Mapping[str, object], file: str
+) -> tuple[ChargenParameters | None, tuple[ValidationProblem, ...]]:
+    problems: list[ValidationProblem] = []
+    problems.extend(_unrecognized_key_problems(data, _HEADER_KEYS | set(_CHARGEN_GROUPS), file))
+
+    values: dict[str, object] = {}
+    for group in _CHARGEN_GROUPS:
+        values.update(_parse_chargen_group(data, group, file, problems))
+
+    if problems or any(value is None for value in values.values()):
+        return None, tuple(problems)
+    return ChargenParameters(**values), ()
