@@ -104,8 +104,9 @@ excluding a seed.
   are the previous feature's evidence, and regenerating them is how a changed number gets
   absorbed.
 
-**Scale/Scope**: 58 numbered functional requirements after the amendments (FR-001 through
-FR-058, with the lettered insertions), 20 success criteria, four user stories. Four new
+**Scale/Scope**: FR-001 through FR-058 with lettered insertions, 89 numbered functional
+requirements after the readiness review of 2026-08-21 added twelve, 20 success criteria, four
+user stories. Four new
 library modules, five existing modules changed, three schema versions raised, 21 new data
 files. On the order of 1,600 lines of implementation and a substantially larger test suite
 than the code. The largest single risk is not the engine but the data: 21 files, each of
@@ -381,6 +382,18 @@ one is a place where the obvious implementation is wrong.
   neither can be read from data without it. FR-039 does not name the field, and it is
   load-bearing; research R12 records why it is added under the same reasoning FR-039 gives
   for the bands and the letters, rather than being a liberty the design took.
+- **A pension is earned in one career, not over a life** (FR-018). `pension.minimum-terms`
+  is compared against the terms of a single `CareerService`, never against the total. Summing
+  the character's terms is the natural implementation and it pays the wrong people.
+- **A commission moves the character to another ladder** (FR-007b), at the lowest rank that
+  ladder declares, and the rank bonus there is granted on arrival. `CareerService.ladder` is
+  the ladder they ended on, which for a commissioned character is not the one they entered on.
+- **The aging crisis debt buys something.** Settling it lifts every characteristic the crisis
+  covered to `medical.crisis-restores-to` (FR-021). An implementation that records the debt and
+  settles it without restoring anything passes every test that only checks the arithmetic.
+- **Debts settle in the order they arose** (FR-025a), and a partly covered medical bill
+  restores points one at a time in an order the walk decides and records. Iterating a mapping
+  of reductions is the traversal-order dependency FR-056 forbids.
 - **A characteristic reduction floors at the bottom of the declared pseudo-hex range.**
   Two statements in the spec pull against each other here, and research R13 settles them.
   The history records the reduction called for *and* the amount applied when they differ,

@@ -347,7 +347,8 @@ breaking library change and no task check result may change as a consequence (SC
 | `re_enterable` | `bool` | Marks the career available again after being left (FR-015). Default `false`. |
 | `throws` | `Mapping[str, Throw]` | `promotion` becomes optional. Together with an absent `commission` that is what FR-009 reads as two skill rolls a term. |
 | `tables` | `Mapping[str, SkillTable]` | `advanced` is renamed `specialist`; `advanced-education` becomes required and keeps declaring its own gate in the file. |
-| `ladders`, `mustering_out`, `name` | unchanged | |
+| `ladders` | `tuple[Ladder, ...]` | Each gains a `role` of `"entry"` or `"commissioned"` (FR-007b). Exactly one is `entry`; a career declaring a commission throw declares exactly one `commissioned`, and a successful commission moves the character to it at the lowest rank it declares. |
+| `mustering_out`, `name` | unchanged | |
 
 Renaming `advanced` to `specialist` follows the source material's own heading and removes
 the collision with `advanced-education`, which two adjacent keys differing by a suffix made
@@ -389,6 +390,8 @@ Checked after every file has been read, alongside the two the previous feature h
 | No two surname tables in force declare the same region | FR-043c, and the analogue of the duplicate-career-name rule. The problem names both files. |
 | At least one surname table is in force | FR-043f weights over the tables in force, and no tables in force means no surname can be drawn. |
 | Every skill any shipped table can grant resolves against the skills registry | FR-040, which is the existing per-entry rule reaching the new tables. |
+| Every characteristic class any table in force names is declared in the characteristics registry | FR-040a. An effect naming a class nothing declares reduces nothing, silently. |
+| Every career declares exactly one `entry` ladder, and a career declaring a commission throw declares exactly one `commissioned` ladder | FR-007b. |
 
 ## Schema versions
 

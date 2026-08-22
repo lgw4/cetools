@@ -101,6 +101,48 @@ forbids what the next one requires would leave the two contradicting each other.
   recording only the string was rejected because SC-019's weighting check would then have to
   recover a region by splitting rendered text.
 
+### Session 2026-08-21 (requirements readiness review)
+
+Raised by the readiness checklist in `checklists/readiness.md`, which asked of each
+requirement whether it was stated completely enough to build from. Twelve rules the design
+had already settled turned out to be stated nowhere in the requirements, two statements in
+this document contradicted each other, and four success criteria were unfalsifiable as
+written. The answers below are the ones that change meaning; the rest are amended in place.
+
+- Q: On a failed qualification, what decides between the draft and the always-available
+  career? → A: A count, held in data. A character may be routed to the draft a fixed number
+  of times, and beyond that a failed qualification routes to the always-available career
+  instead. Leaving it open would have made the routing the generator's discretion, which is
+  the one kind of decision this feature does not have.
+- Q: Does a successful commission or advancement grant a further skill roll? → A: Yes, and
+  FR-009 was wrong to read as though the per-term count were the whole rule. The source
+  grants one on each. Both counts go into data, so FR-009's stricter reading stays reachable
+  by editing a file rather than the engine.
+- Q: An aging crisis becomes a debt. What does settling that debt buy? → A: The
+  characteristics the crisis covered come back off the floor, to a score declared in data.
+  The source pays for medical care that restores them; carrying the cost as a debt changes
+  when it is paid, not what it buys. A crisis whose debt is never settled leaves them
+  floored.
+- Q: Is a pension earned across one career or across a life? → A: One career. Terms in
+  different careers are not added together for it, so a character with three terms in each
+  of two careers has served six and qualifies for nothing. That is the difference between a
+  pension and a length-of-service award, and the requirement as first written would have
+  paid the second.
+- Q: Does a career have one rank ladder or several, and what does a commission do to a
+  character's place on them? → A: Several, and a commission moves the character to the
+  commissioned ladder at its lowest rank. The career file declares which ladder a character
+  enters on and which one a commission moves them to, because "the officer ladder is the
+  second one" is a rule held in engine code.
+- Q: Does a seed reproduce a character across package versions? → A: No, and the
+  requirements now say so. The order in which the walk draws is part of what a seed
+  reproduces, so any change that reorders, adds, or removes a draw changes every character
+  and is flagged in the changelog as breaking. A referee quoting a seed to another referee
+  needs telling this.
+- Q: Is a name supplied together with a count above one a command-line error, or a rejected
+  request? → A: A rejected request. The library refuses it on the same terms and the command
+  reports it as a usage error. FR-055 requires every capability reachable programmatically,
+  and a rule enforced only at the command line is one a library consumer does not get.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Get a usable NPC from a seed (Priority: P1)
@@ -124,8 +166,9 @@ feature exists to be.
 **Acceptance Scenarios**:
 
 1. **Given** a seed, **When** the generator runs, **Then** a complete character is produced,
-   carrying a name, six characteristics, a skill list, one or more careers with terms and
-   rank, an age, and mustering-out proceeds, and the character is alive.
+   carrying a name, a score for every characteristic the registry declares, a skill list, one
+   or more careers with terms and rank, an age, and mustering-out proceeds, and the character
+   is alive.
 2. **Given** the same seed and the same package version, **When** the generator runs twice,
    **Then** the two characters are identical in every field and their sheets are identical
    byte for byte.
@@ -280,8 +323,8 @@ value on its own as the house-rule path for all character generation.
   succeeding? The cap forces mustering out. The cap and the re-enlistment throw are two
   separate ways a career ends and both must be honored.
 - What happens when a character leaves a career under the cap? They select another career and
-  qualify for it again at a penalty that grows with each career already served. Only Drifter
-  may be re-entered; any other career already served is not available again.
+  qualify for it again at a penalty that grows with each career already entered. Only Drifter
+  may be re-entered; any other career already entered is not available again.
 - What happens when a character fails qualification for a second or third career? The same
   routing applies as for the first: the draft, or Drifter. A character is never left with
   nowhere to go.
@@ -300,13 +343,21 @@ value on its own as the house-rule path for all character generation.
 - What happens when a table the character rolls on is gated on a characteristic they do not
   meet? That table is not among the tables the roll may select, so a gate excludes rather
   than fails.
-- What happens when a characteristic rises above or falls below the range the pseudo-hex
-  letters cover? A score outside the declared range is a data problem rather than a character:
-  the letters are declared in the characteristics registry and must cover every score the
-  rules can produce. The run fails naming the score and the range.
-- What happens when a characteristic falls to zero or below? The reduction is applied and
-  recorded; no death results, because no death path exists in this engine. What a zero
-  characteristic means in play is the referee's business and not the generator's.
+- What happens when a reduction would take a characteristic below the range the pseudo-hex
+  letters cover? It takes it to the bottom of that range instead. The characteristics registry
+  declares that bottom explicitly alongside the letters, so the covered range is data rather
+  than an assumption, and the history records both the reduction the rule called for and the
+  amount actually applied when the two differ. The rules can therefore never produce a score
+  the letters do not cover, which is what makes the letters' coverage a property rather than a
+  hope.
+- What happens when a characteristic reaches the bottom of that range, which the shipped data
+  puts at zero? The reduction stands and is recorded; no death results, because no death path
+  exists in this engine. Where the bottom was reached by aging, an aging crisis follows and
+  settling its debt lifts the characteristic back off the floor. What a floored characteristic
+  means in play is otherwise the referee's business and not the generator's.
+- What happens when a score rises above the top of the declared range? The run fails naming
+  the score and the range. This is unreachable from the shipped data and exists for an override
+  that declares fewer letters than the rules shipped beside them can produce.
 - What happens when a character has exactly one background skill to take? They take one
   homeworld skill, rather than the two the general rule would give or the none a strict
   reading would give.
@@ -348,6 +399,21 @@ value on its own as the house-rule path for all character generation.
   locale-independently.
 - What happens when a batch is requested with a count of zero or a negative count? It is a
   usage error naming the option, rather than a successful run producing nothing.
+- What happens when the caller supplies an empty name, or one that is only whitespace? It is a
+  usage error. Every character has a personal name and a supplied name is used verbatim, and an
+  empty string honors the second requirement at the cost of the first. Rolling a name instead
+  was rejected because it makes an empty string mean the opposite of what it says.
+- What happens when a character is routed to the draft more times than the data allows? The
+  further failed qualification routes them to the always-available career instead. The draft is
+  a limited resource rather than an unlimited one, which is what keeps a character with a bad
+  characteristic from being drafted into every career in the game.
+- What happens when a character serves three terms in one career and three in another? They
+  receive no pension. A pension is earned in a single career, and six terms spread over two
+  careers is not five terms in one.
+- What happens when two surname tables in force declare the same region, or when none is in
+  force at all? Both fail the run before any character is produced, naming the files at fault.
+  A duplicated region would quietly take two shares of a weighting taken over tables, and no
+  table in force leaves no surname to draw.
 
 ## Requirements *(mandatory)*
 
@@ -366,8 +432,13 @@ value on its own as the house-rule path for all character generation.
   drawing over its background and homeworld skill tables directly. A character entitled to
   exactly one background skill MUST take one homeworld skill.
 - **FR-004**: The system MUST attempt qualification for a career it selects at random from the
-  careers in force. On failure it MUST route the character to the draft or to Drifter, and the
-  history MUST record which.
+  careers in force. On failure it MUST route the character to the draft, and the history MUST
+  record that it did. How many times one character may be routed to the draft MUST be a rules
+  constant held in data; once a character has been drafted that many times, a further failed
+  qualification MUST route them instead to a career declaring itself always available under
+  FR-006, which the history MUST likewise record. Which of the two routes a failure takes is
+  therefore decided by a count rather than left open, so that the routing is never the
+  generator's discretion and a character is never left with nowhere to go.
 - **FR-005**: The draft MUST resolve over the universal Draft table, whose row ordering is
   significant because the die that reads it is positional. Every career the Draft table names
   MUST resolve to a career in force, and a name that does not MUST fail the run before any
@@ -380,12 +451,35 @@ value on its own as the house-rule path for all character generation.
   MUST be granted the bonus attached to rank zero of the ladder they enter on. Granting the
   rank-zero bonus at entry is what makes it reachable at all; under any other reading it is
   data nothing can reach.
-- **FR-008**: Each term MUST run survival, then commission where the career offers one and the
-  character is not already commissioned, then advancement where the career offers one, then
-  skill acquisition, then aging, in that order.
+- **FR-007a**: Basic training MUST grant, on the character's first career, every entry of that
+  career's service skill table at level zero, and on any later career a number of entries drawn
+  from that same table. Both MUST be rules constants held in data rather than a distinction the
+  engine knows, so that a referee whose setting trains later careers as fully as the first
+  changes a value rather than a branch.
+- **FR-007b**: A career MUST be able to declare more than one rank ladder, and MUST declare
+  which ladder a character entering the career starts on and which ladder a successful
+  commission moves them to. A character holds a rank on exactly one ladder at a time.
+  Advancement moves them up their current ladder; a commission moves them to the commissioned
+  ladder at the lowest rank that ladder declares. The bonus attached to a rank MUST be granted
+  when the character reaches that rank, which is the same reading FR-007 gives the rank-zero
+  bonus on entry. Which ladder is which MUST be declared in the career file: a rule that reads
+  "the commissioned ladder is the second one listed" is a rule held in engine code.
+- **FR-008**: Each term MUST run survival, then commission where the career offers one, the
+  character is not already commissioned, and the character is not barred from attempting it
+  under FR-012a, then advancement where the career offers one, then skill acquisition, then
+  aging, in that order.
+- **FR-008a**: An unmodified survival result at or below a threshold held in data MUST fail
+  whatever the modifiers. A character with modifiers large enough to make survival arithmetically
+  certain is a character for whom the survival throw is not a throw, and the source material
+  guards against exactly that.
 - **FR-009**: A character MUST take one skill roll per term, except in a career that declares
   neither a commission throw nor an advancement throw, where they MUST take two. No flag
-  declares this; the absence of both throws declares it.
+  declares this; the absence of both throws declares it. In addition, a successful commission
+  throw and a successful advancement throw MUST each grant a further skill roll in the term the
+  throw succeeded in. All four counts (the ordinary per-term count, the count in a career
+  declaring neither throw, and the two a successful throw grants) MUST be rules constants held
+  in data, so that a referee who wants the stricter reading of the first sentence sets the last
+  two to zero and gets it with no code edit.
 - **FR-010**: Each skill roll MUST select at random among the tables the character is eligible
   for in that career, honoring any characteristic gate on a table, and MUST record the table
   it selected.
@@ -394,6 +488,10 @@ value on its own as the house-rule path for all character generation.
   MUST record the choice.
 - **FR-012**: A successful commission throw and a successful advancement throw MUST be taken.
   Declining MUST NOT be modeled.
+- **FR-012a**: A character who entered a career by the draft MUST NOT attempt that career's
+  commission throw in their first term of it. Whether the bar applies MUST be a rules constant
+  held in data, since it is a rule about how a career is entered rather than a shape of the
+  walk.
 - **FR-013**: Aging MUST be applied per the universal aging table once the character passes the
   point at which the source material begins aging, with the modifier taken from the number of
   terms served across all careers.
@@ -404,18 +502,28 @@ value on its own as the house-rule path for all character generation.
   would park every character at the cap.
 - **FR-015**: A character who leaves a career while under the term cap MUST select another
   career and qualify for it again, at a penalty that accumulates with each career already
-  served. A career already served MUST NOT be available again, except Drifter, which MUST be
-  re-enterable because its own career file declares it so.
+  **entered**. A career already entered MUST NOT be available again, except Drifter, which MUST
+  be re-enterable because its own career file declares it so. "Entered" rather than "served" is
+  deliberate and is used consistently wherever this specification gates re-entry or accumulates
+  the penalty: a career the character was drafted into and mishapped out of was entered, and
+  reading it the other way would make the draft a way to avoid the penalty.
 - **FR-016**: On mustering out, the system MUST determine the number of benefit rolls from the
   terms served and the rank reached, following the specific mustering-out rule rather than the
   looser phrasing of the summary checklist, and MUST decide at random for each roll whether it
-  is taken as cash or as a material benefit.
+  is taken as cash or as a material benefit. How many of a character's rolls may be taken as
+  cash MUST be capped, and a modifier on material benefit rolls MUST apply by the rank reached.
+  Both MUST be rules constants held in data.
 - **FR-017**: The cash benefit modifier that applies to a retired character MUST apply exactly
   when the character qualified for the pension, and MUST NOT be applied on any other reading of
   "retired".
-- **FR-018**: A character who qualifies for a pension MUST receive it, and it MUST be carried
-  on the character distinctly from funds, because it is an ongoing amount rather than a
-  balance.
+- **FR-018**: A character qualifies for a pension by serving at least a minimum number of terms
+  **in a single career**, and the amount MUST be a base plus an increment for each term served
+  in that career above the minimum. The minimum, the base, and the increment MUST be rules
+  constants held in data. Terms served in different careers MUST NOT be added together for this
+  purpose: a character with three terms in each of two careers has served six terms and
+  qualifies for nothing, which is the difference between a pension and a length-of-service
+  award. A character who qualifies MUST receive it, and it MUST be carried on the character
+  distinctly from funds, because it is an ongoing amount rather than a balance.
 
 #### The always-living guarantee
 
@@ -424,10 +532,16 @@ value on its own as the house-rule path for all character generation.
   mishap's consequence.
 - **FR-020**: A term ended by a mishap MUST cost two years rather than four, MUST count toward
   the term cap and toward the aging modifier, and MUST forfeit that term's benefit roll.
-- **FR-021**: An aging crisis MUST become a debt against the character, settled from
-  mustering-out proceeds when they arrive, extending the way the source material already
-  handles medical and anagathic costs. It MUST NOT kill the character, who has no money at the
-  time the crisis occurs because money arrives at mustering out.
+- **FR-021**: An aging crisis occurs when an aging effect reduces a characteristic to the
+  bottom of the range the characteristics registry declares. Its cost MUST be a throw times a
+  multiplier, both rules constants held in data, and MUST become a debt against the character,
+  settled from mustering-out proceeds when they arrive, extending the way the source material
+  already handles medical and anagathic costs. It MUST NOT kill the character, who has no money
+  at the time the crisis occurs because money arrives at mustering out. Where the debt is
+  settled, every characteristic the crisis covered MUST be restored to a score held in data;
+  where it is not, they MUST stand where the reduction left them. Restoring them is what the
+  payment buys in the source material, and carrying the cost as a debt changes when it is paid
+  rather than what it is for.
 - **FR-022**: The system MUST contain no path by which a character dies, and MUST NOT offer a
   lethal mode as an option. This is a stated non-goal rather than an oversight: a selectable
   death path would have to be built and tested in both output modes for a branch the shipped
@@ -438,12 +552,25 @@ value on its own as the house-rule path for all character generation.
 
 #### Consequences that move a number
 
-- **FR-024**: An injury MUST reduce the characteristics the mishap names, and the reduction
+- **FR-024**: A mishap MAY reduce characteristics directly, and MAY instead defer to an injury
+  table that determines the reduction. Where it defers, the injury MUST be thrown for and
+  recorded as a step of its own, so that a sheet showing a reduction the mishap's own row does
+  not name still traces to the throw that produced it. A reduction arriving by either route
   MUST persist unless the character's medical bills are paid.
-- **FR-025**: Medical bills MUST be charged at the share determined by the medical tier the
-  character's career declares, and MUST be settled from mustering-out proceeds. A bill that
-  proceeds do not cover MUST leave the corresponding reduction standing and MUST NOT reduce
-  funds below zero.
+- **FR-025**: A character who leaves a career carrying a characteristic reduction from an
+  injury MUST have medical bills raised against them. The share the employer pays MUST be
+  determined by a throw against the medical tier the character's career declares, and the
+  character MUST owe the remainder. The cost of restoring one point MUST be a rules constant
+  held in data, so that the character's bill is that cost, times the points reduced, times the
+  share they owe.
+- **FR-025a**: The aging-crisis cost and the medical bill MUST both be recorded as debts when
+  they arise, and MUST be settled from mustering-out proceeds in the order they arose. A debt
+  proceeds do not cover MUST be carried under FR-026, and the characteristic points its payment
+  would have restored MUST stand reduced. Where proceeds cover a medical bill only in part, the
+  points restored MUST be those the covered amount pays for at the per-point cost, and the
+  order in which points are considered MUST be a decision the walk makes and records rather
+  than the order some collection happens to be traversed in, which FR-056 forbids as a source
+  of variation. Funds MUST NOT go below zero at any point in this settlement.
 - **FR-026**: Debt that mustering-out proceeds do not settle MUST be carried on the character
   as an outstanding amount, distinct from funds, and MUST be reported wherever the rendering
   has room for it.
@@ -455,11 +582,13 @@ value on its own as the house-rule path for all character generation.
 
 #### The character
 
-- **FR-029**: The generated character MUST carry: its name and, where the name was rolled, the
-  parts it was composed from, its characteristics with their
+- **FR-029**: The generated character MUST carry: the seed that reproduces it on its own, its
+  name and, where the name was rolled, the parts it was composed from, the rank title FR-047c
+  attaches to its rendered name, its characteristics with their
   current scores, its skills with their levels including level zero, every career it served
   with the terms served and rank reached in each, its age, its funds, its outstanding debt, its
-  pension, its named benefit items, and its generation history.
+  pension, its named benefit items, and its generation history. This list is exhaustive, and
+  every field on it is a field FR-050 requires machine-readable output to emit unconditionally.
 - **FR-030**: The generation history MUST record every step of the walk in the order it
   occurred, each step naming what was decided or thrown and what followed. The history is what
   makes a surprising sheet diagnosable as a wrong engine rather than interesting dice, and it
@@ -470,9 +599,11 @@ value on its own as the house-rule path for all character generation.
   those apply, what was thrown or decided, and what followed. A step MUST NOT be recorded only as
   a line of prose. Machine-readable output MUST emit the parts, and the fuller text rendering
   MUST compose its line from them, so that the text form is a rendering of the record rather than
-  the record itself. Under any other reading, SC-004's consistency audit and SC-005's
-  traceability check would have to parse sentences, and a consumer of the machine-readable
-  history could not query it.
+  the record itself. No field of a step may hold a line composed from the step's other parts.
+  That is what makes "the text form is a rendering of the record" checkable from the record's
+  shape rather than by someone reading a stored string and judging whether it looks composed.
+  Under any other reading, SC-004's consistency audit and SC-005's traceability check would have
+  to parse sentences, and a consumer of the machine-readable history could not query it.
 - **FR-031**: The character MUST be reachable programmatically as a value, so that a consumer
   can read it without parsing any rendering of it.
 
@@ -505,18 +636,40 @@ value on its own as the house-rule path for all character generation.
   Survival Mishaps table, the background and homeworld skill tables, the medical-bill tiers,
   and the scalar chargen parameters that order the walk.
 - **FR-038**: Every rules constant the walk depends on MUST live in data and MUST NOT be held
-  in engine code. This includes at minimum the term cap, the years a served term costs, the
-  years a mishap-ended term costs, the age at which the walk begins, the age at which aging
-  begins, the qualification penalty per career already served, the benefit-roll count rule and
-  its rank thresholds, and the cash benefit modifier.
-- **FR-039**: The characteristics registry MUST gain the characteristic modifier bands and the
-  pseudo-hex letters, which are facts about characteristics rather than about chargen or about
-  task resolution. The modifier bands MUST move out of the task parameters, both affected kinds
-  MUST have their schema versions raised, and no task check result may change as a
-  consequence.
+  in engine code. The full list this feature binds is: the characteristic roll; the background
+  skill count rule and the characteristic it reads; how many background skills come from the
+  homeworld lists before the education list is reached; the term cap; the years a served term
+  costs; the years a mishap-ended term costs; the age at which the walk begins; the age at
+  which aging begins; the qualification penalty per career already entered; how many times one
+  character may be routed to the draft (FR-004); what basic training grants on a first career
+  and on a later one (FR-007a); the unmodified survival result that always fails (FR-008a); the
+  four skill-roll counts of FR-009; whether a drafted character is barred from a first-term
+  commission (FR-012a); the continuation throw and its target; the benefit-roll count rule and
+  its rank thresholds; the cap on rolls taken as cash and the rank modifier on material rolls
+  (FR-016); the cash benefit modifier; the pension minimum, base, and per-term increment
+  (FR-018); the aging-crisis throw, its multiplier, and the score settling it restores to
+  (FR-021); and the per-point cost of restoring a characteristic (FR-025). The list is stated
+  in full rather than as examples because a constant it omits is a constant SC-013 does not
+  reach: an enumeration is what gives a check something to fail against, and any constant the
+  walk turns out to need that is not on this list is itself a defect in this requirement.
+- **FR-039**: The characteristics registry MUST gain the characteristic modifier bands, the
+  pseudo-hex letters, the bottom of the range those letters cover, and a class for each
+  characteristic (the shipped data distinguishes physical from mental), all of which are facts
+  about characteristics rather than about chargen or about task resolution. The class is
+  load-bearing rather than decorative: a table that reduces "three physical characteristics" or
+  "one mental characteristic" cannot resolve without it, and FR-038 forbids holding it in
+  engine code. The bottom of the range is what a reduction floors at. The modifier bands MUST
+  move out of the task parameters, both affected kinds MUST have their schema versions raised,
+  and no task check result may change as a consequence.
 - **FR-040**: The skills registry MUST gain the skills the background and homeworld tables
   name and the specialties the cascade rule chooses among, so that every skill any shipped
   table can grant resolves.
+- **FR-040a**: Every characteristic class any table in force names MUST resolve to a class the
+  characteristics registry declares, and a name that does not MUST fail the run before any
+  character is produced, naming it. Without this rule an effect reading "reduce one physical
+  characteristic" against a registry that spells the class differently reaches no
+  characteristic and silently does nothing, which is a wrong character rather than a failed
+  run.
 - **FR-041**: Every packaged data file's basename MUST be unique across the whole packaged
   tree at any depth, because an override file is positioned by its basename regardless of the
   directory it sits in. This constraint binds every file this feature adds and every file the
@@ -524,11 +677,18 @@ value on its own as the house-rule path for all character generation.
 - **FR-042**: Every data file this feature ships MUST carry a licensing designation, and the
   designation MUST match what the file actually is. A file derived from the source material
   carries the Open Game Content designation and MUST be covered by the copyright notice chain
-  that travels with the package, which MUST be widened in the same change that adds the files. A
+  that travels with the package, which MUST be adjusted in the same change that adds the files
+  so that it covers every Open Game Content file and nothing else. Because the chain as it
+  stands claims every data file the package ships, that adjustment is a **narrowing**: it must
+  describe what it covers precisely enough to exclude the name tables while still reaching every
+  file derived from the source material. A
   file that is not derived from the source material, which the name tables of FR-043a are the
   first of, MUST carry the project's own GPL-3.0 designation, MUST NOT carry the Open Game
   Content designation, and MUST NOT be claimed by the notice chain. No data file this feature
   ships may contain either Product Identity string, whatever its designation.
+  These designation rules bind **shipped** files only. A file supplied as an override carries
+  neither designation and MUST NOT be required to carry one: this project's licensing
+  obligations are about what it redistributes, and a house rule redistributes nothing.
 - **FR-042a**: The automated licensing checks MUST distinguish the two designations rather than
   requiring the Open Game Content designation of every data file. Until this feature every
   shipped data file was Open Game Content, so the existing checks read "every data file" and
@@ -558,10 +718,16 @@ value on its own as the house-rule path for all character generation.
   from. That table collects distinct and unrelated naming traditions rather than one, and
   without the attribution the file is a list labelled with a category that describes none of
   its entries.
-- **FR-043e**: Every name table MUST record the source its entries were drawn from, and entries
-  MUST come from sources that publish names for general use. This is the same obligation the
-  Open Game Content designation discharges for the source material, applied to content that
-  designation does not reach.
+- **FR-043e**: Every name table MUST record the source its entries were drawn from, identified
+  precisely enough that a reviewer can find that source and read its terms. An admissible source
+  is one whose terms permit redistribution of the names without a restriction this project's own
+  GPL-3.0 designation would contradict: a public-domain or open-data name list, a government or
+  census release, or a source under a license permitting redistribution. A source that forbids
+  redistribution, or whose terms cannot be established, MUST NOT be used. This is the same
+  obligation the Open Game Content designation discharges for the source material, applied to
+  content that designation does not reach. The criterion is stated rather than left as an
+  adjective because the check it enables is a review one, in which a reviewer follows the
+  recorded source and reads its terms, and a review needs something definite to apply.
 - **FR-043f**: A rolled surname MUST be drawn by selecting a region first, with every surname
   table in force equally likely, and then a surname from within that region. How many entries a
   table holds MUST NOT decide how often that region appears. Weighting MUST be over the tables
@@ -577,12 +743,26 @@ value on its own as the house-rule path for all character generation.
   least forty, so that a batch of the size a referee actually asks for does not read as a list
   of repetitions. These are floors on the shipped tables and MUST NOT be imposed on an override,
   which is the referee's business to size.
+- **FR-043j**: No two surname tables in force may declare the same region, and at least one
+  surname table MUST be in force. Either condition MUST fail the run before any character is
+  produced, naming the files at fault. A duplicated region would quietly take two shares of a
+  weighting FR-043f takes over tables rather than over names, which is the silent failure
+  FR-043f exists to prevent; no table in force leaves no surname to draw at all.
 
 #### Rendering
 
 - **FR-044**: The default human-readable rendering MUST be the source material's Universal
-  Character Format: its defined lines, tab separated, with a line the character has nothing to
-  put in omitted entirely rather than emitted blank.
+  Character Format, with a line the character has nothing to put in omitted entirely rather
+  than emitted blank. Its lines are enumerated here rather than left as "its defined lines",
+  because a rendering SC-009 pins byte for byte cannot have its shape held only in a document
+  this specification does not ship: the name with any attached rank title, then the
+  characteristic profile, then the age; the careers, then the funds; the skills; the species
+  traits; and the significant property. Fields within a line are tab separated.
+- **FR-044a**: The species-traits line MUST never be emitted, every generated character being
+  human, so it is the line that is always inapplicable. The significant-property line MUST
+  carry the character's named benefit items and MUST be omitted entirely when the character
+  holds none, so it is the line that varies and the one SC-009 requires a reference with and a
+  reference without.
 - **FR-045**: The default rendering MUST show skills of level zero, and MUST write funds with
   the currency prefix and with thousands separators.
 - **FR-046**: Where the format is silent or contradicts its own single example, the rendering
@@ -590,11 +770,18 @@ value on its own as the house-rule path for all character generation.
   in alphabetical order as the format states rather than in the example's order, sorted
   locale-independently so that a seed renders identically on any machine; careers separated by
   comma in the order they were entered; a cascade specialization written qualified by its
-  parent skill so a reader can find it in the registry; and exactly one tab between fields.
+  parent skill so a reader can find it in the registry; the benefit items on the
+  significant-property line separated the same way as the skills, with repeats collapsed to the
+  item's name and a count and the line sorted by the same locale-independent key, so that it is
+  as stable across machines as the skills line is; and exactly one tab between fields.
 - **FR-047**: Every character MUST have a personal name. A name supplied by the caller MUST be
-  used verbatim; where none is supplied, one MUST be rolled per FR-043a through FR-043i. The
+  used verbatim; where none is supplied, one MUST be rolled per FR-043a through FR-043j. The
   rank title from the ladder the character reached MUST be attached to the rendered name, since
-  that is the difference between a named officer and an anonymous profile.
+  that is the difference between a named officer and an anonymous profile. The title MUST be
+  written before the name and separated from it by a single space, and a character holding no
+  title MUST have the line begin with the name itself and no leading separator. The title MUST
+  be attached whether the name was rolled or supplied: it is a fact about the career the
+  character served, not about how they came to be named.
 - **FR-047a**: A rolled name MUST be written as the given name, a single space, and the
   surname, and MUST NOT be reordered, abbreviated, or otherwise adjusted to suit the naming
   conventions of the region a surname came from. The generator composes two independently drawn
@@ -614,14 +801,19 @@ value on its own as the house-rule path for all character generation.
   name, the surname, and the region the surname was drawn from, recorded separately. Where the
   caller supplied the name, those three MUST be empty, and the supplied name MUST NOT be split,
   reordered, or otherwise decomposed to fill them, since a supplied name may be one word or
-  several and FR-047 requires it verbatim. Machine-readable output MUST carry all four fields
-  unconditionally per FR-050, the three parts present and empty for a supplied name.
+  several and FR-047 requires it verbatim. The rank title MUST be carried as a field of its own
+  and MUST NOT be part of the name string, so that a consumer can render the name without the
+  title and so that SC-018's field-by-field comparison has a field to compare rather than a
+  prefix to strip. Machine-readable output MUST carry all five fields
+  unconditionally per FR-050, the three name parts present and empty for a supplied name and
+  the title present and empty for a character no career titled.
 - **FR-048**: Noble titles MUST NOT be rendered, on either the name or elsewhere.
 - **FR-048a**: In either text rendering, consecutive character sheets in a batch MUST be
   separated by exactly one blank line and by nothing else. No index, count, seed, or other header
   may be written between or above sheets, because every byte on standard output in text mode
-  belongs to some sheet. A batch of one MUST therefore render byte for byte as the single
-  character of that seed and position renders.
+  belongs to some sheet. Rendering a batch of one MUST therefore produce exactly the bytes that
+  rendering the single character generated from the same seed produces, with no separator
+  before it and none after it.
 - **FR-049**: The system MUST provide a second, fuller text rendering that carries what the
   Universal Character Format has nowhere to put: the outstanding debt, the pension, and the
   generation history.
@@ -639,7 +831,10 @@ value on its own as the house-rule path for all character generation.
   else, and the seed, the package version, and the provenance MUST be written to standard
   error. Redirecting the command's output MUST therefore produce a file that is a character
   sheet, while both the rule that generators echo their seed and the rule that provenance
-  always renders are still satisfied.
+  always renders are still satisfied. The seed written there is the master seed and only the
+  master seed. The derived seeds FR-050a puts on each character MUST NOT be written to standard
+  error, because a batch of twelve would put twelve seeds there and the one a referee quotes
+  for the table is the master.
 
 #### Command-line surface
 
@@ -647,12 +842,35 @@ value on its own as the house-rule path for all character generation.
 - **FR-053**: That command MUST accept a seed, a count, a name, an override location for rules
   data, a choice of human-readable or machine-readable output, and a choice between the default
   and the fuller text rendering.
-- **FR-053a**: A supplied name together with a count greater than one MUST be refused as a
-  usage error naming both options, since a name names one character. Applying it to all of them
-  or to the first alone would each silently discard part of what was asked for.
+- **FR-053a**: A supplied name together with a count greater than one MUST be refused, since a
+  name names one character. Applying it to all of them
+  or to the first alone would each silently discard part of what was asked for. The refusal MUST
+  be a property of the capability rather than of the command line: the library MUST reject the
+  combination on the same terms, and the command MUST report it as a usage error naming both
+  options. FR-055 requires every capability reachable programmatically, and a rule enforced only
+  at the command line is a rule a library consumer does not get.
+- **FR-053b**: Where no seed is supplied, the system MUST draw one from a source outside the
+  seeded generator and MUST report it wherever FR-051 and FR-050a report a seed. That draw is
+  the one point in this feature exempt from FR-056, and the exemption is what makes it useful: a
+  caller who wants a different character each run omits the seed, and reproduces any run by
+  quoting back the seed it reported.
+- **FR-053c**: A supplied name MUST be non-empty and MUST NOT consist only of whitespace, and
+  one that is MUST be refused as a usage error naming the option. FR-047 requires every
+  character to carry a personal name and requires a supplied name verbatim, and an empty string
+  honors the second at the cost of the first. Rolling a name instead was rejected because it
+  makes an empty string mean the opposite of what it says.
+- **FR-053d**: Requesting machine-readable output together with the fuller text rendering MUST
+  be accepted and MUST NOT change the emitted document. Machine-readable output already carries
+  every field unconditionally under FR-050, so the fuller rendering has nothing to add to it and
+  there is no wrong outcome to protect a caller from. This is the one place a request for more
+  than the tool can distinguish is accepted rather than refused, and it is accepted because both
+  readings deliver everything.
 - **FR-054**: That command MUST exit zero when it produces characters and non-zero when it
   cannot, with the choice of output mode affecting neither outcome, and MUST report the reason
-  on standard error when it cannot.
+  on standard error when it cannot. A run that cannot produce characters MUST write nothing at
+  all to standard output: no partial sheet, no empty document, and no sheet carrying a caveat.
+  Redirecting a failed run's output MUST therefore produce an empty file rather than a file that
+  reads as a character sheet, which is the same commitment FR-051 makes for a successful one.
 - **FR-055**: Every capability in this feature MUST be reachable programmatically without
   invoking the command line, so that the command remains a thin consumer of the library.
 
@@ -663,21 +881,38 @@ value on its own as the house-rule path for all character generation.
   generator, including the clock, the environment, the locale, or the order in which any
   unordered collection happens to be traversed.
 - **FR-056a**: A rolled name MUST be drawn from the seeded generator like every other decision
-  in the walk, and MUST be drawn in a way that satisfies FR-047b: supplying a name must leave
-  the rest of the character untouched rather than shifting every draw that would have followed
-  the name roll.
+  in the walk, and MUST satisfy FR-047b: for a given seed, the character produced with a
+  supplied name and the character produced with none MUST be identical in every field but the
+  name and the name parts. The requirement is the property, not any particular arrangement that
+  delivers it. The failure it exists to forbid is worth naming because it is what the obvious
+  implementation does: rolling the name from the walk's own draws makes supplying a name shift
+  every draw after it, so the same seed yields a different person depending on whether it was
+  named.
+- **FR-056b**: The order in which the walk draws from the seeded generator is part of what a
+  seed reproduces. A change that reorders two draws, adds one, or removes one changes the
+  character every seed produces. Such a change is permitted, and MUST be flagged in the
+  changelog as breaking. A seed therefore reproduces a character within one package version and
+  one data set and promises nothing across versions, which is what a referee quoting a seed to
+  another referee has to be told, and what SC-001's "one package version" already assumes
+  without saying.
 - **FR-057**: A seed and a count MUST determine a batch exactly, and the first characters of a
   larger batch MUST equal a smaller batch from the same seed, so that a count is a request for
-  more of one sequence rather than for a different sequence.
+  more of one sequence rather than for a different sequence. The character at the first position
+  of a batch MUST be the same character, field for field, as the single character that seed
+  produces on its own. FR-048a states the consequence for the rendered bytes; this states the
+  property those bytes follow from, so that the identity is testable on the characters
+  themselves and not only on a rendering of them.
 - **FR-058**: A run whose rules data came from an override MUST report that provenance
   alongside the seed, so that a character produced under house rules is never mistaken for one
   a seed and a package version alone would reproduce.
 
 ### Key Entities
 
-- **Character**: The finished person the generator produces. Carries a name, always present and
+- **Character**: The finished person the generator produces. Carries the seed that reproduces
+  it alone; a name, always present and
   always what renders, together with the given name, surname, and surname region it was composed
-  from when the name was rolled and empty when the caller supplied it; characteristics,
+  from when the name was rolled and empty when the caller supplied it; the rank title attached
+  to the rendered name, carried separately from the name string; characteristics,
   skills with levels, the careers served with terms and rank in each, age, funds, outstanding
   debt, pension, named benefit items, and the generation history. Always named, always alive,
   always internally consistent.
@@ -687,8 +922,11 @@ value on its own as the house-rule path for all character generation.
   is the evidence by which a surprising sheet is diagnosed, and every number on the sheet traces
   to a step in it. The text rendering of a step is a rendering of the record, never the record.
 - **Career service**: One character's time in one career: which career, how many terms, which
-  ladder they were on and what rank they reached, how the service ended, and what it earned at
-  mustering out. A character has one or more, in the order they were entered.
+  ladder they were on and what rank they reached, whether they were commissioned, how they
+  entered, how the service ended, and what it earned at
+  mustering out. A career may declare more than one ladder; a character is on one at a time,
+  entering on the ladder the career names for entry and moving to the commissioned ladder if a
+  commission succeeds. A character has one or more services, in the order they were entered.
 - **Term**: One period of service, comprising a survival throw, a commission and advancement
   attempt where the career offers them, one or two skill rolls, and aging. Counts toward the
   cap whether served out or ended by a mishap, and costs a different number of years in each
@@ -722,6 +960,13 @@ value on its own as the house-rule path for all character generation.
 
 ### Measurable Outcomes
 
+Every criterion below is verified in the project's complete test run. A criterion whose check
+is excluded from the selection run routinely, because it is slow, MUST still run in the
+complete one, and a check that is skipped rather than run does not satisfy the criterion it
+belongs to. This is stated once here because two of the criteria below fix sample sizes large
+enough that the question arises, and because a criterion nothing is obliged to run is a
+criterion that proves nothing.
+
 - **SC-001**: One seed, one package version, and one data set produce one character, verified
   by generating the same seed repeatedly and comparing every field and both rendered forms byte
   for byte, with zero differences across every seed tested.
@@ -735,7 +980,9 @@ value on its own as the house-rule path for all character generation.
   as an automated audit rather than by inspection: age matches the terms served and how each
   ended, every rank held exists on a ladder of a career the character actually joined, every
   skill traces to a table the character could reach in a term they served or to a grant they
-  were entitled to, the benefit rolls taken match the terms served and the rank reached, funds
+  were entitled to, the benefit rolls taken match the terms served and the rank reached, a
+  pension where one was received matches the terms served in a single career rather than the
+  terms served in all of them, funds
   are non-negative, and no consequence appears that no step in the history produced.
 - **SC-005**: Every characteristic, skill, career, credit, and item on a generated sheet traces
   to a recorded step in that character's history, verified as an automated check over the
@@ -748,9 +995,12 @@ value on its own as the house-rule path for all character generation.
   two careers and characters carrying three both present, so that the multi-career path is
   exercised by ordinary generation rather than only by a contrived seed.
 - **SC-008**: The eight shipped careers between them exercise every shape the engine handles,
-  evidenced over the sample: a career with a commission and a career without, all three medical
-  tiers, Drifter entered as a fallback and Drifter re-entered, and every row of the Draft table
-  reached. A shape no shipped career exercises is a shape nothing proves.
+  evidenced over the sample: a career with a commission and a career without, every medical
+  tier the shipped data declares, Drifter entered as a fallback and Drifter re-entered, and
+  every row of the Draft table reached. A shape no shipped career exercises is a shape nothing
+  proves. The tiers are counted from the data rather than fixed at three here, because FR-037
+  puts their definitions in a file a referee may extend and a criterion that hard-codes their
+  number would contradict the requirement it is checking.
 - **SC-009**: The default rendering is byte-faithful Universal Character Format, verified
   against committed reference outputs covering, between them, a character with and without each
   omissible line, a character holding a rank title, a character holding none, a
@@ -767,10 +1017,15 @@ value on its own as the house-rule path for all character generation.
   appear on standard error in the same run. The same holds for a batch, whose redirected output
   is exactly its sheets with one blank line between consecutive sheets and no other text,
   verified against a committed batch reference.
-- **SC-012**: The same seed renders identically under a different locale, verified by an
-  automated check that runs the comparison under at least one locale whose collation differs
-  from the default, so that the alphabetical ordering the format requires cannot depend on the
-  machine.
+- **SC-012**: The output cannot depend on the machine's locale, verified two ways, both
+  required. First, an automated check asserts that no part of the library consults the
+  platform's locale at all; this check runs wherever the suite runs and is what makes the
+  criterion unfalsifiable by omission. Second, the same seed is generated under at least one
+  locale whose collation differs from the default and the bytes are compared. Where no such
+  locale is installed the comparison reports that it could not run, and a comparison that did
+  not run does **not** satisfy this criterion; the first check carries it alone. Stating this
+  matters because the obvious reading, a single cross-locale comparison, is satisfied by a test
+  that skips on every machine that runs it.
 - **SC-013**: Changing a value in a shipped data file changes the generator's behavior
   accordingly with no code edit, demonstrated for a Draft table row, an aging table entry, a
   Survival Mishaps entry, a career's medical tier, and the term cap.
@@ -805,12 +1060,17 @@ value on its own as the house-rule path for all character generation.
   with no character rendering nameless, and a seed run with and without a caller-supplied name
   produces characters that differ in the name and its recorded parts alone, compared field by
   field.
-- **SC-019**: Over a sample of ten thousand rolled names, each surname region appears within a
-  narrow band of an equal share, so that no region dominates and none is effectively
-  unreachable, and the observed share does not track the number of entries the regions' tables
-  hold. The check counts the surname region each character records (FR-047d) rather than
-  recovering it by splitting a rendered name. Table sizes are deliberately made to differ in the shipped data so that this criterion
-  can fail if weighting is ever taken over names rather than over regions.
+- **SC-019**: Over a sample of ten thousand rolled names, each surname region's share of the
+  sample falls within ten percent, relatively, of an equal share: with seven regions in force,
+  between 0.9/7 and 1.1/7 of the sample. The band is stated as a number rather than as
+  "narrow" because a tolerance no one has written down is a tolerance the check picks for
+  itself. Ten percent is roughly four standard deviations at this sample size, so the criterion
+  fails on a weighting mistake rather than on the dice. The check counts the surname region each
+  character records (FR-047d) rather than
+  recovering it by splitting a rendered name. The shipped tables MUST differ in size by enough
+  that weighting taken over names rather than over regions would put at least one region's
+  expected share outside that band, so that the mistake this criterion exists to catch fails it
+  rather than passing by coincidence.
 - **SC-020**: A referee generating an NPC for play needs one command and no follow-up
   question: the sheet as rendered carries everything needed to run the character in a scene,
   with nothing about the generator's internals on it.
@@ -867,12 +1127,39 @@ this project's answers and not the source's:
 
 - **An aging crisis is a debt**, settled from mustering-out proceeds, extending the way the
   source already handles medical and anagathic costs. The alternative reading kills a character
-  for want of money they cannot have yet, since money arrives at mustering out.
+  for want of money they cannot have yet, since money arrives at mustering out. Settling the
+  debt buys what the source's payment buys: the characteristics the crisis covered come back off
+  the floor. A crisis whose debt is never settled leaves them floored, which is the always-living
+  reading's price and is recorded on the character rather than hidden.
+- **Debts settle in the order they arose**, and a medical bill only partly covered restores the
+  points the covered amount pays for. Which points those are is a decision the walk makes and
+  records, rather than the order a collection happens to be traversed in, because FR-056 forbids
+  the second and a partly restored character has to be reproducible like any other.
 - **A Survival mishap costs two years rather than four**, while still counting toward the term
   cap and toward the aging modifier, and forfeiting that term's benefit roll. A term cut short
   should cost less time than one served out.
 - **The rank-zero bonus skill is granted on entering a career.** Under any other reading it is
   data nothing can reach.
+
+Places this project departs from the source material deliberately. Each is a rule the source
+prints and this generator does not follow, collected so that review can tell a departure from
+an oversight and so that a later feature does not "fix" one back:
+
+- **No character dies.** A failed survival throw resolves on the optional Survival Mishaps
+  table rather than killing (FR-019), and an aging crisis becomes a debt rather than a death
+  (FR-021). This is the organizing commitment of the feature.
+- **A characteristic floors rather than killing or going negative** (FR-039, and the edge cases
+  above). The source separately forbids a score dropping permanently below one, so the floor is
+  looser than the source's own rule rather than tighter.
+- **A mishap-ended term costs two years, not four**, while still counting toward the term cap
+  and the aging modifier and still forfeiting that term's benefit roll (FR-020).
+- **A natural result on the re-enlistment throw does not override the term cap.** The source
+  lets one force a further term; FR-014 musters the character out regardless. A cap that
+  something overrides is not a cap, and the override would put characters past the point the
+  aging table's own arithmetic covers.
+- **Noble titles are never rendered** (FR-048), and **gender is not modeled at all** (FR-043b),
+  for the same reason: the source files both as color, and a generator picking one would be
+  inventing a fact about every character it produced.
 
 Places the source material is silent or contradicts itself, resolved here:
 
@@ -884,6 +1171,12 @@ Places the source material is silent or contradicts itself, resolved here:
   the only reading under which the modifier has a determinate trigger.
 - **The specific mustering-out rule governs the benefit count** over the looser phrasing of the
   summary checklist, on the general principle that the specific governs the general.
+- **The qualification penalty counts careers entered, not careers served.** The source says
+  "entered" in one place and "in which you have served" in another. Entered wins, and this
+  specification uses that word throughout (FR-015, FR-038).
+- **A pension is earned in a single career.** The source's wording is "5 or more terms in a
+  single service", and the reading that adds terms across careers would pay a character who
+  never stayed anywhere long enough to be pensioned by anyone.
 
 Defaults chosen where the decisions brief did not specify:
 

@@ -226,6 +226,7 @@ entries = [ ... ]
 
 [[ladders]]
 name = "drifter"
+role = "entry"
 ranks = [
   { rank = 0, title = "Drifter" },
 ]
@@ -243,6 +244,7 @@ benefits = [ ... ]
 | `throws.promotion` | throw | **no** | **Was required.** Absent for a career that offers no advancement (FR-035). |
 | `tables.specialist` | table | yes | **Renamed** from `tables.advanced`. |
 | `tables.advanced-education` | table | **yes** | **Was optional** (FR-034). Its `requires` gate stays declared in the file rather than being assumed by the engine. |
+| `ladders[].role` | string | **yes** | **New.** `"entry"` or `"commissioned"` (FR-007b). Exactly one ladder carries `entry`; at most one carries `commissioned`, and a career declaring `throws.commission` MUST declare one. A commission moves the character to the commissioned ladder at the lowest rank it declares. Without this field "the officer ladder is the second one listed" is a rule held in engine code. |
 
 `throws.commission` stays optional. A career declaring neither `commission` nor `promotion`
 grants two skill rolls a term; no flag says so, and the absence of both is what says it
@@ -498,6 +500,7 @@ per-additional-term = 2000
 [medical]
 crisis-roll = "1d6"
 crisis-multiplier = 10000
+crisis-restores-to = 1
 restore-cost-per-point = 5000
 ```
 
@@ -515,9 +518,12 @@ not obvious from the name:
 | `skill-rolls.on-commission` / `.on-advancement` | Further rolls granted by a successful throw. Shipped at one each, following the source material; setting both to zero gives FR-009's strict reading with no code edit (research R12). |
 | `commission.drafted-first-term-barred` | A character who was drafted into a career may not attempt its commission in the first term. |
 | `continuation.roll` / `.target` | The throw for whether the character wishes to continue serving. `1d6` against 4 is an even chance, which is the spec's chosen default (spec Assumptions). Passing it does not by itself continue the career: the re-enlistment throw still applies (FR-014). |
+| `pension.minimum-terms` | Terms required **in a single career**, not across all of them (FR-018). A character with three terms in each of two careers qualifies for nothing. |
+| `pension.base` / `.per-additional-term` | The amount is the base plus the increment for each term in that career above the minimum. |
 | `mustering-out.rank-benefits` | Extra benefit rolls by rank reached. **Not cumulative**: the highest matching row wins (research R10). |
 | `mustering-out.material-rank-dm` | A modifier on material benefit rolls by rank. Highest matching row wins. |
-| `medical.crisis-roll` / `.crisis-multiplier` | A crisis costs the throw times the multiplier, and becomes a debt (FR-021). |
+| `medical.crisis-roll` / `.crisis-multiplier` | A crisis costs the throw times the multiplier, and becomes a debt (FR-021). A crisis is triggered by an aging effect reducing a characteristic to the bottom of the declared pseudo-hex range. |
+| `medical.crisis-restores-to` | The score a settled crisis debt lifts each covered characteristic to (FR-021). Shipped at 1, matching the source's medical care. A crisis whose debt is never settled leaves them floored. |
 | `medical.restore-cost-per-point` | What restoring one point of a reduced characteristic costs, charged at the share the career's medical tier leaves to the character (FR-025). |
 
 ## `given-names` (`names/given-names.toml`)
@@ -599,7 +605,8 @@ has been read.
 | Every career's `medical-tier` names a tier in the medical-tiers file | FR-034. |
 | No two surname tables in force declare the same region | The problem names both files, in the shape the duplicate-career-name rule already uses. |
 | At least one surname table is in force | FR-043f weights over the tables in force, and none in force means no surname can be drawn. |
-| Every characteristic class the aging and mishap tables name is declared in the characteristics registry | Research R12. Otherwise "reduce one physical characteristic" reaches nothing and the effect silently does not happen. |
+| Every characteristic class the aging and mishap tables name is declared in the characteristics registry | FR-040a, research R12. Otherwise "reduce one physical characteristic" reaches nothing and the effect silently does not happen. |
+| Every career declares exactly one `entry` ladder, and a career declaring `throws.commission` declares exactly one `commissioned` ladder | FR-007b. A commission with nowhere to move the character to is a throw whose success does nothing. |
 
 Failure is unchanged: any problem anywhere fails the whole data set, no valid subset is
 exposed, and no built-in value is substituted.
