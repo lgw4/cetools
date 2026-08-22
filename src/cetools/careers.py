@@ -34,12 +34,12 @@ from cetools.registries import (
 type SkillTableEntry = SkillReference | SkillGrant | CharacteristicAdjustment
 
 _HEADER_KEYS = frozenset({"schema", "schema-version"})
-_REQUIRED_THROWS = ("qualification", "survival", "promotion", "re-enlistment")
-_OPTIONAL_THROWS = ("commission",)
+_REQUIRED_THROWS = ("qualification", "survival", "re-enlistment")
+_OPTIONAL_THROWS = ("commission", "promotion")
 _ALL_THROWS = frozenset(_REQUIRED_THROWS) | frozenset(_OPTIONAL_THROWS)
-_REQUIRED_TABLES = ("personal", "service", "specialist")
-_OPTIONAL_TABLES = ("advanced-education",)
-_ALL_TABLES = frozenset(_REQUIRED_TABLES) | frozenset(_OPTIONAL_TABLES)
+_REQUIRED_TABLES = ("personal", "service", "specialist", "advanced-education")
+_ALL_TABLES = frozenset(_REQUIRED_TABLES)
+_LADDER_ROLES = frozenset({"entry", "commissioned"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,7 +72,15 @@ class Rank:
 
 @dataclass(frozen=True, slots=True)
 class RankLadder:
+    """`role` is `"entry"` or `"commissioned"` (FR-007b). Exactly one ladder
+    in a career carries `entry`; at most one carries `commissioned`, and a
+    career declaring `throws.commission` must declare one (checked as a
+    cross-file rule in `rules.py`, alongside the other checks that need a
+    fully parsed `CareerDefinition`).
+    """
+
     name: str
+    role: str
     ranks: tuple[Rank, ...]
 
 
@@ -87,6 +95,9 @@ class CareerDefinition:
     """`name` is a human label, not the composition identity (FR-019a)."""
 
     name: str
+    medical_tier: str
+    always_available: bool
+    re_enterable: bool
     throws: Mapping[str, Throw]
     tables: Mapping[str, SkillTable]
     ladders: tuple[RankLadder, ...]
@@ -561,9 +572,36 @@ def _parse_ladder(
     if table is None:
         return None
 
-    problems.extend(_unrecognized_key_problems(table, {"name", "ranks"}, file, f"{location}."))
+    problems.extend(
+        _unrecognized_key_problems(table, {"name", "role", "ranks"}, file, f"{location}.")
+    )
 
     name = _require_string(table, "name", file, f"{location}.name", problems)
+
+    role = None
+    if "role" not in table:
+        problems.append(
+            ValidationProblem(
+                file=file,
+                location=f"{location}.role",
+                found="missing",
+                expected=f"one of: {', '.join(sorted(_LADDER_ROLES))}",
+            )
+        )
+    else:
+        raw_role = table["role"]
+        if raw_role not in _LADDER_ROLES:
+            problems.append(
+                ValidationProblem(
+                    file=file,
+                    location=f"{location}.role",
+                    found=repr(raw_role),
+                    expected=f"one of: {', '.join(sorted(_LADDER_ROLES))}",
+                )
+            )
+        else:
+            role = raw_role
+
     ranks: tuple[Rank, ...] | None = None
     if "ranks" not in table:
         problems.append(
@@ -579,9 +617,9 @@ def _parse_ladder(
             table["ranks"], file, f"{location}.ranks", characteristics, skills, benefits, problems
         )
 
-    if name is None or ranks is None:
+    if name is None or role is None or ranks is None:
         return None
-    return RankLadder(name=name, ranks=ranks)
+    return RankLadder(name=name, role=role, ranks=ranks)
 
 
 def _parse_ladders(
@@ -624,6 +662,33 @@ def _parse_ladders(
             continue
         names_seen.add(ladder.name)
         ladders.append(ladder)
+
+    if not ok:
+        return None
+
+    entry_count = sum(1 for ladder in ladders if ladder.role == "entry")
+    if entry_count != 1:
+        problems.append(
+            ValidationProblem(
+                file=file,
+                location="ladders",
+                found=f"{entry_count} ladders with role 'entry'",
+                expected="exactly one ladder with role 'entry'",
+            )
+        )
+        ok = False
+
+    commissioned_count = sum(1 for ladder in ladders if ladder.role == "commissioned")
+    if commissioned_count > 1:
+        problems.append(
+            ValidationProblem(
+                file=file,
+                location="ladders",
+                found=f"{commissioned_count} ladders with role 'commissioned'",
+                expected="at most one ladder with role 'commissioned'",
+            )
+        )
+        ok = False
 
     if not ok:
         return None
@@ -756,11 +821,54 @@ def parse_career(
     problems: list[ValidationProblem] = []
     problems.extend(
         _unrecognized_key_problems(
-            data, _HEADER_KEYS | {"name", "throws", "tables", "ladders", "mustering-out"}, file
+            data,
+            _HEADER_KEYS
+            | {
+                "name",
+                "medical-tier",
+                "always-available",
+                "re-enterable",
+                "throws",
+                "tables",
+                "ladders",
+                "mustering-out",
+            },
+            file,
         )
     )
 
     name = _require_string(data, "name", file, "name", problems)
+    medical_tier = _require_string(data, "medical-tier", file, "medical-tier", problems)
+
+    always_available = False
+    if "always-available" in data:
+        raw_always_available = data["always-available"]
+        if not isinstance(raw_always_available, bool):
+            problems.append(
+                ValidationProblem(
+                    file=file,
+                    location="always-available",
+                    found=type_name(raw_always_available),
+                    expected="a boolean",
+                )
+            )
+        else:
+            always_available = raw_always_available
+
+    re_enterable = False
+    if "re-enterable" in data:
+        raw_re_enterable = data["re-enterable"]
+        if not isinstance(raw_re_enterable, bool):
+            problems.append(
+                ValidationProblem(
+                    file=file,
+                    location="re-enterable",
+                    found=type_name(raw_re_enterable),
+                    expected="a boolean",
+                )
+            )
+        else:
+            re_enterable = raw_re_enterable
 
     throws: Mapping[str, Throw] = {}
     if "throws" not in data:
@@ -810,12 +918,15 @@ def parse_career(
             data["mustering-out"], file, characteristics, skills, benefits, problems
         )
 
-    if problems:
+    if problems or name is None or medical_tier is None:
         return None, tuple(problems)
 
     return (
         CareerDefinition(
             name=name,
+            medical_tier=medical_tier,
+            always_available=always_available,
+            re_enterable=re_enterable,
             throws=MappingProxyType(dict(throws)),
             tables=MappingProxyType(dict(tables)),
             ladders=ladders,

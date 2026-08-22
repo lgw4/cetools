@@ -44,7 +44,7 @@ _SUPPORTED_VERSION = {
     "characteristics": 2,
     "skills": 1,
     "benefits": 1,
-    "career": 1,
+    "career": 2,
 }
 _SINGLETON_KINDS = ("task-parameters", "characteristics", "skills", "benefits")
 _CANONICAL_FILE = {

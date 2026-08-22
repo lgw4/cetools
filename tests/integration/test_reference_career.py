@@ -32,7 +32,11 @@ def _validate_missing(tmp_path, *fragments: str, location: str):
 
 
 def test_removing_the_name_is_rejected(tmp_path):
-    _validate_missing(tmp_path, 'name = "Navy"\n\n', location="name")
+    _validate_missing(tmp_path, 'name = "Navy"\n', location="name")
+
+
+def test_removing_the_medical_tier_is_rejected(tmp_path):
+    _validate_missing(tmp_path, 'medical-tier = "service"\n\n', location="medical-tier")
 
 
 def test_removing_the_qualification_throw_is_rejected(tmp_path):
@@ -51,12 +55,16 @@ def test_removing_the_survival_throw_is_rejected(tmp_path):
     )
 
 
-def test_removing_the_promotion_throw_is_rejected(tmp_path):
-    _validate_missing(
-        tmp_path,
-        '[throws.promotion]\ncharacteristic = "EDU"\ntarget = 6\n\n',
-        location="throws.promotion",
-    )
+def test_promotion_throw_may_be_removed_without_rejection(tmp_path):
+    # FR-035: throws.promotion became optional at career schema v2. Absence
+    # together with no throws.commission grants two skill rolls a term
+    # instead (FR-009); this file still declares commission, so removing
+    # promotion alone must not invalidate it.
+    text = NAVY.replace('[throws.promotion]\ncharacteristic = "EDU"\ntarget = 6\n\n', "", 1)
+    assert text != NAVY
+    (tmp_path / "navy.toml").write_text(text, encoding="utf-8")
+    report = validate_rules(tmp_path)
+    assert report.valid, report.problems
 
 
 def test_removing_the_re_enlistment_throw_is_rejected(tmp_path):
@@ -92,12 +100,22 @@ def test_removing_the_specialist_table_is_rejected(tmp_path):
     )
 
 
+def test_removing_the_advanced_education_table_is_rejected(tmp_path):
+    # FR-034: tables.advanced-education became required at career schema v2.
+    _validate_missing(
+        tmp_path,
+        '[tables.advanced-education]\nrequires = "EDU 8+"\nentries = ["Advocate", "Computer", '
+        '"Engineering", "Medicine", "Navigation", "Tactics"]\n\n',
+        location="tables.advanced-education",
+    )
+
+
 def test_removing_every_rank_ladder_is_rejected(tmp_path):
     _validate_missing(
         tmp_path,
-        '[[ladders]]\nname = "enlisted"\nranks = [\n  '
+        '[[ladders]]\nname = "enlisted"\nrole = "entry"\nranks = [\n  '
         '{ rank = 0, title = "Starman", bonus = "Zero-G 1" },\n]\n\n',
-        '[[ladders]]\nname = "officer"\nranks = [\n  '
+        '[[ladders]]\nname = "officer"\nrole = "commissioned"\nranks = [\n  '
         '{ rank = 1, title = "Midshipman", bonus = "Melee Combat (Slashing Weapons) 1" },\n  '
         '{ rank = 2, title = "Lieutenant" },\n  '
         '{ rank = 3, title = "Lt Commander", bonus = "Tactics 1" },\n  '

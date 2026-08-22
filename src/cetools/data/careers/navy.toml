@@ -7,9 +7,10 @@
 # (FR-018).
 
 schema = "career"
-schema-version = 1
+schema-version = 2
 
 name = "Navy"
+medical-tier = "service"
 
 [throws.qualification]
 characteristic = "INT"
@@ -47,6 +48,7 @@ entries = ["Advocate", "Computer", "Engineering", "Medicine", "Navigation", "Tac
 # successful commission, which is why the two ladders do not overlap.
 [[ladders]]
 name = "enlisted"
+role = "entry"
 ranks = [
   { rank = 0, title = "Starman", bonus = "Zero-G 1" },
 ]
@@ -57,6 +59,7 @@ ranks = [
 # source's own way of saying a choice is owed.
 [[ladders]]
 name = "officer"
+role = "commissioned"
 ranks = [
   { rank = 1, title = "Midshipman", bonus = "Melee Combat (Slashing Weapons) 1" },
   { rank = 2, title = "Lieutenant" },

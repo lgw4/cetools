@@ -985,7 +985,9 @@ class TestAlwaysAvailableAndReEnterable:
         assert problems == ()
         assert career.always_available is True
 
-    def test_re_enterable_can_be_declared_true(self, valid_data, characteristics, skills, benefits):
+    def test_re_enterable_can_be_declared_true(
+        self, valid_data, characteristics, skills, benefits
+    ):
         data = copy.deepcopy(valid_data)
         data["re-enterable"] = True
         career, problems = parse_career(data, FILE, characteristics, skills, benefits)
