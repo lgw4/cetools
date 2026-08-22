@@ -50,12 +50,16 @@ requires = "EDU 8+"
 entries = ["Advocate", "Computer", "Engineering", "Medicine", "Navigation", "Tactics"]
 
 # A character is enlisted at rank 0 and joins the officer ladder on a
-# successful commission, which is why the two ladders do not overlap.
+# successful commission, which is why the two ladders do not overlap. Rank
+# 5 gives the entry ladder a promotion an uncommissioned character can
+# actually reach, which every shipped career shipped without one (FR-033,
+# Phase 8 T155).
 [[ladders]]
 name = "enlisted"
 role = "entry"
 ranks = [
   { rank = 0, title = "Starman", bonus = "Zero-G 1" },
+  { rank = 5, title = "Petty Officer", bonus = "Gunnery 1" },
 ]
 
 # The newly commissioned officer's blade grant is the one place the source

@@ -46,6 +46,16 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   engine code. Every shipped career ships `dice = "2d6"` on every throw, so
   no shipped seed's output changes; a career override file written against
   schema v2 must add `dice` to each of its throws to keep validating.
+- **`navy.toml`'s enlisted ladder gains a rank above zero.** Every shipped
+  career's entry ladder previously declared a single rank 0, so an
+  uncommissioned character's `ranks_above` was always empty and the
+  promotion throw the term loop already attempts for the ladder a
+  character is currently on was never actually rolled for entry-ladder
+  service. Adding rank 5 ("Petty Officer") to Navy's `enlisted` ladder
+  means that throw now fires for every uncommissioned Navy term, which
+  reorders the draw sequence: every character a seed produces that serves
+  in Navy without commissioning changes from this version forward
+  (FR-033, FR-007b, FR-056b, T155).
 
 ### Added
 
