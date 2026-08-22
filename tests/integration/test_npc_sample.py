@@ -8,7 +8,7 @@ CI still runs every seed SC-003 requires.
 import pytest
 
 from cetools.dice import Roller
-from cetools.generator import generate_character
+from cetools.generator import _Walk, generate_character
 from cetools.names import roll_name
 from cetools.rules import load_rules
 
@@ -23,6 +23,100 @@ def sample():
     return [generate_character(Roller(i), RULES) for i in range(_SAMPLE_SIZE)]
 
 
+def _steps_by_service(character):
+    """Partition `character.history` into one slice per `CareerService`, by
+    position: a "career-entered" step opens a new slice, matching
+    `character.careers`'s own order one for one (generator.py's `run`
+    appends both in lockstep). Lets a re-entered career (two separate
+    Drifter stints, say) be told apart by position rather than by name
+    alone.
+    """
+    slices: list[list] = []
+    for step in character.history:
+        if step.kind == "career-entered":
+            slices.append([])
+        if slices:
+            slices[-1].append(step)
+    return slices
+
+
+def _mishap_row(service_steps):
+    """The mishap row that ended this service, or `None` if it did not end
+    in one — the first "mishap" step carrying a throw (the row-selection
+    roll itself, not a later effect-recording sub-step with no throw).
+    """
+    step = next((s for s in service_steps if s.kind == "mishap" and s.throw), None)
+    if step is None:
+        return None
+    return next(row for row in RULES.mishaps.rows if row.description == step.selected)
+
+
+def _replay_characteristics(history):
+    """Reconstruct every characteristic's final score purely from the
+    history's own `characteristic` effects (T153): the `"characteristics"`
+    step's effects are absolute starting scores, and every later
+    `characteristic` effect is a signed delta.
+
+    `_apply_characteristic_delta` (generator.py) records a floor-clamped
+    reduction as an adjacent pair — the amount called for, then the amount
+    actually applied — so only the second of such a pair is added; a lone
+    effect is the applied amount already. That pairing convention belongs
+    to `_apply_characteristic_delta` alone, though: a `"debt-settled"`
+    step's `characteristic` effects come from `settle_debts`'s own
+    restoration loops (T157), which can repeat the same subject several
+    times in one step — once per point restored — and every one of those
+    is a real, independently additive `+1`, never half of a pair.
+    """
+    scores: dict[str, int] = {}
+    for step in history:
+        effects = step.effects
+        if step.kind == "characteristics":
+            for effect in effects:
+                scores[effect.subject] = effect.amount
+            continue
+        if step.kind == "debt-settled":
+            for effect in effects:
+                if effect.kind == "characteristic":
+                    scores[effect.subject] = scores.get(effect.subject, 0) + effect.amount
+            continue
+        i = 0
+        while i < len(effects):
+            effect = effects[i]
+            if effect.kind != "characteristic":
+                i += 1
+                continue
+            paired = (
+                i + 1 < len(effects)
+                and effects[i + 1].kind == "characteristic"
+                and effects[i + 1].subject == effect.subject
+            )
+            if paired:
+                i += 1
+                continue
+            scores[effect.subject] = scores.get(effect.subject, 0) + effect.amount
+            i += 1
+    return scores
+
+
+def _replay_funds(history):
+    """Reconstruct `character.funds` from the history alone (T153): every
+    `credits` effect is money gained (a mustering-out cash roll), and every
+    `debt` effect on a `"debt-settled"` step is money spent paying a debt
+    down — the only two places `_Walk.funds` is ever mutated. A `debt`
+    effect on any other step kind (a mishap, `medical-bills`, or
+    `medical-crisis`) records a debt being *created*, which does not touch
+    funds at all.
+    """
+    funds = 0
+    for step in history:
+        for effect in step.effects:
+            if effect.kind == "credits":
+                funds += effect.amount
+            elif effect.kind == "debt" and step.kind == "debt-settled":
+                funds -= effect.amount
+    return funds
+
+
 class TestAlwaysLivingAndConsistency:
     def test_sc003_every_seed_produces_a_living_complete_character(self, sample):
         for character in sample:
@@ -32,12 +126,13 @@ class TestAlwaysLivingAndConsistency:
 
     def test_sc004_every_character_is_internally_consistent(self, sample):
         cap = RULES.chargen.terms_cap
+        params = RULES.chargen
         for character in sample:
             assert character.funds >= 0
             assert character.debt >= 0
             total_terms = sum(service.terms for service in character.careers)
             assert total_terms <= cap
-            assert character.age >= RULES.chargen.terms_starting_age
+            assert character.age >= params.terms_starting_age
             for service in character.careers:
                 career = next(c for c in RULES.careers.values() if c.name == service.career)
                 ladder = next(lad for lad in career.ladders if lad.name == service.ladder)
@@ -48,6 +143,69 @@ class TestAlwaysLivingAndConsistency:
                 step.career for step in character.history if step.kind == "career-entered"
             }
             assert {service.career for service in character.careers} <= entered_careers
+
+            slices = _steps_by_service(character)
+            assert len(slices) == len(character.careers)
+            expected_age = params.terms_starting_age
+            expected_pension = 0
+            for service, steps in zip(character.careers, slices):
+                row = _mishap_row(steps) if service.ended == "mishap" else None
+
+                # Age matches the terms served and how each ended (SC-004,
+                # T152): a mishap-ended term costs the shorter number of
+                # years plus whatever extra years its row names, every
+                # other term costs the ordinary number.
+                if row is not None:
+                    extra_years = sum(
+                        int(effect.amount) for effect in row.effects if effect.kind == "years"
+                    )
+                    expected_age += (
+                        (service.terms - 1) * params.terms_term_years
+                        + params.terms_mishap_term_years
+                        + extra_years
+                    )
+                else:
+                    expected_age += service.terms * params.terms_term_years
+
+                # The benefit rolls taken match the terms served (FR-020's
+                # exactly-once forfeiture) and the rank reached (the rank
+                # bonus `muster_out_service` adds before rolling).
+                forfeit_all = row is not None and any(
+                    effect.kind == "forfeit-career-benefits" for effect in row.effects
+                )
+                forfeited_terms = 1 if row is not None else 0
+                expected_benefit_rolls = (
+                    0 if forfeit_all else max(0, service.terms - forfeited_terms)
+                )
+                assert service.benefit_rolls == expected_benefit_rolls
+                rank_bonus = _Walk._highest_matching_rank_row(
+                    params.mustering_out_rank_benefits, service.rank
+                )
+                mustering_steps = sum(1 for s in steps if s.kind == "benefit" and s.term == 0)
+                assert mustering_steps == service.benefit_rolls + rank_bonus
+
+                # A pension matches the terms served in a single career,
+                # never summed across several (FR-018, research R10 item 7).
+                pension_steps = [s for s in steps if s.kind == "pension"]
+                if service.terms >= params.pension_minimum_terms:
+                    assert len(pension_steps) == 1
+                    amount = params.pension_base + params.pension_per_additional_term * (
+                        service.terms - params.pension_minimum_terms
+                    )
+                    assert pension_steps[0].effects[0].amount == amount
+                    expected_pension += amount
+                else:
+                    assert pension_steps == []
+            assert character.age == expected_age
+            assert character.pension == expected_pension
+
+            # Every skill traces to a table in a career the character
+            # actually served, or to background skills / basic training,
+            # which carry no career (SC-004, T152).
+            served = {service.career for service in character.careers}
+            for step in character.history:
+                if any(effect.kind == "skill" for effect in step.effects):
+                    assert step.career in served | {""}
 
     def test_sc005_every_field_traces_to_a_history_step(self, sample):
         """Every characteristic, skill, career, credit, and item on a sheet
@@ -74,6 +232,14 @@ class TestAlwaysLivingAndConsistency:
                 if effect.kind == "characteristic"
             }
             assert set(character.characteristics) <= characteristic_effects
+
+            # Subject presence alone would still pass with the right names
+            # and the wrong numbers; replaying the history's own effects
+            # must reproduce the sheet's actual scores and funds (T153,
+            # what makes this check able to fail on a T144-style
+            # regression: an unrecorded settlement leaves funds too high).
+            assert _replay_characteristics(character.history) == dict(character.characteristics)
+            assert _replay_funds(character.history) == character.funds
 
             entered_careers = {
                 step.career for step in character.history if step.kind == "career-entered"

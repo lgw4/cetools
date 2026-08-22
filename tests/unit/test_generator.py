@@ -362,6 +362,26 @@ def _credits_steps(steps):
 
 
 class TestMusteringOut:
+    def test_a_material_characteristic_adjustment_is_a_characteristic_effect(self):
+        # `_apply_characteristic_delta` already returns properly-kinded
+        # `characteristic` effects — including the called-for/applied pair
+        # a floor clamp produces — but `muster_out_service` discarded them
+        # and rewrapped a bare scalar as a `benefit`-kind effect instead,
+        # so a mustering-out material benefit that adjusts a characteristic
+        # was invisible to anything grouping by `characteristic` effects
+        # (SC-005, discovered while implementing T153).
+        from cetools.generator import _Walk
+
+        career = RULES.careers["navy"]
+        walk = _Walk(Roller(1), RULES)
+        walk.characteristics = {code: 7 for code in RULES.characteristics.names}
+        walk.muster_out_service(career, terms=4, ladder="", rank=0, benefit_rolls=1)
+
+        steps = [s for s in walk.history if s.kind == "benefit"]
+        assert len(steps) == 1
+        assert steps[0].effects == (StepEffect(kind="characteristic", subject="SOC", amount=1),)
+        assert walk.characteristics["SOC"] == 8
+
     def test_the_cash_roll_cap_is_shared_across_a_characters_whole_life(self):
         # FR-016 caps "how many of a character's rolls" may be taken as
         # cash — a character-wide count, not one that resets with every
