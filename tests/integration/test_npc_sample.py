@@ -185,6 +185,12 @@ def test_sc019_name_weighting_is_over_tables_not_over_names():
 
     table_count = len(RULES.surnames)
     expected_share = 1 / table_count
+    # Iterating only the regions the sample happened to draw would let a
+    # weighting mistake that drops a region entirely — zero draws, so it
+    # never becomes a key in `region_counts` — pass the very criterion it
+    # exists to catch (T158, SC-019). Every surname table in force must be
+    # represented.
+    assert set(region_counts) == {table.region for table in RULES.surnames.values()}
     for region, count in region_counts.items():
         share = count / 10_000
         assert 0.9 * expected_share <= share <= 1.1 * expected_share, (region, share)
