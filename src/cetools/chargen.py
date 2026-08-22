@@ -10,6 +10,7 @@ the convention `registries.py` and `careers.py` established.
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 
 from cetools.errors import RulesDataError, ValidationProblem, type_name
 from cetools.notation import EntryContext, NotationProblem, SkillGrant, parse_entry
@@ -853,3 +854,190 @@ def parse_background_skills(
         ),
         (),
     )
+
+
+# --- medical-tiers (contracts/data-files.md) ---------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class MedicalThreshold:
+    """The modified total must equal or exceed `target` for `paid_percent`
+    to apply. A total below every threshold in a tier pays nothing.
+    """
+
+    target: int
+    paid_percent: int
+
+
+@dataclass(frozen=True, slots=True)
+class MedicalTiers:
+    """`rank_dm` is declared rather than assumed: whether the character's
+    rank is added to the total. `tiers` is keyed by name, each tier's
+    thresholds sorted highest-target-first so the first match wins.
+    """
+
+    roll: str
+    rank_dm: bool
+    tiers: Mapping[str, tuple[MedicalThreshold, ...]]
+
+
+def _parse_medical_threshold(
+    value: object, file: str, location: str
+) -> tuple[MedicalThreshold | None, list[ValidationProblem]]:
+    problems: list[ValidationProblem] = []
+    if not isinstance(value, dict):
+        problems.append(
+            ValidationProblem(
+                file=file, location=location, found=type_name(value), expected="a table"
+            )
+        )
+        return None, problems
+
+    problems.extend(
+        _unrecognized_key_problems(value, {"target", "paid-percent"}, file, f"{location}.")
+    )
+
+    target = _require_int(value, "target", file, f"{location}.target", problems, minimum=0)
+    paid_percent = _require_int(
+        value, "paid-percent", file, f"{location}.paid-percent", problems, minimum=0
+    )
+    if paid_percent is not None and paid_percent > 100:
+        problems.append(
+            ValidationProblem(
+                file=file,
+                location=f"{location}.paid-percent",
+                found=str(paid_percent),
+                expected="an integer between 0 and 100",
+            )
+        )
+        paid_percent = None
+
+    if target is None or paid_percent is None:
+        return None, problems
+    return MedicalThreshold(target=target, paid_percent=paid_percent), problems
+
+
+def _parse_tier(
+    value: object, file: str, location: str
+) -> tuple[tuple[str, tuple[MedicalThreshold, ...]] | None, list[ValidationProblem]]:
+    problems: list[ValidationProblem] = []
+    if not isinstance(value, dict):
+        problems.append(
+            ValidationProblem(
+                file=file, location=location, found=type_name(value), expected="a table"
+            )
+        )
+        return None, problems
+
+    problems.extend(
+        _unrecognized_key_problems(value, {"name", "thresholds"}, file, f"{location}.")
+    )
+
+    name = _require_string(value, "name", file, f"{location}.name", problems)
+
+    thresholds: list[MedicalThreshold] | None = None
+    if "thresholds" not in value:
+        problems.append(
+            ValidationProblem(
+                file=file, location=f"{location}.thresholds", found="missing", expected="an array"
+            )
+        )
+    else:
+        raw = value["thresholds"]
+        if not isinstance(raw, list) or not raw:
+            found = type_name(raw) if not isinstance(raw, list) else "an empty array"
+            problems.append(
+                ValidationProblem(
+                    file=file,
+                    location=f"{location}.thresholds",
+                    found=found,
+                    expected="at least one entry",
+                )
+            )
+        else:
+            parsed: list[MedicalThreshold] = []
+            ok = True
+            targets_seen: set[int] = set()
+            for index, item in enumerate(raw):
+                threshold, sub_problems = _parse_medical_threshold(
+                    item, file, f"{location}.thresholds[{index}]"
+                )
+                problems.extend(sub_problems)
+                if threshold is None:
+                    ok = False
+                    continue
+                if threshold.target in targets_seen:
+                    problems.append(
+                        ValidationProblem(
+                            file=file,
+                            location=f"{location}.thresholds[{index}].target",
+                            found=str(threshold.target),
+                            expected="a target distinct within its tier",
+                        )
+                    )
+                    ok = False
+                    continue
+                targets_seen.add(threshold.target)
+                parsed.append(threshold)
+            if ok:
+                thresholds = parsed
+
+    if name is None or thresholds is None:
+        return None, problems
+    thresholds.sort(key=lambda threshold: threshold.target, reverse=True)
+    return (name, tuple(thresholds)), problems
+
+
+def parse_medical_tiers(
+    data: Mapping[str, object], file: str
+) -> tuple[MedicalTiers | None, tuple[ValidationProblem, ...]]:
+    problems: list[ValidationProblem] = []
+    problems.extend(
+        _unrecognized_key_problems(data, _HEADER_KEYS | {"roll", "rank-dm", "tiers"}, file)
+    )
+
+    roll = _require_roll(data, "roll", file, "roll", problems)
+    rank_dm = _require_bool(data, "rank-dm", file, "rank-dm", problems)
+
+    tiers: dict[str, tuple[MedicalThreshold, ...]] | None = None
+    if "tiers" not in data:
+        problems.append(
+            ValidationProblem(file=file, location="tiers", found="missing", expected="an array")
+        )
+    else:
+        raw = data["tiers"]
+        if not isinstance(raw, list) or not raw:
+            found = type_name(raw) if not isinstance(raw, list) else "an empty array"
+            problems.append(
+                ValidationProblem(
+                    file=file, location="tiers", found=found, expected="at least one entry"
+                )
+            )
+        else:
+            parsed: dict[str, tuple[MedicalThreshold, ...]] = {}
+            ok = True
+            for index, item in enumerate(raw):
+                result, sub_problems = _parse_tier(item, file, f"tiers[{index}]")
+                problems.extend(sub_problems)
+                if result is None:
+                    ok = False
+                    continue
+                name, thresholds = result
+                if name in parsed:
+                    problems.append(
+                        ValidationProblem(
+                            file=file,
+                            location=f"tiers[{index}].name",
+                            found=f"both declare the name {name!r}",
+                            expected="a name distinct across tiers",
+                        )
+                    )
+                    ok = False
+                    continue
+                parsed[name] = thresholds
+            if ok:
+                tiers = parsed
+
+    if problems or roll is None or rank_dm is None or tiers is None:
+        return None, tuple(problems)
+    return MedicalTiers(roll=roll, rank_dm=rank_dm, tiers=MappingProxyType(tiers)), ()
