@@ -346,7 +346,7 @@ breaking library change and no task check result may change as a consequence (SC
 | `medical_tier` | `str` | A tier name in the medical-tiers file, checked as a cross-file rule (FR-034). |
 | `always_available` | `bool` | Marks the career reachable as the qualification fallback (FR-006). Default `false`. |
 | `re_enterable` | `bool` | Marks the career available again after being left (FR-015). Default `false`. |
-| `throws` | `Mapping[str, Throw]` | `promotion` becomes optional. Together with an absent `commission` that is what FR-009 reads as two skill rolls a term. |
+| `throws` | `Mapping[str, Throw]` | `promotion` becomes optional. Together with an absent `commission` that is what FR-009 reads as two skill rolls a term. Each `Throw` gains a required `dice` field (career schema v3, Phase 8 T141): the walk's qualification, survival, commission, promotion, and re-enlistment throws read their dice pool from data rather than from a `_2D6` constant the engine held, per FR-038 and Constitution V. Every shipped throw ships `dice = "2d6"`, so no shipped seed's output changes. |
 | `tables` | `Mapping[str, SkillTable]` | `advanced` is renamed `specialist`; `advanced-education` becomes required and keeps declaring its own gate in the file. |
 | `ladders` | `tuple[Ladder, ...]` | Each gains a `role` of `"entry"` or `"commissioned"` (FR-007b). Exactly one is `entry`; a career declaring a commission throw declares exactly one `commissioned`, and a successful commission moves the character to it at the lowest rank it declares. |
 | `mustering_out`, `name` | unchanged | |

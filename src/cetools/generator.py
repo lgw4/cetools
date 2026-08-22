@@ -34,7 +34,6 @@ from cetools.rules import RulesData
 from cetools.seeds import derive_seed
 from cetools.tasks import Modifier
 
-_2D6 = (2, 6)
 _ENTERED_BY_SELECTED = "selected"
 _ENTERED_BY_DRAFTED = "drafted"
 _ENTERED_BY_FALLBACK = "fallback"
@@ -352,7 +351,7 @@ class _Walk:
     def _qualify(self, career: CareerDefinition, entries_so_far: int) -> bool:
         params = self.rules.chargen
         throw = career.throws["qualification"]
-        faces = self.roller.dice(*_2D6)
+        faces = _dice(self.roller, throw.dice)
         modifiers = []
         char_dm = self.characteristic_dm(throw.characteristic)
         if throw.characteristic is not None:
@@ -491,9 +490,9 @@ class _Walk:
 
         while True:
             term = terms + 1
-            faces = self.roller.dice(*_2D6)
-            dice_total = sum(faces)
             survival = career.throws["survival"]
+            faces = _dice(self.roller, survival.dice)
+            dice_total = sum(faces)
             char_dm = self.characteristic_dm(survival.characteristic)
             modifiers = (
                 [
@@ -585,7 +584,7 @@ class _Walk:
             if "commission" in career.throws and not commissioned and not commission_barred:
                 commissioned_ladder = self._commissioned_ladder(career)
                 throw = career.throws["commission"]
-                faces_c = self.roller.dice(*_2D6)
+                faces_c = _dice(self.roller, throw.dice)
                 char_dm_c = self.characteristic_dm(throw.characteristic)
                 mods_c = (
                     [
@@ -629,7 +628,7 @@ class _Walk:
                 ranks_above = sorted(r.rank for r in current_ladder.ranks if r.rank > current_rank)
                 if ranks_above:
                     throw = career.throws["promotion"]
-                    faces_p = self.roller.dice(*_2D6)
+                    faces_p = _dice(self.roller, throw.dice)
                     char_dm_p = self.characteristic_dm(throw.characteristic)
                     mods_p = (
                         [
@@ -706,7 +705,7 @@ class _Walk:
                 break
 
             re_enlist = career.throws["re-enlistment"]
-            faces_r = self.roller.dice(*_2D6)
+            faces_r = _dice(self.roller, re_enlist.dice)
             total_r = sum(faces_r)
             success_r = total_r >= re_enlist.target
             self.history.append(

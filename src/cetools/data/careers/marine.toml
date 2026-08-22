@@ -3,7 +3,7 @@
 # Draft row 2.
 
 schema = "career"
-schema-version = 2
+schema-version = 3
 
 name = "Marine"
 medical-tier = "service"
@@ -11,21 +11,26 @@ medical-tier = "service"
 [throws.qualification]
 characteristic = "END"
 target = 6
+dice = "2d6"
 
 [throws.survival]
 characteristic = "END"
 target = 5
+dice = "2d6"
 
 [throws.commission]
 characteristic = "EDU"
 target = 6
+dice = "2d6"
 
 [throws.promotion]
 characteristic = "SOC"
 target = 7
+dice = "2d6"
 
 [throws.re-enlistment]
 target = 5
+dice = "2d6"
 
 [tables.personal]
 entries = ["STR +1", "DEX +1", "END +1", "SOC +1", "EDU +1", "Melee Combat"]

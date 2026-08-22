@@ -33,7 +33,7 @@ src/cetools/data/
 │   ├── surnames-north-america.toml
 │   └── surnames-south-america.toml
 └── careers/
-    ├── aerospace-defense.toml           # career, v2
+    ├── aerospace-defense.toml           # career, v3
     ├── drifter.toml
     ├── marine.toml
     ├── maritime-defense.toml
@@ -182,15 +182,18 @@ careers use. Specialty lists are one level deep, unchanged; nested cascades are 
 Schema unchanged. Content grows to cover every material benefit the eight careers' tables
 name.
 
-## `career` v2 (`careers/*.toml`)
+## `career` v3 (`careers/*.toml`)
 
-Four changes, and everything else is unchanged from v1.
+Four changes from v1, plus one more raising v2 to v3 in Phase 8 convergence (T141): every
+throw now requires a `dice` field, so a throw's dice pool is data rather than the `_2D6`
+constant the engine held (FR-038, Constitution V). Every shipped throw ships `dice = "2d6"`,
+so no shipped seed's output changes.
 
 ```toml
 # Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
 
 schema = "career"
-schema-version = 2
+schema-version = 3
 
 name = "Drifter"
 medical-tier = "fringe"
@@ -200,13 +203,16 @@ re-enterable = true
 [throws.qualification]
 characteristic = "DEX"
 target = 5
+dice = "2d6"
 
 [throws.survival]
 characteristic = "END"
 target = 5
+dice = "2d6"
 
 [throws.re-enlistment]
 target = 5
+dice = "2d6"
 
 # no [throws.commission] and no [throws.promotion]:
 # that absence is what grants two skill rolls a term (FR-009)
@@ -242,6 +248,7 @@ benefits = [ ... ]
 | `always-available` | boolean | no | **New.** Default `false`. Marks the career reachable as the qualification fallback (FR-006). |
 | `re-enterable` | boolean | no | **New.** Default `false`. Marks the career available again after being left (FR-015). |
 | `throws.promotion` | throw | **no** | **Was required.** Absent for a career that offers no advancement (FR-035). |
+| `throws.*.dice` | string | **yes** | **New in v3.** Dice notation for the throw, e.g. `"2d6"`. Rejects `d66` for the same reason a chargen table's `roll` and `task.roll` do. |
 | `tables.specialist` | table | yes | **Renamed** from `tables.advanced`. |
 | `tables.advanced-education` | table | **yes** | **Was optional** (FR-034). Its `requires` gate stays declared in the file rather than being assumed by the engine. |
 | `ladders[].role` | string | **yes** | **New.** `"entry"` or `"commissioned"` (FR-007b). Exactly one ladder carries `entry`; at most one carries `commissioned`, and a career declaring `throws.commission` MUST declare one. A commission moves the character to the commissioned ladder at the lowest rank it declares. Without this field "the officer ladder is the second one listed" is a rule held in engine code. |

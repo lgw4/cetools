@@ -5,7 +5,7 @@
 # single ladder names no distinct rank title, matching the source.
 
 schema = "career"
-schema-version = 2
+schema-version = 3
 
 name = "Scout"
 medical-tier = "service"
@@ -13,13 +13,16 @@ medical-tier = "service"
 [throws.qualification]
 characteristic = "INT"
 target = 5
+dice = "2d6"
 
 [throws.survival]
 characteristic = "END"
 target = 7
+dice = "2d6"
 
 [throws.re-enlistment]
 target = 3
+dice = "2d6"
 
 [tables.personal]
 entries = ["STR +1", "DEX +1", "END +1", "INT +1", "EDU +1", "Gun Combat"]

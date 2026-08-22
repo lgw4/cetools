@@ -13,7 +13,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 
-from cetools.errors import ValidationProblem, type_name
+from cetools.errors import RulesDataError, ValidationProblem, type_name
 from cetools.notation import (
     BenefitItem,
     CharacteristicAdjustment,
@@ -30,6 +30,7 @@ from cetools.registries import (
     SkillRegistry,
     SkillResolution,
 )
+from cetools.tasks import _check_dice
 
 type SkillTableEntry = SkillReference | SkillGrant | CharacteristicAdjustment
 
@@ -46,11 +47,14 @@ _LADDER_ROLES = frozenset({"entry", "commissioned"})
 class Throw:
     """`characteristic` is `None` when the throw takes no characteristic
     modifier, which is how re-enlistment is thrown. `target` is a plain
-    value, never notation (FR-004a, FR-014).
+    value, never notation (FR-004a, FR-014). `dice` is the throw's own dice
+    notation, so no die anywhere in the walk is held in engine code
+    (FR-038, Constitution V).
     """
 
     characteristic: str | None
     target: int
+    dice: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -187,6 +191,40 @@ def _require_int(
     return value
 
 
+def _require_roll(
+    container: Mapping[str, object],
+    key: str,
+    file: str,
+    location: str,
+    problems: list[ValidationProblem],
+) -> str | None:
+    """A dice-notation field, rejecting `d66` for the same reason
+    `chargen._require_roll` and `task.roll` do: the row a table reads is the
+    throw's total, not a two-digit table value.
+    """
+    if key not in container:
+        problems.append(
+            ValidationProblem(file=file, location=location, found="missing", expected="a string")
+        )
+        return None
+    value = container[key]
+    if not isinstance(value, str):
+        problems.append(
+            ValidationProblem(
+                file=file, location=location, found=type_name(value), expected="a string"
+            )
+        )
+        return None
+    try:
+        _check_dice(value)
+    except RulesDataError as exc:
+        problems.append(
+            ValidationProblem(file=file, location=location, found=repr(value), expected=str(exc))
+        )
+        return None
+    return value
+
+
 def _notation_field(
     value: object,
     context: EntryContext,
@@ -285,7 +323,9 @@ def _parse_throw(
         return None
 
     problems.extend(
-        _unrecognized_key_problems(table, {"characteristic", "target"}, file, f"{location}.")
+        _unrecognized_key_problems(
+            table, {"characteristic", "target", "dice"}, file, f"{location}."
+        )
     )
 
     characteristic = None
@@ -313,9 +353,10 @@ def _parse_throw(
             characteristic = code
 
     target = _require_int(table, "target", file, f"{location}.target", problems, minimum=1)
-    if target is None:
+    dice = _require_roll(table, "dice", file, f"{location}.dice", problems)
+    if target is None or dice is None:
         return None
-    return Throw(characteristic=characteristic, target=target)
+    return Throw(characteristic=characteristic, target=target, dice=dice)
 
 
 def _parse_throws(

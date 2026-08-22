@@ -38,6 +38,14 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   every character a seed produces from that version forward, and must be
   recorded under this heading as breaking rather than as a fix or an
   enhancement.
+- **The career schema rises to `schema-version = 3`: every `throws.*` table
+  now requires a `dice` field.** The walk's qualification, survival,
+  commission, promotion, and re-enlistment throws used to roll a `2d6`
+  constant the engine held; they now read their dice pool from the career
+  file, closing the last rules constant Constitution V and FR-038 forbid in
+  engine code. Every shipped career ships `dice = "2d6"` on every throw, so
+  no shipped seed's output changes; a career override file written against
+  schema v2 must add `dice` to each of its throws to keep validating.
 
 ### Added
 
