@@ -55,6 +55,30 @@ def test_an_empty_or_whitespace_only_name_is_a_usage_error():
     assert result.stdout == ""
 
 
+def test_count_zero_is_a_usage_error_naming_count():
+    result = runner.invoke(app, ["npc", "--seed", "session-alpha", "--count", "0"])
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert "--count" in result.output
+
+
+def test_count_negative_is_a_usage_error_naming_count():
+    result = runner.invoke(app, ["npc", "--seed", "session-alpha", "--count", "-1"])
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert "--count" in result.output
+
+
+def test_name_with_count_above_one_is_a_usage_error_naming_both():
+    result = runner.invoke(
+        app, ["npc", "--seed", "session-alpha", "--name", "Alex Rivera", "--count", "12"]
+    )
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert "--name" in result.output
+    assert "--count" in result.output
+
+
 def test_json_standard_error_is_silent_on_success():
     result = runner.invoke(app, ["npc", "--seed", "session-alpha", "--json"])
     assert result.exit_code == 0

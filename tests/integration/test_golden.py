@@ -250,3 +250,16 @@ def test_npc_stdout_is_the_renderers_own_output_plus_one_newline(read_golden_byt
     batch = generate_batch("session-alpha", rules, count=1)
     expected = as_text(batch.characters[0]).encode("utf-8") + b"\n"
     assert result.stdout.encode("utf-8") == expected
+
+
+def test_npc_batch_stdout_is_the_renderers_own_output_plus_one_newline():
+    """T126/SC-011: a `--count N` run's stdout is a derivation from the
+    renderer, tying the *command* to the blank-line batch separator without
+    a second, captured expectation.
+    """
+    result = runner.invoke(app, ["npc", "--seed", "session-alpha", "--count", "3"])
+    assert result.exit_code == 0
+    rules = load_rules()
+    batch = generate_batch("session-alpha", rules, count=3)
+    expected = as_text(batch).encode("utf-8") + b"\n"
+    assert result.stdout.encode("utf-8") == expected

@@ -12,11 +12,13 @@ import dataclasses
 from cetools.character import (
     CareerService,
     Character,
+    CharacterBatch,
     CharacterSkill,
     HistoryStep,
     StepEffect,
     StepThrow,
 )
+from cetools.provenance import Provenance
 from cetools.render import as_text
 from cetools.tasks import Modifier
 
@@ -413,3 +415,18 @@ class TestFullerSheet:
 
 def test_full_golden(read_golden_bytes):
     assert as_text(FULL, full=True).encode("utf-8") == read_golden_bytes("npc_full.txt")
+
+
+BATCH = CharacterBatch(
+    seed=1,
+    provenance=Provenance(version="0.0.0", files=(), ignored=()),
+    characters=(TITLED, UNTITLED, NO_BENEFITS),
+)
+
+
+def test_batch_golden(read_golden_bytes):
+    """SC-011: consecutive sheets separated by exactly one blank line and
+    nothing else, a derivation checkable without a captured expectation
+    (T126).
+    """
+    assert as_text(BATCH).encode("utf-8") == read_golden_bytes("npc_batch.txt")
