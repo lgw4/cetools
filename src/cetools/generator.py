@@ -179,14 +179,16 @@ def _apply_entry(
     raise CetoolsError(f"unsupported skill-table entry: {entry!r}")
 
 
-def _parse_amount(text: str, roller: Roller) -> int:
+def _parse_amount_with_faces(text: str, roller: Roller) -> tuple[int, tuple[int, ...]]:
     """A `MishapEffect.amount` field: dice notation or a signed integer,
     written as text either way (contracts/data-files.md). Dice notation may
     carry a leading sign — `"-1d6"` is a roll subtracted, not added
-    (`parse_notation` itself admits no sign before the count).
+    (`parse_notation` itself admits no sign before the count). Returns the
+    faces rolled alongside the amount, empty for a plain integer, which
+    rolls nothing.
     """
     try:
-        return int(text)
+        return int(text), ()
     except ValueError:
         pass
     sign = 1
@@ -195,7 +197,13 @@ def _parse_amount(text: str, roller: Roller) -> int:
         sign = -1 if body[0] == "-" else 1
         body = body[1:]
     count, sides, modifier = parse_notation(body)
-    return sign * (sum(roller.dice(count, sides)) + modifier)
+    faces = roller.dice(count, sides)
+    return sign * (sum(faces) + modifier), faces
+
+
+def _parse_amount(text: str, roller: Roller) -> int:
+    amount, _faces = _parse_amount_with_faces(text, roller)
+    return amount
 
 
 def _eligible_tables(
@@ -347,9 +355,11 @@ class _Walk:
 
     def roll_characteristics(self) -> None:
         effects = []
+        all_faces: list[int] = []
         notation = self.rules.chargen.characteristics_roll
         for code in self.rules.characteristics.names:
             faces, modifier = _dice(self.roller, notation)
+            all_faces.extend(faces)
             score = sum(faces) + modifier
             self.characteristics[code] = score
             effects.append(StepEffect(kind="characteristic", subject=code, amount=score))
@@ -358,7 +368,13 @@ class _Walk:
                 kind="characteristics",
                 career="",
                 term=0,
-                throw=None,
+                throw=StepThrow(
+                    faces=tuple(all_faces),
+                    modifiers=(),
+                    total=sum(all_faces),
+                    target=0,
+                    success=True,
+                ),
                 selected="",
                 effects=tuple(effects),
             )
@@ -374,9 +390,12 @@ class _Walk:
         education = self.rules.background_skills.education
         homeworld_count = min(count, params.background_skills_homeworld_first)
         effects = []
+        faces: list[int] = []
         for i in range(count):
             pool = homeworld if i < homeworld_count else education
-            grant = pool[self.roller.die(len(pool)) - 1]
+            pick = self.roller.die(len(pool))
+            faces.append(pick)
+            grant = pool[pick - 1]
             resolved = _resolve_specialty(grant.skill, self.rules.skills, self.roller)
             level = self.skills.apply_explicit(resolved, grant.level)
             effects.append(StepEffect(kind="skill", subject=_skill_label(resolved), amount=level))
@@ -385,7 +404,9 @@ class _Walk:
                 kind="background-skills",
                 career="",
                 term=0,
-                throw=None,
+                throw=StepThrow(
+                    faces=tuple(faces), modifiers=(), total=sum(faces), target=0, success=True
+                ),
                 selected="",
                 effects=tuple(effects),
             )
@@ -536,14 +557,16 @@ class _Walk:
         params = self.rules.chargen
         service_table = career.tables["service"]
         effects = []
+        faces: tuple[int, ...] = ()
         if is_first_career and params.basic_training_first_career_all:
+            # No die is rolled: every entry of the table is granted, so this
+            # step decided rather than threw (data-model.md).
             entries = service_table.entries
         else:
             count = params.basic_training_subsequent_career_count
-            entries = [
-                service_table.entries[self.roller.die(len(service_table.entries)) - 1]
-                for _ in range(count)
-            ]
+            drawn = [self.roller.die(len(service_table.entries)) for _ in range(count)]
+            faces = tuple(drawn)
+            entries = [service_table.entries[pick - 1] for pick in drawn]
         for entry in entries:
             reference = entry.skill if isinstance(entry, SkillGrant) else entry
             if not isinstance(reference, SkillReference):
@@ -554,12 +577,17 @@ class _Walk:
             else:
                 level = self.skills.apply_bare(resolved)
             effects.append(StepEffect(kind="skill", subject=_skill_label(resolved), amount=level))
+        throw = (
+            StepThrow(faces=faces, modifiers=(), total=sum(faces), target=0, success=True)
+            if faces
+            else None
+        )
         self.history.append(
             HistoryStep(
                 kind="basic-training",
                 career=career.name,
                 term=1,
-                throw=None,
+                throw=throw,
                 selected="",
                 effects=tuple(effects),
             )
@@ -886,10 +914,12 @@ class _Walk:
         count = min(effect.count, len(candidates))
         chosen: list[str] = []
         remaining = list(candidates)
+        choice_faces: list[int] = []
         for _ in range(count):
-            index = self.roller.die(len(remaining)) - 1
-            chosen.append(remaining.pop(index))
-        amount = _parse_amount(effect.amount, self.roller)
+            pick = self.roller.die(len(remaining))
+            choice_faces.append(pick)
+            chosen.append(remaining.pop(pick - 1))
+        amount, amount_faces = _parse_amount_with_faces(effect.amount, self.roller)
         effects: list[StepEffect] = []
         reduced: dict[str, int] = {}
         for code in sorted(chosen):
@@ -898,12 +928,18 @@ class _Walk:
             applied_delta = applied[-1].amount
             if applied_delta < 0:
                 reduced[code] = -applied_delta
+        faces = tuple(choice_faces) + tuple(amount_faces)
+        throw = (
+            StepThrow(faces=faces, modifiers=(), total=sum(faces), target=0, success=True)
+            if faces
+            else None
+        )
         self.history.append(
             HistoryStep(
                 kind=kind,
                 career=career_name,
                 term=term,
-                throw=None,
+                throw=throw,
                 selected="",
                 effects=tuple(effects),
             )
@@ -1141,8 +1177,10 @@ class _Walk:
     def _roll_skills(self, career: CareerDefinition, count: int, term: int) -> None:
         for _ in range(count):
             eligible = _eligible_tables(career, self.characteristics)
-            key, table = eligible[self.roller.die(len(eligible)) - 1]
-            entry = table.entries[self.roller.die(len(table.entries)) - 1]
+            table_pick = self.roller.die(len(eligible))
+            key, table = eligible[table_pick - 1]
+            entry_pick = self.roller.die(len(table.entries))
+            entry = table.entries[entry_pick - 1]
             effects = _apply_entry(
                 entry,
                 self.characteristics,
@@ -1156,7 +1194,13 @@ class _Walk:
                     kind="skill-roll",
                     career=career.name,
                     term=term,
-                    throw=None,
+                    throw=StepThrow(
+                        faces=(table_pick, entry_pick),
+                        modifiers=(),
+                        total=table_pick + entry_pick,
+                        target=0,
+                        success=True,
+                    ),
                     selected=key,
                     effects=tuple(effects),
                 )
@@ -1199,6 +1243,8 @@ class _Walk:
 
         for _ in range(rolls):
             take_cash = False
+            faces_c: tuple[int, ...] = ()
+            cash_choice_modifier = 0
             # `self.cash_taken` is a whole-character count (FR-016): "how
             # many of a character's rolls" are cash, not how many of one
             # career service's are, so it is never reset per service (T147).
@@ -1209,6 +1255,9 @@ class _Walk:
                 take_cash = (
                     sum(faces_c) + cash_choice_modifier >= params.mustering_out_cash_choice_target
                 )
+            cash_choice_modifiers = _roll_modifier(
+                params.mustering_out_cash_choice_roll, cash_choice_modifier
+            )
             if take_cash:
                 dm = params.mustering_out_retired_cash_dm if qualifies_for_pension else 0
                 faces, roll_modifier = _dice(self.roller, params.mustering_out_roll)
@@ -1218,12 +1267,23 @@ class _Walk:
                 amount = career.mustering_out.cash[index]
                 self.funds += amount
                 self.cash_taken += 1
+                all_faces = faces_c + faces
+                modifiers = tuple(
+                    cash_choice_modifiers
+                    + _roll_modifier(params.mustering_out_roll, roll_modifier)
+                )
                 self.history.append(
                     HistoryStep(
                         kind="benefit",
                         career=career.name,
                         term=0,
-                        throw=None,
+                        throw=StepThrow(
+                            faces=all_faces,
+                            modifiers=modifiers,
+                            total=sum(all_faces) + sum(m.value for m in modifiers),
+                            target=0,
+                            success=True,
+                        ),
                         selected="",
                         effects=(StepEffect(kind="credits", subject="", amount=amount),),
                     )
@@ -1255,12 +1315,23 @@ class _Walk:
                             self.characteristics, item.characteristic, item.amount, self.floor()
                         )
                     )
+                all_faces = faces_c + faces
+                modifiers = tuple(
+                    cash_choice_modifiers
+                    + _roll_modifier(params.mustering_out_roll, roll_modifier)
+                )
                 self.history.append(
                     HistoryStep(
                         kind="benefit",
                         career=career.name,
                         term=0,
-                        throw=None,
+                        throw=StepThrow(
+                            faces=all_faces,
+                            modifiers=modifiers,
+                            total=sum(all_faces) + sum(m.value for m in modifiers),
+                            target=0,
+                            success=True,
+                        ),
                         selected="",
                         effects=effects,
                     )

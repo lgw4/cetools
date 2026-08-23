@@ -90,6 +90,20 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   seed's output changes, but any override that sets one now takes effect,
   itemized in the recorded step's modifiers the way `task.roll`'s is
   (FR-056b, SC-013, T178).
+- **The `characteristics`, `background-skills`, `skill-roll`, `benefit`,
+  `basic-training`, and mishap/injury reduction steps now carry the throw
+  that produced them.** All six kinds rolled dice and recorded
+  `throw=None` regardless — 35 of a character's 54 draws went
+  unrecorded. Each now carries a `StepThrow` (faces, target `0`, success
+  `true`, per the table-reading-roll convention `data-model.md` already
+  states) whenever it actually rolled; `basic-training` still records
+  `throw=None` when a first career's whole service table is granted
+  outright, since nothing was rolled for that. This changes the emitted
+  `Character` and `--json` document — every one of these steps' `throw`
+  field goes from `null` to populated — but not what a seed's
+  characteristics, skills, funds, or anything else on the sheet come out
+  to: the dice drawn and their order are unchanged, only whether the
+  record keeps them (FR-030, FR-030a, `data-model.md:155`, T183).
 
 ### Added
 
