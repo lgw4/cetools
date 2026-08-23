@@ -576,3 +576,20 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   result below the lowest row, and raises `RulesDataError` for a result
   an override's gap leaves uncovered. The shipped table has no gaps, so
   no packaged seed's output changes (FR-013, FR-037, SC-013, T186).
+- **A mustering-out cash or benefit roll silently clamped to the table's
+  last row instead of failing on an out-of-range total.** Seven of the
+  eight careers shipped six-entry `cash` and `benefits` tables while
+  `navy.toml` alone shipped seven, so `mustering-out.retired-cash-dm` or
+  `.material-rank-dm` (both at most `1`) pushed a natural 6 onto the same
+  row a natural 5 already read — an engine-held clamp
+  (`max(0, min(len - 1, total - 1))`) stated in no requirement, contract,
+  or data file, the opposite of the treatment every other positional
+  table read in this feature gets (T181). Every career's `cash` and
+  `benefits` tables now carry a seventh row, repeating the sixth — the
+  same shape `navy.toml`'s own cash table already has — and the read now
+  goes through `_table_row`, which raises `RulesDataError` for a total no
+  row covers rather than absorbing it. The repeated seventh row draws the
+  same amount or item the clamp already produced for that collision, so
+  no packaged seed's output changes; an override whose modifier pushes a
+  total past even the seventh row now fails cleanly instead of silently
+  misreading (FR-016, FR-017, T181, T187).

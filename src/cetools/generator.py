@@ -1278,10 +1278,11 @@ class _Walk:
             if take_cash:
                 dm = params.mustering_out_retired_cash_dm if qualifies_for_pension else 0
                 faces, roll_modifier = _dice(self.roller, params.mustering_out_roll)
-                index = max(
-                    0, min(len(career.mustering_out.cash) - 1, sum(faces) + roll_modifier + dm - 1)
+                amount = _table_row(
+                    f"{career.name}: mustering-out.cash",
+                    career.mustering_out.cash,
+                    sum(faces) + roll_modifier + dm,
                 )
-                amount = career.mustering_out.cash[index]
                 self.funds += amount
                 self.cash_taken += 1
                 all_faces = faces_c + faces
@@ -1307,14 +1308,11 @@ class _Walk:
                 )
             else:
                 faces, roll_modifier = _dice(self.roller, params.mustering_out_roll)
-                index = max(
-                    0,
-                    min(
-                        len(career.mustering_out.benefits) - 1,
-                        sum(faces) + roll_modifier + material_dm - 1,
-                    ),
+                item = _table_row(
+                    f"{career.name}: mustering-out.benefits",
+                    career.mustering_out.benefits,
+                    sum(faces) + roll_modifier + material_dm,
                 )
-                item = career.mustering_out.benefits[index]
                 if isinstance(item, BenefitItem):
                     self.benefits.append(item.name)
                     effects: tuple[StepEffect, ...] = (
