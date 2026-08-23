@@ -360,6 +360,30 @@ class TestMishapTable:
         assert table is None
         assert any(p.location == "injuries" for p in problems)
 
+    @pytest.mark.parametrize(
+        "effect",
+        [
+            {"kind": "debt", "amount": "10000"},
+            {"kind": "years", "amount": "4"},
+            {"kind": "forfeit-career-benefits"},
+            {"kind": "roll-injury"},
+        ],
+    )
+    def test_a_non_characteristic_class_effect_on_an_injury_row_is_rejected(self, effect):
+        # T185: an injury row's `effects` array shares `_parse_mishap_effect`
+        # with a mishap row's, so a correctly spelled `debt`, `years`,
+        # `forfeit-career-benefits`, or `roll-injury` effect there validated
+        # clean and then did nothing when the row was read — nothing in
+        # `_roll_injury` performs any effect but `characteristic-class`.
+        # `roll-injury` is the sharpest: an injury row reached only from a
+        # mishap's own `roll-injury` effect naming another one is a shape
+        # the schema admits and the walk cannot follow.
+        data = self._data()
+        data["injuries"][0]["effects"] = [effect]
+        table, problems = parse_mishap_table(data, "mishaps.toml")
+        assert table is None
+        assert any(p.location == "injuries[0].effects[0].kind" for p in problems)
+
     def test_missing_description_is_a_problem(self):
         data = self._data()
         del data["mishaps"][1]["description"]
