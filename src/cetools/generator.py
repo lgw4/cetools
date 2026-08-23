@@ -576,24 +576,46 @@ class _Walk:
         effects = []
         faces: tuple[int, ...] = ()
         if is_first_career and params.basic_training_first_career_all:
-            # No die is rolled: every entry of the table is granted, so this
-            # step decided rather than threw (data-model.md).
+            # This step itself decided rather than threw: no die chooses
+            # *which* entries are granted, since every one of the table is
+            # (data-model.md). A specialty grant among them may still
+            # resolve its specialty by a die (`_resolve_specialty`,
+            # `roller.die(len(specialties))`) — a die that belongs to the
+            # skill it resolves, not to this step's own selection, and so
+            # goes unrecorded here.
             entries = service_table.entries
+            for entry in entries:
+                reference = entry.skill if isinstance(entry, SkillGrant) else entry
+                if not isinstance(reference, SkillReference):
+                    continue
+                resolved = _resolve_specialty(reference, self.rules.skills, self.roller)
+                level = self.skills.ensure_present_at_zero(resolved)
+                effects.append(
+                    StepEffect(kind="skill", subject=_skill_label(resolved), amount=level)
+                )
         else:
             count = params.basic_training_subsequent_career_count
             drawn = [self.roller.die(len(service_table.entries)) for _ in range(count)]
             faces = tuple(drawn)
             entries = [service_table.entries[pick - 1] for pick in drawn]
-        for entry in entries:
-            reference = entry.skill if isinstance(entry, SkillGrant) else entry
-            if not isinstance(reference, SkillReference):
-                continue
-            resolved = _resolve_specialty(reference, self.rules.skills, self.roller)
-            if is_first_career and params.basic_training_first_career_all:
-                level = self.skills.ensure_present_at_zero(resolved)
-            else:
-                level = self.skills.apply_bare(resolved)
-            effects.append(StepEffect(kind="skill", subject=_skill_label(resolved), amount=level))
+            for entry in entries:
+                # The entry actually drawn is applied whole — a
+                # characteristic adjustment included — the same way
+                # `_roll_skills` reads an identical entry (T200); the
+                # first-career branch above is the only one that grants
+                # every entry regardless of what it drew, and is the only
+                # one that still discards a form it cannot apply "at level
+                # zero".
+                effects.extend(
+                    _apply_entry(
+                        entry,
+                        self.characteristics,
+                        self.rules.skills,
+                        self.skills,
+                        self.roller,
+                        self.floor(),
+                    )
+                )
         throw = (
             StepThrow(faces=faces, modifiers=(), total=sum(faces), target=0, success=True)
             if faces

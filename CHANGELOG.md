@@ -273,6 +273,19 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   `mustering-out.cash`'s row spacing, which item or amount) every such
   character's walk produces from this version forward (FR-017, FR-016,
   FR-056b, T202).
+- **A later career's basic training discarded a drawn characteristic
+  adjustment after rolling for it.** `basic_training`'s later-career
+  branch filtered every drawn entry down to skill references, so a
+  service-table entry like `"END +1"` was rolled, selected, and then
+  applied nowhere — a die thrown, an entry chosen, and nothing granted,
+  leaving a `basic-training` step that could not be replayed from its own
+  record. The later-career draw now applies whatever it draws through the
+  same `_apply_entry` `_roll_skills` already uses; the first-career branch,
+  which grants every entry of the table regardless of what it drew, keeps
+  its own filter. No shipped career's service table holds a non-skill
+  entry, so no packaged seed's output changes; an override whose service
+  table does now applies it, changing that career's basic-training step
+  from this version forward (FR-007a, FR-030a, T200).
 
 ### Added
 

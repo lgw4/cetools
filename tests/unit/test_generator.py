@@ -155,6 +155,49 @@ class TestCareerEntry:
             }
             assert granted_names == expected_names
 
+    def test_a_later_career_characteristic_adjustment_entry_is_applied(self, tmp_path):
+        # T200: the later-career branch of `basic_training` filtered every
+        # drawn entry down to `SkillReference`, discarding a
+        # `CharacteristicAdjustment` after the die that drew it had already
+        # been rolled and recorded — a die thrown, an entry selected, and
+        # nothing granted, leaving a `basic-training` step that cannot be
+        # replayed. `_roll_skills` already reads the identical entry
+        # correctly through `_apply_entry`; `basic_training`'s later-career
+        # draw now does too (the filter stays on the first-career branch,
+        # which grants every skill entry at level zero and has no
+        # characteristic form to apply).
+        class _FixedRoller:
+            def __init__(self, sequence):
+                self._sequence = list(sequence)
+
+            def dice(self, count, sides):
+                return tuple(self._sequence.pop(0) for _ in range(count))
+
+            def die(self, sides):
+                return self._sequence.pop(0)
+
+        drifter = (_DATA / "careers" / "drifter.toml").read_text(encoding="utf-8")
+        service_entries = '["Carouse", "Gambler", "Recon", "Stealth", "Streetwise", "Survival"]'
+        assert service_entries in drifter
+        overridden = drifter.replace(
+            service_entries,
+            service_entries.replace('"Carouse"', '"END +1"', 1),
+            1,
+        )
+        (tmp_path / "drifter.toml").write_text(overridden, encoding="utf-8")
+        rules = load_rules(tmp_path)
+        career = rules.careers["drifter"]
+
+        from cetools.generator import _Walk
+
+        walk = _Walk(_FixedRoller([1]), rules)
+        walk.characteristics = {code: 7 for code in rules.characteristics.names}
+        walk.basic_training(career, is_first_career=False)
+
+        assert walk.characteristics["END"] == 8
+        step = next(s for s in walk.history if s.kind == "basic-training")
+        assert step.effects == (StepEffect(kind="characteristic", subject="END", amount=1),)
+
     def test_rank_zero_bonus_granted_on_entry(self):
         found_bonus = False
         for character in _characters(100):
