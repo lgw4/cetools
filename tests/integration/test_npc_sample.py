@@ -339,6 +339,34 @@ class TestDefaultRenderingCoverage:
             for leak in ("Seed:", "Rules:", "cetools", "Debt:", "Pension:", "History:"):
                 assert leak not in text
 
+            # The labels above are one way SC-020's absence half could be
+            # violated; the values themselves are another. A renderer that
+            # dropped the "Debt:" label but folded the figure into another
+            # field, or printed a step's own kind string, would leave every
+            # assertion above intact. (The seed itself gets the same check,
+            # separately below: this sample's seeds are small sequential
+            # ints, so `str(character.seed)` collides with an unrelated
+            # digit — an age, a fund total — too often here to be sound.)
+            for step in character.history:
+                assert step.kind not in text
+            if character.debt:
+                assert f"Cr{character.debt:,}" not in text
+            if character.pension:
+                assert f"Cr{character.pension:,}" not in text
+
+    def test_the_seed_itself_does_not_leak_into_the_default_sheet(self):
+        # Reusing `sample`'s small sequential seeds (0-999) for this check
+        # would false-positive: `str(0)` or `str(34)` collides with an
+        # unrelated digit elsewhere on the sheet (an age, a fund total, a
+        # skill level) far too often to mean anything. A seed derived from
+        # an arbitrary string instead folds to a ~19-digit int (FR-002,
+        # `resolve_seed`), which cannot coincidentally appear in a sheet.
+        from cetools.render import as_text
+
+        for i in range(20):
+            character = generate_character(Roller(f"sc020-seed-leak-check-{i}"), RULES)
+            assert str(character.seed) not in as_text(character)
+
 
 def test_sc019_name_weighting_is_over_tables_not_over_names():
     roller = Roller("name-weighting-sample")
