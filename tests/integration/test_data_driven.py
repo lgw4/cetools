@@ -381,6 +381,43 @@ def test_a_gap_in_the_aging_table_is_reported_not_silently_misassigned(tmp_path)
     assert found
 
 
+def test_every_shipped_careers_mustering_out_tables_cover_the_full_dm_range():
+    # T187: seven of the eight careers shipped six-entry `cash` and
+    # `benefits` tables while navy.toml alone shipped seven, so
+    # `mustering_out_retired_cash_dm` (max 1) or `mustering_out_material_rank_dm`
+    # (max 1) pushed a natural 6 onto the same row a natural 5 already
+    # read — an engine-held clamp silently absorbing the collision. Every
+    # table now covers the full `1d6` (1-6) plus the maximum declared
+    # modifier (1) without needing one.
+    rules = load_rules()
+    for stem, career in rules.careers.items():
+        assert len(career.mustering_out.cash) == 7, stem
+        assert len(career.mustering_out.benefits) == 7, stem
+
+
+def test_an_excessive_mustering_out_modifier_is_reported_not_silently_clamped(tmp_path):
+    # T187: `index = max(0, min(len(...) - 1, sum(faces) + dm - 1))` was an
+    # engine-invented clamp stated in no requirement, contract, or data
+    # file — the opposite of the treatment `contracts/data-files.md`
+    # already gives every other positional table read (T181). The read is
+    # now `_table_row`'s, which reports an overflow rather than silently
+    # absorbing it into the table's last row.
+    cash_target_block = "cash-choice-target = 4"
+    dm_block = "retired-cash-dm = 1"
+    assert cash_target_block in CHARGEN_PARAMETERS
+    assert dm_block in CHARGEN_PARAMETERS
+    text = CHARGEN_PARAMETERS.replace(cash_target_block, "cash-choice-target = 1", 1)
+    text = text.replace(dm_block, "retired-cash-dm = 100", 1)
+    override = tmp_path / "chargen-parameters.toml"
+    override.write_text(text, encoding="utf-8")
+    rules = load_rules(override)
+
+    career = rules.careers["navy"]
+    walk = _Walk(Roller("t187"), rules)
+    with pytest.raises(RulesDataError):
+        walk.muster_out_service(career, terms=6, ladder="enlisted", rank=0, benefit_rolls=1)
+
+
 def test_the_mustering_out_per_term_rate_takes_effect_with_no_code_edit(tmp_path):
     # T179: the benefit-roll-per-term rate used to be an implicit `1` held
     # in engine code (`generator.py`'s `benefit_rolls = ... terms -

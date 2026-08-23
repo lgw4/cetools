@@ -45,5 +45,6 @@ ranks = [
 ]
 
 [mustering-out]
-cash = [20000, 20000, 30000, 30000, 50000, 50000]
-benefits = ["Low Passage", "Ship Share", "Weapon", "Explorers' Society", "High Passage", "INT +1"]
+# Row 7 repeats row 6 (T187); see aerospace-defense.toml's comment.
+cash = [20000, 20000, 30000, 30000, 50000, 50000, 50000]
+benefits = ["Low Passage", "Ship Share", "Weapon", "Explorers' Society", "High Passage", "INT +1", "INT +1"]

@@ -65,5 +65,9 @@ ranks = [
 ]
 
 [mustering-out]
-cash = [1000, 5000, 5000, 10000, 10000, 20000]
-benefits = ["Low Passage", "Personal Vehicle", "Weapon", "Mid Passage", "SOC +1", "Armor"]
+# Rows 6 and 7 repeat the table's top value, matching navy.toml's own
+# authoritative cash table — the highest tier rather than an engine-held
+# clamp when a rank or retirement modifier pushes the roll past a table
+# that would otherwise run one row short (T187).
+cash = [1000, 5000, 5000, 10000, 10000, 20000, 20000]
+benefits = ["Low Passage", "Personal Vehicle", "Weapon", "Mid Passage", "SOC +1", "Armor", "Armor"]
