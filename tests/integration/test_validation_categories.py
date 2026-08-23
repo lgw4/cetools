@@ -634,3 +634,38 @@ def test_no_always_available_or_re_enterable_career_in_force_is_rejected(tmp_pat
     assert any(
         "re-enterable" in p.expected and "at least one" in p.expected for p in report.problems
     )
+
+
+def test_a_gap_in_the_characteristic_modifier_bands_is_rejected(tmp_path):
+    # T180: `characteristic_dm` (registries.py:56-62) raises `RulesDataError`
+    # for a score no band covers, and nothing at load time checked that the
+    # bands cover every score `characteristic_dm` can be asked for.
+    text = CHARACTERISTICS.replace('"6-8" = 0\n', "", 1)
+    assert text != CHARACTERISTICS
+    _write(tmp_path, "characteristics.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        p.file == "characteristics.toml"
+        and p.location == "modifier-dms"
+        and "gap" in p.found
+        for p in report.problems
+    )
+
+
+def test_an_overlap_in_the_characteristic_modifier_bands_is_rejected(tmp_path):
+    # T180: the previous case is a hole in coverage; this is the opposite —
+    # two bands both claiming a score, which `characteristic_dm` resolves by
+    # returning whichever band sorts first (the lower minimum), silently
+    # making the other band's claim on that score unreachable.
+    text = CHARACTERISTICS.replace('"9-11" = 1\n', '"7-11" = 1\n', 1)
+    assert text != CHARACTERISTICS
+    _write(tmp_path, "characteristics.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        p.file == "characteristics.toml"
+        and p.location == "modifier-dms"
+        and "overlap" in p.found
+        for p in report.problems
+    )
