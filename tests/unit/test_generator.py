@@ -427,13 +427,24 @@ class TestADebtsCreationStepPrecedesItsSettlement:
             for index, step in enumerate(character.history):
                 if step.kind != "debt-settled":
                     continue
-                later_creator = any(
-                    other.kind in _DEBT_CREATING_KINDS
-                    and other.career == step.career
-                    and other.term == step.term
-                    and any(e.kind == "debt" for e in other.effects)
-                    for other in character.history[index + 1 :]
-                )
+                # Bounded at the next `career-entered`: a re-enterable
+                # career (Drifter) restarts its term count at a fresh
+                # service, so (career, term) alone can name the same pair
+                # twice across two unrelated services, and a debt this
+                # step settled has no bearing on one raised in the next
+                # service that happens to share its career and term.
+                later_creator = False
+                for other in character.history[index + 1 :]:
+                    if other.kind == "career-entered":
+                        break
+                    if (
+                        other.kind in _DEBT_CREATING_KINDS
+                        and other.career == step.career
+                        and other.term == step.term
+                        and any(e.kind == "debt" for e in other.effects)
+                    ):
+                        later_creator = True
+                        break
                 assert not later_creator, (
                     f"seed {character.seed}: debt-settled at history index "
                     f"{index} is followed by a debt creation in "

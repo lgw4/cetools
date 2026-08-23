@@ -396,3 +396,17 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   dice after the second effect's characteristic selection instead of
   before it, changing every character whose walk reaches that branch from
   this version forward (FR-030, FR-056b, T163).
+- **A debt's settlement could precede the step that created it.** `add_debt`
+  settles immediately — it calls `settle_debts` synchronously, which
+  appends its own `debt-settled` step(s) — but all three callers (the
+  mishap `debt` effect, `_trigger_medical_crisis`, `_raise_medical_bill`)
+  appended their own creation step only *after* calling it, so a
+  `debt-settled` step could land in the history before the `mishap`,
+  `medical-crisis`, or `medical-bills` step that created the debt it
+  settled: `cetools npc --seed 51 --full` printed `debt-settled Cr20,000
+  debt, END 1` above the `medical-crisis` that created it. All three call
+  sites now record their creation step before calling `add_debt`.
+  **Breaking change**: `history` is a field of `Character`, so reordering
+  it changes what a seed produces even though the dice sequence itself is
+  untouched — every character whose walk creates a debt changes from this
+  version forward (FR-030, FR-056b, T164).

@@ -606,7 +606,9 @@ class _Walk:
                             self._raise_medical_bill(career.name, term, current_rank, reduced)
                     elif effect.kind == "debt":
                         amount = _parse_amount(effect.amount, self.roller)
-                        self.add_debt(_Debt(amount=amount, restore="none"), career.name, term)
+                        # Recorded before `add_debt`, which settles
+                        # immediately: the step that creates a debt must
+                        # precede the settlement it can trigger (T164).
                         self.history.append(
                             HistoryStep(
                                 kind="mishap",
@@ -617,6 +619,7 @@ class _Walk:
                                 effects=(StepEffect(kind="debt", subject="", amount=amount),),
                             )
                         )
+                        self.add_debt(_Debt(amount=amount, restore="none"), career.name, term)
                     elif effect.kind == "years":
                         extra_years += _parse_amount(effect.amount, self.roller)
                     elif effect.kind == "forfeit-career-benefits":
@@ -859,16 +862,9 @@ class _Walk:
         params = self.rules.chargen
         faces = _dice(self.roller, params.medical_crisis_roll)
         amount = sum(faces) * params.medical_crisis_multiplier
-        self.add_debt(
-            _Debt(
-                amount=amount,
-                restore="crisis",
-                characteristics=codes,
-                restore_to=params.medical_crisis_restores_to,
-            ),
-            career_name,
-            term,
-        )
+        # Recorded before `add_debt`, which settles immediately: the step
+        # that creates a debt must precede the settlement it can trigger
+        # (T164).
         self.history.append(
             HistoryStep(
                 # A crisis debt is *created* here, not settled — that is
@@ -883,6 +879,16 @@ class _Walk:
                 selected="",
                 effects=(StepEffect(kind="debt", subject="", amount=amount),),
             )
+        )
+        self.add_debt(
+            _Debt(
+                amount=amount,
+                restore="crisis",
+                characteristics=codes,
+                restore_to=params.medical_crisis_restores_to,
+            ),
+            career_name,
+            term,
         )
 
     def _roll_injury(self, career_name: str, term: int, rank: int) -> None:
@@ -963,6 +969,19 @@ class _Walk:
                 )
             )
             return
+        # Recorded before `add_debt`, which settles immediately: the step
+        # that creates a debt must precede the settlement it can trigger
+        # (T164).
+        self.history.append(
+            HistoryStep(
+                kind="medical-bills",
+                career=career_name,
+                term=term,
+                throw=throw,
+                selected="",
+                effects=(StepEffect(kind="debt", subject="", amount=owed),),
+            )
+        )
         self.add_debt(
             _Debt(
                 amount=owed,
@@ -980,16 +999,6 @@ class _Walk:
             ),
             career_name,
             term,
-        )
-        self.history.append(
-            HistoryStep(
-                kind="medical-bills",
-                career=career_name,
-                term=term,
-                throw=throw,
-                selected="",
-                effects=(StepEffect(kind="debt", subject="", amount=owed),),
-            )
         )
 
     def _apply_aging_if_due(self, career_name: str, term: int) -> None:
