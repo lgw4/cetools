@@ -150,6 +150,38 @@ class TestTermLoop:
                     )
                     assert service.ladder == commissioned_ladder.name
 
+    def test_advancement_is_attempted_whenever_the_career_declares_it(self):
+        # FR-008 conditions the step on the career offering the throw, not
+        # on a higher rank existing to move to. Every entry ladder in the
+        # shipped data (other than Navy's, since T155) declares a single
+        # rank 0, so an uncommissioned character in a career that offers
+        # promotion — Aerospace Defense, both throws — was denied the
+        # throw entirely (T169).
+        from cetools.generator import _Walk
+
+        career = RULES.careers["aerospace-defense"]
+        walk = _Walk(Roller(2), RULES)
+        walk.characteristics = {code: 7 for code in RULES.characteristics.names}
+        terms, ladder, rank, commissioned, ended, benefit_rolls, forfeit_all = (
+            walk.run_term_loop(career, "selected")
+        )
+        assert terms >= 1
+        assert not commissioned
+        assert any(step.kind == "advancement" for step in walk.history)
+
+    def test_advancement_leaves_the_rank_unchanged_with_nothing_above(self):
+        # The other half of T169: attempting the throw must not move the
+        # rank when the ladder has nothing above it, even on a success.
+        from cetools.generator import _Walk
+
+        career = RULES.careers["aerospace-defense"]
+        walk = _Walk(Roller(2), RULES)
+        walk.characteristics = {code: 7 for code in RULES.characteristics.names}
+        terms, ladder, rank, commissioned, ended, benefit_rolls, forfeit_all = (
+            walk.run_term_loop(career, "selected")
+        )
+        assert rank == 0
+
 
 class TestSkillRolls:
     def test_two_skill_rolls_in_a_career_declaring_neither_throw(self):
