@@ -597,7 +597,13 @@ class _Walk:
                 extra_years = 0
                 for effect in row.effects:
                     if effect.kind == "characteristic-class":
-                        self._apply_class_effect(effect, career.name, term)
+                        # Billed exactly the way an injury's own reduction
+                        # is (T143, T150): FR-024's reduction persists
+                        # "unless the character's medical bills are paid",
+                        # which presupposes a bill exists to pay (T162).
+                        reduced = self._apply_class_effect(effect, career.name, term)
+                        if reduced:
+                            self._raise_medical_bill(career.name, term, current_rank, reduced)
                     elif effect.kind == "debt":
                         amount = _parse_amount(effect.amount, self.roller)
                         self.add_debt(_Debt(amount=amount, restore="none"), career.name, term)

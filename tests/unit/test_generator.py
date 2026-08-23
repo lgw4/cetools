@@ -428,6 +428,33 @@ class TestMedicalBillRestoration:
         assert any(step.kind == "medical-bills" and step.throw is not None for step in new_steps)
 
 
+def _applied_reductions(effects):
+    """The actually-*applied* negative characteristic deltas on one step's
+    effects, skipping a floor clamp's called-for half of an adjacent pair
+    (the same convention `_replay_characteristics` uses, T146): a
+    characteristic already at the floor and chosen again records a
+    called-for/applied pair whose applied half is `0`, not a reduction at
+    all.
+    """
+    applied = []
+    i = 0
+    while i < len(effects):
+        effect = effects[i]
+        if effect.kind != "characteristic":
+            i += 1
+            continue
+        paired = (
+            i + 1 < len(effects)
+            and effects[i + 1].kind == "characteristic"
+            and effects[i + 1].subject == effect.subject
+        )
+        value = effects[i + 1].amount if paired else effect.amount
+        if value < 0:
+            applied.append(value)
+        i += 2 if paired else 1
+    return applied
+
+
 class TestAMishapsDirectReductionRaisesABill:
     """FR-024's "MUST persist unless the character's medical bills are
     paid" presupposes a bill exists to pay: a mishap row's own
@@ -441,7 +468,7 @@ class TestAMishapsDirectReductionRaisesABill:
             for step in character.history:
                 if step.kind != "mishap":
                     continue
-                if not any(e.kind == "characteristic" and e.amount < 0 for e in step.effects):
+                if not _applied_reductions(step.effects):
                     continue
                 assert any(
                     other.kind == "medical-bills"

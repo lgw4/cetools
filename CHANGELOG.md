@@ -368,3 +368,17 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   branches the rest of the walk takes — so every character whose walk
   reaches this path changes from this version forward (FR-024, FR-025,
   FR-025a, FR-056b, T161).
+- **A mishap's own characteristic reduction was never billed.** The term
+  loop discarded the reduction map `_apply_class_effect` returns for a
+  mishap row's own `characteristic-class` effect (e.g. mishaps.toml row 1,
+  "Injured in action"), so the reduction persisted with no medical bill
+  ever raised against it — unlike the structurally identical reduction
+  `_roll_injury` produces, which already is billed. FR-024's reduction
+  "MUST persist unless the character's medical bills are paid," which
+  presupposes a bill exists to pay. The term loop now bills it exactly the
+  way `_roll_injury` does. **Breaking change**: every character whose walk
+  reaches this branch now draws the medical tier's `2d6` where it
+  previously drew nothing, and any restoration that follows can change a
+  later throw's characteristic DM and, with it, which branch the rest of
+  the walk takes — every character whose walk reaches this path changes
+  from this version forward (FR-024, FR-025, FR-056b, T162).
