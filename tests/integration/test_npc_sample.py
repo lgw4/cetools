@@ -10,6 +10,7 @@ import pytest
 from cetools.dice import Roller
 from cetools.generator import _Walk, generate_character
 from cetools.names import roll_name
+from cetools.notation import SkillGrant, SkillReference
 from cetools.rules import load_rules
 
 pytestmark = pytest.mark.slow
@@ -189,11 +190,102 @@ class TestAlwaysLivingAndConsistency:
 
             # Every skill traces to a table in a career the character
             # actually served, or to background skills / basic training,
-            # which carry no career (SC-004, T152).
+            # which carry no career (SC-004, T152). T211 strengthens this
+            # beyond career-label membership, which cannot catch a skill
+            # drawn from a table belonging to another career, a table the
+            # character's characteristics gate out being drawn anyway, or
+            # a `rank-bonus` skill no reached rank declares: a single pass
+            # over the whole history replays characteristics and ladder
+            # position in order, since a table's gate or a ladder's rank
+            # can change mid-walk between one skill roll and the next.
             served = {service.career for service in character.careers}
+            running_characteristics: dict[str, int] = {}
+            service_index = -1
+            current_career = None
+            current_ladder = None
+            current_rank = 0
             for step in character.history:
+                if step.kind == "characteristics":
+                    for effect in step.effects:
+                        running_characteristics[effect.subject] = effect.amount
+                    continue
+
+                if step.kind == "career-entered":
+                    service_index += 1
+                    entered_service = character.careers[service_index]
+                    current_career = next(
+                        c for c in RULES.careers.values() if c.name == entered_service.career
+                    )
+                    current_ladder = next(
+                        lad for lad in current_career.ladders if lad.role == "entry"
+                    )
+                    current_rank = 0
+
                 if any(effect.kind == "skill" for effect in step.effects):
                     assert step.career in served | {""}
+
+                if step.kind == "skill-roll":
+                    # `step.term` lies within the service that rolled it
+                    # (SC-004's "in a term they served"), the table
+                    # `selected` names was gate-eligible for the character
+                    # at the time of the roll (not necessarily at replay
+                    # time — a later term's aging can still lower the
+                    # gating characteristic), and the granted skill is one
+                    # of that table's own entries.
+                    service = character.careers[service_index]
+                    assert 1 <= step.term <= service.terms
+                    table = current_career.tables[step.selected]
+                    if table.requires is not None:
+                        assert (
+                            running_characteristics[table.requires.characteristic]
+                            >= table.requires.target
+                        )
+                    entry_names = {
+                        entry.skill.name if isinstance(entry, SkillGrant) else entry.name
+                        for entry in table.entries
+                        if isinstance(entry, (SkillGrant, SkillReference))
+                    }
+                    for effect in step.effects:
+                        if effect.kind == "skill":
+                            assert effect.subject.split(" (", 1)[0] in entry_names
+                elif step.kind == "commission" and step.throw is not None and step.throw.success:
+                    commissioned_ladder = next(
+                        (lad for lad in current_career.ladders if lad.role == "commissioned"),
+                        None,
+                    )
+                    if commissioned_ladder is not None:
+                        current_ladder = commissioned_ladder
+                        current_rank = commissioned_ladder.ranks[0].rank
+                elif step.kind == "advancement" and step.throw is not None and step.throw.success:
+                    ranks_above = sorted(
+                        r.rank for r in current_ladder.ranks if r.rank > current_rank
+                    )
+                    if ranks_above:
+                        current_rank = ranks_above[0]
+                elif step.kind == "rank-bonus":
+                    # The granted skill matches the bonus the reached
+                    # ladder rank actually declares — no rank of that
+                    # career's ladders declaring one, or a bonus from a
+                    # ladder or rank the walk did not reach, both caught.
+                    rank_row = next(r for r in current_ladder.ranks if r.rank == current_rank)
+                    if rank_row.bonus is None:
+                        assert step.effects == ()
+                    elif isinstance(rank_row.bonus, (SkillGrant, SkillReference)):
+                        bonus_name = (
+                            rank_row.bonus.skill.name
+                            if isinstance(rank_row.bonus, SkillGrant)
+                            else rank_row.bonus.name
+                        )
+                        skill_effects = [e for e in step.effects if e.kind == "skill"]
+                        assert skill_effects
+                        for effect in skill_effects:
+                            assert effect.subject.split(" (", 1)[0] == bonus_name
+
+                for effect in step.effects:
+                    if effect.kind == "characteristic":
+                        running_characteristics[effect.subject] = (
+                            running_characteristics.get(effect.subject, 0) + effect.amount
+                        )
 
     def test_sc005_every_field_traces_to_a_history_step(self, sample):
         """Every characteristic, skill, career, credit, and item on a sheet
