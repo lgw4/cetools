@@ -328,6 +328,11 @@ value on its own as the house-rule path for all character generation.
 - What happens when a character fails qualification for a second or third career? The same
   routing applies as for the first: the draft, or Drifter. A character is never left with
   nowhere to go.
+- What happens when the draft or the always-available fallback names a career the character
+  has already entered and cannot re-enter? Entry falls through to a career the data marks
+  re-enterable, and the history records the substitution as a step of its own (FR-015a) — this
+  is FR-015's re-entry rule reaching a route FR-005 and FR-006 resolved correctly on their own
+  terms, not a failure of either.
 - What happens when a career declares neither a commission throw nor an advancement throw?
   The character takes two skill rolls per term in that career rather than one. No flag says
   so; the absence of both throws is what says so.
@@ -507,6 +512,13 @@ value on its own as the house-rule path for all character generation.
   deliberate and is used consistently wherever this specification gates re-entry or accumulates
   the penalty: a career the character was drafted into and mishapped out of was entered, and
   reading it the other way would make the draft a way to avoid the penalty.
+- **FR-015a**: When the draft or the always-available fallback names a career already entered
+  and not re-enterable, entry MUST fall through to a career the data marks re-enterable
+  instead. This is FR-015's rule, not FR-005's: the draft table itself resolved to a career in
+  force, exactly as FR-005 requires, and it is FR-015's re-entry prohibition the fallen-through
+  career would otherwise violate. The substitution MUST be recorded as its own step in the
+  generation history, distinct from the step naming the career the draft or the fallback
+  actually named.
 - **FR-016**: On mustering out, the system MUST determine the number of benefit rolls from the
   terms served and the rank reached, following the specific mustering-out rule rather than the
   looser phrasing of the summary checklist, and MUST decide at random for each roll whether it

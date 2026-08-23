@@ -97,6 +97,43 @@ class TestCareerEntry:
                     automatic = True
         assert thrown and automatic
 
+    def test_a_draft_collision_records_the_substitution_as_its_own_step(self):
+        # T189/FR-015a: when the draft names a career already entered and
+        # not re-enterable, `enter_career` silently substituted the
+        # re-enterable fallback, leaving `entered_by` fixed at "drafted"
+        # and the "draft" step still naming the career the walk never
+        # actually entered — the substitution itself was nowhere in the
+        # history. It must now appear as a "career-selected" step naming
+        # the collided-with career, positioned after the "draft" step and
+        # before the "career-entered" step that names the real fallback.
+        from cetools.generator import _Walk
+
+        found = False
+        for seed in range(1000):
+            walk = _Walk(Roller(seed), RULES)
+            walk.characteristics = {code: 6 for code in RULES.characteristics.names}
+            candidate, entered_by = walk.enter_career({"Marine"})
+            draft_steps = [s for s in walk.history if s.kind == "draft"]
+            if not draft_steps or draft_steps[-1].selected != "Marine":
+                continue
+            found = True
+            assert entered_by == "drafted"
+            assert candidate.name != "Marine"
+            draft_index = walk.history.index(draft_steps[-1])
+            entered_index = next(
+                i for i, s in enumerate(walk.history) if s.kind == "career-entered"
+            )
+            substitution_steps = [
+                s
+                for i, s in enumerate(walk.history)
+                if draft_index < i < entered_index
+                and s.kind == "career-selected"
+                and s.selected == "Marine"
+            ]
+            assert len(substitution_steps) == 1
+            break
+        assert found
+
     def test_basic_training_grants_the_service_table_on_first_career(self):
         for character in _characters(100):
             first_step = next(s for s in character.history if s.kind == "basic-training")
