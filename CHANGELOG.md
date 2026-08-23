@@ -448,3 +448,16 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   of the dice it used to for its bonus rolls, changing every character
   whose walk reaches that branch from this version forward (FR-016,
   FR-019, FR-056b, T168).
+- **An uncommissioned character in a promotion-offering career never rolled
+  the advancement throw at all.** `run_term_loop` gated the whole throw on
+  `ranks_above`, a precondition no data declares — FR-008 conditions the
+  step on the career offering the throw, not on a higher rank existing to
+  move to. Every shipped entry ladder other than Navy's (T155) declares a
+  single rank 0, so a character on one of them was denied both the throw
+  and the skill roll FR-009 grants on a successful one. The throw is now
+  attempted whenever `throws.promotion` is declared; only the rank move
+  and its bonus stay conditioned on a higher rank existing. **Breaking
+  change**: every character in a promotion-offering career now draws the
+  advancement dice at least once per uncommissioned term where it used to
+  draw nothing, changing every character whose walk reaches that branch
+  from this version forward (FR-008, FR-009, FR-056b, T169).

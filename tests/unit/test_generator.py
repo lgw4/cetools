@@ -156,30 +156,34 @@ class TestTermLoop:
         # shipped data (other than Navy's, since T155) declares a single
         # rank 0, so an uncommissioned character in a career that offers
         # promotion — Aerospace Defense, both throws — was denied the
-        # throw entirely (T169).
+        # throw entirely (T169). Seed 20's first term survives, fails its
+        # commission throw, and stays in the game (does not mishap), which
+        # is what reaches the promotion section at all.
         from cetools.generator import _Walk
 
         career = RULES.careers["aerospace-defense"]
-        walk = _Walk(Roller(2), RULES)
+        walk = _Walk(Roller(20), RULES)
         walk.characteristics = {code: 7 for code in RULES.characteristics.names}
-        terms, ladder, rank, commissioned, ended, benefit_rolls, forfeit_all = (
-            walk.run_term_loop(career, "selected")
-        )
-        assert terms >= 1
-        assert not commissioned
-        assert any(step.kind == "advancement" for step in walk.history)
+        walk.run_term_loop(career, "selected")
+        term_one_steps = [step for step in walk.history if step.term == 1]
+        assert any(step.kind == "commission" and not step.throw.success for step in term_one_steps)
+        assert any(step.kind == "advancement" for step in term_one_steps)
 
     def test_advancement_leaves_the_rank_unchanged_with_nothing_above(self):
         # The other half of T169: attempting the throw must not move the
-        # rank when the ladder has nothing above it, even on a success.
+        # rank when the ladder has nothing above it, even on a success —
+        # seed 20's term 1 advancement throw succeeds (Aerospace Defense's
+        # "enlisted" ladder declares only rank 0).
         from cetools.generator import _Walk
 
         career = RULES.careers["aerospace-defense"]
-        walk = _Walk(Roller(2), RULES)
+        walk = _Walk(Roller(20), RULES)
         walk.characteristics = {code: 7 for code in RULES.characteristics.names}
-        terms, ladder, rank, commissioned, ended, benefit_rolls, forfeit_all = (
-            walk.run_term_loop(career, "selected")
+        terms, ladder, rank, commissioned, ended, benefit_rolls, forfeit_all = walk.run_term_loop(
+            career, "selected"
         )
+        advancement = next(step for step in walk.history if step.kind == "advancement")
+        assert advancement.throw.success
         assert rank == 0
 
 

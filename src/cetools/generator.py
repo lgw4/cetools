@@ -687,46 +687,52 @@ class _Walk:
                     extra_rolls += params.skill_rolls_on_commission
 
             if "promotion" in career.throws:
+                # Attempted whenever the career offers the throw (FR-008),
+                # not only when a higher rank exists to move to — no data
+                # declares that precondition. A success still grants the
+                # skill roll FR-009 requires even where the ladder has
+                # nothing above the current rank; only the rank move and
+                # its bonus are conditioned on `ranks_above` (T169).
                 current_ladder = next(
                     ladder for ladder in career.ladders if ladder.name == current_ladder_name
                 )
                 ranks_above = sorted(r.rank for r in current_ladder.ranks if r.rank > current_rank)
-                if ranks_above:
-                    throw = career.throws["promotion"]
-                    faces_p = _dice(self.roller, throw.dice)
-                    char_dm_p = self.characteristic_dm(throw.characteristic)
-                    mods_p = (
-                        [
-                            Modifier(
-                                f"Characteristic {self.characteristics[throw.characteristic]}",
-                                char_dm_p,
-                            )
-                        ]
-                        if throw.characteristic is not None
-                        else []
-                    )
-                    total_p = sum(faces_p) + sum(m.value for m in mods_p)
-                    success_p = total_p >= throw.target
-                    self.history.append(
-                        HistoryStep(
-                            kind="advancement",
-                            career=career.name,
-                            term=term,
-                            throw=StepThrow(
-                                faces=faces_p,
-                                modifiers=tuple(mods_p),
-                                total=total_p,
-                                target=throw.target,
-                                success=success_p,
-                            ),
-                            selected="",
-                            effects=(),
+                throw = career.throws["promotion"]
+                faces_p = _dice(self.roller, throw.dice)
+                char_dm_p = self.characteristic_dm(throw.characteristic)
+                mods_p = (
+                    [
+                        Modifier(
+                            f"Characteristic {self.characteristics[throw.characteristic]}",
+                            char_dm_p,
                         )
+                    ]
+                    if throw.characteristic is not None
+                    else []
+                )
+                total_p = sum(faces_p) + sum(m.value for m in mods_p)
+                success_p = total_p >= throw.target
+                self.history.append(
+                    HistoryStep(
+                        kind="advancement",
+                        career=career.name,
+                        term=term,
+                        throw=StepThrow(
+                            faces=faces_p,
+                            modifiers=tuple(mods_p),
+                            total=total_p,
+                            target=throw.target,
+                            success=success_p,
+                        ),
+                        selected="",
+                        effects=(),
                     )
-                    if success_p:
+                )
+                if success_p:
+                    extra_rolls += params.skill_rolls_on_advancement
+                    if ranks_above:
                         current_rank = ranks_above[0]
                         self._grant_rank_bonus(career.name, term, current_ladder, current_rank)
-                        extra_rolls += params.skill_rolls_on_advancement
 
             no_throws = "commission" not in career.throws and "promotion" not in career.throws
             base_rolls = (

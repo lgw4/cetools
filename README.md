@@ -59,10 +59,10 @@ error so a redirected sheet is exactly a sheet and nothing else:
 
 ```sh
 $ cetools npc --seed session-alpha
-Lieutenant Darrell Soyinka	687A68	Age 30
-Aerospace Defense (2 terms), Surface Defense (1 term)	Cr5,000
-Animals-0, Electronics-0, Flyer-1, Gun Combat (Archery)-1, Gun Combat (Energy Pistol)-0, Gunnery (Screens)-0, Jack-of-All-Trades-0, Mechanic-0, Melee Combat (Bludgeoning Weapons)-1, Navigation-0, Vehicle (Aircraft)-0, Vehicle (Watercraft)-1
-Mid Passage, Weapon
+Flight Lieutenant Darrell Soyinka	689869	Age 30
+Aerospace Defense (3 terms)	Cr1,000
+Animals-0, Electronics-0, Flyer-1, Gun Combat (Energy Pistol)-0, Gunnery (Screens)-0, Gunnery (Spinal Mounts)-0, Gunnery (Turret Weapons)-1, Jack-of-All-Trades-0, Mechanic-1, Navigation-0, Vehicle (Aircraft)-0, Vehicle (Wheeled Vehicle)-0
+Personal Vehicle
 ```
 
 The character is always alive, always named, and always internally
