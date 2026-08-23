@@ -170,7 +170,11 @@ TITLED_THEN_UNTITLED = _character(
             terms=3,
             ladder="drifter",
             rank=0,
-            title="Drifter",
+            # Untitled, not "Drifter" (T171): a later career that *does*
+            # name a title for the rank held would supply it, so a service
+            # carrying one here is not the "left them untitled" shape
+            # SC-009 asks this reference to cover at all.
+            title="",
             entered_by="fallback",
             benefit_rolls=3,
         ),
@@ -357,6 +361,30 @@ class TestTitlePersistence:
         # renderer never re-derives a title by comparing ladders itself.
         assert TITLED_THEN_UNTITLED.title == "Captain"
         assert as_text(TITLED_THEN_UNTITLED).startswith("Captain Elin Marsh\t")
+
+    def test_the_fixture_actually_represents_a_later_career_left_untitled(self):
+        # The scenario this golden claims to cover, restated as a check on
+        # the fixture itself: its second `CareerService` must carry no
+        # title, or nothing here proves an earlier title survives rather
+        # than merely getting overwritten by an identical later one (T171).
+        assert TITLED_THEN_UNTITLED.careers[1].title == ""
+
+    def test_no_shipped_ladder_rank_leaves_a_character_untitled(self):
+        # FR-047c's "an earlier title survives" branch
+        # (`generator.py`'s `if title: self.title = title`) is asserted
+        # only against TITLED_THEN_UNTITLED's hand-built literal, because
+        # every rank of every shipped ladder declares a title: ordinary
+        # generation can never reach it. An override could supply what the
+        # shipped data cannot, which is why the branch — and this golden —
+        # still earn their place (T171).
+        rules = load_rules()
+        for career in rules.careers.values():
+            for ladder in career.ladders:
+                for rank_row in ladder.ranks:
+                    assert rank_row.title, (
+                        f"{career.name}'s {ladder.name!r} ladder rank {rank_row.rank} "
+                        "declares no title"
+                    )
 
     def test_no_rendering_may_write_anything_but_a_rank_title(self):
         # FR-048: the only title any rendering may write is a rank title
