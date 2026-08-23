@@ -133,28 +133,29 @@ def test_a_generation_time_out_of_range_table_read_is_reported_cleanly(tmp_path)
     assert not isinstance(result.exception, IndexError)
 
 
-def test_count_zero_is_a_usage_error_naming_count():
+def test_count_zero_is_a_usage_error_naming_count(strip_ansi):
     result = runner.invoke(app, ["npc", "--seed", "session-alpha", "--count", "0"])
     assert result.exit_code == 2
     assert result.stdout == ""
-    assert "--count" in result.output
+    assert "--count" in strip_ansi(result.output)
 
 
-def test_count_negative_is_a_usage_error_naming_count():
+def test_count_negative_is_a_usage_error_naming_count(strip_ansi):
     result = runner.invoke(app, ["npc", "--seed", "session-alpha", "--count", "-1"])
     assert result.exit_code == 2
     assert result.stdout == ""
-    assert "--count" in result.output
+    assert "--count" in strip_ansi(result.output)
 
 
-def test_name_with_count_above_one_is_a_usage_error_naming_both():
+def test_name_with_count_above_one_is_a_usage_error_naming_both(strip_ansi):
     result = runner.invoke(
         app, ["npc", "--seed", "session-alpha", "--name", "Alex Rivera", "--count", "12"]
     )
     assert result.exit_code == 2
     assert result.stdout == ""
-    assert "--name" in result.output
-    assert "--count" in result.output
+    output = strip_ansi(result.output)
+    assert "--name" in output
+    assert "--count" in output
 
 
 def test_json_standard_error_is_silent_on_success():
