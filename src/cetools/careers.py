@@ -731,6 +731,21 @@ def _parse_ladders(
         )
         ok = False
 
+    # `run()` (generator.py) grants the entry ladder's rank-zero bonus
+    # unconditionally on entering a career (FR-007); a ladder with no
+    # rank 0 has nothing for that bare `next(...)` to find (T182).
+    for index, ladder in enumerate(ladders):
+        if ladder.role == "entry" and not any(rank.rank == 0 for rank in ladder.ranks):
+            problems.append(
+                ValidationProblem(
+                    file=file,
+                    location=f"ladders[{index}].ranks",
+                    found="no rank 0",
+                    expected="a rank 0, since the entry ladder's bonus is always granted there",
+                )
+            )
+            ok = False
+
     if not ok:
         return None
     return tuple(ladders)

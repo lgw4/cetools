@@ -526,3 +526,11 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   row count, so `cetools npc` reports the reason on standard error
   instead of an unhandled traceback (FR-054, FR-005,
   `contracts/data-files.md:291`, T181).
+- **Nothing validated that a career's entry ladder declares rank 0.**
+  `run()` grants the entry ladder's rank-zero bonus with a bare
+  `next(r for r in ladder.ranks if r.rank == 0)` on every career entry
+  (FR-007), so an entry ladder starting above rank 0 validated clean and
+  then raised `StopIteration` mid-walk — the same shape T166 was raised
+  CRITICAL for. Every ladder declaring `role = "entry"` must now declare
+  rank 0. Every shipped career already does, so no packaged seed's output
+  changes (FR-007, FR-007b, T182).
