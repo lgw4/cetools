@@ -1244,7 +1244,12 @@ class _Walk:
         rank: int,
         benefit_rolls: int,
         forfeit_all: bool = False,
-    ) -> None:
+    ) -> int:
+        """Roll every benefit this service earns, and return the count
+        actually rolled — the term-derived `benefit_rolls` plus the
+        rank-derived bonus, `0` when `forfeit_all` — for the caller to
+        record on `CareerService.benefit_rolls` (T188).
+        """
         params = self.rules.chargen
         qualifies_for_pension = terms >= params.pension_minimum_terms
         rank_bonus = self._highest_matching_rank_row(params.mustering_out_rank_benefits, rank)
@@ -1377,6 +1382,7 @@ class _Walk:
                 effects=(),
             )
         )
+        return rolls
 
     def _current_title(self, career: CareerDefinition, ladder_name: str, rank: int) -> str:
         ladder = next(lad for lad in career.ladders if lad.name == ladder_name)
@@ -1401,6 +1407,9 @@ class _Walk:
             title = self._current_title(career, ladder, rank)
             if title:
                 self.title = title
+            rolls_taken = self.muster_out_service(
+                career, terms, ladder, rank, benefit_rolls, forfeit_all
+            )
             self.career_services.append(
                 CareerService(
                     career=career.name,
@@ -1411,10 +1420,9 @@ class _Walk:
                     commissioned=commissioned,
                     entered_by=entered_by,
                     ended=ended,
-                    benefit_rolls=benefit_rolls,
+                    benefit_rolls=rolls_taken,
                 )
             )
-            self.muster_out_service(career, terms, ladder, rank, benefit_rolls, forfeit_all)
             # "Chose to leave" is the character declining to continue serving
             # at all (the continuation throw itself, FR-014) — the walk ends
             # here. A mishap or a failed re-enlistment forces them out of

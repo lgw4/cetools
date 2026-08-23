@@ -112,6 +112,17 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   It now appears right after `characteristics`. Every existing `--json`
   consumer parsing the document positionally rather than by key sees an
   extra field where it did not before (FR-050, FR-029, T159, T184).
+- **`CareerService.benefit_rolls` understated the rolls a service actually
+  took, by 1 to 3.** `run_term_loop` set the field from the term-derived
+  count alone, while `muster_out_service` separately added the
+  rank-derived bonus (`mustering-out.rank-benefits`) before rolling —
+  T155's rank-5 enlisted ladder made this ordinary on Navy rather than
+  confined to commissioned officers. `muster_out_service` now returns the
+  count it actually rolled, and `run()` records that on the
+  `CareerService` instead. A consumer reading `benefit_rolls` — the field
+  `data-model.md` and `contracts/json-output.md` both publish — now sees
+  the true count for every character generated from this version forward
+  (FR-016, SC-004, `data-model.md:99`, T188).
 
 ### Added
 

@@ -162,9 +162,7 @@ class TestAlwaysLivingAndConsistency:
                     params.mustering_out_rank_benefits, service.rank
                 )
                 expected_benefit_rolls = (
-                    0
-                    if forfeit_all
-                    else max(0, service.terms - forfeited_terms) + rank_bonus
+                    0 if forfeit_all else max(0, service.terms - forfeited_terms) + rank_bonus
                 )
                 assert service.benefit_rolls == expected_benefit_rolls
                 mustering_steps = sum(1 for s in steps if s.kind == "benefit" and s.term == 0)
