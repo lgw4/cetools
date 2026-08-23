@@ -331,6 +331,20 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   different, more granular set of steps than before, so every character
   whose walk takes at least one such roll changes from this version
   forward (FR-030a, FR-016, FR-017, `contracts/cli.md:196`, T197).
+- **The die that chose a career recorded `throw = None`, indistinguishable
+  from the throwless draft-collision substitution step beside it.**
+  `_select_career` throws `self.roller.die(len(available))` for every
+  career entry attempt, and the `"career-selected"` step naming its result
+  carried no record of it — "why did this person end up a Drifter" was
+  unanswerable from the record, and a consumer counting selection attempts
+  could not tell an ordinary selection from a substitution by shape, only
+  by adjacency to the preceding `"draft"` step, which FR-030a's "separately
+  addressable parts" rules out. The step now carries the die as a
+  table-reading throw; the substitution, chosen deterministically rather
+  than drawn, still carries none. No dice are added, removed, or
+  reordered, but `history` is a field of `Character`, and every
+  `"career-selected"` step from an ordinary selection now carries a throw
+  where it previously carried none (FR-030, FR-030a, FR-015a, T207).
 
 ### Added
 

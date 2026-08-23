@@ -135,6 +135,14 @@ carries). `selected` is `"cash"` or `"material"`. Before T197, this die's face w
 into the following `benefit` step's `faces`, describing a throw — one throw over both the
 cash-choice die and the mustering-out table die — that was never actually made.
 
+`career-selected` (T207) carries the die that chose the career whenever one was actually
+thrown: `enter_career` appends one such step, `throw` carrying `_select_career`'s own single
+face as a table-reading roll (`target = 0`, `success = True`), for every career entry
+attempt. The distinct step FR-015a's draft-collision substitution appends carries no die of
+its own — the substitute is the first re-enterable career, chosen deterministically, not
+drawn — and stays `throw = None`, which now separates the two by shape as well as by which
+career each names.
+
 `medical-crisis` (Phase 8 T144) records an aging or mishap crisis debt's *creation* —
 the throw, and the amount owed. `debt-settled` is reserved for what `settle_debts`
 itself now records: one step per debt paid on a given call, carrying the amount paid and

@@ -446,7 +446,7 @@ class _Walk:
             )
         )
 
-    def _select_career(self, entered_names: set[str]) -> CareerDefinition:
+    def _select_career(self, entered_names: set[str]) -> tuple[CareerDefinition, int]:
         available = sorted(
             (
                 c
@@ -455,7 +455,8 @@ class _Walk:
             ),
             key=lambda c: c.name,
         )
-        return available[self.roller.die(len(available)) - 1]
+        face = self.roller.die(len(available))
+        return available[face - 1], face
 
     def _qualify(self, career: CareerDefinition, entries_so_far: int) -> bool:
         params = self.rules.chargen
@@ -514,13 +515,19 @@ class _Walk:
         return next(c for c in self.rules.careers.values() if c.name == name)
 
     def enter_career(self, entered_names: set[str]) -> tuple[CareerDefinition, str]:
-        candidate = self._select_career(entered_names)
+        candidate, face = self._select_career(entered_names)
         self.history.append(
             HistoryStep(
                 kind="career-selected",
                 career="",
                 term=0,
-                throw=None,
+                # `_select_career` throws `roller.die(len(available))`; the
+                # face it drew is recorded here as a table-reading roll
+                # (`target = 0`, `success = True`), which is also what now
+                # separates this step by shape from the draft-collision
+                # substitution below, chosen deterministically and so still
+                # throwless (T207).
+                throw=StepThrow(faces=(face,), modifiers=(), total=face, target=0, success=True),
                 selected=candidate.name,
                 effects=(),
             )

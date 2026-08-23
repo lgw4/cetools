@@ -182,7 +182,7 @@ High Passage (x2), Weapon
   History:
     characteristics                       STR 9, DEX 10, END 7, INT 11, EDU 8, SOC 6
     background-skills                     3 skills: Zero-G 0, Computer 0, Admin 0
-    career-selected                       Navy
+    career-selected                       5     Navy
     qualification        Navy       t1    2, 5 (sum 7) INT +1 = 8 vs 6  SUCCESS
     career-entered       Navy       t1    selected
     basic-training       Navy       t1    Comms 0, Engineering 0, Gun Combat 0, ...
