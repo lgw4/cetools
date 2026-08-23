@@ -328,6 +328,19 @@ class TestUniversalCharacterFormat:
             lines = as_text(character).split("\n")
             assert len(lines) in (3, 4)
 
+    def test_profile_renders_the_characters_own_symbols_not_the_packaged_ones(self):
+        # T159: `as_text`'s signature carries no rules parameter
+        # (contracts/library-api.md), so the only seam that lets an
+        # overridden pseudo-hex table reach the render is the character
+        # itself. A character carrying symbols that disagree with the
+        # packaged table must still render exactly what it carries.
+        character = _character(
+            characteristics={"STR": 9, "DEX": 10, "END": 7, "INT": 11, "EDU": 8, "SOC": 6},
+            characteristic_symbols=("!", "!", "!", "!", "!", "!"),
+        )
+        line1 = as_text(character).split("\n")[0]
+        assert line1.split("\t")[1] == "!!!!!!"
+
 
 class TestTitlePersistence:
     def test_a_later_untitled_career_does_not_erase_an_earlier_title(self):

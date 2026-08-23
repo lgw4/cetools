@@ -9,6 +9,7 @@ from pathlib import Path
 
 from cetools.dice import Roller
 from cetools.generator import generate_character
+from cetools.render import as_text
 from cetools.rules import load_rules, validate_rules
 
 _DATA = Path(__file__).resolve().parents[2] / "src" / "cetools" / "data"
@@ -232,3 +233,28 @@ def test_the_term_cap_takes_effect_with_no_code_edit(tmp_path):
     assert sum(service.terms for service in overridden.careers) < sum(
         service.terms for service in baseline.careers
     )
+
+
+def test_a_pseudo_hex_symbol_takes_effect_with_no_code_edit(tmp_path):
+    # T159: the rendered profile must trace to the rules that generated the
+    # character, not to whatever `--rules-data` happens to leave packaged —
+    # Constitution V promises swapping data changes output.
+    assert '"A", "B"' in CHARACTERISTICS
+    override = tmp_path / "characteristics.toml"
+    override.write_text(CHARACTERISTICS.replace('"A", "B"', '"B", "A"', 1), encoding="utf-8")
+    overridden_rules = load_rules(override)
+    packaged_rules = load_rules()
+
+    seed, character = _first_seed_matching(
+        overridden_rules, lambda c: any(v in (10, 11) for v in c.characteristics.values())
+    )
+
+    packaged_profile = "".join(
+        packaged_rules.characteristics.symbol(v) for v in character.characteristics.values()
+    )
+    overridden_profile = "".join(
+        overridden_rules.characteristics.symbol(v) for v in character.characteristics.values()
+    )
+    assert packaged_profile != overridden_profile
+    rendered_profile = as_text(character).split("\n")[0].split("\t")[1]
+    assert rendered_profile == overridden_profile
