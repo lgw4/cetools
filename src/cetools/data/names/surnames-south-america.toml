@@ -4,19 +4,28 @@ schema = "surnames"
 schema-version = 1
 
 region = "South America"
-source = "Common Portuguese-language surnames from Brazil and Spanish-language Andean surnames."
+source = "Surnames compiled from national civil-registry/census surname-frequency data: Brazil's IBGE \"Nomes no Brasil\" (2nd ed., 2022 Census, https://www.ibge.gov.br/ibge-digital/44909-veja-o-lancamento-do-novo-nomes-no-brasil-atualizado-pelo-censo-2022.html); Peru's RENIEC most-frequent-surnames report; Bolivia's SEGIP/SERECI civil-registry statistics; Ecuador's INEC/Registro Civil surname visualizer; Colombia's Registraduria Nacional del Estado Civil (2010); Chile's Servicio de Registro Civil e Identificacion (2014-2023); and Argentina's RENAPER open-data study \"Distribucion geografica de apellidos en Argentina\" — cross-checked against Wikipedia's \"List of most common surnames in South America\" (https://en.wikipedia.org/wiki/List_of_most_common_surnames_in_South_America) and \"Lista de sobrenomes mais comuns no Brasil,\" both CC BY-SA 4.0."
 
 names = [
   { name = "Silva" }, { name = "Santos" }, { name = "Oliveira" }, { name = "Souza" },
-  { name = "Rodrigues" }, { name = "Ferreira" }, { name = "Alves" }, { name = "Pereira" },
-  { name = "Lima" }, { name = "Gomes" }, { name = "Costa" }, { name = "Ribeiro" },
-  { name = "Martins" }, { name = "Carvalho" }, { name = "Almeida" }, { name = "Lopes" },
-  { name = "Soares" }, { name = "Fernandes" }, { name = "Vieira" }, { name = "Barbosa" },
-  { name = "Rocha" }, { name = "Dias" }, { name = "Monteiro" }, { name = "Cardoso" },
-  { name = "Teixeira" },
-  { name = "Quispe" }, { name = "Mamani" }, { name = "Condori" }, { name = "Choque" },
-  { name = "Huanca" }, { name = "Apaza" }, { name = "Paredes" }, { name = "Villanueva" },
-  { name = "Chura" }, { name = "Calle" }, { name = "Ccahuana" }, { name = "Huayta" },
-  { name = "Coila" }, { name = "Ticona" }, { name = "Yupanqui" }, { name = "Poma" },
-  { name = "Vilca" }, { name = "Fernandez" }, { name = "Gonzales" },
+  { name = "Pereira" }, { name = "Ferreira" }, { name = "Lima" }, { name = "Alves" },
+  { name = "Rodrigues" }, { name = "Costa" }, { name = "Gomes" }, { name = "Nascimento" },
+  { name = "Araujo" }, { name = "Ribeiro" }, { name = "Almeida" }, { name = "Barbosa" },
+  { name = "Soares" }, { name = "Carvalho" }, { name = "Martins" }, { name = "Lopes" },
+  { name = "Vieira" }, { name = "Rocha" }, { name = "Dias" }, { name = "Goncalves" },
+  { name = "Fernandes" }, { name = "Andrade" }, { name = "Nunes" }, { name = "Freitas" },
+  { name = "Melo" }, { name = "Moreira" },
+  { name = "Quispe" }, { name = "Flores" }, { name = "Sanchez" }, { name = "Garcia" },
+  { name = "Rodriguez" }, { name = "Huaman" }, { name = "Rojas" }, { name = "Vasquez" },
+  { name = "Mamani" }, { name = "Lopez" }, { name = "Ramos" }, { name = "Perez" },
+  { name = "Torres" }, { name = "Diaz" }, { name = "Gonzales" }, { name = "Gonzalez" },
+  { name = "Ramirez" }, { name = "Mendoza" }, { name = "Chavez" }, { name = "Espinoza" },
+  { name = "Castillo" }, { name = "Fernandez" }, { name = "Vargas" }, { name = "Gutierrez" },
+  { name = "Cruz" }, { name = "Ruiz" }, { name = "Romero" }, { name = "Gomez" },
+  { name = "Condori" }, { name = "Martinez" }, { name = "Reyes" }, { name = "Rivera" },
+  { name = "Salazar" }, { name = "Medina" }, { name = "Aguilar" }, { name = "Morales" },
+  { name = "Paredes" }, { name = "Choque" }, { name = "Hernandez" }, { name = "Munoz" },
+  { name = "Moreno" }, { name = "Jimenez" }, { name = "Contreras" }, { name = "Soto" },
+  { name = "Sosa" }, { name = "Benitez" }, { name = "Alvarez" }, { name = "Acosta" },
+  { name = "Zambrano" }, { name = "Vera" },
 ]

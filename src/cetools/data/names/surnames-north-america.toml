@@ -4,19 +4,21 @@ schema = "surnames"
 schema-version = 1
 
 region = "North America"
-source = "Common surnames reflecting Anglo, French-Canadian, and Jewish immigrant naming traditions in North America."
+source = "U.S. Census Bureau, \"Frequently Occurring Surnames from the 2010 Census\" (public domain U.S. government data, https://www.census.gov/topics/population/genealogy/data/2010_surnames.html), combined with Wikipedia's \"List of Ashkenazi Jewish surnames\" (https://en.wikipedia.org/wiki/List_of_Ashkenazi_Jewish_surnames) and \"Category:Ashkenazi surnames\" (https://en.wikipedia.org/wiki/Category:Ashkenazi_surnames), and Wikipedia surname articles for French-Canadian names citing the Institut de la Statistique du Québec's 2006 study of Quebec surnames, all CC BY-SA 4.0."
 
 names = [
-  { name = "Anderson" }, { name = "Miller" }, { name = "Moore" }, { name = "Baker" },
-  { name = "Carter" }, { name = "Mitchell" }, { name = "Perry" }, { name = "Cook" },
-  { name = "Bell" }, { name = "Cohen" }, { name = "Katz" }, { name = "Friedman" },
-  { name = "Goldberg" }, { name = "Silverman" }, { name = "Klein" }, { name = "Rosen" },
-  { name = "Weiss" }, { name = "Stein" }, { name = "Levine" }, { name = "Kaplan" },
+  { name = "Smith" }, { name = "Johnson" }, { name = "Williams" }, { name = "Brown" },
+  { name = "Jones" }, { name = "Miller" }, { name = "Davis" }, { name = "Wilson" },
+  { name = "Anderson" }, { name = "Thomas" }, { name = "Taylor" }, { name = "Moore" },
+  { name = "Jackson" }, { name = "Martin" }, { name = "Lee" }, { name = "Thompson" },
+  { name = "White" }, { name = "Harris" }, { name = "Clark" }, { name = "Lewis" },
   { name = "Tremblay" }, { name = "Gagnon" }, { name = "Roy" }, { name = "Cote" },
-  { name = "Levesque" }, { name = "Beaulieu" }, { name = "Gauthier" }, { name = "Morin" },
-  { name = "Lavoie" }, { name = "Fortin" }, { name = "Pelletier" }, { name = "Bergeron" },
-  { name = "Girard" }, { name = "Bouchard" }, { name = "Caron" }, { name = "Fitzgerald" },
-  { name = "Kennedy" }, { name = "Sullivan" }, { name = "Murphy" }, { name = "MacKenzie" },
-  { name = "Reid" }, { name = "Young" }, { name = "King" }, { name = "Scott" },
-  { name = "Adams" },
+  { name = "Bouchard" }, { name = "Gauthier" }, { name = "Morin" }, { name = "Lavoie" },
+  { name = "Fortin" }, { name = "Gagne" }, { name = "Ouellet" }, { name = "Pelletier" },
+  { name = "Belanger" }, { name = "Levesque" }, { name = "Bergeron" }, { name = "Leblanc" },
+  { name = "Girard" }, { name = "Simard" }, { name = "Boucher" },
+  { name = "Cohen" }, { name = "Kahn" }, { name = "Katz" }, { name = "Abrahams" },
+  { name = "Abramson" }, { name = "Rosen" }, { name = "Rosenberg" }, { name = "Goldberg" },
+  { name = "Bernstein" }, { name = "Epstein" }, { name = "Shapiro" }, { name = "Grossman" },
+  { name = "Landau" }, { name = "Horowitz" }, { name = "Kaminsky" },
 ]

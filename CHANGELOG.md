@@ -56,6 +56,18 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   reorders the draw sequence: every character a seed produces that serves
   in Navy without commissioning changes from this version forward
   (FR-033, FR-007b, FR-056b, T155).
+- **All eight name tables' entries are replaced.** Every `source` line
+  named what kind of names a table held rather than a source a reviewer
+  could find and check the terms of, which FR-043e requires. Each file's
+  `source` now cites a real public-domain, government/census, or
+  CC BY-SA-licensed source, and its `names` are drawn from that source
+  rather than the prior unsourced entries; sizes changed too (given names
+  66 → 185; surnames: Africa 45 → 52, Asia 45 → 52, Central America
+  45 → 48, Europe 99 → 105, indigenous peoples 45 → 68, North America
+  45 → 54, South America 44 → 80). A rolled index into a differently
+  sized, differently ordered table names a different person, so every
+  character a seed produces changes from this version forward (FR-043e,
+  FR-056b, T149).
 
 ### Added
 
@@ -311,3 +323,11 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   traceability check (T153) to replay characteristics from history and
   reconcile them against the sheet, which this defect made fail. Now uses
   `_apply_characteristic_delta`'s own effects directly.
+- **A shipped name table's `source` named what the entries were rather
+  than where they came from**, so no reviewer could check whether the
+  entries were actually redistributable under this project's GPL-3.0
+  designation, which FR-043e requires. All eight files now cite a real,
+  checkable source — see the Breaking changes entry above for what
+  changed as a result — and `test_name_tables.py` now asserts that every
+  `source` names a checkable reference (contains a URL) rather than only
+  that it is non-empty (FR-043e, T149).

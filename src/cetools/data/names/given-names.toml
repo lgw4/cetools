@@ -6,14 +6,26 @@
 schema = "given-names"
 schema-version = 1
 
-source = "Common gender-neutral given names in contemporary English-language usage."
+source = "Wikipedia, \"Category:English-language unisex given names\" (https://en.wikipedia.org/wiki/Category:English-language_unisex_given_names), CC BY-SA 4.0."
 
 names = [
-  "Alex", "Jordan", "Sam", "Taylor", "Morgan", "Casey", "Riley", "Jamie", "Avery", "Quinn",
-  "Skyler", "Rowan", "Reese", "Charlie", "Drew", "Emerson", "Finley", "Harper", "Hayden", "Jesse",
-  "Kendall", "Logan", "Peyton", "Sage", "Shawn", "Blake", "Cameron", "Dakota", "Elliot", "Frankie",
-  "Gray", "Indigo", "Jules", "Kai", "Lane", "Micah", "Noel", "Oakley", "Parker", "River",
-  "Sawyer", "Sydney", "Tatum", "Wren", "Ashton", "Bailey", "Corey", "Dana", "Eden", "Flynn",
-  "Glenn", "Hollis", "Ira", "Jaylen", "Kyler", "Lennon", "Marlowe", "Nico", "Ollie", "Phoenix",
-  "Remy", "Story", "True", "Val", "Winter", "Zion",
+  "Alex", "Alexis", "Alexx", "Alexz", "Arden", "Ariel", "Arlie", "Arlo", "Ashley", "Avery",
+  "Avie", "Bailey", "Bennette", "Birdie", "Blair", "Bobby", "Bradie", "Brett", "Bronte", "Brooklyn",
+  "Bryn", "Brynn", "Caden", "Cal", "Cameron", "Casey", "Cassidy", "Cecil", "Clare", "Colby",
+  "Cole", "Corin", "Cory", "Courtney", "Dakota", "Daley", "Daly", "Dana", "Darby", "Darian",
+  "Darnell", "Darrell", "Darryl", "Dayle", "Dayna", "Delaney", "Dell", "Denny", "Devin", "Devon",
+  "Elliot", "Ellis", "Emerson", "Emery", "Ethen", "Eugene", "Evan", "Evelyn", "Ezra", "Fay",
+  "Finley", "Finn", "Freddy", "Garnet", "Gay", "Gayle", "Gene", "Georgie", "Harley", "Hayden",
+  "Hayley", "Hilary", "Hope", "Hyacinth", "Ivory", "Ivy", "Jack", "Jamie", "Jasper", "Jayden",
+  "Jensen", "Jo", "Johnnie", "Johnny", "Jordan", "Joyce", "Juniper", "Juno", "Kale", "Kasey",
+  "Kelly", "Kelsey", "Kelsie", "Kennedy", "Kerry", "Kiernan", "Kim", "Kimberley", "Kit", "Kristen",
+  "Kye", "Kyrie", "Lacey", "Lee", "Leigh", "Lennox", "Leo", "Les", "Lesley", "Leslie",
+  "Lindsay", "Lindy", "Logan", "Loren", "Lucky", "Lyndsay", "Lynn", "Mackenzie", "Madison", "Mallory",
+  "Marion", "Mel", "Meredith", "Michael", "Morgan", "Nico", "Noel", "Odell", "Ollie", "Oreoluwa",
+  "Paige", "Palmer", "Paris", "Parker", "Parris", "Pascal", "Paxton", "Payton", "Pepper", "Perri",
+  "Quinn", "Randi", "Randy", "Raven", "Rebel", "Reed", "Ricky", "Ripley", "River", "Robin",
+  "Ronnie", "Rowan", "Royce", "Sam", "Sanders", "Sandi", "Sandy", "Sasha", "Schuyler", "Shannon",
+  "Shirley", "Skyler", "Spencer", "Stirling", "Storm", "Tate", "Tatum", "Taylor", "Teddy", "Tegan",
+  "Terry", "Tobey", "Tobi", "Tobin", "Toby", "Tommy", "Tracy", "Tuppy", "Vivian", "Wallis",
+  "Waverly", "Whitney", "Will", "Winter", "Wren",
 ]

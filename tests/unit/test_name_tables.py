@@ -32,10 +32,21 @@ def test_the_given_names_table_carries_no_gender_field():
     assert "gender" not in data
 
 
+def test_the_given_names_table_source_names_a_checkable_reference():
+    data = _load("given-names.toml")
+    assert "http" in data["source"]
+
+
 def test_every_surname_table_records_a_source():
     for path in _surname_files():
         data = tomllib.loads(path.read_text(encoding="utf-8"))
         assert data["source"], path.name
+
+
+def test_every_surname_table_source_names_a_checkable_reference():
+    for path in _surname_files():
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+        assert "http" in data["source"], path.name
 
 
 def test_every_surname_table_holds_at_least_forty_entries():

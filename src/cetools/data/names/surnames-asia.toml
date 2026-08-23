@@ -4,19 +4,21 @@ schema = "surnames"
 schema-version = 1
 
 region = "Asia"
-source = "Common surnames drawn from East, South, and Southeast Asian naming traditions."
+source = "Wikipedia, \"Lists of most common surnames in Asian countries\" (https://en.wikipedia.org/wiki/Lists_of_most_common_surnames_in_Asian_countries), CC BY-SA 4.0, compiling each country's cited government/census data: China's Ministry of Public Security 2018 surname report, Japan's 2008 Meiji Yasuda Life Insurance surname survey, South Korea's 2015 Population and Housing Census (Statistics Korea/KOSIS), Sri Lanka's 2014 surname-frequency data, the Philippines' 2014 Forebears-sourced surname estimates, and Vietnam's national census-derived surname percentages."
 
 names = [
-  { name = "Tanaka" }, { name = "Yamamoto" }, { name = "Suzuki" }, { name = "Watanabe" },
-  { name = "Sato" }, { name = "Takahashi" }, { name = "Kobayashi" }, { name = "Hayashi" },
-  { name = "Kim" }, { name = "Park" }, { name = "Lee" }, { name = "Choi" },
-  { name = "Jung" }, { name = "Kang" }, { name = "Wang" }, { name = "Chen" },
-  { name = "Zhang" }, { name = "Liu" }, { name = "Huang" }, { name = "Wu" },
-  { name = "Singh" }, { name = "Sharma" }, { name = "Patel" }, { name = "Gupta" },
-  { name = "Khan" }, { name = "Ahmed" }, { name = "Rahman" }, { name = "Kumar" },
-  { name = "Rao" }, { name = "Reddy" }, { name = "Iyer" }, { name = "Chowdhury" },
-  { name = "Das" }, { name = "Roy" }, { name = "Banerjee" },
-  { name = "Nguyen" }, { name = "Tran" }, { name = "Pham" }, { name = "Le" },
-  { name = "Hoang" }, { name = "Vu" }, { name = "Santos" }, { name = "Cruz" },
-  { name = "Reyes" }, { name = "Bautista" },
+  { name = "Wang" }, { name = "Li" }, { name = "Zhang" }, { name = "Liu" },
+  { name = "Chen" }, { name = "Yang" }, { name = "Huang" }, { name = "Wu" },
+  { name = "Sato" }, { name = "Suzuki" }, { name = "Takahashi" }, { name = "Tanaka" },
+  { name = "Watanabe" }, { name = "Ito" }, { name = "Nakamura" }, { name = "Kobayashi" },
+  { name = "Kim" }, { name = "Lee" }, { name = "Park" }, { name = "Choi" },
+  { name = "Jung" }, { name = "Kang" }, { name = "Cho" }, { name = "Yoon" },
+  { name = "Singh" }, { name = "Kumar" }, { name = "Das" }, { name = "Yadav" },
+  { name = "Lal" },
+  { name = "Perera" }, { name = "Fernando" }, { name = "Bandara" }, { name = "Dissanayake" },
+  { name = "Gamage" }, { name = "Liyanage" }, { name = "Jayasinghe" },
+  { name = "Dela Cruz" }, { name = "Garcia" }, { name = "Reyes" }, { name = "Ramos" },
+  { name = "Mendoza" }, { name = "Santos" }, { name = "Flores" }, { name = "Bautista" },
+  { name = "Nguyen" }, { name = "Tran" }, { name = "Le" }, { name = "Pham" },
+  { name = "Huynh" }, { name = "Phan" }, { name = "Vu" }, { name = "Dang" },
 ]

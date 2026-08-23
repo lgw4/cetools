@@ -22,13 +22,13 @@ _DATA = Path(__file__).resolve().parents[2] / "src" / "cetools" / "data" / "name
 # band a correct, per-table weighting holds every region inside (research,
 # 003-npc-generator T071).
 _SHIPPED_SURNAME_SIZES = {
-    "surnames-africa.toml": 45,
-    "surnames-asia.toml": 45,
-    "surnames-central-america.toml": 45,
-    "surnames-europe.toml": 99,
-    "surnames-indigenous.toml": 45,
-    "surnames-north-america.toml": 45,
-    "surnames-south-america.toml": 44,
+    "surnames-africa.toml": 52,
+    "surnames-asia.toml": 52,
+    "surnames-central-america.toml": 48,
+    "surnames-europe.toml": 105,
+    "surnames-indigenous.toml": 68,
+    "surnames-north-america.toml": 54,
+    "surnames-south-america.toml": 80,
 }
 
 

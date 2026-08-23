@@ -59,7 +59,7 @@ error so a redirected sheet is exactly a sheet and nothing else:
 
 ```sh
 $ cetools npc --seed session-alpha
-Lieutenant Kendall Traore	687A68	Age 30
+Lieutenant Darrell Soyinka	687A68	Age 30
 Aerospace Defense (2 terms), Surface Defense (1 term)	Cr5,000
 Animals-0, Electronics-0, Flyer-1, Gun Combat (Archery)-1, Gun Combat (Energy Pistol)-0, Gunnery (Screens)-0, Jack-of-All-Trades-0, Mechanic-0, Melee Combat (Bludgeoning Weapons)-1, Navigation-0, Vehicle (Aircraft)-0, Vehicle (Watercraft)-1
 Mid Passage, Weapon
@@ -78,16 +78,16 @@ sheets:
 
 ```sh
 $ cetools npc --seed table-of-twelve --count 3
-Scout Riley Poma	5887BA	Age 22
+Scout Bennette Kalama	5887BA	Age 22
 Scout (1 term)	Cr20,000
 Advocate-0, Electronics-1, Gambler-0, Gun Combat (Archery)-0, Gunnery (Turret Weapons)-0, Mechanic-0, Medicine-0, Navigation-0, Piloting-0, Survival-1, Vehicle (Tracked Vehicle)-0
 
-Flight Lieutenant Jules Gupta	68A868	Age 22
+Flight Lieutenant Quinn Yoon	68A868	Age 22
 Aerospace Defense (1 term)	Cr0
 Admin-0, Electronics-0, Flyer-1, Gun Combat (Energy Rifle)-0, Gunnery (Spinal Mounts)-0, Gunnery (Turret Weapons)-1, Mechanic-0, Vehicle (Tracked Vehicle)-0, Vehicle (Wheeled Vehicle)-0
 Personal Vehicle
 
-Captain Eden Perry	9A6636	Age 26
+Captain Kim Davis	9A6636	Age 26
 Marine (2 terms)	Cr15,000
 Athletics-0, Gun Combat (Energy Rifle)-0, Gun Combat (Slug Pistol)-0, Gun Combat (Slug Rifle)-1, Melee Combat (Piercing Weapons)-1, Melee Combat (Slashing Weapons)-0, Recon-1, Vehicle (Tracked Vehicle)-0, Zero-G-0
 ```

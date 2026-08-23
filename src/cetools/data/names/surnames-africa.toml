@@ -4,19 +4,21 @@ schema = "surnames"
 schema-version = 1
 
 region = "Africa"
-source = "Common surnames drawn from West, East, and Southern African naming traditions."
+source = "Surnames drawn from Wikipedia's language-tagged surname categories (Category:Yoruba-language surnames, Category:Igbo-language surnames, Category:Hausa-language surnames, Category:Zulu-language surnames, Category:Xhosa-language surnames, Category:Sotho-language surnames, Category:Tswana-language surnames, Category:Shona-language surnames, and Category:Swahili-language surnames, at https://en.wikipedia.org) and Wiktionary's Category:English surnames from Kikuyu (https://en.wiktionary.org); both projects' text is CC BY-SA 4.0."
 
 names = [
-  { name = "Mensah" }, { name = "Okafor" }, { name = "Adeyemi" }, { name = "Nwosu" },
-  { name = "Diallo" }, { name = "Traore" }, { name = "Keita" }, { name = "Toure" },
-  { name = "Camara" }, { name = "Cisse" }, { name = "Osei" }, { name = "Boateng" },
-  { name = "Asante" }, { name = "Owusu" }, { name = "Appiah" },
-  { name = "Mwangi" }, { name = "Kamau" }, { name = "Otieno" }, { name = "Wanjiru" },
-  { name = "Wanjala" }, { name = "Njoroge" }, { name = "Achieng" }, { name = "Odhiambo" },
-  { name = "Wafula" }, { name = "Kariuki" }, { name = "Muthoni" }, { name = "Onyango" },
-  { name = "Kimani" }, { name = "Mutua" }, { name = "Ochieng" },
-  { name = "Nkosi" }, { name = "Dlamini" }, { name = "Zuma" }, { name = "Khumalo" },
-  { name = "Moyo" }, { name = "Ndlovu" }, { name = "Sithole" }, { name = "Mahlangu" },
-  { name = "Mokoena" }, { name = "Nkomo" }, { name = "Chikwava" }, { name = "Banda" },
-  { name = "Phiri" }, { name = "Zulu" }, { name = "Ngwenya" },
+  { name = "Adeyemi" }, { name = "Babatunde" }, { name = "Balogun" }, { name = "Fashola" },
+  { name = "Ogunleye" }, { name = "Soyinka" }, { name = "Taiwo" }, { name = "Bankole" },
+  { name = "Achebe" }, { name = "Chukwu" }, { name = "Nwachukwu" }, { name = "Nwosu" },
+  { name = "Obi" }, { name = "Okafor" }, { name = "Okeke" }, { name = "Aliyu" },
+  { name = "Mwangi" }, { name = "Kariuki" }, { name = "Kimani" }, { name = "Njoroge" },
+  { name = "Mbugua" }, { name = "Njuguna" }, { name = "Onyango" }, { name = "Odhiambo" },
+  { name = "Otieno" }, { name = "Ochieng" }, { name = "Shabani" }, { name = "Cheboi" },
+  { name = "Shamasdin" },
+  { name = "Buthelezi" }, { name = "Cele" }, { name = "Dube" }, { name = "Mtshali" },
+  { name = "Ncube" }, { name = "Ntuli" }, { name = "Qwabe" }, { name = "Radebe" },
+  { name = "Sithole" }, { name = "Vilakazi" }, { name = "Zuma" }, { name = "Dlungwana" },
+  { name = "Mandela" }, { name = "Sisulu" }, { name = "Sobukwe" }, { name = "Mbeki" },
+  { name = "Makeba" }, { name = "Mokoena" }, { name = "Motaung" }, { name = "Thabane" },
+  { name = "Motsepe" }, { name = "Gumbo" }, { name = "Mukarakate" },
 ]
