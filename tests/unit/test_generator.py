@@ -302,13 +302,19 @@ class TestCharacteristicFloors:
         assert effects[0].amount == -1
 
 
-class TestMedicalCrisisTriggersOnlyOnAnActualReduction:
-    """FR-021: a crisis fires when a reduction *brings* a characteristic to
-    the floor, not merely when the characteristic *is* at the floor and a
-    zero-effect reduction is applied to it again (T146).
+class TestApplyClassEffectNeverRaisesACrisis:
+    """`_apply_class_effect` never raises a medical crisis (T160): it serves
+    the term loop's direct mishap effects and `_roll_injury`, neither of
+    which is aging, and FR-021 defines a crisis as arising specifically from
+    an aging effect — `_apply_aging_if_due` raises its own, independently.
+    This holds whether the reduction it applies actually reaches the floor
+    or the characteristic was already sitting on it; that distinction
+    (T146) now governs only whether a reduction is reported back to the
+    caller for billing (`reduced`), not whether a crisis fires here, since
+    it never does.
     """
 
-    def test_a_characteristic_already_at_the_floor_raises_no_fresh_crisis(self):
+    def test_a_characteristic_already_at_the_floor_raises_no_crisis(self):
         from cetools.chargen import MishapEffect
         from cetools.generator import _Walk
 
@@ -326,11 +332,12 @@ class TestMedicalCrisisTriggersOnlyOnAnActualReduction:
             count=1,
             amount="-1d6",
         )
-        walk._apply_class_effect(effect, "TestCareer", 1)
+        reduced = walk._apply_class_effect(effect, "TestCareer", 1)
+        assert reduced == {}
         assert walk.debt == 0
         assert walk.debts == []
 
-    def test_a_reduction_that_actually_reaches_the_floor_still_raises_one(self):
+    def test_a_reduction_that_reaches_the_floor_also_raises_no_crisis(self):
         from cetools.chargen import MishapEffect
         from cetools.generator import _Walk
 
@@ -348,9 +355,10 @@ class TestMedicalCrisisTriggersOnlyOnAnActualReduction:
             count=1,
             amount="-6d6",
         )
-        walk._apply_class_effect(effect, "TestCareer", 1)
-        assert walk.debt > 0
-        assert walk.debts
+        reduced = walk._apply_class_effect(effect, "TestCareer", 1)
+        assert reduced
+        assert walk.debt == 0
+        assert walk.debts == []
 
 
 class TestMedicalCrisisTriggersOnlyFromAging:
@@ -361,15 +369,23 @@ class TestMedicalCrisisTriggersOnlyFromAging:
     direct mishap effects and `_roll_injury` (T160).
     """
 
-    def test_no_crisis_traces_to_a_reduction_with_no_preceding_aging_step(self):
+    def test_every_crisis_is_attributed_to_an_aging_step_in_the_same_career_and_term(self):
+        # Attribution by (career, term) rather than list order: whether the
+        # `aging` step is recorded before or after the crisis it causes is
+        # T163's separate concern, not this one — this test is only about
+        # *which* effect gets to raise a crisis at all.
         for character in _characters(2000):
-            kinds = [step.kind for step in character.history]
             for index, step in enumerate(character.history):
                 if step.kind != "medical-crisis":
                     continue
-                assert "aging" in kinds[:index], (
+                assert any(
+                    other.kind == "aging"
+                    and other.career == step.career
+                    and other.term == step.term
+                    for other in character.history
+                ), (
                     f"seed {character.seed}: medical-crisis at history index "
-                    f"{index} with no preceding aging step"
+                    f"{index} traces to no aging step in {step.career} term {step.term}"
                 )
 
 

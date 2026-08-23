@@ -68,6 +68,16 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   sized, differently ordered table names a different person, so every
   character a seed produces changes from this version forward (FR-043e,
   FR-056b, T149).
+- **A medical crisis could arise from a mishap or an injury, not only from
+  aging.** `_apply_class_effect` — the reduction machinery the term loop's
+  direct mishap effects and `_roll_injury` both use — triggered a crisis
+  debt whenever its reduction floored a characteristic, even though FR-021
+  defines a crisis as arising from an *aging* effect specifically. A
+  mishap or an injury that floors a characteristic no longer rolls for a
+  crisis debt at all; `_apply_aging_if_due` is now the only place one is
+  raised. Every character whose walk used to reach that branch draws fewer
+  dice from that point forward and produces a different rest of their life
+  (FR-021, FR-056b, T160).
 
 ### Added
 

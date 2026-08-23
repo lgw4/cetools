@@ -810,6 +810,13 @@ class _Walk:
         (T146). The caller decides what the reduction is worth — the term
         loop's direct mishap effects ignore it, `_roll_injury` accumulates
         it into a medical bill (T143).
+
+        Never raises a medical crisis, even when a reduction floors a
+        characteristic: FR-021 defines a crisis as arising from an *aging*
+        effect specifically, and this method also serves the term loop's
+        direct mishap effects and `_roll_injury`, neither of which is aging
+        (T160). `_apply_aging_if_due` applies its own class effects and
+        raises its own crisis, independently of this method.
         """
         classes = self.rules.characteristics.classes
         candidates = sorted(
@@ -823,21 +830,13 @@ class _Walk:
             chosen.append(remaining.pop(index))
         amount = _parse_amount(effect.amount, self.roller)
         effects: list[StepEffect] = []
-        crisis_codes: list[str] = []
         reduced: dict[str, int] = {}
         for code in sorted(chosen):
             applied = _apply_characteristic_delta(self.characteristics, code, amount, self.floor())
             effects.extend(applied)
-            # A crisis is raised only where this reduction actually moved the
-            # characteristic (research R13's applied amount, `applied[-1]`,
-            # not the post-state alone): a characteristic already at the
-            # floor and chosen again applies a delta of zero and must not
-            # raise a fresh debt for a reduction that did not occur (T146).
             applied_delta = applied[-1].amount
             if applied_delta < 0:
                 reduced[code] = -applied_delta
-                if self.characteristics[code] <= self.floor():
-                    crisis_codes.append(code)
         self.history.append(
             HistoryStep(
                 kind="mishap",
@@ -848,8 +847,6 @@ class _Walk:
                 effects=tuple(effects),
             )
         )
-        if crisis_codes:
-            self._trigger_medical_crisis(career_name, term, tuple(crisis_codes))
         return reduced
 
     def _trigger_medical_crisis(self, career_name: str, term: int, codes: tuple[str, ...]) -> None:
