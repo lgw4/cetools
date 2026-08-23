@@ -389,6 +389,28 @@ class TestMedicalCrisisTriggersOnlyFromAging:
                 )
 
 
+class TestAgingStepPrecedesTheCrisisItCauses:
+    """FR-030 requires the steps in the order the walk occurred, which is
+    what makes a surprising sheet diagnosable (US2 acceptance scenario 4):
+    the `aging` step that causes a crisis must appear before the
+    `medical-crisis` step it causes, not after (T163).
+    """
+
+    def test_every_crisis_follows_its_aging_step(self):
+        for character in _characters(2000):
+            aging_index_by_career_term: dict[tuple[str, int], int] = {}
+            for index, step in enumerate(character.history):
+                if step.kind == "aging":
+                    aging_index_by_career_term.setdefault((step.career, step.term), index)
+                elif step.kind == "medical-crisis":
+                    aging_index = aging_index_by_career_term.get((step.career, step.term))
+                    assert aging_index is not None and aging_index < index, (
+                        f"seed {character.seed}: medical-crisis at history index "
+                        f"{index} does not follow an aging step in "
+                        f"{step.career} term {step.term}"
+                    )
+
+
 class TestMedicalBillRestoration:
     """FR-025's "unless the character's medical bills are paid" and
     FR-025a's "the points restored MUST be those the covered amount pays
