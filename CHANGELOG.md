@@ -461,3 +461,12 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   advancement dice at least once per uncommissioned term where it used to
   draw nothing, changing every character whose walk reaches that branch
   from this version forward (FR-008, FR-009, FR-056b, T169).
+- **A supplied name carrying a tab or a newline was accepted and rendered
+  verbatim, breaking the sheet it landed on.** FR-047 requires a supplied
+  name verbatim, but `--name $'Alex\tRivera'` put a third tab on a line
+  FR-046 requires to hold exactly two, and `--name $'Alex\n\nRivera'`
+  wrote a blank line inside a sheet — which FR-048a reserves as the
+  separator between sheets in a batch. `generate_character`,
+  `generate_batch`, and `cetools npc --name` now all refuse a name
+  containing a tab or a newline, on the same terms T148's empty-name
+  refusal already uses (FR-044, FR-046, FR-048a, FR-053c, T170).

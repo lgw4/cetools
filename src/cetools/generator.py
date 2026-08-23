@@ -1263,13 +1263,28 @@ class _Walk:
                 break
 
 
+def _validate_name(name: str | None) -> None:
+    """FR-047 requires a supplied name verbatim; a name that cannot be
+    rendered verbatim is refused instead (FR-053c). Empty or
+    whitespace-only leaves a dangling title separator (T148); a tab puts a
+    third tab on a line FR-046 requires to hold exactly two, and a newline
+    writes a blank line inside a sheet, which FR-048a reserves as the
+    separator between sheets in a batch (T170).
+    """
+    if name is None:
+        return
+    if not name.strip():
+        raise CetoolsError("name must not be empty or whitespace-only")
+    if "\t" in name or "\n" in name:
+        raise CetoolsError("name must not contain a tab or a newline")
+
+
 def generate_character(roller: Roller, rules: RulesData, *, name: str | None = None) -> Character:
     """Run the lifepath end to end and return the finished character
     (FR-001). Always alive, always named, always internally consistent
     (FR-022, FR-023, SC-003).
     """
-    if name is not None and not name.strip():
-        raise CetoolsError("name must not be empty or whitespace-only")
+    _validate_name(name)
     walk = _Walk(roller, rules)
     walk.run()
 
@@ -1329,8 +1344,7 @@ def generate_batch(
         raise CetoolsError(f"--count must be at least 1, got {count}")
     if name is not None and count > 1:
         raise CetoolsError("--name may not be combined with --count above 1")
-    if name is not None and not name.strip():
-        raise CetoolsError("name must not be empty or whitespace-only")
+    _validate_name(name)
 
     from cetools.seeds import resolve_seed
 

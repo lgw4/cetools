@@ -187,6 +187,8 @@ def npc(
         raise typer.BadParameter(
             "--name must not be empty or whitespace-only", param_hint="--name"
         )
+    if name is not None and ("\t" in name or "\n" in name):
+        raise typer.BadParameter("--name must not contain a tab or a newline", param_hint="--name")
     if count < 1:
         raise typer.BadParameter(f"--count must be at least 1, got {count}", param_hint="--count")
     if name is not None and count > 1:
