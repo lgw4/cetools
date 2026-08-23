@@ -1342,8 +1342,7 @@ class _Walk:
 
         for _ in range(rolls):
             take_cash = False
-            faces_c: tuple[int, ...] = ()
-            cash_choice_modifier = 0
+            cash_choice_throw: StepThrow | None = None
             # `self.cash_taken` is a whole-character count (FR-016): "how
             # many of a character's rolls" are cash, not how many of one
             # career service's are, so it is never reset per service (T147).
@@ -1351,36 +1350,55 @@ class _Walk:
                 faces_c, cash_choice_modifier = _dice(
                     self.roller, params.mustering_out_cash_choice_roll
                 )
-                take_cash = (
-                    sum(faces_c) + cash_choice_modifier >= params.mustering_out_cash_choice_target
+                cash_choice_modifiers = _roll_modifier(
+                    params.mustering_out_cash_choice_roll, cash_choice_modifier
                 )
-            cash_choice_modifiers = _roll_modifier(
-                params.mustering_out_cash_choice_roll, cash_choice_modifier
+                total_c = sum(faces_c) + sum(m.value for m in cash_choice_modifiers)
+                take_cash = total_c >= params.mustering_out_cash_choice_target
+                cash_choice_throw = StepThrow(
+                    faces=faces_c,
+                    modifiers=tuple(cash_choice_modifiers),
+                    total=total_c,
+                    target=params.mustering_out_cash_choice_target,
+                    success=take_cash,
+                )
+            # The FR-016 cash-against-material decision is its own step
+            # (T197): merging its die into the table throw's `faces`
+            # described a throw that was never made, and a cap-reached
+            # decision that rolled nothing (`cash_choice_throw is None`)
+            # still belongs in the record as one that decided rather than
+            # threw (data-model.md).
+            self.history.append(
+                HistoryStep(
+                    kind="cash-choice",
+                    career=career.name,
+                    term=0,
+                    throw=cash_choice_throw,
+                    selected="cash" if take_cash else "material",
+                    effects=(),
+                )
             )
             if take_cash:
                 dm = params.mustering_out_retired_cash_dm if self.pension_qualified else 0
                 faces, roll_modifier = _dice(self.roller, params.mustering_out_roll)
+                modifiers = _roll_modifier(params.mustering_out_roll, roll_modifier)
+                if dm:
+                    modifiers.append(Modifier("Retired", dm))
+                total = sum(faces) + sum(m.value for m in modifiers)
                 amount = _table_row(
-                    f"{career.name}: mustering-out.cash",
-                    career.mustering_out.cash,
-                    sum(faces) + roll_modifier + dm,
+                    f"{career.name}: mustering-out.cash", career.mustering_out.cash, total
                 )
                 self.funds += amount
                 self.cash_taken += 1
-                all_faces = faces_c + faces
-                modifiers = tuple(
-                    cash_choice_modifiers
-                    + _roll_modifier(params.mustering_out_roll, roll_modifier)
-                )
                 self.history.append(
                     HistoryStep(
                         kind="benefit",
                         career=career.name,
                         term=0,
                         throw=StepThrow(
-                            faces=all_faces,
-                            modifiers=modifiers,
-                            total=sum(all_faces) + sum(m.value for m in modifiers),
+                            faces=faces,
+                            modifiers=tuple(modifiers),
+                            total=total,
                             target=0,
                             success=True,
                         ),
@@ -1390,10 +1408,12 @@ class _Walk:
                 )
             else:
                 faces, roll_modifier = _dice(self.roller, params.mustering_out_roll)
+                modifiers = _roll_modifier(params.mustering_out_roll, roll_modifier)
+                if material_dm:
+                    modifiers.append(Modifier(f"Rank {rank}", material_dm))
+                total = sum(faces) + sum(m.value for m in modifiers)
                 item = _table_row(
-                    f"{career.name}: mustering-out.benefits",
-                    career.mustering_out.benefits,
-                    sum(faces) + roll_modifier + material_dm,
+                    f"{career.name}: mustering-out.benefits", career.mustering_out.benefits, total
                 )
                 if isinstance(item, BenefitItem):
                     self.benefits.append(item.name)
@@ -1412,20 +1432,15 @@ class _Walk:
                             self.characteristics, item.characteristic, item.amount, self.floor()
                         )
                     )
-                all_faces = faces_c + faces
-                modifiers = tuple(
-                    cash_choice_modifiers
-                    + _roll_modifier(params.mustering_out_roll, roll_modifier)
-                )
                 self.history.append(
                     HistoryStep(
                         kind="benefit",
                         career=career.name,
                         term=0,
                         throw=StepThrow(
-                            faces=all_faces,
-                            modifiers=modifiers,
-                            total=sum(all_faces) + sum(m.value for m in modifiers),
+                            faces=faces,
+                            modifiers=tuple(modifiers),
+                            total=total,
                             target=0,
                             success=True,
                         ),

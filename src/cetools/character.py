@@ -39,6 +39,7 @@ _HISTORY_STEP_KINDS = frozenset(
         "re-enlistment",
         "career-ended",
         "mustering-out",
+        "cash-choice",
         "benefit",
         "medical-bills",
         "medical-crisis",

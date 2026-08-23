@@ -313,6 +313,24 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   past its first term, or a medical bill charged at a nonzero rank, now
   carries a different `aging` or `medical-bills` step from this version
   forward (FR-030a, FR-030, `contracts/json-output.md:187`, T196).
+- **A mustering-out roll's cash-or-material decision was merged into the
+  table throw's own record, and the row-choosing DM was applied with
+  nothing itemized for it.** The FR-016 cash-choice die's face was
+  concatenated onto the mustering-out table die's `faces`, describing one
+  throw that was never actually made — `faces=(4, 6)` for what was really
+  two separate throws — while `mustering-out.retired-cash-dm` and
+  `.material-rank-dm` were folded into `total` with neither recorded in
+  `modifiers`, so a consumer holding `faces`, `modifiers`, and `total`
+  could not reach the amount the effect reports. The cash-choice decision
+  is now its own `"cash-choice"` step (new in the closed step-kind set),
+  `throw = None` when the character-wide cash-roll cap already forces
+  material without a die; the DM that follows is itemized as `"Retired"`
+  or `"Rank N"`. No dice are added, removed, or reordered — every draw a
+  seed already made still happens in the same sequence — but `history` is
+  a field of `Character`, and every mustering-out roll now produces a
+  different, more granular set of steps than before, so every character
+  whose walk takes at least one such roll changes from this version
+  forward (FR-030a, FR-016, FR-017, `contracts/cli.md:196`, T197).
 
 ### Added
 

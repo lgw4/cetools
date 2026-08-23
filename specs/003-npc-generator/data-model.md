@@ -123,8 +123,17 @@ themselves.
 Step kinds, closed: `characteristics`, `background-skills`, `career-selected`,
 `qualification`, `draft`, `career-entered`, `basic-training`, `rank-bonus`, `survival`,
 `mishap`, `injury`, `commission`, `advancement`, `skill-roll`, `aging`, `continuation`,
-`re-enlistment`, `career-ended`, `mustering-out`, `benefit`, `medical-bills`,
+`re-enlistment`, `career-ended`, `mustering-out`, `cash-choice`, `benefit`, `medical-bills`,
 `medical-crisis`, `debt-settled`, `pension`.
+
+`cash-choice` (T197) records the FR-016 decision of whether a mustering-out roll is taken
+as cash or as a material benefit, as its own step preceding the `benefit` step that reads
+the table: `throw` carries the cash-choice die when one was rolled, and is `None` when the
+character-wide cash-roll cap was already reached, so the decision is forced to material
+without a throw (the same "decided rather than threw" shape a full basic-training grant
+carries). `selected` is `"cash"` or `"material"`. Before T197, this die's face was merged
+into the following `benefit` step's `faces`, describing a throw — one throw over both the
+cash-choice die and the mustering-out table die — that was never actually made.
 
 `medical-crisis` (Phase 8 T144) records an aging or mishap crisis debt's *creation* —
 the throw, and the amount owed. `debt-settled` is reserved for what `settle_debts`

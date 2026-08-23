@@ -848,6 +848,49 @@ class TestMusteringOut:
         walk.muster_out_service(career, terms=1, ladder="", rank=0, benefit_rolls=1)
         assert walk.funds - funds_before == 50000
 
+    def test_cash_choice_is_its_own_step_with_the_retired_dm_itemized(self):
+        # T197: the cash-choice throw's own face was merged into the table
+        # throw's `faces`, describing a throw that was never made, and
+        # `mustering_out_retired_cash_dm`/`mustering_out_material_rank_dm`
+        # were folded into `total` with neither itemized in `modifiers`.
+        class _FixedRoller:
+            def __init__(self, sequence):
+                self._sequence = list(sequence)
+
+            def dice(self, count, sides):
+                return tuple(self._sequence.pop(0) for _ in range(count))
+
+            def die(self, sides):
+                return self._sequence.pop(0)
+
+        from cetools.generator import _Walk
+
+        career = RULES.careers["navy"]
+        walk = _Walk(Roller(0), RULES)
+        walk.characteristics = {code: 7 for code in RULES.characteristics.names}
+        walk.pension_qualified = True
+        # Cash-choice face 4 meets the packaged target of 4, so cash is
+        # taken; the mustering-out die then reads face 5.
+        walk.roller = _FixedRoller([4, 5])
+        walk.muster_out_service(career, terms=1, ladder="", rank=0, benefit_rolls=1)
+
+        cash_choice_steps = [s for s in walk.history if s.kind == "cash-choice"]
+        benefit_steps = [s for s in walk.history if s.kind == "benefit"]
+        assert len(cash_choice_steps) == 1
+        assert len(benefit_steps) == 1
+        assert cash_choice_steps[0].throw is not None
+        assert cash_choice_steps[0].throw.faces == (4,)
+        assert cash_choice_steps[0].selected == "cash"
+        # The table throw's own faces, not the cash-choice die merged in.
+        assert benefit_steps[0].throw.faces == (5,)
+        assert any(
+            m.value == RULES.chargen.mustering_out_retired_cash_dm
+            for m in benefit_steps[0].throw.modifiers
+        )
+        assert benefit_steps[0].throw.total == sum(benefit_steps[0].throw.faces) + sum(
+            m.value for m in benefit_steps[0].throw.modifiers
+        )
+
     def test_the_cash_roll_cap_is_shared_across_a_characters_whole_life(self):
         # FR-016 caps "how many of a character's rolls" may be taken as
         # cash — a character-wide count, not one that resets with every
