@@ -1050,6 +1050,63 @@ class TestT196ThrowsItemizeEveryModifierTheyApply:
         )
 
 
+class TestAgingRecordsTheSelectionDice:
+    """`_apply_aging_if_due` draws `self.roller.die(len(remaining))` once
+    per characteristic an aging row's class effect chooses to reduce, and
+    recorded none of it: the row-lookup step's own throw carries `total =
+    modified`, the value the row was read against, so the selection dice
+    cannot be folded into that same throw's `faces` without breaking
+    `total == sum(faces)` plus the modifiers (contracts/json-output.md).
+    Each class effect a row declares now gets its own step, immediately
+    after the row-lookup step, whose throw is exactly the dice that chose
+    which characteristics it reduced (T208).
+    """
+
+    def test_each_class_effect_gets_its_own_selection_throw(self):
+        from cetools.generator import _Walk
+
+        walk = _Walk(Roller(5), RULES)
+        walk.characteristics = {code: 10 for code in RULES.characteristics.names}
+        walk.age = RULES.chargen.terms_aging_begins_at_age
+        # Forces `modified` far below the lowest row's minimum, so the
+        # floor row is read regardless of the 2d6 roll — the packaged
+        # floor row ("-6") declares two class effects (physical, mental).
+        walk.total_terms_served = 100
+        walk._apply_aging_if_due("Navy", 3)
+
+        aging_steps = [s for s in walk.history if s.kind == "aging"]
+        row_step, *effect_steps = aging_steps
+        # The row-lookup step is unchanged by T208 except that its own
+        # effects moved to the steps below: its throw still carries the
+        # modified total the row was actually read against.
+        assert row_step.effects == ()
+        assert row_step.throw.total == sum(row_step.throw.faces) + sum(
+            m.value for m in row_step.throw.modifiers
+        )
+        assert len(effect_steps) == 2
+        for step in effect_steps:
+            assert step.throw is not None
+            assert step.effects
+            # A pure selection throw: no modifier, no target, and its own
+            # total is exactly the dice it drew — never folded into the
+            # row-lookup throw's arithmetic.
+            assert step.throw.total == sum(step.throw.faces)
+            assert step.throw.modifiers == ()
+            assert step.throw.target == 0
+            assert step.throw.success is True
+
+    def test_a_reducing_selection_step_is_found_over_a_sample(self):
+        found = False
+        for character in _characters(300):
+            for step in character.history:
+                if step.kind == "aging" and step.effects:
+                    found = True
+                    assert step.throw is not None
+                    assert step.throw.total == sum(step.throw.faces)
+                    assert step.throw.modifiers == ()
+        assert found
+
+
 class TestMedicalBills:
     def test_the_bill_is_per_point_reduced_not_per_characteristic_at_the_floor(self):
         # FR-025: the cost is the per-point rate times the points an injury
