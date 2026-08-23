@@ -192,7 +192,13 @@ line it sits on.
   the two designations; carrying both, or neither, fails the packaging guard
   (FR-042a). `src/cetools/data/__init__.py` is also plain GPL-3.0 code, and
   ships there only to make the directory importable — it is not itself rules
-  data and carries no designation at all.
+  data and carries no designation at all. Most shipped name tables draw part
+  of their entries from CC BY-SA 4.0 Wikipedia or Wiktionary material, or
+  from public-domain government census and civil-registry data; CC BY-SA 4.0
+  is one-way compatible with GPLv3 (not the reverse), and a bare list of
+  names may not be copyrightable at all, but a new entry drawn from such a
+  source should still name it in that file's own `source` field, the way the
+  shipped tables do.
 - **Section 15 is verbatim.** Every distribution bundles the full OGL 1.0a
   text and reproduces the SRD's complete Section 15 copyright-notice chain
   exactly as received, extended with this project's own game-data copyright

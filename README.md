@@ -149,7 +149,12 @@ Every `.toml` file under `src/cetools/data/names/` is this project's own
 content, not Open Game Content, and is licensed GPL-3.0-only along with
 everything else — the library and CLI source, the `__init__.py` that makes
 the data directory importable, tests, and packaging — under the GNU General
-Public License v3.0 (see `LICENSE`).
+Public License v3.0 (see `LICENSE`). Most of those name tables draw part of
+their entries from CC BY-SA 4.0 Wikipedia and Wiktionary material, plus
+public-domain government census and civil-registry data; each file's own
+`source` field names exactly what it drew on. CC BY-SA 4.0 is one-way
+compatible with GPLv3, and a bare list of names may not be copyrightable
+expression at all, but this project credits the source either way.
 
 A house rule supplied through `--rules-data` or `cetools validate PATH`
 carries no such obligation: it is your own content, not something this

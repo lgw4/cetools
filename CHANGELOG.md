@@ -624,3 +624,13 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   no packaged seed's output changes; an override whose modifier pushes a
   total past even the seventh row now fails cleanly instead of silently
   misreading (FR-016, FR-017, T181, T187).
+- **The licensing documents a redistributor reads first named every name
+  table "this project's own content."** Most of them draw part of their
+  entries from CC BY-SA 4.0 Wikipedia or Wiktionary material, or from
+  public-domain government census and civil-registry data — each file's own
+  `source` field already said so, but neither `README.md` nor
+  `CONTRIBUTING.md` mentioned it anywhere. Both now record the source kinds
+  and the position taken: CC BY-SA 4.0 is one-way compatible with GPLv3, and
+  a bare list of names may not be copyrightable at all, but this project
+  credits the source either way. No file's GPL-3.0-only designation changes
+  (FR-042, FR-043e, T191).
