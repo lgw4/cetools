@@ -23,15 +23,22 @@ def test_generating_the_same_seed_repeatedly_never_differs():
         second = generate_character(Roller(seed), RULES)
         assert dataclasses.asdict(first) == dataclasses.asdict(second)
         assert as_text(first).encode("utf-8") == as_text(second).encode("utf-8")
-        assert as_text(first, full=False) == as_text(second, full=False)
+        # `full=True` is the only rendering with a history block — the
+        # `full=False` comparison above is `as_text`'s own default and so
+        # is the same call twice (T172). Compared as bytes, both here and
+        # across process boundaries below, so a history line ordered by
+        # set iteration rather than the tuple itself would vary under hash
+        # randomization and be caught rather than pass hidden.
+        assert as_text(first, full=True).encode("utf-8") == as_text(second, full=True).encode(
+            "utf-8"
+        )
 
 
-def _run(seed) -> bytes:
-    result = subprocess.run(
-        [sys.executable, "-m", "cetools", "npc", "--seed", str(seed)],
-        capture_output=True,
-        check=True,
-    )
+def _run(seed, *, full: bool = False) -> bytes:
+    args = [sys.executable, "-m", "cetools", "npc", "--seed", str(seed)]
+    if full:
+        args.append("--full")
+    result = subprocess.run(args, capture_output=True, check=True)
     return result.stdout
 
 
@@ -40,3 +47,6 @@ def test_generating_the_same_seed_twice_across_process_boundaries_never_differs(
         first = _run(seed)
         second = _run(seed)
         assert first == second
+        first_full = _run(seed, full=True)
+        second_full = _run(seed, full=True)
+        assert first_full == second_full
