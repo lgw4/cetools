@@ -82,13 +82,17 @@ benefits = ["Low Passage", "Weapon", "Trade Goods", "Mid Passage", "SOC -1", "Pe
 """
 
 
+def _toml_escape(text: str) -> str:
+    return text.replace("\\", "\\\\").replace('"', '\\"')
+
+
 def _surname_table_text(region: str, source: str, names: list[str]) -> str:
     entries = ", ".join(f'{{ name = "{name}" }}' for name in names)
     return (
         'schema = "surnames"\n'
         "schema-version = 1\n\n"
-        f'region = "{region}"\n'
-        f'source = "{source}"\n'
+        f'region = "{_toml_escape(region)}"\n'
+        f'source = "{_toml_escape(source)}"\n'
         f"names = [{entries}]\n"
     )
 
