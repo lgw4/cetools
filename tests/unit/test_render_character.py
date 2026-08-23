@@ -243,6 +243,14 @@ _FULL_HISTORY = (
         selected="",
         effects=(StepEffect(kind="debt", subject="", amount=1200),),
     ),
+    HistoryStep(
+        kind="pension",
+        career="Navy",
+        term=0,
+        throw=None,
+        selected="",
+        effects=(StepEffect(kind="pension", subject="", amount=10000),),
+    ),
 )
 
 FULL = _character(
@@ -252,6 +260,7 @@ FULL = _character(
     age=26,
     funds=4000,
     debt=1200,
+    pension=10000,
     careers=(
         _service(
             career="Navy",
@@ -420,9 +429,14 @@ class TestFullerSheet:
         assert full_lines[: len(base_lines)] == base_lines
         assert full_lines[len(base_lines)] == ""
 
-    def test_debt_reads_the_amount_and_pension_reads_none_rather_than_cr0(self):
+    def test_debt_and_pension_both_carry_the_currency_prefix_and_thousands_separator(self):
         text = as_text(FULL, full=True)
         assert "  Debt:    Cr1,200" in text
+        assert "  Pension: Cr10,000" in text
+
+    def test_a_zero_pension_reads_none_rather_than_cr0(self):
+        character = _character(pension=0)
+        text = as_text(character, full=True)
         assert "  Pension: none" in text
 
     def test_history_heading_and_one_line_per_step(self):
