@@ -343,6 +343,22 @@ class TestMishapTable:
         assert table is None
         assert any("amount" in p.location for p in problems)
 
+    @pytest.mark.parametrize("bad", ["d66", "-d66", "0d6", "1d0"])
+    def test_amount_the_walk_cannot_evaluate_is_rejected(self, bad):
+        # T204: `_valid_amount_text`'s own regex passed `d66` (a two-digit
+        # table die, not a count-and-sides notation `parse_notation` can
+        # evaluate) and `0d6`/`1d0` (a count or a side count below 1)
+        # through to `generator.py`, which unpacks `parse_notation`'s
+        # result directly and either raises an uncaught `TypeError`
+        # (`d66`, which returns `None`) or an undiagnosed `DiceError`
+        # (`0d6`, `1d0`) mid-walk. Every other dice-notation field in the
+        # package is guarded against this the same way `task.roll` is.
+        data = self._data()
+        data["mishaps"][2]["effects"][0]["amount"] = bad
+        table, problems = parse_mishap_table(data, "mishaps.toml")
+        assert table is None
+        assert any("amount" in p.location for p in problems)
+
     def test_class_field_on_a_debt_effect_is_an_unrecognized_key(self):
         data = self._data()
         data["mishaps"][2]["effects"][0]["class"] = "physical"

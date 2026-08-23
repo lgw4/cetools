@@ -673,3 +673,14 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   which characteristics a generated character carries is a runtime fact
   the loader cannot see; the failure is now nameable rather than opaque
   (US4 acceptance scenario 4, FR-010, FR-054, T203).
+- **A mishap or injury `amount` written as `d66`, `0d6`, or `1d0` validated
+  clean and then crashed the walk uncaught.** `_valid_amount_text` checked
+  the field against its own regex rather than through the same
+  `_check_dice` guard every other dice-notation field in the package uses,
+  so a two-digit table die (which `parse_notation` answers with `None`,
+  raising an uncaught `TypeError` when the walk unpacks it) or a count or
+  side count below 1 (an undiagnosed `DiceError`) both passed load. The
+  field now routes through `_check_dice`, rejecting the same notation
+  `task.roll` and every other `roll` field already reject. No shipped
+  mishap or injury row's `amount` is any of these, so no packaged seed's
+  output changes (FR-054, US4 acceptance scenario 4, FR-019, T204).

@@ -525,7 +525,23 @@ class MishapTable:
 
 
 def _valid_amount_text(text: str) -> bool:
-    return bool(_AMOUNT_INTEGER.match(text) or _AMOUNT_DICE.match(text))
+    if _AMOUNT_INTEGER.match(text):
+        return True
+    if not _AMOUNT_DICE.match(text):
+        return False
+    # Routed through `_check_dice`, the same guard every other
+    # dice-notation field in the package uses, so `d66` (a two-digit table
+    # die `parse_notation` answers with `None`) and a count or side count
+    # below 1 are rejected here rather than reaching `generator.py` as an
+    # uncaught `TypeError` or an undiagnosed `DiceError` (T204). The sign
+    # this field alone admits — "the roll is negated" — is stripped first;
+    # it is `generator.py`'s own concern, not dice notation's.
+    body = text[1:] if text[:1] in ("+", "-") else text
+    try:
+        _check_dice(body)
+    except RulesDataError:
+        return False
+    return True
 
 
 def _parse_mishap_effect(
