@@ -353,3 +353,25 @@ def test_sc019_name_weighting_is_over_tables_not_over_names():
     for region, count in region_counts.items():
         share = count / 10_000
         assert 0.9 * expected_share <= share <= 1.1 * expected_share, (region, share)
+
+
+def test_sc019_a_characters_recorded_region_matches_the_table_its_surname_came_from(sample):
+    # The weighting check above calls `roll_name` directly, bypassing
+    # `generate_character` entirely — nothing anywhere asserted that a
+    # *generated* character's own `surname_region` field is the region of
+    # the table its surname actually came from. A defect in
+    # `generate_character`'s `surname_region = rolled.region` line would
+    # pass both SC-018 (field-by-field name comparison) and the weighting
+    # check above, since neither reads a generated character's own field
+    # against the table data (T176, FR-047d).
+    names_by_region = {
+        table.region: {entry.name for entry in table.names} for table in RULES.surnames.values()
+    }
+    checked = 0
+    for character in sample:
+        if character.surname_region == "":
+            continue
+        assert character.surname_region in names_by_region
+        assert character.surname in names_by_region[character.surname_region]
+        checked += 1
+    assert checked
