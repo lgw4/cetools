@@ -21,7 +21,7 @@ from cetools.character import (
     StepThrow,
 )
 from cetools.dice import Roller, parse_notation
-from cetools.errors import CetoolsError
+from cetools.errors import CetoolsError, RulesDataError
 from cetools.names import roll_name
 from cetools.notation import (
     BenefitItem,
@@ -54,6 +54,23 @@ def _roll_modifier(notation: str, modifier: int) -> list[Modifier]:
     `StepThrow`, empty for the ordinary unmodified case.
     """
     return [Modifier(f"Roll ({notation})", modifier)] if modifier else []
+
+
+def _table_row(file: str, rows: object, total: int):
+    """Read `rows[total - 1]`, or raise `RulesDataError` naming `file`, the
+    throw's total, and the table's row count when `total` falls outside it.
+
+    The number of rows and the die a table declares are not required to
+    agree; a mismatch is a data problem reported when it is read, not at
+    load (contracts/data-files.md), so this is a runtime check rather than
+    a cross-file rule in `rules.py`.
+    """
+    if total < 1 or total > len(rows):
+        raise RulesDataError(
+            f"{file}: a throw totaling {total} has no row at that position; "
+            f"the table has {len(rows)} row(s)"
+        )
+    return rows[total - 1]
 
 
 def _resolve_specialty(
@@ -453,7 +470,7 @@ class _Walk:
         draft = self.rules.draft
         faces, modifier = _dice(self.roller, draft.roll)
         row = sum(faces) + modifier
-        name = draft.careers[row - 1]
+        name = _table_row("draft.toml", draft.careers, row)
         self.history.append(
             HistoryStep(
                 kind="draft",
@@ -598,7 +615,7 @@ class _Walk:
             if not success:
                 mishap_faces, mishap_modifier = _dice(self.roller, self.rules.mishaps.roll)
                 mishap_total = sum(mishap_faces) + mishap_modifier
-                row = self.rules.mishaps.rows[mishap_total - 1]
+                row = _table_row("mishaps.toml", self.rules.mishaps.rows, mishap_total)
                 self.history.append(
                     HistoryStep(
                         kind="mishap",
@@ -934,7 +951,7 @@ class _Walk:
     def _roll_injury(self, career_name: str, term: int, rank: int) -> None:
         faces, modifier = _dice(self.roller, self.rules.mishaps.injury_roll)
         total = sum(faces) + modifier
-        row = self.rules.mishaps.injuries[total - 1]
+        row = _table_row("mishaps.toml", self.rules.mishaps.injuries, total)
         self.history.append(
             HistoryStep(
                 kind="injury",

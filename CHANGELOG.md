@@ -514,3 +514,15 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   to cover every integer from the pseudo-hex minimum up to the unbounded
   band with no gap and no overlap. The shipped bands already satisfy it,
   so no packaged seed's output changes (FR-039, Constitution V, T180).
+- **A die able to produce a total outside a chargen table's row count
+  raised a bare `IndexError` instead of a reported failure.** The draft
+  table, the mishap table, and the injury table are all read positionally
+  off a throw's total, and `contracts/data-files.md` already states that
+  a mismatch between the die and the row count is "a data problem
+  reported when it is read, not at load" — the same treatment
+  `CharacteristicRegistry.symbol` gives a characteristic score outside
+  the declared pseudo-hex range. All three reads now raise
+  `RulesDataError` naming the file, the throw's total, and the table's
+  row count, so `cetools npc` reports the reason on standard error
+  instead of an unhandled traceback (FR-054, FR-005,
+  `contracts/data-files.md:291`, T181).
