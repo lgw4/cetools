@@ -1069,7 +1069,10 @@ class _Walk:
         tier = self.rules.medical_tiers.tiers[career.medical_tier]
         faces, roll_modifier = _dice(self.roller, self.rules.medical_tiers.roll)
         rank_bonus = rank if self.rules.medical_tiers.rank_dm else 0
-        total = sum(faces) + roll_modifier + rank_bonus
+        tier_modifiers = _roll_modifier(self.rules.medical_tiers.roll, roll_modifier)
+        if rank_bonus:
+            tier_modifiers.append(Modifier(f"Rank {rank}", rank_bonus))
+        total = sum(faces) + sum(m.value for m in tier_modifiers)
         paid_percent = 0
         for threshold in tier:
             if total >= threshold.target:
@@ -1094,7 +1097,7 @@ class _Walk:
         )
         throw = StepThrow(
             faces=faces,
-            modifiers=tuple(_roll_modifier(self.rules.medical_tiers.roll, roll_modifier)),
+            modifiers=tuple(tier_modifiers),
             total=total,
             target=0,
             success=True,
@@ -1160,7 +1163,10 @@ class _Walk:
         if self.age < params.terms_aging_begins_at_age:
             return
         faces, roll_modifier = _dice(self.roller, self.rules.aging.roll)
-        modified = sum(faces) + roll_modifier - self.total_terms_served
+        aging_modifiers = _roll_modifier(self.rules.aging.roll, roll_modifier)
+        if self.total_terms_served:
+            aging_modifiers.append(Modifier("Terms served", -self.total_terms_served))
+        modified = sum(faces) + sum(m.value for m in aging_modifiers)
         # Rows are sorted by minimum. The lowest row is a floor: a modified
         # result below it reads that row too (contracts/data-files.md).
         # Above the floor, a result must fall within some row's declared
@@ -1228,7 +1234,7 @@ class _Walk:
                 term=term,
                 throw=StepThrow(
                     faces=faces,
-                    modifiers=tuple(_roll_modifier(self.rules.aging.roll, roll_modifier)),
+                    modifiers=tuple(aging_modifiers),
                     total=modified,
                     target=0,
                     success=True,

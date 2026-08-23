@@ -934,6 +934,47 @@ class TestDebtSettlement:
         assert creation_step.kind != "debt-settled"
 
 
+class TestT196ThrowsItemizeEveryModifierTheyApply:
+    """`contracts/json-output.md` states `total == sum(faces)` plus the
+    modifier values, and `contracts/data-files.md` declares `modifier =
+    "terms-served"` and `rank-dm` as modifiers of the total in exactly
+    those words — but the aging total subtracted `total_terms_served` and
+    the medical-bill total added `rank_bonus` with neither itemized in the
+    recorded `StepThrow.modifiers` (T196).
+    """
+
+    def test_aging_records_the_terms_served_modifier(self):
+        from cetools.generator import _Walk
+
+        walk = _Walk(Roller(5), RULES)
+        walk.characteristics = {code: 10 for code in RULES.characteristics.names}
+        walk.age = RULES.chargen.terms_aging_begins_at_age
+        walk.total_terms_served = 9
+        walk._apply_aging_if_due("Navy", 3)
+
+        step = next(s for s in walk.history if s.kind == "aging")
+        assert any(m.label == "Terms served" and m.value == -9 for m in step.throw.modifiers)
+        assert step.throw.total == sum(step.throw.faces) + sum(
+            m.value for m in step.throw.modifiers
+        )
+
+    def test_medical_bill_records_the_rank_modifier(self):
+        from cetools.generator import _Walk
+
+        assert RULES.medical_tiers.rank_dm
+        career = next(iter(RULES.careers.values()))
+
+        walk = _Walk(Roller(1), RULES)
+        walk.characteristics = {code: 7 for code in RULES.characteristics.names}
+        walk._raise_medical_bill(career.name, 1, 6, {"STR": 1})
+
+        step = next(s for s in walk.history if s.kind == "medical-bills")
+        assert any(m.value == 6 for m in step.throw.modifiers)
+        assert step.throw.total == sum(step.throw.faces) + sum(
+            m.value for m in step.throw.modifiers
+        )
+
+
 class TestMedicalBills:
     def test_the_bill_is_per_point_reduced_not_per_characteristic_at_the_floor(self):
         # FR-025: the cost is the per-point rate times the points an injury

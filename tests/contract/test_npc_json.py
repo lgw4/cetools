@@ -262,6 +262,32 @@ def test_every_throw_total_equals_sum_of_faces_plus_modifier_values():
             assert step.throw.total == expected
 
 
+def test_every_generated_throw_total_equals_sum_of_faces_plus_modifier_values():
+    # T196: the case above iterates `_CHARACTER.history`, a hand-constructed
+    # fixture whose every `StepThrow` was authored to already satisfy the
+    # invariant — so the contract's own stated assertion had never once run
+    # against a walk the generator actually produced. The aging total
+    # (`sum(faces) + roll_modifier - total_terms_served`) and the
+    # medical-bill total (`sum(faces) + roll_modifier + rank_bonus`) both
+    # applied a modifier to `total` while recording an empty `modifiers`
+    # tuple, which only a generated character's history could catch.
+    from cetools.dice import Roller
+    from cetools.generator import generate_character
+    from cetools.rules import load_rules
+
+    rules = load_rules()
+    checked = 0
+    for seed in range(300):
+        character = generate_character(Roller(seed), rules)
+        for step in character.history:
+            if step.throw is None:
+                continue
+            checked += 1
+            expected = sum(step.throw.faces) + sum(m.value for m in step.throw.modifiers)
+            assert step.throw.total == expected, (seed, step.kind)
+    assert checked
+
+
 # --- T177 ---
 
 

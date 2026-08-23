@@ -297,6 +297,22 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   to anything but a bare `2d6`, so no packaged seed's output changes; an
   override that sets a modifier now sees it in the record it already saw
   applied to the sheet (FR-030a, FR-030, Constitution V, `contracts/data-files.md:251`, T198).
+- **The aging total's `terms-served` subtraction and a medical bill's rank
+  addition both changed `total` while recording no modifier for either.**
+  `contracts/data-files.md` declares `modifier = "terms-served"` and
+  `rank-dm` as modifiers of the total in exactly those words, and
+  `contracts/json-output.md` states the invariant `total == sum(faces)`
+  plus the modifier values as one a contract test asserts — but that test
+  ran only against a hand-constructed fixture, never a generated
+  character, so the gap was latent: 437 steps in 201 of 1,000 sampled
+  characters violated it. Both are now itemized as `Modifier`s the same
+  way every other throw's are — `"Terms served"` and `"Rank N"` — with no
+  change to either `total`, since both already carried the correct
+  numeric value; only `modifiers`, which was empty, now is not. `history`
+  is a field of `Character`, so every character whose walk reaches aging
+  past its first term, or a medical bill charged at a nonzero rank, now
+  carries a different `aging` or `medical-bills` step from this version
+  forward (FR-030a, FR-030, `contracts/json-output.md:187`, T196).
 
 ### Added
 
