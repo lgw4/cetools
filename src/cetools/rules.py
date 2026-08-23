@@ -858,6 +858,23 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
                 )
             )
 
+    if chargen is not None and characteristics is not None:
+        # `generator.py`'s `characteristic_dm` indexes
+        # `self.characteristics[code]` directly (T194): a code this check
+        # does not resolve reaches a bare `KeyError` no `CetoolsError`
+        # handler catches, on the second step of every walk.
+        chargen_basename = resolved_singleton["chargen-parameters"]
+        code = chargen.background_skills_characteristic
+        if code not in characteristics:
+            problems.append(
+                ValidationProblem(
+                    file=chargen_basename,
+                    location="background-skills.characteristic",
+                    found=repr(code),
+                    expected="a code in the characteristics registry",
+                )
+            )
+
     # `generator.py`'s `enter_career` takes a bare `next(...)` over each of
     # these (the qualification fallback, FR-006; FR-015's re-entry
     # exception), so a data set with neither would fail mid-walk with a

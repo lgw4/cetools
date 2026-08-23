@@ -22,6 +22,7 @@ AGING = (_DATA / "chargen" / "aging.toml").read_text(encoding="utf-8")
 SURNAMES_EUROPE = (_DATA / "names" / "surnames-europe.toml").read_text(encoding="utf-8")
 DRIFTER = (_DATA / "careers" / "drifter.toml").read_text(encoding="utf-8")
 SCOUT = (_DATA / "careers" / "scout.toml").read_text(encoding="utf-8")
+CHARGEN_PARAMETERS = (_DATA / "chargen" / "chargen-parameters.toml").read_text(encoding="utf-8")
 
 
 def _write(tmp_path: Path, name: str, text: str) -> Path:
@@ -613,6 +614,28 @@ def test_no_surname_table_in_force_is_rejected(monkeypatch):
     report = validate_rules()
     assert not report.valid
     assert any("surnames" in p.expected and "at least one" in p.expected for p in report.problems)
+
+
+def test_background_skills_characteristic_not_in_the_registry_is_rejected(tmp_path):
+    # T194: `chargen.py:1151` parses `background-skills.characteristic` with
+    # `_require_string` alone, and nothing cross-checked it against the
+    # characteristics registry — `generator.py`'s `characteristic_dm` indexes
+    # `self.characteristics[code]` directly, a bare `KeyError` no
+    # `CetoolsError` handler catches. A referee writing the label the
+    # registry shows (`"Intellect"`) rather than its code (`"INT"`) must be
+    # told at load, not partway through the second step of every walk.
+    text = CHARGEN_PARAMETERS.replace('characteristic = "EDU"', 'characteristic = "Intellect"', 1)
+    assert text != CHARGEN_PARAMETERS
+    _write(tmp_path, "chargen-parameters.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        p.file == "chargen-parameters.toml"
+        and p.location == "background-skills.characteristic"
+        and "Intellect" in p.found
+        and "characteristics registry" in p.expected
+        for p in report.problems
+    )
 
 
 def test_no_always_available_or_re_enterable_career_in_force_is_rejected(tmp_path):

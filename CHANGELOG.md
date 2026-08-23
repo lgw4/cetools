@@ -634,3 +634,11 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   a bare list of names may not be copyrightable at all, but this project
   credits the source either way. No file's GPL-3.0-only designation changes
   (FR-042, FR-043e, T191).
+- **`chargen-parameters.toml`'s `background-skills.characteristic` was
+  parsed as a string and checked against nothing.** A referee writing the
+  characteristics registry's label (`"Intellect"`) rather than its code
+  (`"INT"`) validated clean and then crashed every walk with an uncaught
+  `KeyError`, on the second step of every character. Loading now rejects a
+  code the characteristics registry does not declare, the same way an
+  unresolvable medical tier already is. The packaged file already names a
+  code, so no packaged seed's output changes (FR-003, FR-054, T194).
