@@ -1104,13 +1104,26 @@ class _Walk:
         return amount
 
     def muster_out_service(
-        self, career: CareerDefinition, terms: int, ladder: str, rank: int, benefit_rolls: int
+        self,
+        career: CareerDefinition,
+        terms: int,
+        ladder: str,
+        rank: int,
+        benefit_rolls: int,
+        forfeit_all: bool = False,
     ) -> None:
         params = self.rules.chargen
         qualifies_for_pension = terms >= params.pension_minimum_terms
         rank_bonus = self._highest_matching_rank_row(params.mustering_out_rank_benefits, rank)
         material_dm = self._highest_matching_rank_row(params.mustering_out_material_rank_dm, rank)
-        rolls = benefit_rolls + rank_bonus
+        # A mishap's `forfeit-career-benefits` effect forfeits every roll
+        # this service would otherwise take, not merely the term-count
+        # half of it: `benefit_rolls` was already zeroed for it, but the
+        # rank-derived bonus rolls were still added on top, so a character
+        # dishonorably discharged or imprisoned at a high rank still took
+        # one to three rolls from a service that recorded taking none
+        # (T168).
+        rolls = 0 if forfeit_all else benefit_rolls + rank_bonus
 
         for _ in range(rolls):
             take_cash = False
@@ -1233,7 +1246,7 @@ class _Walk:
                     benefit_rolls=benefit_rolls,
                 )
             )
-            self.muster_out_service(career, terms, ladder, rank, benefit_rolls)
+            self.muster_out_service(career, terms, ladder, rank, benefit_rolls, forfeit_all)
             # "Chose to leave" is the character declining to continue serving
             # at all (the continuation throw itself, FR-014) — the walk ends
             # here. A mishap or a failed re-enlistment forces them out of

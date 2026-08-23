@@ -161,7 +161,11 @@ class TestAlwaysLivingAndConsistency:
                     params.mustering_out_rank_benefits, service.rank
                 )
                 mustering_steps = sum(1 for s in steps if s.kind == "benefit" and s.term == 0)
-                assert mustering_steps == service.benefit_rolls + rank_bonus
+                # A forfeited service takes no rolls at all, rank-derived
+                # bonus included — not merely the term-count half of it
+                # `benefit_rolls` already records (T168).
+                expected_mustering_steps = 0 if forfeit_all else service.benefit_rolls + rank_bonus
+                assert mustering_steps == expected_mustering_steps
 
                 # A pension matches the terms served in a single career,
                 # never summed across several (FR-018, research R10 item 7).

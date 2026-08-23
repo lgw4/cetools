@@ -435,3 +435,16 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   then made `cetools npc` fail mid-walk with an unhandled
   `StopIteration` instead of failing the load. `rules.py` now rejects a
   data set with neither, naming what is missing (FR-004, FR-006, T166).
+- **A mishap that forfeits a career's benefits still took its rank-derived
+  bonus rolls.** `run_term_loop` already zeroed `benefit_rolls` for a
+  mishap's `forfeit-career-benefits` effect (T145), but `muster_out_service`
+  computed `rolls = benefit_rolls + rank_bonus` regardless, so a character
+  dishonorably discharged or imprisoned at a high rank still took one to
+  three mustering-out rolls from that service —
+  `CareerService.benefit_rolls` recorded 0 while rolls were actually taken.
+  `muster_out_service` now takes the forfeiture flag and skips every roll,
+  rank-derived or not, when it is set. **Breaking change**: a forfeited
+  service at a rank the mustering-out rank benefits cover now draws none
+  of the dice it used to for its bonus rolls, changing every character
+  whose walk reaches that branch from this version forward (FR-016,
+  FR-019, FR-056b, T168).
