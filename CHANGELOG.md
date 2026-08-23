@@ -797,3 +797,14 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   `task.roll` and every other `roll` field already reject. No shipped
   mishap or injury row's `amount` is any of these, so no packaged seed's
   output changes (FR-054, US4 acceptance scenario 4, FR-019, T204).
+- **Nothing validated that `[characteristics] roll` cannot produce a score
+  the characteristics registry has no symbol for.** Both ends are
+  statically decidable — `parse_notation` gives the roll's possible span,
+  and the registry declares its own pseudo-hex range — but nothing related
+  them, so an override narrowing either one made `cetools validate` report
+  the data set clean and then failed some seeds mid-walk while others
+  succeeded, rather than failing the whole run before any character is
+  produced. A new cross-file rule rejects a roll whose possible span
+  reaches outside the declared range. The packaged roll (`2d6`) falls well
+  within the packaged range, so no packaged seed's output changes (US4
+  acceptance scenario 4, FR-039, FR-054, T209).

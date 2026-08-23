@@ -160,7 +160,7 @@ symbols = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
 | `characteristics.<CODE>.class` | string | yes | A class name. Any string; the shipped data uses `physical` and `mental`. Referenced by the aging and mishap tables (research R12). |
 | `modifier-dms.*` | integer | yes, at least one | Keys are `N-M` or `N+`. Exactly one band unbounded. The rules the previous feature enforced on `characteristic-dms`, unchanged. A cross-file rule additionally requires the bands to cover every integer from `pseudo-hex.minimum` up to the unbounded band with no gap and no overlap — a score `characteristic_dm` can be asked for that no band covers, or that two bands both claim, is refused at load rather than raising `RulesDataError` mid-walk or silently favoring whichever band happens to sort first (T180). |
 | `pseudo-hex.minimum` | integer | yes | The score the first symbol stands for. |
-| `pseudo-hex.symbols` | array of string | yes | Non-empty. `symbols[score - minimum]` is the symbol for that score. Each entry non-empty. |
+| `pseudo-hex.symbols` | array of string | yes | Non-empty. `symbols[score - minimum]` is the symbol for that score. Each entry non-empty. A cross-file rule additionally requires `chargen-parameters.toml`'s `[characteristics] roll` to be incapable of producing a score outside `minimum` through `minimum + len(symbols) - 1`: the roll's possible span (its dice count plus its flat modifier, through its dice count times its side count plus that modifier) must fall entirely within the declared range, or a walk can reach a score the registry has no symbol for — reported when the range is loaded, not per seed when the symbol lookup itself fails (T209). |
 
 The registry's insertion order is the order the profile renders in, so which characteristics
 exist and what order they print in are both data (FR-002).
@@ -540,6 +540,7 @@ not obvious from the name:
 
 | Key | Meaning |
 |---|---|
+| `characteristics.roll` | Rolled once per registry entry. A cross-file rule requires its possible span to fall entirely within the characteristics registry's declared pseudo-hex range, checked at load rather than left to fail per seed at the symbol lookup (T209). |
 | `background-skills.base` / `.characteristic` | The count is `base` plus that characteristic's modifier. A count below one is raised to one, which is the spec's answer to a character entitled to exactly one background skill (FR-003). |
 | `background-skills.homeworld-first` | How many of the count come from the homeworld lists before the education list is reached. When the count is smaller, every skill comes from the homeworld lists. |
 | `qualification.draft-entries-allowed` | How many times one character may be routed to the draft. Beyond it, a failed qualification routes to the always-available career instead. |

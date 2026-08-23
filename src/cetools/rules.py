@@ -33,6 +33,7 @@ from cetools.chargen import (
     parse_medical_tiers,
     parse_mishap_table,
 )
+from cetools.dice import parse_notation
 from cetools.errors import RulesDataError, ValidationProblem, type_name
 from cetools.names import GivenNameTable, SurnameTable, parse_given_names
 from cetools.names import parse_surnames as _parse_surnames
@@ -874,6 +875,35 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
                     expected="a code in the characteristics registry",
                 )
             )
+
+        # `roll_characteristics` (generator.py) hands every drawn score
+        # straight to `CharacteristicRegistry.symbol`, which raises
+        # `RulesDataError` for a score outside the declared pseudo-hex
+        # range — a failure only some seeds reach, well after this
+        # function has already reported the data set clean. Both ends are
+        # statically decidable: `parse_notation` gives the roll's
+        # count/sides/modifier, so its possible span is
+        # `count + modifier` through `count * sides + modifier`, and the
+        # registry declares `pseudo_hex_minimum` and `pseudo_hex` (T209).
+        parsed_roll = parse_notation(chargen.characteristics_roll)
+        if parsed_roll is not None:
+            roll_count, roll_sides, roll_modifier = parsed_roll
+            low = roll_count + roll_modifier
+            high = roll_count * roll_sides + roll_modifier
+            range_floor = characteristics.pseudo_hex_minimum
+            range_top = characteristics.pseudo_hex_minimum + len(characteristics.pseudo_hex) - 1
+            if low < range_floor or high > range_top:
+                problems.append(
+                    ValidationProblem(
+                        file=chargen_basename,
+                        location="characteristics.roll",
+                        found=f"a possible score range of {low}-{high}",
+                        expected=(
+                            "a roll whose possible scores fall within the declared "
+                            f"pseudo-hex range {range_floor}-{range_top}"
+                        ),
+                    )
+                )
 
     # `generator.py`'s `enter_career` takes a bare `next(...)` over each of
     # these (the qualification fallback, FR-006; FR-015's re-entry
