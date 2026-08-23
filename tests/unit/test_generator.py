@@ -301,6 +301,23 @@ class TestCharacteristicFloors:
         assert len(effects) == 1
         assert effects[0].amount == -1
 
+    def test_the_called_for_and_applied_effects_carry_distinct_kinds(self):
+        # FR-030a requires the parts be separately addressable, and the
+        # check made from the record's shape — not from a test-only
+        # adjacency convention that cannot tell a clamp pair from two
+        # genuine independent reductions of the same characteristic (T165).
+        from cetools.generator import _apply_characteristic_delta
+
+        floor = RULES.characteristics.floor()
+        characteristics = {"STR": floor + 1}
+        effects = _apply_characteristic_delta(characteristics, "STR", -5, floor)
+        assert effects[0].kind == "characteristic-called-for"
+        assert effects[1].kind == "characteristic"
+
+        characteristics = {"STR": floor + 10}
+        effects = _apply_characteristic_delta(characteristics, "STR", -1, floor)
+        assert effects[0].kind == "characteristic"
+
 
 class TestApplyClassEffectNeverRaisesACrisis:
     """`_apply_class_effect` never raises a medical crisis (T160): it serves

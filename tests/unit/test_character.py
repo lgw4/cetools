@@ -118,6 +118,7 @@ class TestStepEffectClosedKind:
         "kind",
         [
             "characteristic",
+            "characteristic-called-for",
             "skill",
             "credits",
             "benefit",
