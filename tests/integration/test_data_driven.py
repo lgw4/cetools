@@ -290,3 +290,46 @@ def test_a_pseudo_hex_symbol_takes_effect_with_no_code_edit(tmp_path):
     assert packaged_profile != overridden_profile
     rendered_profile = as_text(character).split("\n")[0].split("\t")[1]
     assert rendered_profile == overridden_profile
+
+
+def test_a_throws_dice_modifier_is_honored_and_itemized(tmp_path):
+    # T178: `_dice` used to discard `parse_notation`'s modifier entirely, so
+    # a `dice = "2d6+N"` override validated clean and changed nothing.
+    block = '[throws.re-enlistment]\ntarget = 5\ndice = "2d6"'
+    assert block in NAVY
+    override = tmp_path / "navy.toml"
+    override.write_text(
+        NAVY.replace(block, '[throws.re-enlistment]\ntarget = 5\ndice = "2d6+6"', 1),
+        encoding="utf-8",
+    )
+    rules = load_rules(override)
+    found = False
+    for seed in range(300):
+        character = generate_character(Roller(seed), rules)
+        for step in character.history:
+            if step.kind != "re-enlistment" or step.career != "Navy":
+                continue
+            found = True
+            assert step.throw.total == sum(step.throw.faces) + 6
+            assert any(m.label == "Roll (2d6+6)" and m.value == 6 for m in step.throw.modifiers)
+            assert step.throw.success == (step.throw.total >= step.throw.target)
+    assert found
+
+
+def test_a_chargen_tables_roll_modifier_is_honored(tmp_path):
+    # T178: the same discarded modifier on `[characteristics].roll`, which
+    # carries no `StepThrow` to itemize into but must still change the total.
+    block = '[characteristics]\nroll = "2d6"'
+    assert block in CHARGEN_PARAMETERS
+    override = tmp_path / "chargen-parameters.toml"
+    override.write_text(
+        CHARGEN_PARAMETERS.replace(block, '[characteristics]\nroll = "2d6+1"', 1),
+        encoding="utf-8",
+    )
+    rules = load_rules(override)
+    packaged = load_rules()
+    for seed in range(20):
+        baseline = generate_character(Roller(seed), packaged)
+        modified = generate_character(Roller(seed), rules)
+        for code in packaged.characteristics.names:
+            assert modified.characteristics[code] == baseline.characteristics[code] + 1
