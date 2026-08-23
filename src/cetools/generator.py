@@ -537,9 +537,21 @@ class _Walk:
                 # The draft table and the always-available fallback both name a
                 # fixed career; FR-015 forbids re-entering a career already
                 # entered except one the data marks re-enterable, so a
-                # collision with either route falls through to the
-                # always-available career instead, which every shipped
-                # ruleset guarantees is re-enterable.
+                # collision with either route falls through to a re-enterable
+                # career instead, which every shipped ruleset guarantees
+                # exists. The substitution is its own step (FR-015a), distinct
+                # from the "draft" step, which still names the career the
+                # draft table actually resolved to (T189).
+                self.history.append(
+                    HistoryStep(
+                        kind="career-selected",
+                        career="",
+                        term=0,
+                        throw=None,
+                        selected=candidate.name,
+                        effects=(),
+                    )
+                )
                 candidate = next(c for c in self.rules.careers.values() if c.re_enterable)
         self.history.append(
             HistoryStep(

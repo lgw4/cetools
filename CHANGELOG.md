@@ -123,6 +123,21 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   `data-model.md` and `contracts/json-output.md` both publish — now sees
   the true count for every character generated from this version forward
   (FR-016, SC-004, `data-model.md:99`, T188).
+- **A draft or fallback collision with an already-entered career was
+  substituted silently.** When the Draft table or the always-available
+  fallback names a career the character already entered and cannot
+  re-enter, `enter_career` falls through to a re-enterable career instead
+  — correct per FR-015, but the substitution left no trace: `entered_by`
+  stayed `"drafted"`, and the `"draft"` step still named the career the
+  walk never actually entered, with nothing between it and
+  `"career-entered"` explaining the gap. A new requirement, FR-015a,
+  states the rule explicitly, and the substitution now appends its own
+  `"career-selected"` step naming the collided-with career, between the
+  `"draft"` step and the `"career-entered"` step it precedes. Reachable
+  only when a character re-enters a career already served through the
+  draft or the fallback route specifically, which every character's
+  history from this version forward may now carry one more step for
+  (FR-015a, FR-030, T189).
 
 ### Added
 
