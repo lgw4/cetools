@@ -7,7 +7,10 @@ what gives names meaning (FR-013).
 
 from pathlib import Path
 
+import pytest
+
 from cetools.dice import Roller
+from cetools.errors import RulesDataError
 from cetools.generator import generate_character
 from cetools.render import as_text
 from cetools.rules import load_rules, validate_rules
@@ -377,3 +380,54 @@ def test_the_mustering_out_per_term_rate_takes_effect_with_no_code_edit(tmp_path
         if base_service.benefit_rolls:
             doubled_any = True
     assert doubled_any
+
+
+def _first_seed_reaching(rules, limit):
+    """The first seed under `limit` whose walk reaches the out-of-range
+    positional read (T181): a die able to produce a total outside the
+    array, which `contracts/data-files.md:291` calls "a data problem
+    reported when it is read, not at load" rather than an `IndexError`
+    escaping the walk uncaught.
+    """
+    for seed in range(limit):
+        try:
+            generate_character(Roller(seed), rules)
+        except RulesDataError:
+            return seed
+        except IndexError:
+            pytest.fail(f"seed {seed} raised IndexError instead of RulesDataError")
+    pytest.fail(f"no seed under {limit} reached the out-of-range read")
+
+
+def test_a_draft_roll_outside_the_table_is_reported_not_an_indexerror(tmp_path):
+    text = DRAFT.replace('roll = "1d6"', 'roll = "2d6"', 1)
+    assert text != DRAFT
+    override = tmp_path / "draft.toml"
+    override.write_text(text, encoding="utf-8")
+    rules = load_rules(override)
+    _first_seed_reaching(rules, limit=500)
+
+
+def test_a_mishap_roll_outside_the_table_is_reported_not_an_indexerror(tmp_path):
+    mishaps_text = MISHAPS.replace('roll = "1d6"', 'roll = "2d6"', 1)
+    assert mishaps_text != MISHAPS
+    params_text = CHARGEN_PARAMETERS.replace("natural-failure = 2", "natural-failure = 12", 1)
+    assert params_text != CHARGEN_PARAMETERS
+    # Forcing every survival throw to fail naturally reaches the mishap
+    # row read on the very first term of every character, rather than
+    # searching a large sample for one that happens to fail on its own.
+    (tmp_path / "mishaps.toml").write_text(mishaps_text, encoding="utf-8")
+    (tmp_path / "chargen-parameters.toml").write_text(params_text, encoding="utf-8")
+    rules = load_rules(tmp_path)
+    _first_seed_reaching(rules, limit=50)
+
+
+def test_an_injury_roll_outside_the_table_is_reported_not_an_indexerror(tmp_path):
+    mishaps_text = MISHAPS.replace('injury-roll = "1d6"', 'injury-roll = "2d6"', 1)
+    assert mishaps_text != MISHAPS
+    params_text = CHARGEN_PARAMETERS.replace("natural-failure = 2", "natural-failure = 12", 1)
+    assert params_text != CHARGEN_PARAMETERS
+    (tmp_path / "mishaps.toml").write_text(mishaps_text, encoding="utf-8")
+    (tmp_path / "chargen-parameters.toml").write_text(params_text, encoding="utf-8")
+    rules = load_rules(tmp_path)
+    _first_seed_reaching(rules, limit=200)

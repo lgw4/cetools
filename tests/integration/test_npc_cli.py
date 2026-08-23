@@ -19,6 +19,9 @@ runner = CliRunner()
 _NAVY = (
     Path(__file__).resolve().parents[2] / "src" / "cetools" / "data" / "careers" / "navy.toml"
 ).read_text(encoding="utf-8")
+_DATA = Path(__file__).resolve().parents[2] / "src" / "cetools" / "data"
+_MISHAPS = (_DATA / "chargen" / "mishaps.toml").read_text(encoding="utf-8")
+_CHARGEN_PARAMETERS = (_DATA / "chargen" / "chargen-parameters.toml").read_text(encoding="utf-8")
 
 _REPORTED_SEED = r"Seed:\s+([+-]?\d+)"
 
@@ -110,6 +113,24 @@ def test_a_render_time_failure_is_reported_cleanly_not_as_a_traceback(monkeypatc
     # accident.
     assert "boom" in result.stderr
     assert not isinstance(result.exception, CetoolsError)
+
+
+def test_a_generation_time_out_of_range_table_read_is_reported_cleanly(tmp_path):
+    # T181: a die able to produce a total outside a chargen table's array
+    # used to raise a bare `IndexError` mid-walk rather than the
+    # `RulesDataError` FR-054 requires reported on standard error with
+    # nothing on standard output.
+    mishaps_text = _MISHAPS.replace('roll = "1d6"', 'roll = "2d6"', 1)
+    assert mishaps_text != _MISHAPS
+    params_text = _CHARGEN_PARAMETERS.replace("natural-failure = 2", "natural-failure = 12", 1)
+    assert params_text != _CHARGEN_PARAMETERS
+    (tmp_path / "mishaps.toml").write_text(mishaps_text, encoding="utf-8")
+    (tmp_path / "chargen-parameters.toml").write_text(params_text, encoding="utf-8")
+    result = runner.invoke(app, ["npc", "--rules-data", str(tmp_path), "--seed", "0"])
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    assert result.stderr.strip()
+    assert not isinstance(result.exception, IndexError)
 
 
 def test_count_zero_is_a_usage_error_naming_count():
