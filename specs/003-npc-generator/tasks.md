@@ -760,3 +760,83 @@ move with T207 and T208, and `contracts/cli.md:184` moves with T207.
 - [X] T207 Record the die that chose the career on the `career-selected` step, and stop the draft substitution sharing that step's shape: `_select_career` throws `self.roller.die(len(available))` at `src/cetools/generator.py:458` while `enter_career` records the step with `throw=None` at `:518-527`, which `data-model.md:119` defines as "`None` for a step that **decided rather than threw**" and whose `selected` column `data-model.md:120` defines as "what was chosen **at random**". All 16,419 selection draws over 10,000 characters are unrecorded, 100% of them, so "why did this person end up a Drifter" is unanswerable from the record and an eligibility defect inside `die(len(available))` is invisible; `_draft` (`:498-513`) records its own throw correctly, so the two entry routes are held to different standards. This is T183's defect at a site T183 did not enumerate. Compounding it, T201's substitution step (`:552-563`) reuses the same `career-selected` kind and produces a byte-identical record (`throw=None`, `career=""`, `term=0`, `effects=()`), so **104 of 3,000 characters** carry more `career-selected` steps than careers entered (seeds 15, 35, 55, 58, 91), a consumer counting selection attempts double-counts, and the two are separable today only by adjacency to the `draft` step, which FR-030a's "separately addressable parts" rules out. Recording the selection throw separates them by shape; decide whether that suffices or whether the substitution needs a kind of its own, extend the closed set in `src/cetools/character.py:21-49` and `data-model.md:123` if it does, and correct `contracts/cli.md:184`, whose own worked excerpt prints the throwless line, per FR-030, FR-030a, FR-015a and `data-model.md:119` (partial)
 - [X] T208 Record the dice that chose which characteristics an aging effect reduced: `_apply_aging_if_due` draws `self.roller.die(len(remaining))` once per chosen characteristic at `src/cetools/generator.py:1215` and builds its `StepThrow` at `:1234-1241` from the aging-table faces alone, while `_apply_class_effect`, which performs the identical selection for mishaps and injuries, concatenates them as `tuple(choice_faces) + tuple(amount_faces)` at `:966-980`. Two sites do one job and one of them records it. **1,602 selection draws over 10,000 characters go unrecorded, across 100% of the aging steps that reduce anything** (1,235 of 3,934; the `1+` row reduces nothing and draws nothing), and the consequence is that the record cannot say what was reduced: over 3,000 seeds **50 of the 52 distinct recorded aging throws map to more than one outcome**, the worst of them to eight. `cetools npc --seed 6 --json` records `faces=[1, 1], modifiers=[Terms served -5], total=-3` against an effect of `STR -2`, and the identical record elsewhere in the population yields DEX, END, INT, EDU and SOC instead; `--full` renders it `1, 1 (sum 2) Terms served -5 = -3   STR -2`, with nothing saying why STR. Note that this step's throw carries `total = modified` against the aging table, so the choice faces cannot simply be appended without breaking the `total == sum(faces) + the modifier values` invariant `contracts/json-output.md:187` states and T196 made checkable: give the selection its own step or its own recorded parts, and record which in `data-model.md`, per FR-030, FR-030a and `contracts/json-output.md:187` (partial)
 - [X] T209 Validate that the characteristics roll cannot produce a score the characteristics registry does not cover: `[characteristics] roll` is parsed in `src/cetools/chargen.py` and rolled at `src/cetools/generator.py:361`, and the cross-file section at `src/cetools/rules.py:815` onward, which now checks the draft rows, the medical tiers, the commissioned ladders, the characteristic classes, T166's two career flags, T180's band coverage, T194's background-skill characteristic and T199's band ordering, has no rule relating the two. Both ends are statically decidable: `parse_notation` yields `(count, sides, modifier)`, so the roll spans `count + modifier` through `count * sides + modifier`, and the registry declares `pseudo_hex_minimum` and `pseudo_hex`. `src/cetools/registries.py:69-71` states the invariant in its own docstring, "whose declared range covers every score a reduction can floor at or a throw can produce", and nothing enforces it. An override changing that one field to `roll = "2d6-3"` makes `cetools validate` report `Rules data is valid.` and exit 0, then makes **21 of 200 seeds** fail while the other 179 produce a sheet: 17 with `characteristic must be non-negative, got -1`, a `TaskError` raised at `registries.py:56-58` and phrased for `cetools check --characteristic`, naming neither the file nor the field the author edited, and 4 with `characteristic score -1 is outside the declared pseudo-hex range 0-33`. `3d6-10` fails 186 of 200 and `1d6+28` fails 135 of 200 against the top of the range. Exit code and empty standard output already hold, so this is US4 acceptance scenario 4's other half: the run must fail **before any character is produced**, naming what could not be resolved, rather than per seed after most seeds have already succeeded. Scope the rule to the decidable roll-versus-registry relation and leave run-time inflation past the top alone, which is not decidable at load and which `registries.py:64-72` and T175 already settle, per US4 acceptance scenario 4, FR-039 and FR-054 (missing)
+
+---
+
+## Phase 13: Convergence
+
+The sixth convergence round, against the branch as Phase 12 left it. The whole suite is green
+(`uv run pytest -q`: 1250 passed, 0 skipped, every `slow` sampled audit included), so both
+items below are latent rather than known failures. Each was confirmed by running the code —
+sampled populations of 3,000 to 60,000 seeds, roughly 1,650 override data sets built under a
+scratch directory, and the command itself — and the counts quoted are from those runs and are
+what a fix should move.
+
+**Phase 12's three tasks were re-verified clause by clause and every clause landed**, the
+"decide which and record it in `<doc>`" clauses included: T207's decision to separate the draft
+substitution by shape rather than by a new kind is recorded at `data-model.md:138-145`, T208's
+split representation at `data-model.md:146-156`, and T209's rule at `contracts/data-files.md:543`.
+That check was run first and deliberately, for the reason Phase 12 gave — T206 exists only
+because T190's third clause did not land — and the pattern has now failed to recur twice.
+
+This round is the first to return **almost nothing**, and the negative results are the
+substance of it. Recorded so a later round starts from here rather than redoing them.
+
+- **The career and term machinery is clean.** FR-004 through FR-015a, thirteen requirements,
+  0 violations: 8,288 entry episodes and 3,099 failed qualifications over 5,000 seeds (FR-004),
+  2,029 draft reads against the table's own row order (FR-005), 7,421 terms against FR-009's
+  skill-roll arithmetic, 0 first-term commission attempts among 202 drafted entries (FR-012a),
+  an exact age replay including mishap `years` (FR-013), and 163 FR-015a substitutions. Six
+  override sets confirmed the constants are read rather than held: `drafted-first-term-barred`,
+  `terms.cap`, `draft-entries-allowed`, `first-career-all`, `subsequent-career-count`, and a
+  `throws.promotion` added to Drifter, which drops its base skill rolls from two to one.
+- **The consequence chain is clean.** Replaying every history effect reproduces every sheet's
+  funds, debt, pension, characteristics and benefits over **20,000 seeds, 0 failures**, with
+  funds never negative at any point. FR-016 and FR-017 hold across roughly 33,000 career
+  services (2,855 material rank DMs and 937 retired-cash DMs, each matching exactly); every one
+  of 4,505 characteristic reductions is billed (FR-024) and every `owed` figure recomputes from
+  the career's declared tier (FR-025); FR-021's crises were pushed to 60,000 seeds to be
+  conclusive, per Phase 12's own methodological note, and all 240 hold. Seventeen override sets
+  proved every constant in this slice moves output — none inert.
+- **No uncaught traceback is producible from any data set `validate` accepts**, re-confirmed
+  independently of Phases 11 and 12 and at larger scale: roughly 1,600 randomized validating
+  override sets plus 50 hand-built adversarial ones, about 75,000 walks with `--full` rendering
+  and `--json` serialization inside the loop, zero non-`CetoolsError` exceptions.
+- **Every field the four schema parsers accept has a live read site**, enumerated exhaustively
+  rather than sampled; the only inert ones are the three already declined. Phase 12's two
+  headline claims both survive independent re-verification, all 36 `ChargenParameters`
+  attributes included — `medical.crisis-restores-to`, which looks inert below 5,000 seeds,
+  changes all five fully-paid crisis sheets in 20,000.
+- **The success criteria have evidence that can fail**, SC-002 through SC-020 walked one at a
+  time against the test that claims each, with T152's, T156's, T158's, T172's, T176's, T177's
+  and T193's fixes re-checked at their new strength. One exception, which is T211 below.
+
+Deliberately **not** appended, so a later round does not rediscover and re-litigate them. A
+mishap or injury `amount` carrying a notation modifier (`"-1d6+3"`) validates clean, is honored
+on the sheet, and is not itemized in the step's `modifiers`: unlike T198's site the applied
+magnitude is already addressable as the step's own `characteristic` effect, the
+`total == sum(faces) + the modifier values` invariant still holds, no shipped seed changes, and
+`contracts/data-files.md:376` records no opposing remedy for `amount` as
+`contracts/data-files.md:251` does for `roll`. `medical.crisis-restores-to = 99` is decidable at
+load and fails 2 of 6,000 seeds, but it is the pseudo-hex-inflation shape Phase 12 declined and
+T209 explicitly scoped out, and it already fails as a `CetoolsError` naming the score and the
+range. A duplicate `rank` in `mustering-out.rank-benefits` and a `commissioned` ladder in a
+career declaring no `throws.commission` are both dead data that validates clean, but neither is
+a plausible referee edit and no requirement binds either direction; a duplicate career `name`
+across two files is likewise unvalidated and harmless. `subsequent-career-all` does not exist,
+but both constants FR-007a's normative sentence names are in data, so that is rationale drift
+rather than a violated MUST. A mishap-ended term takes no skill roll, which FR-020 does not
+enumerate but FR-008's stated term order and the spec's own edge case both require. And every
+Phase 10, 11 and 12 decline stands.
+
+The standing rules at the top of this file still apply: test-first, one commit per logical unit,
+structural before behavioral, a CHANGELOG entry for every user-visible change. On the
+**Breaking changes** note FR-056b requires: **neither task here changes what a seed produces,
+and neither may be flagged as breaking.** The shipped `aging.toml` already satisfies T210's rule
+— eight rows rising to one unbounded row at the top, no overlap and nothing above it — and T211
+is test evidence only. No hand-constructed golden moves;
+`tests/integration/test_validation_categories.py` and `tests/unit/test_chargen.py` move with
+T210, and `tests/integration/test_npc_sample.py` with T211.
+
+- [ ] T210 Reject an aging table whose rows overlap, or whose unbounded row does not hold the highest minimum — the one positional range table in the package that gets neither check: `src/cetools/chargen.py:445-455` counts unbounded rows and nothing else, then sorts stably by `minimum` at `:459`, and `src/cetools/rules.py:929-970` carries the gap, overlap and above-the-unbounded rules for `characteristics.modifier-dms` while `aging.rows` reaches `rules.py` only at `:992-1000`, for its class names; `src/cetools/generator.py:1188-1196` then takes the first row whose range contains the modified total, so a tie or an overlap is resolved by nothing but TOML file order. This is the T180 / T199 shape at the file FR-037 names as the whole reason overrides are per-kind ("a referee with a house aging table MUST NOT have to restate the draft table"). An override changing `range = "1+"` to `"-1+"` — one character, and the natural way to say "aging stops hurting at -1" — makes `cetools validate` report `Rules data is valid.` and exit 0, then leaves the `"-1"` row overlapping the unbounded row and the `"0"` row sorted above it and therefore dead: over 3,000 seeds **148 of 1,215 aging row-lookups read a row the author did not write**, **114 reduce a physical characteristic on a total of -1 that the author's own row declares harmless**, and **132 of 3,000 sheets differ from packaged, not one of them in the direction the edit asked for**. `cetools npc --seed 6 --full --rules-data <dir>` shows it as `Terms served -7 = -1   END -1`. No error is raised anywhere. Add the rule beside the band check in `rules.py`, worded as `chargen.py:452`'s own `expected` string already promises — "exactly one row unbounded **above**", which the parser only counts — and record the decision in `contracts/data-files.md:328`, which settles gaps today and says nothing about either overlap or ordering, per FR-013, FR-037, US4 acceptance scenario 4 and Constitution V (missing)
+- [ ] T211 Make SC-004's skill clause assert what the criterion states: `tests/integration/test_npc_sample.py:190-196` checks only `step.career in served | {""}`, a career-label membership test, where SC-004 requires every skill to trace "to a table the character **could reach in a term they served** or to a grant they were entitled to". T152 enumerated four additions and three landed strong — the age replay at `:136-150` reads how each term ended, the benefit rolls at `:152-173` read the rank as well as the terms, and the pension at `:175-186` reads a single career's terms — while the fourth landed as a near-tautology. With `step.career` still correct it cannot catch a skill drawn from a table belonging to another career, a table the character's characteristics gate out being drawn anyway, a grant in a term outside the terms served, or a `rank-bonus` skill no rank of that career's ladders declares; `_eligible_tables` is unit-tested in isolation at `tests/unit/test_generator.py:318`, but nothing checks that what the walk actually granted came from an eligible table, and `rg 'step\.term' tests/` finds no comparison against a service's terms anywhere. All four stronger properties hold on the shipped data today, 0 mismatches over 3,000 seeds, so this is missing evidence rather than wrong behavior — which is the same reason T152, T153, T156, T158, T172, T176, T177 and T193 were appended. Assert for a `skill-roll` step that the granted skill is an entry of the table its own `selected` names, that the table was gate-eligible for that character, that `step.term` lies within the service's terms, and that a `rank-bonus` skill matches a bonus the reached ladder rank declares, per SC-004 (partial)
