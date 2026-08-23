@@ -101,14 +101,17 @@ class TestCareerEntry:
         assert thrown and automatic
 
     def test_a_draft_collision_records_the_substitution_as_its_own_step(self):
-        # T189/FR-015a: when the draft names a career already entered and
-        # not re-enterable, `enter_career` silently substituted the
+        # T189/T201/FR-015a: when the draft names a career already entered
+        # and not re-enterable, `enter_career` silently substituted the
         # re-enterable fallback, leaving `entered_by` fixed at "drafted"
         # and the "draft" step still naming the career the walk never
         # actually entered — the substitution itself was nowhere in the
         # history. It must now appear as a "career-selected" step naming
-        # the collided-with career, positioned after the "draft" step and
-        # before the "career-entered" step that names the real fallback.
+        # the *substitute* the walk actually entered, distinct from the
+        # step naming the career the draft actually named (FR-015a):
+        # naming the collided-with career again, as T189's first attempt
+        # did, restates what the "draft" step already says and leaves the
+        # substitute unexplained (T201).
         from cetools.generator import _Walk
 
         found = False
@@ -131,9 +134,10 @@ class TestCareerEntry:
                 for i, s in enumerate(walk.history)
                 if draft_index < i < entered_index
                 and s.kind == "career-selected"
-                and s.selected == "Marine"
+                and s.selected == candidate.name
             ]
             assert len(substitution_steps) == 1
+            assert substitution_steps[0].selected != "Marine"
             break
         assert found
 

@@ -240,7 +240,8 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   the true count for every character generated from this version forward
   (FR-016, SC-004, `data-model.md:99`, T188).
 - **A draft or fallback collision with an already-entered career was
-  substituted silently.** When the Draft table or the always-available
+  substituted silently, and then, once given a step of its own, that step
+  named the wrong career.** When the Draft table or the always-available
   fallback names a career the character already entered and cannot
   re-enter, `enter_career` falls through to a re-enterable career instead
   — correct per FR-015, but the substitution left no trace: `entered_by`
@@ -248,12 +249,16 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   walk never actually entered, with nothing between it and
   `"career-entered"` explaining the gap. A new requirement, FR-015a,
   states the rule explicitly, and the substitution now appends its own
-  `"career-selected"` step naming the collided-with career, between the
-  `"draft"` step and the `"career-entered"` step it precedes. Reachable
-  only when a character re-enters a career already served through the
-  draft or the fallback route specifically, which every character's
-  history from this version forward may now carry one more step for
-  (FR-015a, FR-030, T189).
+  `"career-selected"` step between the `"draft"` step and the
+  `"career-entered"` step it precedes — naming the *substitute* the walk
+  actually entered, not the collided-with career the `"draft"` step
+  already names, which a first attempt recorded instead and which only
+  restated what came before it, leaving the substitute itself still
+  unexplained (163 of 5,000 sampled characters). Reachable only when a
+  character re-enters a career already served through the draft or the
+  fallback route specifically, which every character's history from this
+  version forward may now carry one more, correctly-named, step for
+  (FR-015a, FR-030, FR-030a, T189, T201).
 
 ### Added
 

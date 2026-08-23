@@ -541,18 +541,22 @@ class _Walk:
                 # career instead, which every shipped ruleset guarantees
                 # exists. The substitution is its own step (FR-015a), distinct
                 # from the "draft" step, which still names the career the
-                # draft table actually resolved to (T189).
+                # draft table actually resolved to (T189) — naming the
+                # *substitute* here, not the collided-with career the "draft"
+                # step already names, or the step restates what came before
+                # it and leaves the substitute unexplained (T201).
+                substitute = next(c for c in self.rules.careers.values() if c.re_enterable)
                 self.history.append(
                     HistoryStep(
                         kind="career-selected",
                         career="",
                         term=0,
                         throw=None,
-                        selected=candidate.name,
+                        selected=substitute.name,
                         effects=(),
                     )
                 )
-                candidate = next(c for c in self.rules.careers.values() if c.re_enterable)
+                candidate = substitute
         self.history.append(
             HistoryStep(
                 kind="career-entered",
