@@ -556,3 +556,14 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   CRITICAL for. Every ladder declaring `role = "entry"` must now declare
   rank 0. Every shipped career already does, so no packaged seed's output
   changes (FR-007, FR-007b, T182).
+- **An injury row admitted the same five effect kinds a mishap row does,
+  though `_roll_injury` performs only `characteristic-class`.** A
+  correctly spelled `debt`, `years`, `forfeit-career-benefits`, or
+  `roll-injury` effect on an injury row validated clean and then changed
+  nothing when the row was read — the closed kind set's own stated
+  purpose, "a misspelling is caught rather than becoming a new effect
+  nothing performs," defeated by an effect that performs nothing despite
+  being spelled correctly. An injury row's `effects` array now admits
+  `characteristic-class` only. No shipped injury row uses any of the
+  other four, so no packaged seed's output changes (FR-019, FR-024,
+  SC-013, T185).

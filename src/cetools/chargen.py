@@ -529,7 +529,7 @@ def _valid_amount_text(text: str) -> bool:
 
 
 def _parse_mishap_effect(
-    value: object, file: str, location: str
+    value: object, file: str, location: str, allowed_kinds: frozenset[str] = _MISHAP_EFFECT_KINDS
 ) -> tuple[MishapEffect | None, list[ValidationProblem]]:
     problems: list[ValidationProblem] = []
     if not isinstance(value, dict):
@@ -541,13 +541,13 @@ def _parse_mishap_effect(
         return None, problems
 
     kind = value.get("kind")
-    if kind not in _MISHAP_EFFECT_KINDS:
+    if kind not in allowed_kinds:
         problems.append(
             ValidationProblem(
                 file=file,
                 location=f"{location}.kind",
                 found="missing" if "kind" not in value else repr(kind),
-                expected=f"one of: {', '.join(sorted(_MISHAP_EFFECT_KINDS))}",
+                expected=f"one of: {', '.join(sorted(allowed_kinds))}",
             )
         )
         problems.extend(
@@ -608,7 +608,10 @@ def _parse_mishap_effect(
 
 
 def _parse_mishap_effects(
-    raw: object, file: str, location: str
+    raw: object,
+    file: str,
+    location: str,
+    allowed_kinds: frozenset[str] = _MISHAP_EFFECT_KINDS,
 ) -> tuple[tuple[MishapEffect, ...] | None, list[ValidationProblem]]:
     if not isinstance(raw, list):
         return None, [
@@ -620,7 +623,9 @@ def _parse_mishap_effects(
     effects: list[MishapEffect] = []
     ok = True
     for index, item in enumerate(raw):
-        effect, sub_problems = _parse_mishap_effect(item, file, f"{location}[{index}]")
+        effect, sub_problems = _parse_mishap_effect(
+            item, file, f"{location}[{index}]", allowed_kinds
+        )
         problems.extend(sub_problems)
         if effect is None:
             ok = False
@@ -632,7 +637,10 @@ def _parse_mishap_effects(
 
 
 def _parse_mishap_row(
-    value: object, file: str, location: str
+    value: object,
+    file: str,
+    location: str,
+    allowed_kinds: frozenset[str] = _MISHAP_EFFECT_KINDS,
 ) -> tuple[tuple[str, tuple[MishapEffect, ...]] | None, list[ValidationProblem]]:
     problems: list[ValidationProblem] = []
     if not isinstance(value, dict):
@@ -658,7 +666,7 @@ def _parse_mishap_row(
         )
     else:
         effects, sub_problems = _parse_mishap_effects(
-            value["effects"], file, f"{location}.effects"
+            value["effects"], file, f"{location}.effects", allowed_kinds
         )
         problems.extend(sub_problems)
 
@@ -668,7 +676,10 @@ def _parse_mishap_row(
 
 
 def _parse_row_array(
-    raw: object, file: str, location: str
+    raw: object,
+    file: str,
+    location: str,
+    allowed_kinds: frozenset[str] = _MISHAP_EFFECT_KINDS,
 ) -> tuple[list[tuple[str, tuple[MishapEffect, ...]]] | None, list[ValidationProblem]]:
     problems: list[ValidationProblem] = []
     if not isinstance(raw, list) or not raw:
@@ -683,7 +694,7 @@ def _parse_row_array(
     rows: list[tuple[str, tuple[MishapEffect, ...]]] = []
     ok = True
     for index, item in enumerate(raw):
-        row, sub_problems = _parse_mishap_row(item, file, f"{location}[{index}]")
+        row, sub_problems = _parse_mishap_row(item, file, f"{location}[{index}]", allowed_kinds)
         problems.extend(sub_problems)
         if row is None:
             ok = False
@@ -722,7 +733,13 @@ def parse_mishap_table(
             ValidationProblem(file=file, location="injuries", found="missing", expected="an array")
         )
     else:
-        injuries, sub_problems = _parse_row_array(data["injuries"], file, "injuries")
+        # Unlike a mishap row, an injury row is read by nothing but
+        # `_apply_class_effect`'s `characteristic-class` handling — a
+        # `debt`, `years`, `forfeit-career-benefits`, or `roll-injury`
+        # effect there would validate clean and then do nothing (T185).
+        injuries, sub_problems = _parse_row_array(
+            data["injuries"], file, "injuries", frozenset({"characteristic-class"})
+        )
         problems.extend(sub_problems)
 
     if problems or roll is None or injury_roll is None or mishaps is None or injuries is None:
