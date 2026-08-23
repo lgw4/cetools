@@ -353,6 +353,26 @@ class TestMedicalCrisisTriggersOnlyOnAnActualReduction:
         assert walk.debts
 
 
+class TestMedicalCrisisTriggersOnlyFromAging:
+    """FR-021 defines a crisis as arising from an aging effect, and the
+    Edge Cases section says "where the bottom was reached by aging" — not
+    from a mishap's or an injury's own characteristic-class reduction,
+    which `_apply_class_effect` also applies on behalf of the term loop's
+    direct mishap effects and `_roll_injury` (T160).
+    """
+
+    def test_no_crisis_traces_to_a_reduction_with_no_preceding_aging_step(self):
+        for character in _characters(2000):
+            kinds = [step.kind for step in character.history]
+            for index, step in enumerate(character.history):
+                if step.kind != "medical-crisis":
+                    continue
+                assert "aging" in kinds[:index], (
+                    f"seed {character.seed}: medical-crisis at history index "
+                    f"{index} with no preceding aging step"
+                )
+
+
 def _credits_steps(steps):
     return [
         step
