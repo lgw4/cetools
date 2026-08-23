@@ -32,12 +32,15 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   check result changes as a consequence — the committed
   `tests/golden/check_*.txt` files and the existing JSON fixtures are
   byte-identical before and after.
-- **A seed's output is a promise only within one package version.**
-  Nothing here changes the draw order of the NPC generator's lifepath walk,
-  but any future change that reorders, adds, or removes a draw changes
-  every character a seed produces from that version forward, and must be
-  recorded under this heading as breaking rather than as a fix or an
-  enhancement.
+- **A seed's output is a promise only within one package version.** Every
+  entry under this heading — including several below, in this and earlier
+  releases — reorders, adds, or removes a draw, changes the emitted
+  document's shape, or otherwise changes what a seed produces; that is what
+  belongs under this heading rather than under Fixed or Added. The promise
+  a referee quoting a seed gets is narrower than "nothing changes": it is
+  that the same seed against the same package version always produces the
+  same character, not that this or any future version reproduces what an
+  earlier one did.
 - **The career schema rises to `schema-version = 3`: every `throws.*` table
   now requires a `dice` field.** The walk's qualification, survival,
   commission, promotion, and re-enlistment throws used to roll a `2d6`
@@ -78,6 +81,119 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   raised. Every character whose walk used to reach that branch draws fewer
   dice from that point forward and produces a different rest of their life
   (FR-021, FR-056b, T160).
+- **Debt settlement restored nothing and left no trace.** Two problems in
+  one: a medical bill's partial payment discarded whatever fraction fell
+  short of a full point, so two payments that together covered one point
+  restored none of it; and no step recorded a settlement at all — the
+  `debt-settled` kind was misapplied to a crisis debt's *creation* instead.
+  `_Debt` now carries a payment remainder and a restored-point count across
+  settlements, and `settle_debts` records the amount paid and which
+  characteristics were restored and by how much, per debt, per call; the
+  crisis-creation step is renamed `medical-crisis` so `debt-settled` names
+  only real settlement. `history` is a field of `Character`, so renaming a
+  step's kind and restoring points that used to stay lost changes every
+  character whose walk creates or settles a debt from this version forward
+  (FR-025a, FR-030, FR-056b, T144, T157).
+- **A settled medical bill restored nothing, or left the reduction
+  permanent.** `_raise_medical_bill` charged the character its discounted
+  share (`cost_per_point * points * share_owed`) but handed `_Debt` the
+  full, undiscounted `medical.restore-cost-per-point` as its per-point
+  price, so `settle_debts` priced restoration higher than what was
+  actually paid — a partial-share bill paid in full restored zero of the
+  points it billed for. Separately, an employer paying the bill in full
+  (`owed <= 0`) returned before recording anything: the reduction stood
+  permanently and the tier throw that had already happened went
+  unrecorded. `_Debt` now carries its own per-point price
+  (`owed // total_points`, not the flat rate), and a fully employer-paid
+  bill restores its points immediately and records the throw. A
+  characteristic restored earlier than before can change a later throw's
+  characteristic DM and, with it, whether that throw succeeds — which
+  branches the rest of the walk takes — so every character whose walk
+  reaches this path changes from this version forward (FR-024, FR-025,
+  FR-025a, FR-056b, T161).
+- **A mishap's own characteristic reduction was never billed.** The term
+  loop discarded the reduction map `_apply_class_effect` returns for a
+  mishap row's own `characteristic-class` effect (e.g. mishaps.toml row 1,
+  "Injured in action"), so the reduction persisted with no medical bill
+  ever raised against it — unlike the structurally identical reduction
+  `_roll_injury` produces, which already is billed. FR-024's reduction
+  "MUST persist unless the character's medical bills are paid," which
+  presupposes a bill exists to pay. The term loop now bills it exactly the
+  way `_roll_injury` does: every character whose walk reaches this branch
+  now draws the medical tier's `2d6` where it previously drew nothing, and
+  any restoration that follows can change a later throw's characteristic
+  DM and, with it, which branch the rest of the walk takes — every
+  character whose walk reaches this path changes from this version forward
+  (FR-024, FR-025, FR-056b, T162).
+- **A crisis debt could precede the aging step that caused it in the
+  history.** `_apply_aging_if_due` called `_trigger_medical_crisis` from
+  inside its class-effects loop, before appending its own `aging` step, so
+  `cetools npc --full` could print a `medical-crisis` line above the
+  `aging` line that caused it — FR-030 requires the steps in the order the
+  walk occurred, which is what makes a surprising sheet diagnosable (US2
+  acceptance scenario 4). Every crisis a row's class effects raise is now
+  deferred until after the `aging` step is appended, one trigger per class
+  effect that reached the floor, same as before. An aging row naming both
+  a physical and a mental class effect that each float a characteristic to
+  the floor now draws the first effect's crisis dice after the second
+  effect's characteristic selection instead of before it, changing every
+  character whose walk reaches that branch from this version forward
+  (FR-030, FR-056b, T163).
+- **A debt's settlement could precede the step that created it.** `add_debt`
+  settles immediately — it calls `settle_debts` synchronously, which
+  appends its own `debt-settled` step(s) — but all three callers (the
+  mishap `debt` effect, `_trigger_medical_crisis`, `_raise_medical_bill`)
+  appended their own creation step only *after* calling it, so a
+  `debt-settled` step could land in the history before the `mishap`,
+  `medical-crisis`, or `medical-bills` step that created the debt it
+  settled: `cetools npc --seed 51 --full` printed `debt-settled Cr20,000
+  debt, END 1` above the `medical-crisis` that created it. All three call
+  sites now record their creation step before calling `add_debt`. `history`
+  is a field of `Character`, so reordering it changes what a seed produces
+  even though the dice sequence itself is untouched — every character
+  whose walk creates a debt changes from this version forward (FR-030,
+  FR-056b, T164).
+- **A floor clamp's called-for and applied effects were indistinguishable
+  in the record.** `_apply_characteristic_delta` emitted both as
+  `StepEffect(kind="characteristic", ...)`, so a floor clamp rendered
+  `END -5, END -4` with nothing in the record saying which was which. The
+  only disambiguating convention lived in a test helper, which treated any
+  two adjacent same-subject `characteristic` effects as a clamp pair and
+  could not tell one from two genuine independent reductions of the same
+  characteristic — a real ambiguity under a career override, since nothing
+  stops two of a table's class effects from choosing the same
+  characteristic. FR-030a requires the parts be separately addressable and
+  the check made from the record's own shape. The called-for half now
+  carries its own kind, `characteristic-called-for`, added to `StepEffect`'s
+  closed set. `history` is a field of `Character`, and a floor-clamped
+  reduction's called-for effect now carries a different `kind` string than
+  before, so every character whose walk reaches a floor clamp changes from
+  this version forward (FR-030a, FR-056b, T165).
+- **A mishap that forfeits a career's benefits still took its rank-derived
+  bonus rolls.** `run_term_loop` already zeroed `benefit_rolls` for a
+  mishap's `forfeit-career-benefits` effect (T145), but `muster_out_service`
+  computed `rolls = benefit_rolls + rank_bonus` regardless, so a character
+  dishonorably discharged or imprisoned at a high rank still took one to
+  three mustering-out rolls from that service —
+  `CareerService.benefit_rolls` recorded 0 while rolls were actually taken.
+  `muster_out_service` now takes the forfeiture flag and skips every roll,
+  rank-derived or not, when it is set. A forfeited service at a rank the
+  mustering-out rank benefits cover now draws none of the dice it used to
+  for its bonus rolls, changing every character whose walk reaches that
+  branch from this version forward (FR-016, FR-019, FR-056b, T168).
+- **An uncommissioned character in a promotion-offering career never rolled
+  the advancement throw at all.** `run_term_loop` gated the whole throw on
+  `ranks_above`, a precondition no data declares — FR-008 conditions the
+  step on the career offering the throw, not on a higher rank existing to
+  move to. Every shipped entry ladder other than Navy's (T155) declares a
+  single rank 0, so a character on one of them was denied both the throw
+  and the skill roll FR-009 grants on a successful one. The throw is now
+  attempted whenever `throws.promotion` is declared; only the rank move
+  and its bonus stay conditioned on a higher rank existing. Every character
+  in a promotion-offering career now draws the advancement dice at least
+  once per uncommissioned term where it used to draw nothing, changing
+  every character whose walk reaches that branch from this version forward
+  (FR-008, FR-009, FR-056b, T169).
 - **A dice notation's own flat modifier (`"2d6+1"`) is now honored, on every
   throw and table read the lifepath walk makes.** `_dice` used to unpack
   `parse_notation`'s `(count, sides, modifier)` and discard the modifier,
@@ -373,16 +489,6 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   tier's thresholds unmodified. The term loop's current rank is now passed
   through `_roll_injury` and added to the bill's throw wherever `rank-dm`
   is set (FR-025, T150).
-- **Debt settlement restored nothing and left no trace.** Two problems in
-  one: a medical bill's partial payment discarded whatever fraction fell
-  short of a full point, so two payments that together covered one point
-  restored none of it; and no step recorded a settlement at all — the
-  `debt-settled` kind was misapplied to a crisis debt's *creation* instead.
-  `_Debt` now carries a payment remainder and a restored-point count across
-  settlements, and `settle_debts` records the amount paid and which
-  characteristics were restored and by how much, per debt, per call; the
-  crisis-creation step is renamed `medical-crisis` so `debt-settled` names
-  only real settlement (FR-025a, FR-030, T144, T157).
 - **Five `StepEffect` kinds — `age`, `rank`, `commission`, `career`,
   `benefit-roll-forfeit` — were declared and never produced.** `render.py`
   carried a rendering case for each, but the walk never constructed one, so
@@ -418,81 +524,6 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   entry computed at generation time from the rules that produced the
   character; the renderer reads it instead of reloading the packaged
   registry (Constitution V, FR-043, FR-058, T159).
-- **A settled medical bill restored nothing, or left the reduction
-  permanent.** `_raise_medical_bill` charged the character its discounted
-  share (`cost_per_point * points * share_owed`) but handed `_Debt` the
-  full, undiscounted `medical.restore-cost-per-point` as its per-point
-  price, so `settle_debts` priced restoration higher than what was
-  actually paid — a partial-share bill paid in full restored zero of the
-  points it billed for. Separately, an employer paying the bill in full
-  (`owed <= 0`) returned before recording anything: the reduction stood
-  permanently and the tier throw that had already happened went
-  unrecorded. `_Debt` now carries its own per-point price
-  (`owed // total_points`, not the flat rate), and a fully employer-paid
-  bill restores its points immediately and records the throw. A
-  characteristic restored earlier than before can change a later throw's
-  characteristic DM and, with it, whether that throw succeeds — which
-  branches the rest of the walk takes — so every character whose walk
-  reaches this path changes from this version forward (FR-024, FR-025,
-  FR-025a, FR-056b, T161).
-- **A mishap's own characteristic reduction was never billed.** The term
-  loop discarded the reduction map `_apply_class_effect` returns for a
-  mishap row's own `characteristic-class` effect (e.g. mishaps.toml row 1,
-  "Injured in action"), so the reduction persisted with no medical bill
-  ever raised against it — unlike the structurally identical reduction
-  `_roll_injury` produces, which already is billed. FR-024's reduction
-  "MUST persist unless the character's medical bills are paid," which
-  presupposes a bill exists to pay. The term loop now bills it exactly the
-  way `_roll_injury` does. **Breaking change**: every character whose walk
-  reaches this branch now draws the medical tier's `2d6` where it
-  previously drew nothing, and any restoration that follows can change a
-  later throw's characteristic DM and, with it, which branch the rest of
-  the walk takes — every character whose walk reaches this path changes
-  from this version forward (FR-024, FR-025, FR-056b, T162).
-- **A crisis debt could precede the aging step that caused it in the
-  history.** `_apply_aging_if_due` called `_trigger_medical_crisis` from
-  inside its class-effects loop, before appending its own `aging` step, so
-  `cetools npc --full` could print a `medical-crisis` line above the
-  `aging` line that caused it — FR-030 requires the steps in the order the
-  walk occurred, which is what makes a surprising sheet diagnosable (US2
-  acceptance scenario 4). Every crisis a row's class effects raise is now
-  deferred until after the `aging` step is appended, one trigger per class
-  effect that reached the floor, same as before. **Breaking change**: an
-  aging row naming both a physical and a mental class effect that each
-  float a characteristic to the floor now draws the first effect's crisis
-  dice after the second effect's characteristic selection instead of
-  before it, changing every character whose walk reaches that branch from
-  this version forward (FR-030, FR-056b, T163).
-- **A debt's settlement could precede the step that created it.** `add_debt`
-  settles immediately — it calls `settle_debts` synchronously, which
-  appends its own `debt-settled` step(s) — but all three callers (the
-  mishap `debt` effect, `_trigger_medical_crisis`, `_raise_medical_bill`)
-  appended their own creation step only *after* calling it, so a
-  `debt-settled` step could land in the history before the `mishap`,
-  `medical-crisis`, or `medical-bills` step that created the debt it
-  settled: `cetools npc --seed 51 --full` printed `debt-settled Cr20,000
-  debt, END 1` above the `medical-crisis` that created it. All three call
-  sites now record their creation step before calling `add_debt`.
-  **Breaking change**: `history` is a field of `Character`, so reordering
-  it changes what a seed produces even though the dice sequence itself is
-  untouched — every character whose walk creates a debt changes from this
-  version forward (FR-030, FR-056b, T164).
-- **A floor clamp's called-for and applied effects were indistinguishable
-  in the record.** `_apply_characteristic_delta` emitted both as
-  `StepEffect(kind="characteristic", ...)`, so a floor clamp rendered
-  `END -5, END -4` with nothing in the record saying which was which. The
-  only disambiguating convention lived in a test helper, which treated any
-  two adjacent same-subject `characteristic` effects as a clamp pair and
-  could not tell one from two genuine independent reductions of the same
-  characteristic — a real ambiguity under a career override, since nothing
-  stops two of a table's class effects from choosing the same
-  characteristic. FR-030a requires the parts be separately addressable and
-  the check made from the record's own shape. The called-for half now
-  carries its own kind, `characteristic-called-for`, added to `StepEffect`'s
-  closed set. **Breaking change**: `history` is a field of `Character`, and
-  a floor-clamped reduction's called-for effect now carries a different
-  `kind` string than before, so every character whose walk reaches a floor
-  clamp changes from this version forward (FR-030a, FR-056b, T165).
 - **Nothing validated that at least one career is `always-available` or
   `re-enterable`.** `generator.py`'s `enter_career` takes a bare
   `next(...)` over each — the qualification fallback (FR-006) and FR-015's
@@ -502,32 +533,6 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   then made `cetools npc` fail mid-walk with an unhandled
   `StopIteration` instead of failing the load. `rules.py` now rejects a
   data set with neither, naming what is missing (FR-004, FR-006, T166).
-- **A mishap that forfeits a career's benefits still took its rank-derived
-  bonus rolls.** `run_term_loop` already zeroed `benefit_rolls` for a
-  mishap's `forfeit-career-benefits` effect (T145), but `muster_out_service`
-  computed `rolls = benefit_rolls + rank_bonus` regardless, so a character
-  dishonorably discharged or imprisoned at a high rank still took one to
-  three mustering-out rolls from that service —
-  `CareerService.benefit_rolls` recorded 0 while rolls were actually taken.
-  `muster_out_service` now takes the forfeiture flag and skips every roll,
-  rank-derived or not, when it is set. **Breaking change**: a forfeited
-  service at a rank the mustering-out rank benefits cover now draws none
-  of the dice it used to for its bonus rolls, changing every character
-  whose walk reaches that branch from this version forward (FR-016,
-  FR-019, FR-056b, T168).
-- **An uncommissioned character in a promotion-offering career never rolled
-  the advancement throw at all.** `run_term_loop` gated the whole throw on
-  `ranks_above`, a precondition no data declares — FR-008 conditions the
-  step on the career offering the throw, not on a higher rank existing to
-  move to. Every shipped entry ladder other than Navy's (T155) declares a
-  single rank 0, so a character on one of them was denied both the throw
-  and the skill roll FR-009 grants on a successful one. The throw is now
-  attempted whenever `throws.promotion` is declared; only the rank move
-  and its bonus stay conditioned on a higher rank existing. **Breaking
-  change**: every character in a promotion-offering career now draws the
-  advancement dice at least once per uncommissioned term where it used to
-  draw nothing, changing every character whose walk reaches that branch
-  from this version forward (FR-008, FR-009, FR-056b, T169).
 - **A supplied name carrying a tab or a newline was accepted and rendered
   verbatim, breaking the sheet it landed on.** FR-047 requires a supplied
   name verbatim, but `--name $'Alex\tRivera'` put a third tab on a line
