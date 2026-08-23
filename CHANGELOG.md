@@ -104,6 +104,14 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   characteristics, skills, funds, or anything else on the sheet come out
   to: the dice drawn and their order are unchanged, only whether the
   record keeps them (FR-030, FR-030a, `data-model.md:155`, T183).
+- **`as_dict(Character)` (and therefore `--json`) dropped
+  `characteristic_symbols`.** T159 added the field so a `--json` consumer
+  reads the profile through the rules that generated the character rather
+  than the packaged table, and `as_dict` was never updated to emit it —
+  the only field-versus-emitted mismatch across all six produced types.
+  It now appears right after `characteristics`. Every existing `--json`
+  consumer parsing the document positionally rather than by key sees an
+  extra field where it did not before (FR-050, FR-029, T159, T184).
 
 ### Added
 

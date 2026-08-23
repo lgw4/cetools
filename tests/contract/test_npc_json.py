@@ -144,9 +144,7 @@ def test_every_produced_types_dict_keys_match_its_dataclass_fields():
     assert set(character["skills"][0]) == {f.name for f in dataclasses.fields(CharacterSkill)}
     assert set(character["careers"][0]) == {f.name for f in dataclasses.fields(CareerService)}
     assert set(character["history"][0]) == {f.name for f in dataclasses.fields(HistoryStep)}
-    assert set(character["history"][0]["throw"]) == {
-        f.name for f in dataclasses.fields(StepThrow)
-    }
+    assert set(character["history"][0]["throw"]) == {f.name for f in dataclasses.fields(StepThrow)}
     assert set(character["history"][1]["effects"][0]) == {
         f.name for f in dataclasses.fields(StepEffect)
     }

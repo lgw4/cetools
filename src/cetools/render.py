@@ -500,6 +500,7 @@ def _(character: Character) -> dict:
         "surname_region": character.surname_region,
         "title": character.title,
         "characteristics": dict(character.characteristics),
+        "characteristic_symbols": list(character.characteristic_symbols),
         "skills": [_skill_dict(skill) for skill in sorted_skills],
         "careers": [_career_service_dict(service) for service in character.careers],
         "age": character.age,
