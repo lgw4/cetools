@@ -216,6 +216,38 @@ def test_a_careers_medical_tier_takes_effect_with_no_code_edit(tmp_path):
     )
 
 
+def test_a_careers_medical_tier_changes_what_the_generator_actually_charges(tmp_path):
+    # T173: the case above proves only that the *loader* reports the
+    # override; a generator that ignored `career.medical_tier` and
+    # hard-coded a tier would still pass it, and would still pass SC-008's
+    # coverage check too, since that one reads the tier off the career
+    # rather than off what was actually charged. This one generates a
+    # character and compares the bill itself.
+    #
+    # Seed 138's Navy medical bill throws a total of 7: the "service" tier
+    # pays 75% at that total (target 4), the "fringe" tier pays 0% (target
+    # 8 is the first rung it clears), so the same throw must be billed
+    # differently under the two tiers.
+    override = tmp_path / "navy.toml"
+    override.write_text(
+        NAVY.replace('medical-tier = "service"', 'medical-tier = "fringe"', 1),
+        encoding="utf-8",
+    )
+    packaged = load_rules()
+    overridden = load_rules(override)
+
+    baseline = generate_character(Roller(138), packaged)
+    changed = generate_character(Roller(138), overridden)
+
+    baseline_bill = next(s for s in baseline.history if s.kind == "medical-bills")
+    changed_bill = next(s for s in changed.history if s.kind == "medical-bills")
+    assert baseline_bill.throw.total == changed_bill.throw.total == 7
+
+    baseline_owed = next(e.amount for e in baseline_bill.effects if e.kind == "debt")
+    changed_owed = next(e.amount for e in changed_bill.effects if e.kind == "debt")
+    assert baseline_owed != changed_owed
+
+
 def test_the_term_cap_takes_effect_with_no_code_edit(tmp_path):
     assert "cap = 7" in CHARGEN_PARAMETERS
     packaged = load_rules()
