@@ -345,6 +345,24 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   reordered, but `history` is a field of `Character`, and every
   `"career-selected"` step from an ordinary selection now carries a throw
   where it previously carried none (FR-030, FR-030a, FR-015a, T207).
+- **The dice that chose which characteristics an aging effect reduced went
+  unrecorded.** `_apply_aging_if_due` draws a selection die per
+  characteristic a row's class effect chooses, the same selection
+  `_apply_class_effect` performs for mishaps and injuries — but that
+  sibling site records its selection dice and this one did not, so the
+  same recorded row-lookup throw could map to more than one outcome across
+  a sampled population (the worst observed, eight). The row-lookup
+  throw's own `total` is the modified value the row was read against, so
+  the selection dice cannot simply be appended to its `faces` without
+  breaking `total == sum(faces)` plus the modifiers; each class effect a
+  row declares now gets its own `"aging"` step instead, immediately after
+  the row-lookup step, carrying the selection dice as its own throw and
+  the characteristic changes that effect produced. No dice are added,
+  removed, or reordered, but `history` is a field of `Character`, and an
+  `"aging"` step that reduces anything now produces a different, more
+  granular set of steps than before, so every character whose walk
+  reaches such a reduction changes from this version forward (FR-030,
+  FR-030a, `contracts/json-output.md:187`, T208).
 
 ### Added
 

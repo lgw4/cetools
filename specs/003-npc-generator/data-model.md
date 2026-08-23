@@ -143,6 +143,17 @@ its own — the substitute is the first re-enterable career, chosen deterministi
 drawn — and stays `throw = None`, which now separates the two by shape as well as by which
 career each names.
 
+An `aging` row's characteristic-class effects (T208) each get their own `aging` step,
+appended immediately after the row-lookup step. The row-lookup step's own throw carries
+`total = modified`, the value the row was actually read against, so the dice that choose
+*which* characteristics a class effect reduces cannot be folded into that same throw's
+`faces` without inflating `sum(faces)` past `total` and breaking the invariant
+`contracts/json-output.md` states; the row-lookup step carries no `effects` of its own now
+that they do. Each class-effect step's own throw is exactly its selection dice — `total =
+sum(faces)`, `target = 0`, `success = True` — and its `effects` are the characteristic
+changes that one class effect produced. A row with no class effects (the `1+` row) still
+appends only the row-lookup step.
+
 `medical-crisis` (Phase 8 T144) records an aging or mishap crisis debt's *creation* —
 the throw, and the amount owed. `debt-settled` is reserved for what `settle_debts`
 itself now records: one step per debt paid on a given call, carrying the amount paid and

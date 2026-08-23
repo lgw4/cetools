@@ -1198,42 +1198,15 @@ class _Walk:
                 raise RulesDataError(
                     f"aging.toml: a throw modified to {modified} falls in a gap no row covers"
                 )
-        effects: list[StepEffect] = []
-        # Every crisis this row's effects raise is deferred to after the
-        # `aging` step below is appended (T163): the step that caused a
-        # crisis must precede it in the history, and this step isn't
-        # complete — its own `effects` aren't finished accumulating — until
-        # every one of the row's class effects has been applied. One tuple
-        # of codes per class effect that reached the floor, preserving the
-        # existing one-crisis-per-class-effect shape (a row naming both a
-        # physical and a mental class effect that each float a
-        # characteristic to the floor still raises two crisis debts, not
-        # one merged one).
-        pending_crises: list[tuple[str, ...]] = []
-        for class_effect in row.effects:
-            classes = self.rules.characteristics.classes
-            candidates = sorted(
-                code for code, cls in classes.items() if cls == class_effect.characteristic_class
-            )
-            count = min(class_effect.count, len(candidates))
-            remaining = list(candidates)
-            chosen = []
-            for _ in range(count):
-                index = self.roller.die(len(remaining)) - 1
-                chosen.append(remaining.pop(index))
-            crisis_codes = []
-            for code in sorted(chosen):
-                applied = _apply_characteristic_delta(
-                    self.characteristics, code, class_effect.amount, self.floor()
-                )
-                effects.extend(applied)
-                # See the identical comment in `_apply_class_effect` (T146):
-                # trigger only where this reduction actually applied.
-                applied_delta = applied[-1].amount
-                if applied_delta < 0 and self.characteristics[code] <= self.floor():
-                    crisis_codes.append(code)
-            if crisis_codes:
-                pending_crises.append(tuple(crisis_codes))
+        # The row-lookup step's own throw carries `total = modified`, the
+        # value the row was actually read against — the dice that choose
+        # *which* characteristics a class effect reduces cannot be folded
+        # into this same throw's `faces` without inflating `sum(faces)`
+        # past that total and breaking `total == sum(faces)` plus the
+        # modifiers (contracts/json-output.md). Each class effect the row
+        # declares therefore gets its own step, appended below, whose own
+        # throw is exactly its selection dice; this step carries no
+        # effects of its own now that they do (T208).
         self.history.append(
             HistoryStep(
                 kind="aging",
@@ -1247,9 +1220,65 @@ class _Walk:
                     success=True,
                 ),
                 selected="",
-                effects=tuple(effects),
+                effects=(),
             )
         )
+        # Every crisis a class effect's reduction raises is deferred to
+        # after every one of the row's class-effect steps has been
+        # appended (T163): the step that caused a crisis must precede it
+        # in the history. One tuple of codes per class effect that reached
+        # the floor, preserving the existing one-crisis-per-class-effect
+        # shape (a row naming both a physical and a mental class effect
+        # that each float a characteristic to the floor still raises two
+        # crisis debts, not one merged one).
+        pending_crises: list[tuple[str, ...]] = []
+        for class_effect in row.effects:
+            classes = self.rules.characteristics.classes
+            candidates = sorted(
+                code for code, cls in classes.items() if cls == class_effect.characteristic_class
+            )
+            count = min(class_effect.count, len(candidates))
+            remaining = list(candidates)
+            choice_faces: list[int] = []
+            chosen = []
+            for _ in range(count):
+                pick = self.roller.die(len(remaining))
+                choice_faces.append(pick)
+                chosen.append(remaining.pop(pick - 1))
+            effects: list[StepEffect] = []
+            crisis_codes = []
+            for code in sorted(chosen):
+                applied = _apply_characteristic_delta(
+                    self.characteristics, code, class_effect.amount, self.floor()
+                )
+                effects.extend(applied)
+                # See the identical comment in `_apply_class_effect` (T146):
+                # trigger only where this reduction actually applied.
+                applied_delta = applied[-1].amount
+                if applied_delta < 0 and self.characteristics[code] <= self.floor():
+                    crisis_codes.append(code)
+            self.history.append(
+                HistoryStep(
+                    kind="aging",
+                    career=career_name,
+                    term=term,
+                    throw=(
+                        StepThrow(
+                            faces=tuple(choice_faces),
+                            modifiers=(),
+                            total=sum(choice_faces),
+                            target=0,
+                            success=True,
+                        )
+                        if choice_faces
+                        else None
+                    ),
+                    selected="",
+                    effects=tuple(effects),
+                )
+            )
+            if crisis_codes:
+                pending_crises.append(tuple(crisis_codes))
         for codes in pending_crises:
             self._trigger_medical_crisis(career_name, term, codes)
 
