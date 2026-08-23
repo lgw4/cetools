@@ -711,6 +711,15 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   a bare list of names may not be copyrightable at all, but this project
   credits the source either way. No file's GPL-3.0-only designation changes
   (FR-042, FR-043e, T191).
+- **The aging-table contract claimed its own worked example has no gap
+  between rows, when it does.** `contracts/data-files.md` states "the
+  worked example above has none" immediately below an example whose rows
+  jump from `-6` to `0`, a five-value gap from `-5` to `-1` —
+  `CHANGELOG.md` already described this correctly elsewhere. T186's code
+  fix (reporting a gap rather than silently misreading it) was and stays
+  correct; the sentence now says the example is not itself runnable as an
+  override rather than claiming a gap it has does not exist (FR-013,
+  FR-037, T205).
 - **`chargen-parameters.toml`'s `background-skills.characteristic` was
   parsed as a string and checked against nothing.** A referee writing the
   characteristics registry's label (`"Intellect"`) rather than its code

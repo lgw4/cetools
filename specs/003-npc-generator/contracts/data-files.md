@@ -325,7 +325,7 @@ effects = []
 | `roll` | string | yes | Dice notation. |
 | `modifier` | string | yes | What is subtracted from the total. `terms-served` is the only value the engine knows; anything else is rejected, so the field names the rule rather than leaving it implicit. |
 | `rows` | array of table | yes | Non-empty. |
-| `rows[].range` | string | yes | `N`, `N-M`, or `N+`. May be negative. Exactly one row unbounded above. The **lowest** row is a floor: a modified result below it reads that row. Gaps between the rest of the rows are permitted — the worked example above has none, but nothing requires it — and a modified result that falls in one fails the run rather than being silently read off whichever row sorts highest below it (T186). |
+| `rows[].range` | string | yes | `N`, `N-M`, or `N+`. May be negative. Exactly one row unbounded above. The **lowest** row is a floor: a modified result below it reads that row. Gaps between the rest of the rows are permitted and nothing requires their absence — the worked example above is not itself runnable as an override, since it has one, from `-5` to `-1` between its `"-6"` and `"0"` rows — and a modified result that falls in one fails the run rather than being silently read off whichever row sorts highest below it (T186, T205). |
 | `rows[].effects` | array of table | yes | Possibly empty, which is how the no-effect row is written rather than being omitted. |
 | `rows[].effects[].class` | string | yes | A class declared in the characteristics registry. |
 | `rows[].effects[].count` | integer | yes | How many distinct characteristics of that class. At least one. |
