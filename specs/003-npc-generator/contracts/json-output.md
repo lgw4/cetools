@@ -119,6 +119,7 @@ sheet.
 | `surname_region` | string | The region the surname table declared, or `""`. SC-019 counts this field rather than splitting a rendered name. |
 | `title` | string | The rank title attached to the rendered name, or `""`. |
 | `characteristics` | object | Code to score. Key order is the characteristics registry's file order, which is the order the profile renders in. |
+| `characteristic_symbols` | array of string | The pseudo-hex symbol for each characteristic, in the same order as `characteristics`, from the rules that generated this character rather than the packaged table — the seam that makes `--rules-data` change what a JSON consumer sees the same way it changes the text rendering (T159, T184). |
 | `skills` | array | See below. Sorted the way the sheet sorts them, so the two agree. |
 | `careers` | array | Non-empty, in the order entered. See below. |
 | `age` | number | |
@@ -129,8 +130,8 @@ sheet.
 | `history` | array | Non-empty. See below. |
 
 Key order: `seed`, `name`, `given_name`, `surname`, `surname_region`, `title`,
-`characteristics`, `skills`, `careers`, `age`, `funds`, `debt`, `pension`, `benefits`,
-`history`.
+`characteristics`, `characteristic_symbols`, `skills`, `careers`, `age`, `funds`, `debt`,
+`pension`, `benefits`, `history`.
 
 **Every key is present unconditionally** (FR-050), whether or not its value is non-empty.
 `given_name` is `""` rather than absent for a supplied name, `pension` is `0` rather than

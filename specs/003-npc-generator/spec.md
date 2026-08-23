@@ -590,7 +590,8 @@ value on its own as the house-rule path for all character generation.
 - **FR-029**: The generated character MUST carry: the seed that reproduces it on its own, its
   name and, where the name was rolled, the parts it was composed from, the rank title FR-047c
   attaches to its rendered name, its characteristics with their
-  current scores, its skills with their levels including level zero, every career it served
+  current scores, the pseudo-hex symbol for each from the rules that generated it, its skills
+  with their levels including level zero, every career it served
   with the terms served and rank reached in each, its age, its funds, its outstanding debt, its
   pension, its named benefit items, and its generation history. This list is exhaustive, and
   every field on it is a field FR-050 requires machine-readable output to emit unconditionally.

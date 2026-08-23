@@ -116,6 +116,7 @@ def test_character_key_order():
         "surname_region",
         "title",
         "characteristics",
+        "characteristic_symbols",
         "skills",
         "careers",
         "age",
@@ -131,6 +132,24 @@ def test_a_characters_own_seed_is_a_string_and_at_position_0_equals_the_master()
     character = as_dict(_BATCH)["characters"][0]
     assert character["seed"] == "14333185781139156525"
     assert character["seed"] == as_dict(_BATCH)["seed"]
+
+
+def test_every_produced_types_dict_keys_match_its_dataclass_fields():
+    # T184: `characteristic_symbols` was added to `Character` (T159) and
+    # never reached `as_dict` — the only field-versus-emitted mismatch
+    # across all six produced types, the other five agreeing exactly. This
+    # guard is what would have caught it.
+    character = as_dict(_BATCH)["characters"][0]
+    assert set(character) == {f.name for f in dataclasses.fields(Character)}
+    assert set(character["skills"][0]) == {f.name for f in dataclasses.fields(CharacterSkill)}
+    assert set(character["careers"][0]) == {f.name for f in dataclasses.fields(CareerService)}
+    assert set(character["history"][0]) == {f.name for f in dataclasses.fields(HistoryStep)}
+    assert set(character["history"][0]["throw"]) == {
+        f.name for f in dataclasses.fields(StepThrow)
+    }
+    assert set(character["history"][1]["effects"][0]) == {
+        f.name for f in dataclasses.fields(StepEffect)
+    }
 
 
 def test_skill_key_order():
@@ -275,6 +294,7 @@ def test_a_multi_character_run_matches_the_same_document_shape_as_one():
             "surname_region",
             "title",
             "characteristics",
+            "characteristic_symbols",
             "skills",
             "careers",
             "age",
