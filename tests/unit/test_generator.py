@@ -428,6 +428,32 @@ class TestMedicalBillRestoration:
         assert any(step.kind == "medical-bills" and step.throw is not None for step in new_steps)
 
 
+class TestAMishapsDirectReductionRaisesABill:
+    """FR-024's "MUST persist unless the character's medical bills are
+    paid" presupposes a bill exists to pay: a mishap row's own
+    characteristic-class effect (e.g. mishaps.toml row 1, "Injured in
+    action") reduces a characteristic exactly the way an injury does, so it
+    must be billed exactly the way an injury is (T162).
+    """
+
+    def test_every_mishap_reduction_is_billed(self):
+        for character in _characters(2000):
+            for step in character.history:
+                if step.kind != "mishap":
+                    continue
+                if not any(e.kind == "characteristic" and e.amount < 0 for e in step.effects):
+                    continue
+                assert any(
+                    other.kind == "medical-bills"
+                    and other.career == step.career
+                    and other.term == step.term
+                    for other in character.history
+                ), (
+                    f"seed {character.seed}: mishap reduction in {step.career} "
+                    f"term {step.term} was never billed"
+                )
+
+
 def _credits_steps(steps):
     return [
         step
