@@ -20,6 +20,7 @@ CHARACTERISTICS = (_DATA / "registries" / "characteristics.toml").read_text(enco
 DRAFT = (_DATA / "chargen" / "draft.toml").read_text(encoding="utf-8")
 AGING = (_DATA / "chargen" / "aging.toml").read_text(encoding="utf-8")
 SURNAMES_EUROPE = (_DATA / "names" / "surnames-europe.toml").read_text(encoding="utf-8")
+DRIFTER = (_DATA / "careers" / "drifter.toml").read_text(encoding="utf-8")
 
 
 def _write(tmp_path: Path, name: str, text: str) -> Path:
@@ -606,3 +607,26 @@ def test_no_surname_table_in_force_is_rejected(monkeypatch):
     report = validate_rules()
     assert not report.valid
     assert any("surnames" in p.expected and "at least one" in p.expected for p in report.problems)
+
+
+def test_no_always_available_or_re_enterable_career_in_force_is_rejected(tmp_path):
+    # Drifter is the only shipped career declaring either flag (T166): a
+    # `generator.py` walk takes a bare `next(...)` over both, with nothing
+    # today validating that at least one career grants each. An override
+    # clearing both leaves `enter_career`'s fallback and FR-015's re-entry
+    # exception with nothing to resolve to, which must fail the whole set
+    # before any character is produced rather than crash mid-walk.
+    text = DRIFTER.replace("always-available = true", "always-available = false", 1).replace(
+        "re-enterable = true", "re-enterable = false", 1
+    )
+    assert text != DRIFTER
+    _write(tmp_path, "drifter.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        "always-available" in p.expected and "at least one" in p.expected
+        for p in report.problems
+    )
+    assert any(
+        "re-enterable" in p.expected and "at least one" in p.expected for p in report.problems
+    )
