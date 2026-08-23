@@ -76,6 +76,17 @@ def test_an_empty_or_whitespace_only_name_is_a_usage_error():
     assert result.stdout == ""
 
 
+def test_a_name_carrying_a_tab_or_a_newline_is_a_usage_error():
+    # T170: the same reasoning T148's empty-name refusal uses — FR-047
+    # requires a supplied name verbatim, and a tab or a newline is a name
+    # that cannot be rendered verbatim without breaking FR-046's tab count
+    # or FR-048a's blank-line batch separator.
+    for name in ("Alex\tRivera", "Alex\n\nRivera"):
+        result = runner.invoke(app, ["npc", "--name", name])
+        assert result.exit_code == 2
+        assert result.stdout == ""
+
+
 def test_count_zero_is_a_usage_error_naming_count():
     result = runner.invoke(app, ["npc", "--seed", "session-alpha", "--count", "0"])
     assert result.exit_code == 2

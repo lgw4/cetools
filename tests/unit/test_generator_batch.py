@@ -75,6 +75,19 @@ class TestUsageErrors:
             with pytest.raises(CetoolsError):
                 generate_batch("session-alpha", RULES, name=name)
 
+    def test_a_name_carrying_a_tab_or_a_newline_raises(self):
+        # FR-047 requires a supplied name verbatim, but a tab puts three
+        # tabs on a line FR-046 requires to hold exactly two, and a
+        # newline writes a blank line inside a sheet, which FR-048a
+        # reserves as the separator between sheets in a batch. The name
+        # that cannot be rendered verbatim is the one to refuse, on the
+        # same terms T148's empty-name refusal uses (T170).
+        for name in ("Alex\tRivera", "Alex\n\nRivera"):
+            with pytest.raises(CetoolsError):
+                generate_character(Roller("session-alpha"), RULES, name=name)
+            with pytest.raises(CetoolsError):
+                generate_batch("session-alpha", RULES, name=name)
+
 
 def test_generate_batch_from_none_reached_from_the_library():
     """FR-053b, reached without the command line: `generate_batch(None,
