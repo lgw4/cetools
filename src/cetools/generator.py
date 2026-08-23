@@ -1112,13 +1112,30 @@ class _Walk:
             return
         faces, roll_modifier = _dice(self.roller, self.rules.aging.roll)
         modified = sum(faces) + roll_modifier - self.total_terms_served
-        # Rows are sorted by minimum; find the row whose range contains modified,
-        # falling back to the lowest row when modified is beneath every range (the
-        # floor rule for the aging table itself).
-        row = self.rules.aging.rows[0]
-        for candidate in self.rules.aging.rows:
-            if modified >= candidate.minimum:
-                row = candidate
+        # Rows are sorted by minimum. The lowest row is a floor: a modified
+        # result below it reads that row too (contracts/data-files.md).
+        # Above the floor, a result must fall within some row's declared
+        # `minimum`-`maximum` range; the range is honored on both ends
+        # rather than matched on `minimum` alone, or a gap between two
+        # bounded rows would silently read whichever row sorts highest
+        # below it (T186).
+        rows = self.rules.aging.rows
+        if modified < rows[0].minimum:
+            row = rows[0]
+        else:
+            row = next(
+                (
+                    candidate
+                    for candidate in rows
+                    if candidate.minimum <= modified
+                    and (candidate.maximum is None or modified <= candidate.maximum)
+                ),
+                None,
+            )
+            if row is None:
+                raise RulesDataError(
+                    f"aging.toml: a throw modified to {modified} falls in a gap no row covers"
+                )
         effects: list[StepEffect] = []
         # Every crisis this row's effects raise is deferred to after the
         # `aging` step below is appended (T163): the step that caused a

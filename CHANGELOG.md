@@ -567,3 +567,12 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   `characteristic-class` only. No shipped injury row uses any of the
   other four, so no packaged seed's output changes (FR-019, FR-024,
   SC-013, T185).
+- **A modified aging total was matched against `AgingRow.minimum` alone,
+  discarding the declared `maximum`.** `contracts/data-files.md` permits
+  gaps between aging rows and its own worked example is a gapped table,
+  so a total falling in one was silently read off whichever row sorted
+  highest below it rather than failing. The lookup now honors both ends
+  of a bounded row's range, keeping the documented floor rule for a
+  result below the lowest row, and raises `RulesDataError` for a result
+  an override's gap leaves uncovered. The shipped table has no gaps, so
+  no packaged seed's output changes (FR-013, FR-037, SC-013, T186).
