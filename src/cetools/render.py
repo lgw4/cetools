@@ -288,6 +288,8 @@ def _effect_text(effect: StepEffect) -> str:
     match effect.kind:
         case "characteristic" | "skill":
             return f"{effect.subject} {effect.amount}"
+        case "characteristic-called-for":
+            return f"{effect.subject} {effect.amount} (called for)"
         case "credits":
             return f"Cr{effect.amount:,}"
         case "debt":

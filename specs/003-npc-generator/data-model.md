@@ -165,7 +165,8 @@ being inferred from the total.
 | `subject` | `str` | Which one: a characteristic code, a rendered skill, a career name, a benefit item's name. `""` where the effect names nothing. |
 | `amount` | `int` | The signed change, or `0` where the effect is not numeric. |
 
-Effect kinds, closed: `characteristic`, `skill`, `credits`, `benefit`, `debt`, `pension`.
+Effect kinds, closed: `characteristic`, `characteristic-called-for`, `skill`, `credits`,
+`benefit`, `debt`, `pension`.
 
 Five kinds that were originally declared here — `age`, `rank`, `commission`, `career`,
 `benefit-roll-forfeit` — were dropped in Phase 8 convergence (T151): the walk never
@@ -177,8 +178,13 @@ career, credit, item). An effect kind is a real consequence the chain carries (F
 a case reserved for a future one.
 
 A characteristic reduction floored at the bottom of the declared pseudo-hex range records
-two effects: the reduction the rule called for, and the amount actually applied, when they
-differ (research R13). SC-005 reads both.
+two effects, when they differ (research R13): the reduction the rule called for, kinded
+`characteristic-called-for`, and the amount actually applied, kinded `characteristic`. The
+two kinds, not adjacency, are what make the pair addressable from the record's own shape
+(FR-030a, T165) — a lone `characteristic` effect is the applied amount already, and a
+`"debt-settled"` step's several same-subject `characteristic` effects (T157, one `+1` per
+point restored) are never mistaken for a clamp pair, since only a genuine floor clamp ever
+produces a `characteristic-called-for` effect. SC-005 reads both kinds.
 
 Three fields rather than a payload per kind, because SC-004 and SC-005 are automated audits
 that group and sum over the whole history, and a union of eleven shapes would make the

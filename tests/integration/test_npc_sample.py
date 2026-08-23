@@ -57,44 +57,23 @@ def _replay_characteristics(history):
     step's effects are absolute starting scores, and every later
     `characteristic` effect is a signed delta.
 
-    `_apply_characteristic_delta` (generator.py) records a floor-clamped
-    reduction as an adjacent pair — the amount called for, then the amount
-    actually applied — so only the second of such a pair is added; a lone
-    effect is the applied amount already. That pairing convention belongs
-    to `_apply_characteristic_delta` alone, though: a `"debt-settled"`
-    step's `characteristic` effects come from `settle_debts`'s own
-    restoration loops (T157), which can repeat the same subject several
-    times in one step — once per point restored — and every one of those
-    is a real, independently additive `+1`, never half of a pair.
+    A floor clamp's called-for reduction carries its own kind,
+    `characteristic-called-for`, distinct from `characteristic` (T165), so
+    it is excluded here by kind alone rather than by an adjacency
+    convention that could not tell a clamp pair from two genuine
+    independent reductions of the same characteristic in one step — which
+    a `"debt-settled"` step's restoration loop (T157) can produce, one real
+    `+1` per point restored.
     """
     scores: dict[str, int] = {}
     for step in history:
-        effects = step.effects
         if step.kind == "characteristics":
-            for effect in effects:
+            for effect in step.effects:
                 scores[effect.subject] = effect.amount
             continue
-        if step.kind == "debt-settled":
-            for effect in effects:
-                if effect.kind == "characteristic":
-                    scores[effect.subject] = scores.get(effect.subject, 0) + effect.amount
-            continue
-        i = 0
-        while i < len(effects):
-            effect = effects[i]
-            if effect.kind != "characteristic":
-                i += 1
-                continue
-            paired = (
-                i + 1 < len(effects)
-                and effects[i + 1].kind == "characteristic"
-                and effects[i + 1].subject == effect.subject
-            )
-            if paired:
-                i += 1
-                continue
-            scores[effect.subject] = scores.get(effect.subject, 0) + effect.amount
-            i += 1
+        for effect in step.effects:
+            if effect.kind == "characteristic":
+                scores[effect.subject] = scores.get(effect.subject, 0) + effect.amount
     return scores
 
 

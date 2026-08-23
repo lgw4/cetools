@@ -510,29 +510,16 @@ class TestMedicalBillRestoration:
 
 def _applied_reductions(effects):
     """The actually-*applied* negative characteristic deltas on one step's
-    effects, skipping a floor clamp's called-for half of an adjacent pair
-    (the same convention `_replay_characteristics` uses, T146): a
-    characteristic already at the floor and chosen again records a
-    called-for/applied pair whose applied half is `0`, not a reduction at
-    all.
+    effects. A floor clamp's called-for half carries its own kind,
+    `characteristic-called-for`, distinct from `characteristic` (T165), so
+    it is excluded by kind alone: a characteristic already at the floor
+    and chosen again applies a delta of `0`, which is not a reduction.
     """
-    applied = []
-    i = 0
-    while i < len(effects):
-        effect = effects[i]
-        if effect.kind != "characteristic":
-            i += 1
-            continue
-        paired = (
-            i + 1 < len(effects)
-            and effects[i + 1].kind == "characteristic"
-            and effects[i + 1].subject == effect.subject
-        )
-        value = effects[i + 1].amount if paired else effect.amount
-        if value < 0:
-            applied.append(value)
-        i += 2 if paired else 1
-    return applied
+    return [
+        effect.amount
+        for effect in effects
+        if effect.kind == "characteristic" and effect.amount < 0
+    ]
 
 
 class TestAMishapsDirectReductionRaisesABill:

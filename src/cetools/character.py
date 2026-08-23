@@ -50,6 +50,13 @@ _HISTORY_STEP_KINDS = frozenset(
 _STEP_EFFECT_KINDS = frozenset(
     {
         "characteristic",
+        # The reduction a floor clamp called for, distinct from
+        # "characteristic" (the amount actually applied), so the two are
+        # addressable from the record's own shape rather than from a
+        # test-only adjacency convention that cannot tell a clamp pair
+        # from two genuine independent reductions of one characteristic
+        # (FR-030a, T165).
+        "characteristic-called-for",
         "skill",
         "credits",
         "benefit",

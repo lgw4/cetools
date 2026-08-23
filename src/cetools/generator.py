@@ -107,7 +107,10 @@ def _apply_characteristic_delta(
 ) -> list[StepEffect]:
     """Apply a signed change to `code`, clamping a reduction at `floor`
     (research R13). Records both the reduction called for and the amount
-    actually applied when a floor clamp makes them differ.
+    actually applied when a floor clamp makes them differ — as two
+    distinctly-kinded effects, `characteristic-called-for` and
+    `characteristic`, so a reader of the record itself (not only a
+    convention about their adjacency) can tell them apart (FR-030a, T165).
     """
     old = characteristics[code]
     called_for_value = old + delta
@@ -116,7 +119,7 @@ def _apply_characteristic_delta(
     applied_delta = applied_value - old
     effects = [StepEffect(kind="characteristic", subject=code, amount=applied_delta)]
     if applied_delta != delta:
-        effects.insert(0, StepEffect(kind="characteristic", subject=code, amount=delta))
+        effects.insert(0, StepEffect(kind="characteristic-called-for", subject=code, amount=delta))
     return effects
 
 

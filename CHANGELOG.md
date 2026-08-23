@@ -410,3 +410,19 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   it changes what a seed produces even though the dice sequence itself is
   untouched — every character whose walk creates a debt changes from this
   version forward (FR-030, FR-056b, T164).
+- **A floor clamp's called-for and applied effects were indistinguishable
+  in the record.** `_apply_characteristic_delta` emitted both as
+  `StepEffect(kind="characteristic", ...)`, so a floor clamp rendered
+  `END -5, END -4` with nothing in the record saying which was which. The
+  only disambiguating convention lived in a test helper, which treated any
+  two adjacent same-subject `characteristic` effects as a clamp pair and
+  could not tell one from two genuine independent reductions of the same
+  characteristic — a real ambiguity under a career override, since nothing
+  stops two of a table's class effects from choosing the same
+  characteristic. FR-030a requires the parts be separately addressable and
+  the check made from the record's own shape. The called-for half now
+  carries its own kind, `characteristic-called-for`, added to `StepEffect`'s
+  closed set. **Breaking change**: `history` is a field of `Character`, and
+  a floor-clamped reduction's called-for effect now carries a different
+  `kind` string than before, so every character whose walk reaches a floor
+  clamp changes from this version forward (FR-030a, FR-056b, T165).
