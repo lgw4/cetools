@@ -753,3 +753,42 @@ def test_a_characteristics_roll_that_can_fall_outside_the_pseudo_hex_range_is_re
         p.file == "chargen-parameters.toml" and p.location == "characteristics.roll"
         for p in report.problems
     )
+
+
+def test_an_overlap_in_the_aging_rows_is_rejected(tmp_path):
+    # T210: the aging lookup (`generator.py`) takes the *first* row whose
+    # range covers the modified total, and `chargen.py`'s parser only
+    # counts unbounded rows before sorting them by minimum — the T180
+    # shape, for the one other positional range table in the package. An
+    # override changing the shipped unbounded row from "1+" to "-1+", one
+    # character away from the natural way to say "aging stops hurting at
+    # -1", validated clean before this check existed and left the
+    # existing "-1" row overlapping the new unbounded row's minimum.
+    text = AGING.replace('range = "1+"', 'range = "-1+"', 1)
+    assert text != AGING
+    _write(tmp_path, "aging.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        p.file == "aging.toml" and p.location == "rows" and "overlap" in p.found
+        for p in report.problems
+    )
+
+
+def test_an_aging_row_above_the_unbounded_row_is_rejected(tmp_path):
+    # T210: the opposite defect from the overlap case above — a row sorted
+    # after the unbounded row, which the aging lookup's first-match scan
+    # can never reach, silently dead the moment it is declared.
+    text = AGING.replace(
+        'range = "1+"\neffects = []\n',
+        'range = "1+"\neffects = []\n\n[[rows]]\nrange = "5-7"\neffects = []\n',
+        1,
+    )
+    assert text != AGING
+    _write(tmp_path, "aging.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        p.file == "aging.toml" and p.location == "rows" and "unbounded" in p.found
+        for p in report.problems
+    )

@@ -225,6 +225,22 @@ class TestAgingTable:
         assert table is None
         assert any(p.location == "extra" for p in problems)
 
+    def test_overlapping_rows_parse_file_order_decides_shadowing(self):
+        # T210: this parser counts unbounded rows and sorts the rest by
+        # `minimum` alone (like `registries.py`'s characteristic bands);
+        # nothing here forbids an overlap or a row sorted above the
+        # unbounded one — that check is `rules.py`'s, over the fully
+        # composed data set, the same split the bands check already draws.
+        data = self._data()
+        data["rows"][1]["range"] = "-1-2"
+        table, problems = parse_aging_table(data, "aging.toml")
+        assert problems == ()
+        assert [(row.minimum, row.maximum) for row in table.rows] == [
+            (-6, -6),
+            (-1, 2),
+            (1, None),
+        ]
+
 
 class TestMishapTable:
     def _data(self, **overrides):
