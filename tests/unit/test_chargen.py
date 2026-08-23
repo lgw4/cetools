@@ -574,7 +574,7 @@ class TestMedicalTiers:
 def _valid_chargen_parameters_data() -> dict:
     return {
         "schema": "chargen-parameters",
-        "schema-version": 1,
+        "schema-version": 2,
         "characteristics": {"roll": "2d6"},
         "background-skills": {"base": 3, "characteristic": "EDU", "homeworld-first": 2},
         "terms": {
@@ -601,6 +601,7 @@ def _valid_chargen_parameters_data() -> dict:
             "cash-choice-target": 4,
             "maximum-cash-rolls": 3,
             "retired-cash-dm": 1,
+            "per-term": 1,
             "rank-benefits": [
                 {"rank": 4, "extra": 1},
                 {"rank": 5, "extra": 2},
@@ -652,6 +653,7 @@ _CHARGEN_SCALARS = [
     ("mustering-out", "cash-choice-target", "mustering_out_cash_choice_target"),
     ("mustering-out", "maximum-cash-rolls", "mustering_out_maximum_cash_rolls"),
     ("mustering-out", "retired-cash-dm", "mustering_out_retired_cash_dm"),
+    ("mustering-out", "per-term", "mustering_out_per_term"),
     ("pension", "minimum-terms", "pension_minimum_terms"),
     ("pension", "base", "pension_base"),
     ("pension", "per-additional-term", "pension_per_additional_term"),

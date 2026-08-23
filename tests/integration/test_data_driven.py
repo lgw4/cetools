@@ -346,3 +346,34 @@ def test_a_chargen_tables_roll_modifier_is_honored(tmp_path):
         }
         for code in packaged.characteristics.names:
             assert modified_effects[code] == baseline_effects[code] + 1
+
+
+def test_the_mustering_out_per_term_rate_takes_effect_with_no_code_edit(tmp_path):
+    # T179: the benefit-roll-per-term rate used to be an implicit `1` held
+    # in engine code (`generator.py`'s `benefit_rolls = ... terms -
+    # forfeited_terms`) rather than data, unlike the rank thresholds it is
+    # paired with in `mustering-out.rank-benefits`.
+    anchor = '[mustering-out]\nroll = "1d6"'
+    assert anchor in CHARGEN_PARAMETERS
+    override = tmp_path / "chargen-parameters.toml"
+    override.write_text(
+        CHARGEN_PARAMETERS.replace(anchor, anchor + "\nper-term = 2", 1),
+        encoding="utf-8",
+    )
+    packaged = load_rules()
+    rules = load_rules(override)
+    assert rules.chargen.mustering_out_per_term == 2
+
+    seed, baseline = _first_seed_matching(
+        packaged, lambda c: any(service.benefit_rolls > 0 for service in c.careers)
+    )
+    overridden = generate_character(Roller(seed), rules)
+    assert len(overridden.careers) == len(baseline.careers)
+    doubled_any = False
+    for base_service, over_service in zip(baseline.careers, overridden.careers):
+        assert base_service.career == over_service.career
+        assert base_service.terms == over_service.terms
+        assert over_service.benefit_rolls == base_service.benefit_rolls * 2
+        if base_service.benefit_rolls:
+            doubled_any = True
+    assert doubled_any
