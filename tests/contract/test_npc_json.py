@@ -243,3 +243,72 @@ def test_every_throw_total_equals_sum_of_faces_plus_modifier_values():
         if step.throw is not None:
             expected = sum(step.throw.faces) + sum(m.value for m in step.throw.modifiers)
             assert step.throw.total == expected
+
+
+# --- T177 ---
+
+
+def test_a_multi_character_run_matches_the_same_document_shape_as_one():
+    # SC-010 and FR-050a: "a run of one character and a run of twelve emit
+    # the same document shape, verified by checking both against one
+    # contract." Every check above runs against `_BATCH`, which holds
+    # exactly one character, so that half of the criterion was verified by
+    # nothing. Three distinct characters here, checked against the same
+    # key orders `_BATCH`'s single character is checked against elsewhere
+    # in this file.
+    second = dataclasses.replace(_CHARACTER, seed=1, name="Kenji Sato")
+    third = dataclasses.replace(_CHARACTER, seed=2, name="Priya Nair")
+    multi_batch = CharacterBatch(
+        seed=_BATCH.seed, provenance=_PACKAGED_PROVENANCE, characters=(_CHARACTER, second, third)
+    )
+    payload = as_dict(multi_batch)
+    assert len(payload["characters"]) == 3
+
+    for i, character_obj in enumerate(multi_batch.characters):
+        character = payload["characters"][i]
+        assert character == as_dict(character_obj)
+        assert list(character) == [
+            "seed",
+            "name",
+            "given_name",
+            "surname",
+            "surname_region",
+            "title",
+            "characteristics",
+            "skills",
+            "careers",
+            "age",
+            "funds",
+            "debt",
+            "pension",
+            "benefits",
+            "history",
+        ]
+        assert list(character["skills"][0]) == ["name", "specialty", "level"]
+        assert list(character["careers"][0]) == [
+            "career",
+            "terms",
+            "ladder",
+            "rank",
+            "title",
+            "commissioned",
+            "entered_by",
+            "ended",
+            "benefit_rolls",
+        ]
+        assert list(character["history"][0]) == [
+            "kind",
+            "career",
+            "term",
+            "throw",
+            "selected",
+            "effects",
+        ]
+        assert list(character["history"][0]["throw"]) == [
+            "faces",
+            "modifiers",
+            "total",
+            "target",
+            "success",
+        ]
+        assert list(character["history"][1]["effects"][0]) == ["kind", "subject", "amount"]
