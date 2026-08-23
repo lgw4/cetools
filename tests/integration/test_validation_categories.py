@@ -731,3 +731,25 @@ def test_a_band_above_the_unbounded_band_is_rejected(tmp_path):
         and "unbounded" in p.found
         for p in report.problems
     )
+
+
+def test_a_characteristics_roll_that_can_fall_outside_the_pseudo_hex_range_is_rejected(
+    tmp_path,
+):
+    # T209: `roll_characteristics` (generator.py) hands every drawn score
+    # straight to `CharacteristicRegistry.symbol`, which raises
+    # `RulesDataError` for a score outside the declared pseudo-hex range —
+    # a failure only some seeds reach, well after `cetools validate` has
+    # already reported the whole set clean. Both ends are statically
+    # decidable from `parse_notation` and the registry's own declared
+    # range, so a roll whose possible span reaches outside it is refused
+    # at load rather than mid-walk.
+    text = CHARGEN_PARAMETERS.replace('roll = "2d6"', 'roll = "2d6-3"', 1)
+    assert text != CHARGEN_PARAMETERS
+    _write(tmp_path, "chargen-parameters.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        p.file == "chargen-parameters.toml" and p.location == "characteristics.roll"
+        for p in report.problems
+    )
