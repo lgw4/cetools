@@ -351,3 +351,20 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   entry computed at generation time from the rules that produced the
   character; the renderer reads it instead of reloading the packaged
   registry (Constitution V, FR-043, FR-058, T159).
+- **A settled medical bill restored nothing, or left the reduction
+  permanent.** `_raise_medical_bill` charged the character its discounted
+  share (`cost_per_point * points * share_owed`) but handed `_Debt` the
+  full, undiscounted `medical.restore-cost-per-point` as its per-point
+  price, so `settle_debts` priced restoration higher than what was
+  actually paid — a partial-share bill paid in full restored zero of the
+  points it billed for. Separately, an employer paying the bill in full
+  (`owed <= 0`) returned before recording anything: the reduction stood
+  permanently and the tier throw that had already happened went
+  unrecorded. `_Debt` now carries its own per-point price
+  (`owed // total_points`, not the flat rate), and a fully employer-paid
+  bill restores its points immediately and records the throw. A
+  characteristic restored earlier than before can change a later throw's
+  characteristic DM and, with it, whether that throw succeeds — which
+  branches the rest of the walk takes — so every character whose walk
+  reaches this path changes from this version forward (FR-024, FR-025,
+  FR-025a, FR-056b, T161).

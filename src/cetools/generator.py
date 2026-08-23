@@ -929,17 +929,48 @@ class _Walk:
             return
         total_cost = params.medical_restore_cost_per_point * total_points
         owed = total_cost - (total_cost * paid_percent // 100)
-        if owed <= 0:
-            return
         characteristics = tuple(
             sorted(code for code, points in reduced.items() for _ in range(points))
         )
+        throw = StepThrow(faces=faces, modifiers=(), total=total, target=0, success=True)
+        if owed <= 0:
+            # The employer's share covers the bill in full: there is no
+            # debt to settle later, so the points are restored immediately
+            # rather than left permanently reduced, and the tier throw that
+            # already happened is still recorded (T161). One effect per
+            # characteristic, its whole restored amount at once — not one
+            # per point as `settle_debts` records across possibly several
+            # partial payments — since a single, one-shot restoration has
+            # no partial progress for the per-point form to track.
+            effects = []
+            for code, points in reduced.items():
+                self.characteristics[code] += points
+                effects.append(StepEffect(kind="characteristic", subject=code, amount=points))
+            self.history.append(
+                HistoryStep(
+                    kind="medical-bills",
+                    career=career_name,
+                    term=term,
+                    throw=throw,
+                    selected="",
+                    effects=tuple(effects),
+                )
+            )
+            return
         self.add_debt(
             _Debt(
                 amount=owed,
                 restore="medical",
                 characteristics=characteristics,
-                cost_per_point=params.medical_restore_cost_per_point,
+                # The debt's own per-point price, not the flat undiscounted
+                # rate: `owed` is already the character's share of
+                # `total_cost`, so a per-point price built from the full
+                # rate demanded more per point than the bill actually
+                # charged, and a full payment of a discounted bill restored
+                # nothing (T161). `max(1, ...)` keeps this from dividing by
+                # zero on a share smaller than one credit per point, an
+                # edge case no shipped data reaches.
+                cost_per_point=max(1, owed // total_points),
             ),
             career_name,
             term,
@@ -949,7 +980,7 @@ class _Walk:
                 kind="medical-bills",
                 career=career_name,
                 term=term,
-                throw=StepThrow(faces=faces, modifiers=(), total=total, target=0, success=True),
+                throw=throw,
                 selected="",
                 effects=(StepEffect(kind="debt", subject="", amount=owed),),
             )
