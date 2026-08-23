@@ -858,6 +858,27 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
                 )
             )
 
+    # `generator.py`'s `enter_career` takes a bare `next(...)` over each of
+    # these (the qualification fallback, FR-006; FR-015's re-entry
+    # exception), so a data set with neither would fail mid-walk with a
+    # `StopIteration` rather than at the load this check belongs to (T166).
+    if not any(career.always_available for career in careers.values()):
+        problems.append(
+            ValidationProblem(
+                file="careers/*.toml",
+                found="no career declares always-available = true",
+                expected="at least one career with always-available = true",
+            )
+        )
+    if not any(career.re_enterable for career in careers.values()):
+        problems.append(
+            ValidationProblem(
+                file="careers/*.toml",
+                found="no career declares re-enterable = true",
+                expected="at least one career with re-enterable = true",
+            )
+        )
+
     characteristic_classes = (
         frozenset(characteristics.classes.values()) if characteristics is not None else frozenset()
     )

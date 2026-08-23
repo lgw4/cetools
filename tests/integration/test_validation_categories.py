@@ -446,6 +446,11 @@ def test_a_problem_naming_two_files_still_carries_one_composition_key(tmp_path):
         "surface-defense.toml",
         "drifter.toml",
         "merchant.toml",
+        # A sentinel for a whole-set problem naming no single file, the same
+        # shape the surname-absence check already uses: every career fails
+        # to resolve its characteristic references in this scenario, so
+        # none is left to declare always-available or re-enterable (T166).
+        "careers/*.toml",
     }
     for problem in report.problems:
         assert problem.file in composed, problem
@@ -624,8 +629,7 @@ def test_no_always_available_or_re_enterable_career_in_force_is_rejected(tmp_pat
     report = validate_rules(tmp_path)
     assert not report.valid
     assert any(
-        "always-available" in p.expected and "at least one" in p.expected
-        for p in report.problems
+        "always-available" in p.expected and "at least one" in p.expected for p in report.problems
     )
     assert any(
         "re-enterable" in p.expected and "at least one" in p.expected for p in report.problems

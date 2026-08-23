@@ -426,3 +426,12 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   a floor-clamped reduction's called-for effect now carries a different
   `kind` string than before, so every character whose walk reaches a floor
   clamp changes from this version forward (FR-030a, FR-056b, T165).
+- **Nothing validated that at least one career is `always-available` or
+  `re-enterable`.** `generator.py`'s `enter_career` takes a bare
+  `next(...)` over each — the qualification fallback (FR-006) and FR-015's
+  re-entry exception — with no cross-file check behind either. An override
+  clearing both flags on Drifter, the only shipped career declaring
+  either, made `cetools validate` report the data set clean and exit 0,
+  then made `cetools npc` fail mid-walk with an unhandled
+  `StopIteration` instead of failing the load. `rules.py` now rejects a
+  data set with neither, naming what is missing (FR-004, FR-006, T166).
