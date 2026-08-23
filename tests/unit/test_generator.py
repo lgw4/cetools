@@ -593,17 +593,29 @@ class TestInjuryReductionIsFiledUnderTheInjuryKind:
     """
 
     def test_the_reduction_following_an_injury_step_is_kinded_injury(self):
+        # T183 gave the reduction sub-step its own throw too, so a bare
+        # `throw is None` no longer tells it apart from whatever else
+        # might follow — nor does a characteristic effect alone, since an
+        # unrelated later step (an "aging" step, say) can carry one too.
+        # Which injury rows actually reduce a characteristic is known
+        # ahead of time from the row itself.
+        injury_rows_with_effect = {
+            row.description
+            for row in RULES.mishaps.injuries
+            if any(e.kind == "characteristic-class" for e in row.effects)
+        }
+        found = False
         for character in _characters(300):
             for index, step in enumerate(character.history):
-                if step.kind != "injury" or index + 1 >= len(character.history):
+                if step.kind != "injury" or step.selected not in injury_rows_with_effect:
                     continue
+                found = True
                 following = character.history[index + 1]
-                if following.throw is not None or not following.effects:
-                    continue
                 assert following.kind == "injury", (
                     f"seed {character.seed}: the reduction following an injury "
                     f"step at history index {index} is kinded {following.kind!r}"
                 )
+        assert found
 
     def test_apply_class_effect_records_the_kind_it_is_given(self):
         from cetools.chargen import MishapEffect
@@ -831,3 +843,73 @@ def test_qualification_penalty_grows_with_previous_careers_entered():
             if any(m.label == "Previous careers" for m in step.throw.modifiers):
                 found_penalty = True
     assert found_penalty
+
+
+class TestT183EveryThrowIsRecorded:
+    """T183: `characteristics`, `background-skills`, `skill-roll`, and
+    `benefit` steps always made a throw and never recorded it; a
+    `basic-training` step made one only when it drew randomly rather than
+    granting the whole table, and a mishap/injury reduction step made one
+    only when it actually rolled dice for the amount or the characteristics
+    chosen.
+    """
+
+    def test_a_characteristics_step_always_carries_its_throw(self):
+        for character in _characters(50):
+            step = next(s for s in character.history if s.kind == "characteristics")
+            assert step.throw is not None
+            assert step.throw.faces
+            assert step.throw.total == sum(step.throw.faces)
+
+    def test_a_background_skills_step_always_carries_its_throw(self):
+        for character in _characters(50):
+            step = next(s for s in character.history if s.kind == "background-skills")
+            assert step.throw is not None
+            assert step.throw.faces
+            assert step.throw.total == sum(step.throw.faces)
+
+    def test_a_skill_roll_step_always_carries_its_throw(self):
+        for character in _characters(50):
+            for step in character.history:
+                if step.kind != "skill-roll":
+                    continue
+                assert step.throw is not None
+                assert len(step.throw.faces) == 2
+
+    def test_a_benefit_step_always_carries_its_throw(self):
+        for character in _characters(200):
+            for step in character.history:
+                if step.kind != "benefit":
+                    continue
+                assert step.throw is not None
+                assert step.throw.faces
+
+    def test_basic_training_carries_no_throw_when_the_whole_table_is_granted(self):
+        found_first_career = False
+        found_subsequent_career = False
+        for character in _characters(100):
+            basic_training_steps = [s for s in character.history if s.kind == "basic-training"]
+            for order, step in enumerate(basic_training_steps):
+                is_first_career = order == 0
+                if is_first_career and RULES.chargen.basic_training_first_career_all:
+                    found_first_career = True
+                    assert step.throw is None
+                else:
+                    found_subsequent_career = True
+                    assert step.throw is not None
+        assert found_first_career
+        assert found_subsequent_career
+
+    def test_a_mishap_or_injury_reduction_step_carries_its_throw(self):
+        found = False
+        for character in _characters(200):
+            for step in character.history:
+                if step.kind not in ("mishap", "injury"):
+                    continue
+                has_characteristic_effect = any(
+                    e.kind in ("characteristic", "characteristic-called-for") for e in step.effects
+                )
+                if has_characteristic_effect:
+                    found = True
+                    assert step.throw is not None
+        assert found

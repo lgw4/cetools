@@ -42,8 +42,11 @@ def _steps_by_service(character):
 
 def _mishap_row(service_steps):
     """The mishap row that ended this service, or `None` if it did not end
-    in one — the first "mishap" step carrying a throw (the row-selection
-    roll itself, not a later effect-recording sub-step with no throw).
+    in one — the first "mishap" step carrying a throw. A later
+    effect-recording sub-step (T183) also carries one, but the
+    row-selection roll's own step is always appended first, so `next(...)`
+    still finds it; `selected` is only ever populated on the row-selection
+    step, which the second `next(...)` below relies on.
     """
     step = next((s for s in service_steps if s.kind == "mishap" and s.throw), None)
     if step is None:
