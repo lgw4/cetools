@@ -850,7 +850,15 @@ class _Walk:
 
             re_enlist = career.throws["re-enlistment"]
             faces_r, roll_mod_r = _dice(self.roller, re_enlist.dice)
-            total_r = sum(faces_r) + roll_mod_r
+            mods_r = _roll_modifier(re_enlist.dice, roll_mod_r)
+            if re_enlist.characteristic is not None:
+                mods_r.append(
+                    Modifier(
+                        f"Characteristic {self.characteristics[re_enlist.characteristic]}",
+                        self.characteristic_dm(re_enlist.characteristic),
+                    )
+                )
+            total_r = sum(faces_r) + sum(m.value for m in mods_r)
             success_r = total_r >= re_enlist.target
             self.history.append(
                 HistoryStep(
@@ -859,7 +867,7 @@ class _Walk:
                     term=term,
                     throw=StepThrow(
                         faces=faces_r,
-                        modifiers=tuple(_roll_modifier(re_enlist.dice, roll_mod_r)),
+                        modifiers=tuple(mods_r),
                         total=total_r,
                         target=re_enlist.target,
                         success=success_r,

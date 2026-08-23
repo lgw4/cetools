@@ -9,6 +9,8 @@ hand-picking a single "lucky" seed, which would make the test fragile to an
 unrelated draw-order change.
 """
 
+from pathlib import Path
+
 from cetools.character import Character, StepEffect
 from cetools.dice import Roller
 from cetools.generator import generate_character
@@ -16,6 +18,7 @@ from cetools.rules import load_rules
 
 RULES = load_rules()
 _SAMPLE = 400
+_DATA = Path(__file__).resolve().parents[2] / "src" / "cetools" / "data"
 
 
 def _characters(count: int = _SAMPLE):
@@ -888,6 +891,40 @@ def test_qualification_penalty_grows_with_previous_careers_entered():
             if any(m.label == "Previous careers" for m in step.throw.modifiers):
                 found_penalty = True
     assert found_penalty
+
+
+def test_re_enlistment_honors_a_declared_characteristic_dm(tmp_path):
+    # T195: `careers.py` accepts and registry-validates `characteristic` on
+    # a re-enlistment throw exactly as it does for the other four (`_ALL_THROWS`
+    # admits it there too), but `generator.py`'s re-enlistment throw never
+    # read it — a field parsed, validated, and then never honored, the T141 /
+    # T178 shape. No shipped career declares one, so this exercises an
+    # override the way T195's own reasoning requires: the loader promises
+    # the value is understood, so the walk must act on it.
+    navy = (_DATA / "careers" / "navy.toml").read_text(encoding="utf-8")
+    block = '[throws.re-enlistment]\ntarget = 5\ndice = "2d6"\n'
+    assert block in navy
+    overridden = navy.replace(
+        block, '[throws.re-enlistment]\ncharacteristic = "SOC"\ntarget = 5\ndice = "2d6"\n', 1
+    )
+    (tmp_path / "navy.toml").write_text(overridden, encoding="utf-8")
+    rules = load_rules(tmp_path)
+
+    found = False
+    for seed in range(300):
+        character = generate_character(Roller(seed), rules)
+        for step in character.history:
+            if step.kind != "re-enlistment" or step.throw is None:
+                continue
+            char_modifiers = [
+                m for m in step.throw.modifiers if m.label.startswith("Characteristic ")
+            ]
+            if char_modifiers:
+                found = True
+            assert step.throw.total == sum(step.throw.faces) + sum(
+                m.value for m in step.throw.modifiers
+            )
+    assert found
 
 
 class TestT183EveryThrowIsRecorded:

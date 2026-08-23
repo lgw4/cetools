@@ -642,3 +642,10 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   code the characteristics registry does not declare, the same way an
   unresolvable medical tier already is. The packaged file already names a
   code, so no packaged seed's output changes (FR-003, FR-054, T194).
+- **`throws.re-enlistment.characteristic` was parsed, registry-validated,
+  and never read.** The other four career throws (qualification, survival,
+  commission, promotion) all apply the declared characteristic's modifier;
+  re-enlistment silently dropped it, so an override declaring one changed
+  nothing. The walk now itemizes it the same way the other four do. No
+  shipped career declares a re-enlistment characteristic, so no packaged
+  seed's output changes (Constitution V, FR-038, FR-014, T195).
