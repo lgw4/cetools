@@ -358,6 +358,26 @@ def test_a_gpl_file_inside_a_covered_subtree_fails_the_mirror_check(
         planted.unlink()
 
 
+def test_no_gpl_file_in_the_tree_sits_inside_a_covered_ogc_subtree(
+    repo_root, game_data_covered_paths, game_data_covered_suffix
+):
+    # `_wrongly_covered`'s only other call site plants its own violating
+    # file and asserts the helper flags it, which proves the helper and not
+    # the tree (T167). Run over the real, unmodified working tree: a name
+    # table drifting into `chargen/`, `careers/`, or `registries/` would
+    # still load and still be basename-unique, so nothing else in the suite
+    # would catch it shipping under a notice that does not cover it.
+    designated = _gpl_designated_in_tree(repo_root)
+    assert designated, "no GPL-3.0-designated files found to check"
+    wrongly_covered = _wrongly_covered(
+        designated, game_data_covered_paths, game_data_covered_suffix
+    )
+    assert not wrongly_covered, (
+        f"{wrongly_covered} carry the GPL-3.0 designation but fall under a path the "
+        f"OGC game-data notice names: {list(game_data_covered_paths)}"
+    )
+
+
 def test_shipped_files_still_finds_a_root_level_include_anchored_with_a_leading_slash(repo_root):
     # T138 anchored `"README.md"` and `"CHANGELOG.md"` to `"/README.md"` and
     # `"/CHANGELOG.md"` in the sdist `include` list, so hatchling stops

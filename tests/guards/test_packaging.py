@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import DESIGNATION, GPL_DESIGNATION, _uncovered
+from tests.conftest import DESIGNATION, GPL_DESIGNATION, _uncovered, _wrongly_covered
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -132,6 +132,26 @@ def test_the_notice_covers_every_open_game_content_file_in_the_wheel(
     )
 
 
+def test_the_notice_does_not_wrongly_cover_a_gpl_file_in_the_wheel(
+    wheel, game_data_covered_paths, game_data_covered_suffix
+):
+    # The mirror of the OGC coverage check above (T167): a name table that
+    # drifted into an OGC subtree would still be a `.toml` under a covered
+    # path — `test_wheel_contains_every_packaged_data_file` and the
+    # basename-uniqueness guard would both pass it — so this is the one
+    # check that would catch it shipping under a notice its own
+    # GPL-3.0 designation contradicts.
+    designated = sorted(name for name in wheel.namelist() if GPL_DESIGNATION in wheel.read(name))
+    assert designated, "the wheel carries no GPL-3.0-designated file to check"
+    wrongly_covered = _wrongly_covered(
+        designated, game_data_covered_paths, game_data_covered_suffix
+    )
+    assert not wrongly_covered, (
+        f"the wheel ships {wrongly_covered} as GPL-3.0 content under a path the OGC "
+        f"game-data notice names: {list(game_data_covered_paths)}"
+    )
+
+
 def _license_in_wheel(wheel: zipfile.ZipFile, name: str) -> str:
     matches = [n for n in wheel.namelist() if n.endswith(f".dist-info/licenses/{name}")]
     assert matches, f"{name} is missing from the wheel"
@@ -222,6 +242,25 @@ def test_the_notice_covers_every_open_game_content_file_in_the_sdist(
     assert not uncovered, (
         f"the sdist ships {uncovered} as Open Game Content, outside the paths the game-data "
         f"notice names: {list(game_data_covered_paths)}"
+    )
+
+
+def test_the_notice_does_not_wrongly_cover_a_gpl_file_in_the_sdist(
+    sdist, game_data_covered_paths, game_data_covered_suffix
+):
+    # The sdist counterpart of the wheel check above (T167).
+    designated = sorted(
+        name.split("/", 1)[-1]
+        for name in sdist.getnames()
+        if GPL_DESIGNATION in _sdist_bytes(sdist, name)
+    )
+    assert designated, "the sdist carries no GPL-3.0-designated file to check"
+    wrongly_covered = _wrongly_covered(
+        designated, game_data_covered_paths, game_data_covered_suffix
+    )
+    assert not wrongly_covered, (
+        f"the sdist ships {wrongly_covered} as GPL-3.0 content under a path the OGC "
+        f"game-data notice names: {list(game_data_covered_paths)}"
     )
 
 
