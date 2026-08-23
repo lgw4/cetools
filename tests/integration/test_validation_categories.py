@@ -711,3 +711,23 @@ def test_an_overlap_in_the_characteristic_modifier_bands_is_rejected(tmp_path):
         p.file == "characteristics.toml" and p.location == "modifier-dms" and "overlap" in p.found
         for p in report.problems
     )
+
+
+def test_a_band_above_the_unbounded_band_is_rejected(tmp_path):
+    # T199: T180's gap-and-overlap loop (`rules.py`) stops the moment it
+    # reaches the unbounded band (`if previous.maximum is None: break`), so
+    # a band declared with a higher minimum than the unbounded band's is
+    # never checked and is silently unreachable — `characteristic_dm`
+    # (registries.py) returns the *first* matching band, and the unbounded
+    # one, sorted below this new one, wins every time.
+    text = CHARACTERISTICS.replace('"33+" = 9\n', '"33+" = 9\n"34-36" = 10\n', 1)
+    assert text != CHARACTERISTICS
+    _write(tmp_path, "characteristics.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        p.file == "characteristics.toml"
+        and p.location == "modifier-dms"
+        and "unbounded" in p.found
+        for p in report.problems
+    )

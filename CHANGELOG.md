@@ -654,3 +654,13 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   nothing. The walk now itemizes it the same way the other four do. No
   shipped career declares a re-enlistment characteristic, so no packaged
   seed's output changes (Constitution V, FR-038, FR-014, T195).
+- **A characteristic modifier band declared above the unbounded band was
+  silently unreachable.** T180's gap-and-overlap cross-file check stopped
+  the moment it reached the unbounded band, so a band sorted after it
+  (a higher `minimum`) was never checked, and `characteristic_dm` — which
+  returns the *first* matching band — always matched the unbounded band
+  first, making the higher band dead data with no error raised anywhere.
+  The check now requires the unbounded band to hold the highest `minimum`
+  of any band. The packaged table's unbounded band already is the
+  highest, so no packaged seed's output changes (US4 acceptance scenario
+  4, FR-039, Constitution V, T199).

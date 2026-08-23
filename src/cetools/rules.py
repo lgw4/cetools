@@ -911,6 +911,14 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
         else:
             for previous, current in zip(bands, bands[1:]):
                 if previous.maximum is None:
+                    # `characteristic_dm` returns the *first* matching band
+                    # (registries.py), so a band sorted after the unbounded
+                    # one is dead data: every score it claims already
+                    # matched the unbounded band first (T199).
+                    band_problem = (
+                        f"a band above the unbounded band: {current.minimum} "
+                        f"sorts higher than the unbounded band's minimum of {previous.minimum}"
+                    )
                     break
                 if current.minimum > previous.maximum + 1:
                     band_problem = f"a gap: no band covers score {previous.maximum + 1}"
