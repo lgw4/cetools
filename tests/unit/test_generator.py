@@ -411,6 +411,36 @@ class TestAgingStepPrecedesTheCrisisItCauses:
                     )
 
 
+_DEBT_CREATING_KINDS = frozenset({"mishap", "medical-crisis", "medical-bills"})
+
+
+class TestADebtsCreationStepPrecedesItsSettlement:
+    """`add_debt` settles immediately (T144), and every caller appends its
+    own creation step — but until now, after calling it, so a debt's
+    settlement (`add_debt`'s own synchronous call to `settle_debts`) landed
+    in the history before the very step that created the debt it settled
+    (T164).
+    """
+
+    def test_no_settlement_is_followed_by_the_debt_it_settled(self):
+        for character in _characters(2000):
+            for index, step in enumerate(character.history):
+                if step.kind != "debt-settled":
+                    continue
+                later_creator = any(
+                    other.kind in _DEBT_CREATING_KINDS
+                    and other.career == step.career
+                    and other.term == step.term
+                    and any(e.kind == "debt" for e in other.effects)
+                    for other in character.history[index + 1 :]
+                )
+                assert not later_creator, (
+                    f"seed {character.seed}: debt-settled at history index "
+                    f"{index} is followed by a debt creation in "
+                    f"{step.career} term {step.term}"
+                )
+
+
 class TestMedicalBillRestoration:
     """FR-025's "unless the character's medical bills are paid" and
     FR-025a's "the points restored MUST be those the covered amount pays
