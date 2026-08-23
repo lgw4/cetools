@@ -140,6 +140,11 @@ class TestCareerEntry:
             ]
             assert len(substitution_steps) == 1
             assert substitution_steps[0].selected != "Marine"
+            # The substitution is chosen deterministically (the first
+            # re-enterable career), not by a die — it stays throwless, which
+            # is what now separates it by shape from the ordinary selection
+            # step T207 gives a throw to (data-model.md, T207).
+            assert substitution_steps[0].throw is None
             break
         assert found
 
@@ -428,6 +433,33 @@ class TestAlwaysLiving:
             if "injury" in kinds:
                 found = True
         assert found
+
+
+class TestCareerSelectedRecordsItsOwnThrow:
+    """`_select_career` throws `self.roller.die(len(available))`
+    (generator.py) and the "career-selected" step naming its result carried
+    `throw=None`, so every one of a character's selection draws was
+    unanswerable from the record and indistinguishable in shape from
+    T201's throwless draft-collision substitution step (T207).
+    """
+
+    def test_every_career_entry_attempt_records_exactly_one_throwing_selection(self):
+        for character in _characters(200):
+            entered = sum(1 for s in character.history if s.kind == "career-entered")
+            thrown_selections = sum(
+                1 for s in character.history if s.kind == "career-selected" and s.throw is not None
+            )
+            assert thrown_selections == entered
+
+    def test_the_recorded_selection_throw_is_a_single_table_reading_face(self):
+        for character in _characters(100):
+            for step in character.history:
+                if step.kind != "career-selected" or step.throw is None:
+                    continue
+                assert step.throw.faces == (step.throw.total,)
+                assert step.throw.modifiers == ()
+                assert step.throw.target == 0
+                assert step.throw.success is True
 
 
 class TestCharacteristicFloors:
