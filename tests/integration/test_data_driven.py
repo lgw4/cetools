@@ -353,11 +353,11 @@ def test_the_mustering_out_per_term_rate_takes_effect_with_no_code_edit(tmp_path
     # in engine code (`generator.py`'s `benefit_rolls = ... terms -
     # forfeited_terms`) rather than data, unlike the rank thresholds it is
     # paired with in `mustering-out.rank-benefits`.
-    anchor = '[mustering-out]\nroll = "1d6"'
+    anchor = "retired-cash-dm = 1\nper-term = 1"
     assert anchor in CHARGEN_PARAMETERS
     override = tmp_path / "chargen-parameters.toml"
     override.write_text(
-        CHARGEN_PARAMETERS.replace(anchor, anchor + "\nper-term = 2", 1),
+        CHARGEN_PARAMETERS.replace(anchor, "retired-cash-dm = 1\nper-term = 2", 1),
         encoding="utf-8",
     )
     packaged = load_rules()

@@ -466,7 +466,7 @@ and SC-013 demonstrates a behavior change from editing them.
 # Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
 
 schema = "chargen-parameters"
-schema-version = 1
+schema-version = 2
 
 [characteristics]
 roll = "2d6"
@@ -513,6 +513,7 @@ cash-choice-roll = "1d6"
 cash-choice-target = 4
 maximum-cash-rolls = 3
 retired-cash-dm = 1
+per-term = 1
 rank-benefits = [
   { rank = 4, extra = 1 },
   { rank = 5, extra = 2 },
@@ -550,6 +551,7 @@ not obvious from the name:
 | `pension.base` / `.per-additional-term` | The amount is the base plus the increment for each term in that career above the minimum. |
 | `mustering-out.roll` | The die each benefit table is read with. Enumerated in FR-038 alongside the characteristic roll, because unlike a universal table's own die it is not declared by the table it reads: the cash and benefit tables live in each career's file and the die that reads them spans careers. |
 | `mustering-out.cash-choice-roll` / `.cash-choice-target` | The throw that decides whether a roll is taken as cash or as a material benefit (FR-016). `1d6` against 4 is an even chance, the same shipped default and the same shape as `[continuation]`, and for the same reason: it is a random choice the source hands to the player, so the engine must not hold it. A referee who wants characters to prefer cash lowers the target. Applied only while the character is under `maximum-cash-rolls`; once the cap is reached every remaining roll is material and the throw is not made. |
+| `mustering-out.per-term` | **New in schema v2.** How many benefit rolls each net term served earns — `terms - forfeited terms`, never the rank bonus, which stays additive on top (FR-016, FR-038). Shipped at 1, following the source material. |
 | `mustering-out.rank-benefits` | Extra benefit rolls by rank reached. **Not cumulative**: the highest matching row wins (research R10). |
 | `mustering-out.material-rank-dm` | A modifier on material benefit rolls by rank. Highest matching row wins. |
 | `medical.crisis-roll` / `.crisis-multiplier` | A crisis costs the throw times the multiplier, and becomes a debt (FR-021). A crisis is triggered by an aging effect reducing a characteristic to the bottom of the declared pseudo-hex range. |

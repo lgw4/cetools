@@ -825,7 +825,9 @@ class _Walk:
                 effects=(),
             )
         )
-        benefit_rolls = 0 if forfeit_all else max(0, terms - forfeited_terms)
+        benefit_rolls = (
+            0 if forfeit_all else params.mustering_out_per_term * max(0, terms - forfeited_terms)
+        )
         return (
             terms,
             current_ladder_name,

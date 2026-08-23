@@ -1088,6 +1088,7 @@ _CHARGEN_GROUPS: dict[str, dict[str, tuple[str, int | None]]] = {
         "cash-choice-target": ("int", 0),
         "maximum-cash-rolls": ("int", 0),
         "retired-cash-dm": ("int", None),
+        "per-term": ("int", 0),
     },
     "pension": {
         "minimum-terms": ("int", 1),
@@ -1154,6 +1155,7 @@ class ChargenParameters:
     mustering_out_cash_choice_target: int
     mustering_out_maximum_cash_rolls: int
     mustering_out_retired_cash_dm: int
+    mustering_out_per_term: int
     mustering_out_rank_benefits: tuple[RankBonus, ...]
     mustering_out_material_rank_dm: tuple[RankBonus, ...]
     pension_minimum_terms: int

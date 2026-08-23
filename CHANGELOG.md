@@ -265,6 +265,13 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   part of what was asked for. `generate_batch` and `character_seed` were
   already reachable from the library; this wires the option through to
   them.
+- **`chargen-parameters.toml` gains `mustering-out.per-term`, rising to
+  `schema-version = 2`.** How many benefit rolls each net term served
+  earns was an implicit `1` held in `generator.py`, unlike the rank
+  thresholds it is paired with in `mustering-out.rank-benefits`, which
+  already read from data. Shipped at `1`, matching the prior behavior, so
+  no packaged seed's output changes; an override written against
+  `schema-version = 1` must add the key to keep validating (FR-038, T179).
 
 ### Fixed
 

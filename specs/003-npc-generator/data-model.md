@@ -431,7 +431,7 @@ Checked after every file has been read, alongside the two the previous feature h
 | Mishap table | `mishap-table` | 1 | `chargen/mishaps.toml` |
 | Background skills | `background-skills` | 1 | `chargen/background-skills.toml` |
 | Medical tiers | `medical-tiers` | 1 | `chargen/medical-tiers.toml` |
-| Chargen parameters | `chargen-parameters` | 1 | `chargen/chargen-parameters.toml` |
+| Chargen parameters | `chargen-parameters` | **2** | `chargen/chargen-parameters.toml` |
 | Given names | `given-names` | 1 | `names/given-names.toml` |
 | Surnames | `surnames` | 1 | `names/surnames-*.toml` |
 

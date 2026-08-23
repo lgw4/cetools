@@ -52,6 +52,7 @@ _EMPTY_CHARGEN = ChargenParameters(
     mustering_out_cash_choice_target=4,
     mustering_out_maximum_cash_rolls=3,
     mustering_out_retired_cash_dm=1,
+    mustering_out_per_term=1,
     mustering_out_rank_benefits=(),
     mustering_out_material_rank_dm=(),
     pension_minimum_terms=5,

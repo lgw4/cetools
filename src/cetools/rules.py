@@ -66,7 +66,7 @@ _SUPPORTED_VERSION = {
     "mishap-table": 1,
     "background-skills": 1,
     "medical-tiers": 1,
-    "chargen-parameters": 1,
+    "chargen-parameters": 2,
     "given-names": 1,
     "surnames": 1,
 }
