@@ -39,9 +39,21 @@ _ENTERED_BY_DRAFTED = "drafted"
 _ENTERED_BY_FALLBACK = "fallback"
 
 
-def _dice(roller: Roller, notation: str) -> tuple[int, ...]:
-    count, sides, _modifier = parse_notation(notation)
-    return roller.dice(count, sides)
+def _dice(roller: Roller, notation: str) -> tuple[tuple[int, ...], int]:
+    """Throw `notation` and return its faces alongside the flat modifier it
+    declares, so every call site honors a `dice = "2d6+N"` override rather
+    than silently discarding it (T178) — the same modifier `task.roll`
+    itemizes via `Modifier` (`tasks.py:126-127`).
+    """
+    count, sides, modifier = parse_notation(notation)
+    return roller.dice(count, sides), modifier
+
+
+def _roll_modifier(notation: str, modifier: int) -> list[Modifier]:
+    """The `Modifier` list a nonzero dice-notation modifier contributes to a
+    `StepThrow`, empty for the ordinary unmodified case.
+    """
+    return [Modifier(f"Roll ({notation})", modifier)] if modifier else []
 
 
 def _resolve_specialty(
@@ -318,9 +330,10 @@ class _Walk:
 
     def roll_characteristics(self) -> None:
         effects = []
+        notation = self.rules.chargen.characteristics_roll
         for code in self.rules.characteristics.names:
-            faces = _dice(self.roller, self.rules.chargen.characteristics_roll)
-            score = sum(faces)
+            faces, modifier = _dice(self.roller, notation)
+            score = sum(faces) + modifier
             self.characteristics[code] = score
             effects.append(StepEffect(kind="characteristic", subject=code, amount=score))
         self.history.append(
@@ -406,8 +419,8 @@ class _Walk:
     def _qualify(self, career: CareerDefinition, entries_so_far: int) -> bool:
         params = self.rules.chargen
         throw = career.throws["qualification"]
-        faces = _dice(self.roller, throw.dice)
-        modifiers = []
+        faces, roll_modifier = _dice(self.roller, throw.dice)
+        modifiers = _roll_modifier(throw.dice, roll_modifier)
         char_dm = self.characteristic_dm(throw.characteristic)
         if throw.characteristic is not None:
             modifiers.append(
@@ -438,15 +451,21 @@ class _Walk:
 
     def _draft(self) -> CareerDefinition:
         draft = self.rules.draft
-        faces = _dice(self.roller, draft.roll)
-        row = sum(faces)
+        faces, modifier = _dice(self.roller, draft.roll)
+        row = sum(faces) + modifier
         name = draft.careers[row - 1]
         self.history.append(
             HistoryStep(
                 kind="draft",
                 career="",
                 term=0,
-                throw=StepThrow(faces=faces, modifiers=(), total=row, target=0, success=True),
+                throw=StepThrow(
+                    faces=faces,
+                    modifiers=tuple(_roll_modifier(draft.roll, modifier)),
+                    total=row,
+                    target=0,
+                    success=True,
+                ),
                 selected=name,
                 effects=(),
             )
@@ -546,18 +565,16 @@ class _Walk:
         while True:
             term = terms + 1
             survival = career.throws["survival"]
-            faces = _dice(self.roller, survival.dice)
+            faces, roll_modifier = _dice(self.roller, survival.dice)
             dice_total = sum(faces)
             char_dm = self.characteristic_dm(survival.characteristic)
-            modifiers = (
-                [
+            modifiers = _roll_modifier(survival.dice, roll_modifier)
+            if survival.characteristic is not None:
+                modifiers.append(
                     Modifier(
                         f"Characteristic {self.characteristics[survival.characteristic]}", char_dm
                     )
-                ]
-                if survival.characteristic is not None
-                else []
-            )
+                )
             total = dice_total + sum(m.value for m in modifiers)
             natural_failure = dice_total <= params.survival_natural_failure
             success = (not natural_failure) and total >= survival.target
@@ -579,8 +596,9 @@ class _Walk:
             )
 
             if not success:
-                mishap_faces = _dice(self.roller, self.rules.mishaps.roll)
-                row = self.rules.mishaps.rows[sum(mishap_faces) - 1]
+                mishap_faces, mishap_modifier = _dice(self.roller, self.rules.mishaps.roll)
+                mishap_total = sum(mishap_faces) + mishap_modifier
+                row = self.rules.mishaps.rows[mishap_total - 1]
                 self.history.append(
                     HistoryStep(
                         kind="mishap",
@@ -588,8 +606,10 @@ class _Walk:
                         term=term,
                         throw=StepThrow(
                             faces=mishap_faces,
-                            modifiers=(),
-                            total=sum(mishap_faces),
+                            modifiers=tuple(
+                                _roll_modifier(self.rules.mishaps.roll, mishap_modifier)
+                            ),
+                            total=mishap_total,
                             target=0,
                             success=True,
                         ),
@@ -649,18 +669,16 @@ class _Walk:
             if "commission" in career.throws and not commissioned and not commission_barred:
                 commissioned_ladder = self._commissioned_ladder(career)
                 throw = career.throws["commission"]
-                faces_c = _dice(self.roller, throw.dice)
+                faces_c, roll_mod_c = _dice(self.roller, throw.dice)
                 char_dm_c = self.characteristic_dm(throw.characteristic)
-                mods_c = (
-                    [
+                mods_c = _roll_modifier(throw.dice, roll_mod_c)
+                if throw.characteristic is not None:
+                    mods_c.append(
                         Modifier(
                             f"Characteristic {self.characteristics[throw.characteristic]}",
                             char_dm_c,
                         )
-                    ]
-                    if throw.characteristic is not None
-                    else []
-                )
+                    )
                 total_c = sum(faces_c) + sum(m.value for m in mods_c)
                 success_c = total_c >= throw.target
                 self.history.append(
@@ -698,18 +716,16 @@ class _Walk:
                 )
                 ranks_above = sorted(r.rank for r in current_ladder.ranks if r.rank > current_rank)
                 throw = career.throws["promotion"]
-                faces_p = _dice(self.roller, throw.dice)
+                faces_p, roll_mod_p = _dice(self.roller, throw.dice)
                 char_dm_p = self.characteristic_dm(throw.characteristic)
-                mods_p = (
-                    [
+                mods_p = _roll_modifier(throw.dice, roll_mod_p)
+                if throw.characteristic is not None:
+                    mods_p.append(
                         Modifier(
                             f"Characteristic {self.characteristics[throw.characteristic]}",
                             char_dm_p,
                         )
-                    ]
-                    if throw.characteristic is not None
-                    else []
-                )
+                    )
                 total_p = sum(faces_p) + sum(m.value for m in mods_p)
                 success_p = total_p >= throw.target
                 self.history.append(
@@ -752,8 +768,8 @@ class _Walk:
                 break
 
             continuation = params.continuation_roll
-            faces_k = _dice(self.roller, continuation)
-            total_k = sum(faces_k)
+            faces_k, continuation_modifier = _dice(self.roller, continuation)
+            total_k = sum(faces_k) + continuation_modifier
             wants_to_continue = total_k >= params.continuation_target
             self.history.append(
                 HistoryStep(
@@ -762,7 +778,7 @@ class _Walk:
                     term=term,
                     throw=StepThrow(
                         faces=faces_k,
-                        modifiers=(),
+                        modifiers=tuple(_roll_modifier(continuation, continuation_modifier)),
                         total=total_k,
                         target=params.continuation_target,
                         success=wants_to_continue,
@@ -776,8 +792,8 @@ class _Walk:
                 break
 
             re_enlist = career.throws["re-enlistment"]
-            faces_r = _dice(self.roller, re_enlist.dice)
-            total_r = sum(faces_r)
+            faces_r, roll_mod_r = _dice(self.roller, re_enlist.dice)
+            total_r = sum(faces_r) + roll_mod_r
             success_r = total_r >= re_enlist.target
             self.history.append(
                 HistoryStep(
@@ -786,7 +802,7 @@ class _Walk:
                     term=term,
                     throw=StepThrow(
                         faces=faces_r,
-                        modifiers=(),
+                        modifiers=tuple(_roll_modifier(re_enlist.dice, roll_mod_r)),
                         total=total_r,
                         target=re_enlist.target,
                         success=success_r,
@@ -877,8 +893,9 @@ class _Walk:
 
     def _trigger_medical_crisis(self, career_name: str, term: int, codes: tuple[str, ...]) -> None:
         params = self.rules.chargen
-        faces = _dice(self.roller, params.medical_crisis_roll)
-        amount = sum(faces) * params.medical_crisis_multiplier
+        faces, roll_modifier = _dice(self.roller, params.medical_crisis_roll)
+        total = sum(faces) + roll_modifier
+        amount = total * params.medical_crisis_multiplier
         # Recorded before `add_debt`, which settles immediately: the step
         # that creates a debt must precede the settlement it can trigger
         # (T164).
@@ -891,7 +908,11 @@ class _Walk:
                 career=career_name,
                 term=term,
                 throw=StepThrow(
-                    faces=faces, modifiers=(), total=sum(faces), target=0, success=True
+                    faces=faces,
+                    modifiers=tuple(_roll_modifier(params.medical_crisis_roll, roll_modifier)),
+                    total=total,
+                    target=0,
+                    success=True,
                 ),
                 selected="",
                 effects=(StepEffect(kind="debt", subject="", amount=amount),),
@@ -909,15 +930,20 @@ class _Walk:
         )
 
     def _roll_injury(self, career_name: str, term: int, rank: int) -> None:
-        faces = _dice(self.roller, self.rules.mishaps.injury_roll)
-        row = self.rules.mishaps.injuries[sum(faces) - 1]
+        faces, modifier = _dice(self.roller, self.rules.mishaps.injury_roll)
+        total = sum(faces) + modifier
+        row = self.rules.mishaps.injuries[total - 1]
         self.history.append(
             HistoryStep(
                 kind="injury",
                 career=career_name,
                 term=term,
                 throw=StepThrow(
-                    faces=faces, modifiers=(), total=sum(faces), target=0, success=True
+                    faces=faces,
+                    modifiers=tuple(_roll_modifier(self.rules.mishaps.injury_roll, modifier)),
+                    total=total,
+                    target=0,
+                    success=True,
                 ),
                 selected=row.description,
                 effects=(),
@@ -937,9 +963,9 @@ class _Walk:
     ) -> None:
         career = next(c for c in self.rules.careers.values() if c.name == career_name)
         tier = self.rules.medical_tiers.tiers[career.medical_tier]
-        faces = _dice(self.roller, self.rules.medical_tiers.roll)
+        faces, roll_modifier = _dice(self.roller, self.rules.medical_tiers.roll)
         rank_bonus = rank if self.rules.medical_tiers.rank_dm else 0
-        total = sum(faces) + rank_bonus
+        total = sum(faces) + roll_modifier + rank_bonus
         paid_percent = 0
         for threshold in tier:
             if total >= threshold.target:
@@ -962,7 +988,13 @@ class _Walk:
         characteristics = tuple(
             sorted(code for code, points in reduced.items() for _ in range(points))
         )
-        throw = StepThrow(faces=faces, modifiers=(), total=total, target=0, success=True)
+        throw = StepThrow(
+            faces=faces,
+            modifiers=tuple(_roll_modifier(self.rules.medical_tiers.roll, roll_modifier)),
+            total=total,
+            target=0,
+            success=True,
+        )
         if owed <= 0:
             # The employer's share covers the bill in full: there is no
             # debt to settle later, so the points are restored immediately
@@ -1023,8 +1055,8 @@ class _Walk:
         params = self.rules.chargen
         if self.age < params.terms_aging_begins_at_age:
             return
-        faces = _dice(self.roller, self.rules.aging.roll)
-        modified = sum(faces) - self.total_terms_served
+        faces, roll_modifier = _dice(self.roller, self.rules.aging.roll)
+        modified = sum(faces) + roll_modifier - self.total_terms_served
         # Rows are sorted by minimum; find the row whose range contains modified,
         # falling back to the lowest row when modified is beneath every range (the
         # floor rule for the aging table itself).
@@ -1073,7 +1105,13 @@ class _Walk:
                 kind="aging",
                 career=career_name,
                 term=term,
-                throw=StepThrow(faces=faces, modifiers=(), total=modified, target=0, success=True),
+                throw=StepThrow(
+                    faces=faces,
+                    modifiers=tuple(_roll_modifier(self.rules.aging.roll, roll_modifier)),
+                    total=modified,
+                    target=0,
+                    success=True,
+                ),
                 selected="",
                 effects=tuple(effects),
             )
@@ -1146,12 +1184,18 @@ class _Walk:
             # many of a character's rolls" are cash, not how many of one
             # career service's are, so it is never reset per service (T147).
             if self.cash_taken < params.mustering_out_maximum_cash_rolls:
-                faces_c = _dice(self.roller, params.mustering_out_cash_choice_roll)
-                take_cash = sum(faces_c) >= params.mustering_out_cash_choice_target
+                faces_c, cash_choice_modifier = _dice(
+                    self.roller, params.mustering_out_cash_choice_roll
+                )
+                take_cash = (
+                    sum(faces_c) + cash_choice_modifier >= params.mustering_out_cash_choice_target
+                )
             if take_cash:
                 dm = params.mustering_out_retired_cash_dm if qualifies_for_pension else 0
-                faces = _dice(self.roller, params.mustering_out_roll)
-                index = max(0, min(len(career.mustering_out.cash) - 1, sum(faces) + dm - 1))
+                faces, roll_modifier = _dice(self.roller, params.mustering_out_roll)
+                index = max(
+                    0, min(len(career.mustering_out.cash) - 1, sum(faces) + roll_modifier + dm - 1)
+                )
                 amount = career.mustering_out.cash[index]
                 self.funds += amount
                 self.cash_taken += 1
@@ -1166,9 +1210,13 @@ class _Walk:
                     )
                 )
             else:
-                faces = _dice(self.roller, params.mustering_out_roll)
+                faces, roll_modifier = _dice(self.roller, params.mustering_out_roll)
                 index = max(
-                    0, min(len(career.mustering_out.benefits) - 1, sum(faces) + material_dm - 1)
+                    0,
+                    min(
+                        len(career.mustering_out.benefits) - 1,
+                        sum(faces) + roll_modifier + material_dm - 1,
+                    ),
                 )
                 item = career.mustering_out.benefits[index]
                 if isinstance(item, BenefitItem):

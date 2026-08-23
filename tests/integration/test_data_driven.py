@@ -331,5 +331,18 @@ def test_a_chargen_tables_roll_modifier_is_honored(tmp_path):
     for seed in range(20):
         baseline = generate_character(Roller(seed), packaged)
         modified = generate_character(Roller(seed), rules)
+        # Compare the "characteristics" step's own recorded effects, not the
+        # final `characteristics` dict: everything after that first step —
+        # DM-gated branching, benefits, aging — depends on the boosted
+        # scores and legitimately diverges from the baseline walk from
+        # there on.
+        baseline_effects = {
+            e.subject: e.amount
+            for e in next(s for s in baseline.history if s.kind == "characteristics").effects
+        }
+        modified_effects = {
+            e.subject: e.amount
+            for e in next(s for s in modified.history if s.kind == "characteristics").effects
+        }
         for code in packaged.characteristics.names:
-            assert modified.characteristics[code] == baseline.characteristics[code] + 1
+            assert modified_effects[code] == baseline_effects[code] + 1

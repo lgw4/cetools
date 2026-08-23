@@ -78,6 +78,18 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   raised. Every character whose walk used to reach that branch draws fewer
   dice from that point forward and produces a different rest of their life
   (FR-021, FR-056b, T160).
+- **A dice notation's own flat modifier (`"2d6+1"`) is now honored, on every
+  throw and table read the lifepath walk makes.** `_dice` used to unpack
+  `parse_notation`'s `(count, sides, modifier)` and discard the modifier,
+  so all sixteen call sites — the five career throws, the characteristics
+  roll, the draft, mishaps, injuries, continuation, the medical crisis, the
+  medical tiers, aging, and the three mustering-out reads — compared
+  `sum(faces)` against a target or used it to index a table while ignoring
+  what the file asked for; `task.roll`'s identical notation was already
+  honored and itemized. No shipped file carries a modifier, so no packaged
+  seed's output changes, but any override that sets one now takes effect,
+  itemized in the recorded step's modifiers the way `task.roll`'s is
+  (FR-056b, SC-013, T178).
 
 ### Added
 

@@ -248,7 +248,7 @@ benefits = [ ... ]
 | `always-available` | boolean | no | **New.** Default `false`. Marks the career reachable as the qualification fallback (FR-006). |
 | `re-enterable` | boolean | no | **New.** Default `false`. Marks the career available again after being left (FR-015). |
 | `throws.promotion` | throw | **no** | **Was required.** Absent for a career that offers no advancement (FR-035). |
-| `throws.*.dice` | string | **yes** | **New in v3.** Dice notation for the throw, e.g. `"2d6"`. Rejects `d66` for the same reason a chargen table's `roll` and `task.roll` do. |
+| `throws.*.dice` | string | **yes** | **New in v3.** Dice notation for the throw, e.g. `"2d6"`. Rejects `d66` for the same reason a chargen table's `roll` and `task.roll` do. A flat modifier in the notation (`"2d6+1"`) is honored: added to the throw's total and itemized in the recorded step's modifiers as `task.roll`'s own flat modifier is (`tasks.py`'s `Roll (...)` `Modifier`), not silently discarded (T178). |
 | `tables.specialist` | table | yes | **Renamed** from `tables.advanced`. |
 | `tables.advanced-education` | table | **yes** | **Was optional** (FR-034). Its `requires` gate stays declared in the file rather than being assumed by the engine. |
 | `ladders[].role` | string | **yes** | **New.** `"entry"` or `"commissioned"` (FR-007b). Exactly one ladder carries `entry`; at most one carries `commissioned`, and a career declaring `throws.commission` MUST declare one. A commission moves the character to the commissioned ladder at the lowest rank it declares. Without this field "the officer ladder is the second one listed" is a rule held in engine code. |
@@ -285,7 +285,7 @@ careers = ["Aerospace Defense", "Marine", "Maritime Defense",
 
 | Location | Type | Required | Notes |
 |---|---|---|---|
-| `roll` | string | yes | Dice notation describing a count and a side count. The `d66` literal is rejected here as it is in `task.roll`. |
+| `roll` | string | yes | Dice notation describing a count and a side count. The `d66` literal is rejected here as it is in `task.roll`. A flat modifier is honored and folded into the row index, the same way it is for every other dice-notation field in this document (T178). |
 | `careers` | array of string | yes | Non-empty. The row read is the throw's total, so **order is significant** (FR-005). Every entry must resolve to a career's declared `name`, checked as a cross-file rule; one that does not fails the run before any character is produced, rather than falling back. |
 
 The number of rows and the die are not required to agree. A die that can produce a total
