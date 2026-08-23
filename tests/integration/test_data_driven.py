@@ -11,7 +11,7 @@ import pytest
 
 from cetools.dice import Roller
 from cetools.errors import RulesDataError
-from cetools.generator import generate_character
+from cetools.generator import _Walk, generate_character
 from cetools.render import as_text
 from cetools.rules import load_rules, validate_rules
 
@@ -349,6 +349,36 @@ def test_a_chargen_tables_roll_modifier_is_honored(tmp_path):
         }
         for code in packaged.characteristics.names:
             assert modified_effects[code] == baseline_effects[code] + 1
+
+
+def test_a_gap_in_the_aging_table_is_reported_not_silently_misassigned(tmp_path):
+    # T186: `_apply_aging_if_due` (generator.py) matches a modified aging
+    # total against `AgingRow.minimum` alone, discarding `maximum` — a
+    # row's declared upper bound is parsed, validated, and unit-tested but
+    # never honored when the table is actually read, so a gapped override
+    # (which `contracts/data-files.md`'s own worked example already is)
+    # silently sends a total in the gap to whichever row sorts highest
+    # below it, rather than failing loudly.
+    block = (
+        '[[rows]]\nrange = "-3"\neffects = [{ class = "physical", count = 1, amount = -2 }]\n\n'
+    )
+    assert block in AGING
+    override = tmp_path / "aging.toml"
+    override.write_text(AGING.replace(block, "", 1), encoding="utf-8")
+    rules = load_rules(override)
+
+    found = False
+    for seed in range(200):
+        walk = _Walk(Roller(seed), rules)
+        walk.characteristics = {code: 8 for code in rules.characteristics.names}
+        walk.age = 40
+        walk.total_terms_served = 7
+        try:
+            walk._apply_aging_if_due("Navy", 1)
+        except RulesDataError:
+            found = True
+            break
+    assert found
 
 
 def test_the_mustering_out_per_term_rate_takes_effect_with_no_code_edit(tmp_path):
