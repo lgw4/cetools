@@ -382,3 +382,17 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   later throw's characteristic DM and, with it, which branch the rest of
   the walk takes — every character whose walk reaches this path changes
   from this version forward (FR-024, FR-025, FR-056b, T162).
+- **A crisis debt could precede the aging step that caused it in the
+  history.** `_apply_aging_if_due` called `_trigger_medical_crisis` from
+  inside its class-effects loop, before appending its own `aging` step, so
+  `cetools npc --full` could print a `medical-crisis` line above the
+  `aging` line that caused it — FR-030 requires the steps in the order the
+  walk occurred, which is what makes a surprising sheet diagnosable (US2
+  acceptance scenario 4). Every crisis a row's class effects raise is now
+  deferred until after the `aging` step is appended, one trigger per class
+  effect that reached the floor, same as before. **Breaking change**: an
+  aging row naming both a physical and a mental class effect that each
+  float a characteristic to the floor now draws the first effect's crisis
+  dice after the second effect's characteristic selection instead of
+  before it, changing every character whose walk reaches that branch from
+  this version forward (FR-030, FR-056b, T163).

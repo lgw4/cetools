@@ -1006,6 +1006,17 @@ class _Walk:
             if modified >= candidate.minimum:
                 row = candidate
         effects: list[StepEffect] = []
+        # Every crisis this row's effects raise is deferred to after the
+        # `aging` step below is appended (T163): the step that caused a
+        # crisis must precede it in the history, and this step isn't
+        # complete — its own `effects` aren't finished accumulating — until
+        # every one of the row's class effects has been applied. One tuple
+        # of codes per class effect that reached the floor, preserving the
+        # existing one-crisis-per-class-effect shape (a row naming both a
+        # physical and a mental class effect that each float a
+        # characteristic to the floor still raises two crisis debts, not
+        # one merged one).
+        pending_crises: list[tuple[str, ...]] = []
         for class_effect in row.effects:
             classes = self.rules.characteristics.classes
             candidates = sorted(
@@ -1029,7 +1040,7 @@ class _Walk:
                 if applied_delta < 0 and self.characteristics[code] <= self.floor():
                     crisis_codes.append(code)
             if crisis_codes:
-                self._trigger_medical_crisis(career_name, term, tuple(crisis_codes))
+                pending_crises.append(tuple(crisis_codes))
         self.history.append(
             HistoryStep(
                 kind="aging",
@@ -1040,6 +1051,8 @@ class _Walk:
                 effects=tuple(effects),
             )
         )
+        for codes in pending_crises:
+            self._trigger_medical_crisis(career_name, term, codes)
 
     def _roll_skills(self, career: CareerDefinition, count: int, term: int) -> None:
         for _ in range(count):
