@@ -389,6 +389,45 @@ class TestMedicalCrisisTriggersOnlyFromAging:
                 )
 
 
+class TestMedicalBillRestoration:
+    """FR-025's "unless the character's medical bills are paid" and
+    FR-025a's "the points restored MUST be those the covered amount pays
+    for" (T161).
+    """
+
+    def test_a_bill_paid_in_full_restores_every_point_it_covered(self):
+        from cetools.generator import _Walk
+
+        # `Roller(22).dice(2, 6)` is this test's first draw and is exactly
+        # `_raise_medical_bill`'s own tier throw: (2, 2), sum 4, which pays
+        # 75% at Navy's "service" tier — a partial share, not the full
+        # `medical.restore-cost-per-point` `_Debt` used to be given.
+        walk = _Walk(Roller(22), RULES)
+        walk.characteristics = {code: 10 for code in RULES.characteristics.names}
+        walk.funds = 100_000
+        walk._raise_medical_bill("Navy", 1, 0, {"STR": 3})
+        assert walk.debt == 0
+        assert walk.characteristics["STR"] == 13
+
+    def test_an_employer_paid_in_full_bill_restores_the_points_and_records_the_throw(self):
+        from cetools.generator import _Walk
+
+        # `Roller(0).dice(2, 6)` is (4, 4), sum 8: 100% paid at the
+        # "service" tier, so `owed` is 0 and no debt is ever created — the
+        # points must still be restored and the tier throw still recorded.
+        walk = _Walk(Roller(0), RULES)
+        walk.characteristics = {code: 10 for code in RULES.characteristics.names}
+        walk.funds = 100_000
+        before = len(walk.history)
+        walk._raise_medical_bill("Navy", 1, 0, {"STR": 3})
+        assert walk.debt == 0
+        assert walk.debts == []
+        assert walk.characteristics["STR"] == 13
+        assert walk.funds == 100_000
+        new_steps = walk.history[before:]
+        assert any(step.kind == "medical-bills" and step.throw is not None for step in new_steps)
+
+
 def _credits_steps(steps):
     return [
         step
