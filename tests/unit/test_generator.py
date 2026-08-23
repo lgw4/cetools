@@ -584,6 +584,50 @@ class TestAMishapsDirectReductionRaisesABill:
                 )
 
 
+class TestInjuryReductionIsFiledUnderTheInjuryKind:
+    """FR-030a requires each step name which kind of step it was.
+    `_apply_class_effect` hard-codes `kind="mishap"` on the step it
+    appends, and `_roll_injury` calls it, so the reduction an injury row
+    produced was recorded under the wrong kind — indistinguishable from a
+    mishap row's own direct reduction (T174).
+    """
+
+    def test_the_reduction_following_an_injury_step_is_kinded_injury(self):
+        for character in _characters(300):
+            for index, step in enumerate(character.history):
+                if step.kind != "injury" or index + 1 >= len(character.history):
+                    continue
+                following = character.history[index + 1]
+                if following.throw is not None or not following.effects:
+                    continue
+                assert following.kind == "injury", (
+                    f"seed {character.seed}: the reduction following an injury "
+                    f"step at history index {index} is kinded {following.kind!r}"
+                )
+
+    def test_apply_class_effect_records_the_kind_it_is_given(self):
+        from cetools.chargen import MishapEffect
+        from cetools.generator import _Walk
+
+        walk = _Walk(Roller("t174"), RULES)
+        walk.characteristics = {code: 10 for code in RULES.characteristics.names}
+        physical_class = next(
+            cls
+            for code, cls in RULES.characteristics.classes.items()
+            if code in walk.characteristics
+        )
+        effect = MishapEffect(
+            kind="characteristic-class",
+            characteristic_class=physical_class,
+            count=1,
+            amount="-1",
+        )
+        before = len(walk.history)
+        walk._apply_class_effect(effect, "TestCareer", 1, kind="injury")
+        recorded = walk.history[before:]
+        assert recorded and recorded[-1].kind == "injury"
+
+
 def _credits_steps(steps):
     return [
         step
