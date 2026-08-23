@@ -284,6 +284,7 @@ class _Walk:
         self.title = ""
         self.draft_uses = 0
         self.cash_taken = 0
+        self.pension_qualified = False
 
     def floor(self) -> int:
         return self.rules.characteristics.floor()
@@ -1290,6 +1291,14 @@ class _Walk:
         """
         params = self.rules.chargen
         qualifies_for_pension = terms >= params.pension_minimum_terms
+        if qualifies_for_pension:
+            # FR-017's cash modifier applies "exactly when *the character*
+            # qualified for the pension" — the same character-wide scope
+            # FR-016 already gives the cash-roll cap (T147) — not only when
+            # *this* service's own terms qualify, so a character who
+            # qualified in an earlier career carries the modifier into
+            # every later service's cash rolls too (T202).
+            self.pension_qualified = True
         rank_bonus = self._highest_matching_rank_row(params.mustering_out_rank_benefits, rank)
         material_dm = self._highest_matching_rank_row(params.mustering_out_material_rank_dm, rank)
         # A mishap's `forfeit-career-benefits` effect forfeits every roll
@@ -1319,7 +1328,7 @@ class _Walk:
                 params.mustering_out_cash_choice_roll, cash_choice_modifier
             )
             if take_cash:
-                dm = params.mustering_out_retired_cash_dm if qualifies_for_pension else 0
+                dm = params.mustering_out_retired_cash_dm if self.pension_qualified else 0
                 faces, roll_modifier = _dice(self.roller, params.mustering_out_roll)
                 amount = _table_row(
                     f"{career.name}: mustering-out.cash",

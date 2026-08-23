@@ -764,6 +764,47 @@ class TestMusteringOut:
         )
         assert not any(s.kind == "benefit" for s in walk.history)
 
+    def test_retired_cash_dm_applies_once_the_character_has_ever_qualified(self):
+        # T202: FR-017's modifier applies "exactly when *the character*
+        # qualified for the pension" — the same character-wide scope FR-016
+        # already gives the cash-roll cap (T147) — but `qualifies_for_pension`
+        # was a local recomputed from *this service's* own terms, so a
+        # character who qualified in an earlier career and then musters out
+        # of a short later one took an undiscounted cash roll. Navy's cash
+        # table reads `[1000, 5000, 10000, 10000, 20000, 50000, 50000]`: a
+        # natural 5 with no DM lands on row 5 (`20000`); with the packaged
+        # `retired-cash-dm = 1` it lands on row 6 (`50000`) instead.
+        from cetools.generator import _Walk
+
+        class _FixedRoller:
+            def __init__(self, sequence):
+                self._sequence = list(sequence)
+
+            def dice(self, count, sides):
+                return tuple(self._sequence.pop(0) for _ in range(count))
+
+            def die(self, sides):
+                return self._sequence.pop(0)
+
+        career = RULES.careers["navy"]
+        assert career.mustering_out.cash[4] == 20000
+        assert career.mustering_out.cash[5] == 50000
+
+        walk = _Walk(Roller(0), RULES)
+        walk.characteristics = {code: 7 for code in RULES.characteristics.names}
+        # `terms=5` meets `pension.minimum-terms`, qualifying the character
+        # for a pension; `benefit_rolls=0` takes no rolls, so no dice are
+        # drawn by this call.
+        walk.muster_out_service(career, terms=5, ladder="", rank=0, benefit_rolls=0)
+
+        # A second, short service that would not itself qualify: the
+        # cash-choice die (face 4, target 4) takes cash, and the
+        # mustering-out die (face 5) is the natural total under test.
+        walk.roller = _FixedRoller([4, 5])
+        funds_before = walk.funds
+        walk.muster_out_service(career, terms=1, ladder="", rank=0, benefit_rolls=1)
+        assert walk.funds - funds_before == 50000
+
     def test_the_cash_roll_cap_is_shared_across_a_characters_whole_life(self):
         # FR-016 caps "how many of a character's rolls" may be taken as
         # cash — a character-wide count, not one that resets with every

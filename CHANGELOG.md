@@ -259,6 +259,20 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   fallback route specifically, which every character's history from this
   version forward may now carry one more, correctly-named, step for
   (FR-015a, FR-030, FR-030a, T189, T201).
+- **The retired cash modifier applied by the current service's own terms,
+  not by whether the character had ever qualified for a pension.** FR-017
+  gives the modifier the same character-wide scope FR-016 already gives
+  the cash-roll cap (T147): it applies once the character has qualified,
+  in any single career, not only when the service currently mustering out
+  does. A character who qualified in an earlier career and mustered out
+  of a later, shorter one took an undiscounted cash roll — 90 of 20,000
+  sampled characters. `_Walk` now remembers whether the character has
+  ever qualified and reads that instead. A career service reached after
+  an earlier pension-qualifying one now applies the modifier to its cash
+  rolls where it previously did not, changing the funds (and, through
+  `mustering-out.cash`'s row spacing, which item or amount) every such
+  character's walk produces from this version forward (FR-017, FR-016,
+  FR-056b, T202).
 
 ### Added
 
