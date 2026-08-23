@@ -206,24 +206,15 @@ def _sort_key(text: str) -> tuple[str, str]:
 
 
 def _characteristic_profile(character: Character) -> str:
-    """One pseudo-hex symbol per characteristic, in `character.characteristics`'
-    own order, which is already the characteristics registry's file order
-    (data-model.md) — the generator built that mapping by iterating the
-    registry, so no separate registry lookup is needed for order.
-
-    The *symbols themselves* do need the registry, which `as_text` has no
-    parameter to receive (contracts/library-api.md pins its signature to
-    `(result, *, full=False)`). This loads the packaged rules for that lookup
-    alone, the same fallback `tasks.check` uses for its own `rules=None`. A
-    character generated under an overridden pseudo-hex table renders against
-    the *packaged* one here, which is a known gap `--rules-data` characters
-    may hit; there is no override-carrying seam in this contract to close it
-    through.
+    """One pseudo-hex symbol per characteristic, read from
+    `character.characteristic_symbols` (T159). `as_text` has no parameter to
+    receive the rules that generated `character` (contracts/library-api.md
+    pins its signature to `(result, *, full=False)`), so the symbols travel
+    on the character itself rather than being recomputed here against
+    whatever rules happen to be packaged — the seam a `--rules-data` override
+    needs to reach this rendering at all.
     """
-    from cetools.rules import load_rules
-
-    registry = load_rules().characteristics
-    return "".join(registry.symbol(score) for score in character.characteristics.values())
+    return "".join(character.characteristic_symbols)
 
 
 def _careers_line(character: Character) -> str:

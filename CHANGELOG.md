@@ -331,3 +331,13 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   changed as a result — and `test_name_tables.py` now asserts that every
   `source` names a checkable reference (contains a URL) rather than only
   that it is non-empty (FR-043e, T149).
+- **A character generated under `--rules-data` rendered its pseudo-hex
+  profile against the *packaged* symbol table, not the override's.**
+  `_characteristic_profile` called `load_rules()` with no override to look
+  its symbols up in, so an overridden `[pseudo-hex]` table changed nothing
+  about what a character's sheet showed — swapping data did not change
+  output, contradicting Constitution V. `Character` gains
+  `characteristic_symbols`, one pseudo-hex symbol per `characteristics`
+  entry computed at generation time from the rules that produced the
+  character; the renderer reads it instead of reloading the packaged
+  registry (Constitution V, FR-043, FR-058, T159).

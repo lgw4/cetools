@@ -30,6 +30,7 @@ Character
 ├── surname_region   : str                   ""
 ├── title            : str                   rank title attached to the rendered name; "" if none
 ├── characteristics  : Mapping[str, int]     in the characteristics registry's order
+├── characteristic_symbols : tuple[str, ...] one pseudo-hex symbol per characteristic (T159)
 ├── skills           : tuple[CharacterSkill, ...]
 ├── careers          : tuple[CareerService, ...]   in the order entered
 ├── age              : int
@@ -53,6 +54,7 @@ Character
 | `surname_region` | `str` | The region the surname table declared, or `""`. Recorded so SC-019's weighting check reads a field rather than splitting rendered text. |
 | `title` | `str` | The rank title from the most recently served career whose ladder names one for the rank held (FR-047c). `""` when no career titled them. |
 | `characteristics` | `Mapping[str, int]` | Keyed by registry code, in the registry's file order, which is the order the UPP renders in. Every value is within the pseudo-hex range (research R13). |
+| `characteristic_symbols` | `tuple[str, ...]` | One pseudo-hex symbol per `characteristics` entry, in the same order, computed from the rules that generated this character. `as_text`'s signature carries no rules parameter, so the profile renders from this field rather than from whatever rules happen to be packaged when it renders (T159). |
 | `skills` | `tuple[CharacterSkill, ...]` | Unsorted here; the renderer sorts. Held in acquisition order so the history and the sheet can be reconciled. |
 | `careers` | `tuple[CareerService, ...]` | At least one. In the order entered. |
 | `age` | `int` | Starting age plus the years each term cost, by how it ended. |

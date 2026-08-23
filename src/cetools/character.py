@@ -144,6 +144,13 @@ class CareerService:
 class Character:
     """A fully lived character. Always alive, always named, always
     internally consistent (FR-022, FR-023, SC-003).
+
+    `characteristic_symbols` carries the pseudo-hex profile the *rules that
+    generated this character* declare, one symbol per `characteristics`
+    entry in the same order — `as_text`'s signature carries no rules
+    parameter (contracts/library-api.md), so a character generated under an
+    override renders correctly only if it carries its own symbols rather
+    than the renderer reloading the packaged table (T159).
     """
 
     seed: int
@@ -153,6 +160,7 @@ class Character:
     surname_region: str
     title: str
     characteristics: Mapping[str, int]
+    characteristic_symbols: tuple[str, ...]
     skills: tuple[CharacterSkill, ...]
     careers: tuple[CareerService, ...]
     age: int

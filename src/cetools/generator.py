@@ -1216,6 +1216,9 @@ def generate_character(roller: Roller, rules: RulesData, *, name: str | None = N
         surname_region=surname_region,
         title=walk.title,
         characteristics=dict(walk.characteristics),
+        characteristic_symbols=tuple(
+            rules.characteristics.symbol(score) for score in walk.characteristics.values()
+        ),
         skills=walk.skills.as_tuple(),
         careers=tuple(walk.career_services),
         age=walk.age,

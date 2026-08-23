@@ -77,6 +77,7 @@ class TestFieldShapes:
             "surname_region",
             "title",
             "characteristics",
+            "characteristic_symbols",
             "skills",
             "careers",
             "age",
@@ -204,6 +205,7 @@ def _character(**overrides) -> Character:
         surname_region="Europe",
         title="",
         characteristics={"STR": 7},
+        characteristic_symbols=("7",),
         skills=(CharacterSkill(name="Gun Combat", specialty=None, level=0),),
         careers=(
             CareerService(

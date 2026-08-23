@@ -117,6 +117,7 @@ class Character:
     surname_region: str
     title: str
     characteristics: Mapping[str, int]
+    characteristic_symbols: tuple[str, ...]   # NEW (Phase 9 T159)
     skills: tuple[CharacterSkill, ...]
     careers: tuple[CareerService, ...]
     age: int

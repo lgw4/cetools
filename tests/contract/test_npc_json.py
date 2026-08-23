@@ -31,6 +31,7 @@ _CHARACTER = Character(
     surname_region="Africa",
     title="Lieutenant",
     characteristics={"STR": 9, "DEX": 10, "END": 7, "INT": 11, "EDU": 8, "SOC": 6},
+    characteristic_symbols=("9", "A", "7", "B", "8", "6"),
     skills=(
         CharacterSkill(name="Comms", specialty=None, level=1),
         CharacterSkill(name="Gun Combat", specialty="Slug Rifle", level=1),

@@ -20,7 +20,10 @@ from cetools.character import (
 )
 from cetools.provenance import Provenance
 from cetools.render import as_text
+from cetools.rules import load_rules
 from cetools.tasks import Modifier
+
+_PACKAGED_CHARACTERISTICS = load_rules().characteristics
 
 _DUMMY_HISTORY = (
     HistoryStep(kind="characteristics", career="", term=0, throw=None, selected="", effects=()),
@@ -66,6 +69,10 @@ def _character(**overrides):
         history=_DUMMY_HISTORY,
     )
     fields.update(overrides)
+    fields.setdefault(
+        "characteristic_symbols",
+        tuple(_PACKAGED_CHARACTERISTICS.symbol(v) for v in fields["characteristics"].values()),
+    )
     return Character(**fields)
 
 
