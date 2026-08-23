@@ -646,9 +646,7 @@ def test_a_gap_in_the_characteristic_modifier_bands_is_rejected(tmp_path):
     report = validate_rules(tmp_path)
     assert not report.valid
     assert any(
-        p.file == "characteristics.toml"
-        and p.location == "modifier-dms"
-        and "gap" in p.found
+        p.file == "characteristics.toml" and p.location == "modifier-dms" and "gap" in p.found
         for p in report.problems
     )
 
@@ -664,8 +662,6 @@ def test_an_overlap_in_the_characteristic_modifier_bands_is_rejected(tmp_path):
     report = validate_rules(tmp_path)
     assert not report.valid
     assert any(
-        p.file == "characteristics.toml"
-        and p.location == "modifier-dms"
-        and "overlap" in p.found
+        p.file == "characteristics.toml" and p.location == "modifier-dms" and "overlap" in p.found
         for p in report.problems
     )

@@ -879,6 +879,41 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
             )
         )
 
+    if characteristics is not None and characteristics.bands:
+        # `characteristic_dm` (registries.py) raises `RulesDataError` for a
+        # score no band covers and, on overlap, silently returns whichever
+        # band sorts first by `minimum` — neither is caught at load, so a
+        # data set that "validates" can still fail (or silently misbehave)
+        # mid-walk on an ordinary score (T180).
+        characteristics_basename = resolved_singleton["characteristics"]
+        bands = characteristics.bands
+        band_problem: str | None = None
+        expected = characteristics.pseudo_hex_minimum
+        if bands[0].minimum != expected:
+            band_problem = f"a gap: no band covers score {expected}"
+        else:
+            for previous, current in zip(bands, bands[1:]):
+                if previous.maximum is None:
+                    break
+                if current.minimum > previous.maximum + 1:
+                    band_problem = f"a gap: no band covers score {previous.maximum + 1}"
+                    break
+                if current.minimum <= previous.maximum:
+                    band_problem = f"an overlap: more than one band covers score {current.minimum}"
+                    break
+        if band_problem is not None:
+            problems.append(
+                ValidationProblem(
+                    file=characteristics_basename,
+                    location="modifier-dms",
+                    found=band_problem,
+                    expected=(
+                        f"bands covering every score from {expected} up to the unbounded "
+                        "band with no gap and no overlap"
+                    ),
+                )
+            )
+
     characteristic_classes = (
         frozenset(characteristics.classes.values()) if characteristics is not None else frozenset()
     )

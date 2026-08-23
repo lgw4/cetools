@@ -158,7 +158,7 @@ symbols = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
 |---|---|---|---|
 | `characteristics.<CODE>.label` | string | yes | Non-empty. The human label. |
 | `characteristics.<CODE>.class` | string | yes | A class name. Any string; the shipped data uses `physical` and `mental`. Referenced by the aging and mishap tables (research R12). |
-| `modifier-dms.*` | integer | yes, at least one | Keys are `N-M` or `N+`. Exactly one band unbounded. The rules the previous feature enforced on `characteristic-dms`, unchanged. |
+| `modifier-dms.*` | integer | yes, at least one | Keys are `N-M` or `N+`. Exactly one band unbounded. The rules the previous feature enforced on `characteristic-dms`, unchanged. A cross-file rule additionally requires the bands to cover every integer from `pseudo-hex.minimum` up to the unbounded band with no gap and no overlap — a score `characteristic_dm` can be asked for that no band covers, or that two bands both claim, is refused at load rather than raising `RulesDataError` mid-walk or silently favoring whichever band happens to sort first (T180). |
 | `pseudo-hex.minimum` | integer | yes | The score the first symbol stands for. |
 | `pseudo-hex.symbols` | array of string | yes | Non-empty. `symbols[score - minimum]` is the symbol for that score. Each entry non-empty. |
 

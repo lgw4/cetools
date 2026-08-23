@@ -505,3 +505,12 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   requires. Rendering is now inside its own `try/except`, using the same
   error-reporting path (`_report_cetools_error`) the generation step
   already uses (FR-054, T175).
+- **Nothing validated that the characteristic modifier bands in force
+  cover every score `characteristic_dm` can be asked for.** A gap made an
+  ordinary walk raise `RulesDataError` mid-generation on a data set
+  `cetools validate` had already called valid; an overlap left one band's
+  claim on a score silently unreachable, resolved only by which band
+  sorts first by `minimum`. A new cross-file rule now requires the bands
+  to cover every integer from the pseudo-hex minimum up to the unbounded
+  band with no gap and no overlap. The shipped bands already satisfy it,
+  so no packaged seed's output changes (FR-039, Constitution V, T180).
