@@ -113,6 +113,7 @@ def valid_data():
                 "ranks": [
                     {"rank": 1, "title": "Able Spacehand"},
                     {"rank": 5, "title": "Petty Officer", "bonus": "Mechanical 1"},
+                    {"rank": 0, "title": "Recruit"},
                 ],
             },
             {
@@ -179,12 +180,12 @@ class TestValidCareer:
         assert len(career.ladders) == 2
         enlisted = next(ladder for ladder in career.ladders if ladder.name == "enlisted")
         assert isinstance(enlisted, RankLadder)
-        assert enlisted.ranks[0] == Rank(rank=1, title="Able Spacehand", bonus=None)
+        assert enlisted.ranks[0] == Rank(rank=0, title="Recruit", bonus=None)
 
     def test_rank_bonus_resolved_as_notation(self, valid_data, characteristics, skills, benefits):
         career, _ = parse_career(valid_data, FILE, characteristics, skills, benefits)
         enlisted = next(ladder for ladder in career.ladders if ladder.name == "enlisted")
-        petty_officer = enlisted.ranks[1]
+        petty_officer = enlisted.ranks[2]
         assert petty_officer.bonus == SkillGrant(
             skill=SkillReference(name="Mechanical", specialty=None), level=1
         )
@@ -376,11 +377,12 @@ class TestRankPositions:
         data["ladders"][0]["ranks"] = [
             {"rank": 5, "title": "Petty Officer"},
             {"rank": 1, "title": "Able Spacehand"},
+            {"rank": 0, "title": "Recruit"},
         ]
         career, problems = parse_career(data, FILE, characteristics, skills, benefits)
         assert problems == ()
         enlisted = next(ladder for ladder in career.ladders if ladder.name == "enlisted")
-        assert [rank.rank for rank in enlisted.ranks] == [1, 5]
+        assert [rank.rank for rank in enlisted.ranks] == [0, 1, 5]
 
 
 class TestDistinctLadderNames:
@@ -1128,3 +1130,22 @@ class TestLadderRole:
         assert problems == ()
         assert len(career.ladders) == 1
         assert career.ladders[0].role == "entry"
+
+    def test_an_entry_ladder_with_no_rank_0_is_rejected(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        # T182: `run()` (generator.py) grants the entry ladder's rank-zero
+        # bonus with a bare `next(r for r in ladder.ranks if r.rank == 0)`
+        # on every career entry (FR-007) — an invariant nothing validated,
+        # so an entry ladder starting above rank 0 raised `StopIteration`
+        # mid-walk on data that had already validated clean.
+        data = copy.deepcopy(valid_data)
+        data["ladders"][0]["ranks"] = [
+            rank for rank in data["ladders"][0]["ranks"] if rank["rank"] != 0
+        ]
+        assert all(rank["rank"] != 0 for rank in data["ladders"][0]["ranks"])
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        matching = [p for p in problems if p.location == "ladders[0].ranks"]
+        assert len(matching) == 1
+        assert "rank 0" in matching[0].expected

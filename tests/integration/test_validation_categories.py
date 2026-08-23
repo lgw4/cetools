@@ -21,6 +21,7 @@ DRAFT = (_DATA / "chargen" / "draft.toml").read_text(encoding="utf-8")
 AGING = (_DATA / "chargen" / "aging.toml").read_text(encoding="utf-8")
 SURNAMES_EUROPE = (_DATA / "names" / "surnames-europe.toml").read_text(encoding="utf-8")
 DRIFTER = (_DATA / "careers" / "drifter.toml").read_text(encoding="utf-8")
+SCOUT = (_DATA / "careers" / "scout.toml").read_text(encoding="utf-8")
 
 
 def _write(tmp_path: Path, name: str, text: str) -> Path:
@@ -647,6 +648,28 @@ def test_a_gap_in_the_characteristic_modifier_bands_is_rejected(tmp_path):
     assert not report.valid
     assert any(
         p.file == "characteristics.toml" and p.location == "modifier-dms" and "gap" in p.found
+        for p in report.problems
+    )
+
+
+def test_an_entry_ladder_with_no_rank_0_is_rejected(tmp_path):
+    # T182: the same bare-`next`-over-an-unvalidated-invariant shape T166
+    # was raised CRITICAL for, left for this precondition — `run()`
+    # (generator.py) grants the entry ladder's rank-zero bonus
+    # unconditionally on every career entry (FR-007), so an entry ladder
+    # starting at rank 1 validates clean and then raises `StopIteration`
+    # mid-walk.
+    text = SCOUT.replace(
+        '{ rank = 0, title = "Scout", bonus = "Survival 1" }',
+        '{ rank = 1, title = "Scout", bonus = "Survival 1" }',
+        1,
+    )
+    assert text != SCOUT
+    _write(tmp_path, "scout.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        p.file == "scout.toml" and p.location == "ladders[0].ranks" and "rank 0" in p.expected
         for p in report.problems
     )
 
