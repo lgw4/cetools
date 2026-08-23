@@ -820,7 +820,9 @@ class _Walk:
             forfeit_all,
         )
 
-    def _apply_class_effect(self, effect, career_name: str, term: int) -> dict[str, int]:
+    def _apply_class_effect(
+        self, effect, career_name: str, term: int, kind: str = "mishap"
+    ) -> dict[str, int]:
         """Apply the effect and return the magnitude of each characteristic
         it actually reduced (research R13's applied amount, never the
         called-for one), keyed by code. Empty for a characteristic already
@@ -828,6 +830,12 @@ class _Walk:
         (T146). The caller decides what the reduction is worth — the term
         loop's direct mishap effects ignore it, `_roll_injury` accumulates
         it into a medical bill (T143).
+
+        `kind` names which step this reduction is recorded under (FR-030a):
+        `"mishap"` for the term loop's own direct effects, the default, or
+        `"injury"` when `_roll_injury` is the caller — an injury's
+        reduction is otherwise indistinguishable from a mishap row's own
+        (T174).
 
         Never raises a medical crisis, even when a reduction floors a
         characteristic: FR-021 defines a crisis as arising from an *aging*
@@ -857,7 +865,7 @@ class _Walk:
                 reduced[code] = -applied_delta
         self.history.append(
             HistoryStep(
-                kind="mishap",
+                kind=kind,
                 career=career_name,
                 term=term,
                 throw=None,
@@ -918,7 +926,8 @@ class _Walk:
         reduced: dict[str, int] = {}
         for effect in row.effects:
             if effect.kind == "characteristic-class":
-                for code, amount in self._apply_class_effect(effect, career_name, term).items():
+                effect_reduced = self._apply_class_effect(effect, career_name, term, kind="injury")
+                for code, amount in effect_reduced.items():
                     reduced[code] = reduced.get(code, 0) + amount
         if reduced:
             self._raise_medical_bill(career_name, term, rank, reduced)

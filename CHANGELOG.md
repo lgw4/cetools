@@ -470,3 +470,10 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   `generate_batch`, and `cetools npc --name` now all refuse a name
   containing a tab or a newline, on the same terms T148's empty-name
   refusal already uses (FR-044, FR-046, FR-048a, FR-053c, T170).
+- **An injury's characteristic reduction was recorded under the wrong step
+  kind.** `_apply_class_effect` hard-coded `kind="mishap"` on the step it
+  appends, and `_roll_injury` called it for the reduction an injury row
+  produces, so that reduction was indistinguishable in the history from a
+  mishap row's own direct reduction. FR-030a requires each step name which
+  kind of step it was. `_apply_class_effect` now takes a `kind` parameter
+  (`"mishap"` by default, `"injury"` from `_roll_injury`) (FR-030a, T174).
