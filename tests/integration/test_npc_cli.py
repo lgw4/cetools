@@ -87,6 +87,26 @@ def test_a_name_carrying_a_tab_or_a_newline_is_a_usage_error():
         assert result.stdout == ""
 
 
+def test_a_render_time_failure_is_reported_cleanly_not_as_a_traceback(monkeypatch):
+    # T175: `as_text`/`as_json` are called outside the command's
+    # `try/except CetoolsError`, so a render-time failure (e.g.
+    # `CharacteristicRegistry.symbol` raising `RulesDataError` for a score
+    # outside the declared range) writes an unhandled traceback rather
+    # than the reason FR-054 requires, after `Seed:` and `Rules:` have
+    # already gone to standard error.
+    from cetools.errors import CetoolsError
+
+    def _boom(*args, **kwargs):
+        raise CetoolsError("boom")
+
+    monkeypatch.setattr("cetools.cli.as_text", _boom)
+    result = runner.invoke(app, ["npc", "--seed", "session-alpha"])
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    assert result.exception is None
+    assert "boom" in result.stderr
+
+
 def test_count_zero_is_a_usage_error_naming_count():
     result = runner.invoke(app, ["npc", "--seed", "session-alpha", "--count", "0"])
     assert result.exit_code == 2
