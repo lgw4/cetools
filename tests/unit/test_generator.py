@@ -295,7 +295,15 @@ class TestAlwaysLiving:
                 if mishap_step.selected in forfeit_all_kinds:
                     assert service.benefit_rolls == 0
                     continue
-                assert service.benefit_rolls == max(0, service.terms - 1)
+                # `benefit_rolls` records the rolls actually taken (T188):
+                # the term-derived count plus the rank-derived bonus, not
+                # the term-derived half alone.
+                from cetools.generator import _Walk
+
+                rank_bonus = _Walk._highest_matching_rank_row(
+                    RULES.chargen.mustering_out_rank_benefits, service.rank
+                )
+                assert service.benefit_rolls == max(0, service.terms - 1) + rank_bonus
                 if service.terms > 1:
                     found_multi_term_mishap = True
         assert found_multi_term_mishap

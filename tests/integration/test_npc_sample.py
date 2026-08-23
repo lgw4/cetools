@@ -151,23 +151,27 @@ class TestAlwaysLivingAndConsistency:
 
                 # The benefit rolls taken match the terms served (FR-020's
                 # exactly-once forfeiture) and the rank reached (the rank
-                # bonus `muster_out_service` adds before rolling).
+                # bonus `muster_out_service` adds before rolling) — both
+                # halves, since `benefit_rolls` records the rolls actually
+                # taken, not the term-derived half alone (T188).
                 forfeit_all = row is not None and any(
                     effect.kind == "forfeit-career-benefits" for effect in row.effects
                 )
                 forfeited_terms = 1 if row is not None else 0
-                expected_benefit_rolls = (
-                    0 if forfeit_all else max(0, service.terms - forfeited_terms)
-                )
-                assert service.benefit_rolls == expected_benefit_rolls
                 rank_bonus = _Walk._highest_matching_rank_row(
                     params.mustering_out_rank_benefits, service.rank
                 )
+                expected_benefit_rolls = (
+                    0
+                    if forfeit_all
+                    else max(0, service.terms - forfeited_terms) + rank_bonus
+                )
+                assert service.benefit_rolls == expected_benefit_rolls
                 mustering_steps = sum(1 for s in steps if s.kind == "benefit" and s.term == 0)
                 # A forfeited service takes no rolls at all, rank-derived
                 # bonus included — not merely the term-count half of it
                 # `benefit_rolls` already records (T168).
-                expected_mustering_steps = 0 if forfeit_all else service.benefit_rolls + rank_bonus
+                expected_mustering_steps = 0 if forfeit_all else service.benefit_rolls
                 assert mustering_steps == expected_mustering_steps
 
                 # A pension matches the terms served in a single career,
