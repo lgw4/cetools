@@ -577,6 +577,23 @@ class TestMusteringOut:
         assert steps[0].effects == (StepEffect(kind="characteristic", subject="SOC", amount=1),)
         assert walk.characteristics["SOC"] == 8
 
+    def test_forfeited_benefits_take_no_rank_derived_rolls_either(self):
+        # `run_term_loop` already zeros `benefit_rolls` for a mishap's
+        # `forfeit-career-benefits` effect (T145), but `muster_out_service`
+        # added the rank-derived bonus on top regardless, so a character
+        # dishonorably discharged or imprisoned at rank 6 (extra = 3, per
+        # chargen-parameters.toml's `rank-benefits`) still took three rolls
+        # from a service that recorded taking none (T168).
+        from cetools.generator import _Walk
+
+        career = RULES.careers["navy"]
+        walk = _Walk(Roller(1), RULES)
+        walk.characteristics = {code: 7 for code in RULES.characteristics.names}
+        walk.muster_out_service(
+            career, terms=4, ladder="", rank=6, benefit_rolls=0, forfeit_all=True
+        )
+        assert not any(s.kind == "benefit" for s in walk.history)
+
     def test_the_cash_roll_cap_is_shared_across_a_characters_whole_life(self):
         # FR-016 caps "how many of a character's rolls" may be taken as
         # cash — a character-wide count, not one that resets with every
