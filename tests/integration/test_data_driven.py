@@ -320,8 +320,13 @@ def test_a_throws_dice_modifier_is_honored_and_itemized(tmp_path):
 
 
 def test_a_chargen_tables_roll_modifier_is_honored(tmp_path):
-    # T178: the same discarded modifier on `[characteristics].roll`, which
-    # carries no `StepThrow` to itemize into but must still change the total.
+    # T178/T198: the modifier changes every rolled score correctly, but the
+    # "characteristics" step's single `StepThrow` — covering all six
+    # per-characteristic rolls — recorded none of their six modifiers, so
+    # `total` (`sum(faces)`) fell short of the record's own promise that
+    # `total == sum(faces) + the modifier values`
+    # (contracts/json-output.md): the `+6` the file asked for reached the
+    # sheet and not the record of how it got there.
     block = '[characteristics]\nroll = "2d6"'
     assert block in CHARGEN_PARAMETERS
     override = tmp_path / "chargen-parameters.toml"
@@ -334,21 +339,23 @@ def test_a_chargen_tables_roll_modifier_is_honored(tmp_path):
     for seed in range(20):
         baseline = generate_character(Roller(seed), packaged)
         modified = generate_character(Roller(seed), rules)
+        baseline_step = next(s for s in baseline.history if s.kind == "characteristics")
+        modified_step = next(s for s in modified.history if s.kind == "characteristics")
         # Compare the "characteristics" step's own recorded effects, not the
         # final `characteristics` dict: everything after that first step —
         # DM-gated branching, benefits, aging — depends on the boosted
         # scores and legitimately diverges from the baseline walk from
         # there on.
-        baseline_effects = {
-            e.subject: e.amount
-            for e in next(s for s in baseline.history if s.kind == "characteristics").effects
-        }
-        modified_effects = {
-            e.subject: e.amount
-            for e in next(s for s in modified.history if s.kind == "characteristics").effects
-        }
+        baseline_effects = {e.subject: e.amount for e in baseline_step.effects}
+        modified_effects = {e.subject: e.amount for e in modified_step.effects}
         for code in packaged.characteristics.names:
             assert modified_effects[code] == baseline_effects[code] + 1
+        assert modified_step.throw.total == sum(modified_step.throw.faces) + sum(
+            m.value for m in modified_step.throw.modifiers
+        )
+        assert sum(m.value for m in modified_step.throw.modifiers) == len(
+            packaged.characteristics.names
+        )
 
 
 def test_a_gap_in_the_aging_table_is_reported_not_silently_misassigned(tmp_path):

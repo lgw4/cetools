@@ -357,10 +357,12 @@ class _Walk:
     def roll_characteristics(self) -> None:
         effects = []
         all_faces: list[int] = []
+        all_modifiers: list[Modifier] = []
         notation = self.rules.chargen.characteristics_roll
         for code in self.rules.characteristics.names:
             faces, modifier = _dice(self.roller, notation)
             all_faces.extend(faces)
+            all_modifiers.extend(_roll_modifier(notation, modifier))
             score = sum(faces) + modifier
             self.characteristics[code] = score
             effects.append(StepEffect(kind="characteristic", subject=code, amount=score))
@@ -371,8 +373,8 @@ class _Walk:
                 term=0,
                 throw=StepThrow(
                     faces=tuple(all_faces),
-                    modifiers=(),
-                    total=sum(all_faces),
+                    modifiers=tuple(all_modifiers),
+                    total=sum(all_faces) + sum(m.value for m in all_modifiers),
                     target=0,
                     success=True,
                 ),

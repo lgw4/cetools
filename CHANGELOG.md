@@ -286,6 +286,17 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   entry, so no packaged seed's output changes; an override whose service
   table does now applies it, changing that career's basic-training step
   from this version forward (FR-007a, FR-030a, T200).
+- **The characteristics roll — the sixteenth `_dice` call site T178 missed
+  — applied its own dice-notation modifier to every rolled score but
+  recorded none of it.** The `characteristics` step's single `StepThrow`
+  (one throw across all six per-characteristic rolls) carried
+  `modifiers=()` regardless, so `total` (`sum(faces)`) fell short of
+  `contracts/data-files.md`'s own stated remedy for a modifier here: added
+  to the total and itemized in the recorded step, the way every other
+  dice-notation field's now is. No shipped file sets `[characteristics].roll`
+  to anything but a bare `2d6`, so no packaged seed's output changes; an
+  override that sets a modifier now sees it in the record it already saw
+  applied to the sheet (FR-030a, FR-030, Constitution V, `contracts/data-files.md:251`, T198).
 
 ### Added
 
