@@ -969,6 +969,39 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
                 )
             )
 
+    if aging is not None and aging.rows:
+        # `chargen.py`'s parser counts unbounded rows and sorts by
+        # `minimum`, nothing else; the aging lookup (generator.py) takes
+        # the *first* row whose range covers the modified total, so an
+        # overlap or a row sorted above the unbounded row is resolved by
+        # nothing but TOML file order and is silently unreachable once
+        # shadowed — the T180/T199 shape, for the one other positional
+        # range table in the package (T210). Unlike the characteristic
+        # bands, a gap here is permitted (the lowest row is a floor and
+        # the contract says so), so only overlap and ordering are checked.
+        aging_basename = resolved_singleton["aging-table"]
+        aging_rows = aging.rows
+        aging_row_problem: str | None = None
+        for previous, current in zip(aging_rows, aging_rows[1:]):
+            if previous.maximum is None:
+                aging_row_problem = (
+                    f"a row above the unbounded row: {current.minimum} "
+                    f"sorts higher than the unbounded row's minimum of {previous.minimum}"
+                )
+                break
+            if current.minimum <= previous.maximum:
+                aging_row_problem = f"an overlap: more than one row covers score {current.minimum}"
+                break
+        if aging_row_problem is not None:
+            problems.append(
+                ValidationProblem(
+                    file=aging_basename,
+                    location="rows",
+                    found=aging_row_problem,
+                    expected="exactly one row unbounded above, with no overlap between rows",
+                )
+            )
+
     characteristic_classes = (
         frozenset(characteristics.classes.values()) if characteristics is not None else frozenset()
     )

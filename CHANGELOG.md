@@ -808,3 +808,18 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   reaches outside the declared range. The packaged roll (`2d6`) falls well
   within the packaged range, so no packaged seed's output changes (US4
   acceptance scenario 4, FR-039, FR-054, T209).
+- **Nothing validated that the aging table's rows are free of overlap or
+  that its unbounded row sorts highest.** The aging lookup takes the first
+  row whose range covers a modified total, and the parser only counts
+  unbounded rows before sorting the rest by `minimum` — the same shape
+  T180 and T199 fixed for the characteristic modifier bands, left for the
+  one other positional range table in the package. An override changing
+  the shipped unbounded row from `"1+"` to `"-1+"`, one character away
+  from the natural way to say "aging stops hurting at -1", validated
+  clean and then read a row silently shadowed by TOML file order rather
+  than the row its author wrote. A new cross-file rule rejects an
+  overlapping row and a row sorted above the unbounded one; a gap remains
+  permitted, since the lowest row is already a floor. The shipped
+  `aging.toml` already satisfies both rules, so no packaged seed's output
+  changes (FR-013, FR-037, US4 acceptance scenario 4, Constitution V,
+  T210).
