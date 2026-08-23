@@ -664,3 +664,12 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   of any band. The packaged table's unbounded band already is the
   highest, so no packaged seed's output changes (US4 acceptance scenario
   4, FR-039, Constitution V, T199).
+- **Gating every one of a career's skill tables raised a bare `DiceError`
+  naming neither the career nor the gate that excluded them.** One gated
+  table correctly excludes rather than fails; nothing covered every table
+  being gated at once, which reached `roller.die(0)` directly. The walk
+  now raises `RulesDataError` naming the career and every table's gate
+  when none is eligible. `validate` still passes such an override, since
+  which characteristics a generated character carries is a runtime fact
+  the loader cannot see; the failure is now nameable rather than opaque
+  (US4 acceptance scenario 4, FR-010, FR-054, T203).

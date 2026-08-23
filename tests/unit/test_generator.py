@@ -11,6 +11,8 @@ unrelated draw-order change.
 
 from pathlib import Path
 
+import pytest
+
 from cetools.character import Character, StepEffect
 from cetools.dice import Roller
 from cetools.generator import generate_character
@@ -280,6 +282,30 @@ class TestSkillRolls:
         at_keys = {key for key, _ in _eligible_tables(navy, at_gate)}
         assert "advanced-education" not in below_keys
         assert "advanced-education" in at_keys
+
+    def test_every_table_gated_out_fails_nameably(self, tmp_path):
+        # T203: `_roll_skills` calls `self.roller.die(len(eligible))` with no
+        # guard for `eligible` being empty — legitimate for one gated table
+        # (the case above), but nothing stops an override from gating every
+        # one of a career's tables, and `roller.die(0)` then raises a bare
+        # `DiceError` naming neither the career nor the gates that excluded
+        # them.
+        from cetools.errors import RulesDataError
+        from cetools.generator import _Walk
+
+        navy = (_DATA / "careers" / "navy.toml").read_text(encoding="utf-8")
+        for block in ("[tables.personal]\n", "[tables.service]\n", "[tables.specialist]\n"):
+            assert block in navy
+            navy = navy.replace(block, block + 'requires = "EDU 12+"\n', 1)
+        (tmp_path / "navy.toml").write_text(navy, encoding="utf-8")
+        rules = load_rules(tmp_path)
+        career = rules.careers["navy"]
+
+        walk = _Walk(Roller(0), rules)
+        walk.characteristics = {code: 0 for code in rules.characteristics.names}
+        with pytest.raises(RulesDataError) as excinfo:
+            walk._roll_skills(career, 1, 1)
+        assert "Navy" in str(excinfo.value)
 
     def test_cascade_rule_chooses_a_permitted_specialty_and_records_it(self):
         cascading_skills = {

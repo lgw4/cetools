@@ -1218,6 +1218,20 @@ class _Walk:
     def _roll_skills(self, career: CareerDefinition, count: int, term: int) -> None:
         for _ in range(count):
             eligible = _eligible_tables(career, self.characteristics)
+            if not eligible:
+                # One gated table excludes rather than fails (the shipped
+                # edge case); nothing covers every one of a career's tables
+                # being gated at once, which reaches `roller.die(0)` with no
+                # career or gate named in the message (T203).
+                gates = ", ".join(
+                    f"{key} ({table.requires.characteristic} {table.requires.target}+)"
+                    for key, table in sorted(career.tables.items())
+                    if table.requires is not None
+                )
+                raise RulesDataError(
+                    f"{career.name}: every skill table is gated out by the character's "
+                    f"characteristics ({gates})"
+                )
             table_pick = self.roller.die(len(eligible))
             key, table = eligible[table_pick - 1]
             entry_pick = self.roller.die(len(table.entries))
