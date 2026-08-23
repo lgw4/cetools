@@ -51,6 +51,14 @@ def _check_override_location(path: Optional[str], param_hint: str) -> Optional[s
     return path
 
 
+def _report_cetools_error(exc: CetoolsError) -> None:
+    if isinstance(exc, RulesDataError) and exc.problems:
+        for problem in exc.problems:
+            typer.echo(_problem_line(problem), err=True)
+    else:
+        typer.echo(str(exc), err=True)
+
+
 def _version_callback(show_version: bool) -> None:
     if show_version:
         typer.echo(version("cetools"))
@@ -200,19 +208,24 @@ def npc(
         rules = load_rules(rules_data)
         batch = generate_batch(seed, rules, count=count, name=name)
     except CetoolsError as exc:
-        if isinstance(exc, RulesDataError) and exc.problems:
-            for problem in exc.problems:
-                typer.echo(_problem_line(problem), err=True)
-        else:
-            typer.echo(str(exc), err=True)
+        _report_cetools_error(exc)
         raise typer.Exit(code=1)
-    if json_output:
-        typer.echo(as_json(batch), nl=False)
-        return
-    typer.echo(f"{'Seed:'.ljust(_RULES_LABEL_WIDTH)}{batch.seed}", err=True)
-    for line in _provenance_lines(batch.provenance, indent=0):
-        typer.echo(line, err=True)
-    typer.echo(as_text(batch, full=full))
+    # Rendering stays inside its own try/except: `CharacteristicRegistry.symbol`
+    # can raise `RulesDataError` for a score outside the declared pseudo-hex
+    # range, and a render-time failure must still be the clean "reason on
+    # standard error, nothing on standard output" FR-054 requires, not an
+    # unhandled traceback (T175).
+    try:
+        if json_output:
+            typer.echo(as_json(batch), nl=False)
+            return
+        typer.echo(f"{'Seed:'.ljust(_RULES_LABEL_WIDTH)}{batch.seed}", err=True)
+        for line in _provenance_lines(batch.provenance, indent=0):
+            typer.echo(line, err=True)
+        typer.echo(as_text(batch, full=full))
+    except CetoolsError as exc:
+        _report_cetools_error(exc)
+        raise typer.Exit(code=1)
 
 
 def main() -> None:

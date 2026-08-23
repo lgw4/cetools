@@ -103,8 +103,13 @@ def test_a_render_time_failure_is_reported_cleanly_not_as_a_traceback(monkeypatc
     result = runner.invoke(app, ["npc", "--seed", "session-alpha"])
     assert result.exit_code == 1
     assert result.stdout == ""
-    assert result.exception is None
+    # A raw `CetoolsError` propagating uncaught reaches Click's own
+    # top-level exception handling and never writes "boom" anywhere; only
+    # the command's own `except CetoolsError` block does, which is what
+    # distinguishes a clean, reported failure from a crash intercepted by
+    # accident.
     assert "boom" in result.stderr
+    assert not isinstance(result.exception, CetoolsError)
 
 
 def test_count_zero_is_a_usage_error_naming_count():

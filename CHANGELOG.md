@@ -477,3 +477,12 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   mishap row's own direct reduction. FR-030a requires each step name which
   kind of step it was. `_apply_class_effect` now takes a `kind` parameter
   (`"mishap"` by default, `"injury"` from `_roll_injury`) (FR-030a, T174).
+- **A render-time failure in `cetools npc` wrote an unhandled traceback
+  instead of a clean reason.** `as_text`/`as_json` were called outside
+  the command's `try/except CetoolsError`, so a failure while rendering —
+  `CharacteristicRegistry.symbol` raises `RulesDataError` for a score
+  outside the declared pseudo-hex range — propagated uncaught rather than
+  the "reason on standard error, nothing on standard output" FR-054
+  requires. Rendering is now inside its own `try/except`, using the same
+  error-reporting path (`_report_cetools_error`) the generation step
+  already uses (FR-054, T175).
