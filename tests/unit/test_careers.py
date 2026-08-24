@@ -69,14 +69,15 @@ def benefits():
 def valid_data():
     return {
         "schema": "career",
-        "schema-version": 1,
+        "schema-version": 3,
         "name": "Navy",
+        "medical-tier": "service",
         "throws": {
-            "qualification": {"characteristic": "INT", "target": 8},
-            "survival": {"characteristic": "INT", "target": 5},
-            "commission": {"characteristic": "SOC", "target": 10},
-            "promotion": {"characteristic": "EDU", "target": 8},
-            "re-enlistment": {"target": 6},
+            "qualification": {"characteristic": "INT", "target": 8, "dice": "2d6"},
+            "survival": {"characteristic": "INT", "target": 5, "dice": "2d6"},
+            "commission": {"characteristic": "SOC", "target": 10, "dice": "2d6"},
+            "promotion": {"characteristic": "EDU", "target": 8, "dice": "2d6"},
+            "re-enlistment": {"target": 6, "dice": "2d6"},
         },
         "tables": {
             "personal": {"entries": ["STR +1", "DEX +1", "END +1", "INT +1", "EDU +1", "SOC +1"]},
@@ -90,7 +91,7 @@ def valid_data():
                     "Blade",
                 ]
             },
-            "advanced": {
+            "specialist": {
                 "entries": [
                     "Vacc Suit",
                     "Mechanical",
@@ -108,13 +109,16 @@ def valid_data():
         "ladders": [
             {
                 "name": "enlisted",
+                "role": "entry",
                 "ranks": [
                     {"rank": 1, "title": "Able Spacehand"},
                     {"rank": 5, "title": "Petty Officer", "bonus": "Mechanical 1"},
+                    {"rank": 0, "title": "Recruit"},
                 ],
             },
             {
                 "name": "officer",
+                "role": "commissioned",
                 "ranks": [
                     {"rank": 1, "title": "Ensign", "bonus": "SOC +1"},
                     {"rank": 2, "title": "Lieutenant"},
@@ -144,12 +148,12 @@ class TestValidCareer:
 
     def test_throws(self, valid_data, characteristics, skills, benefits):
         career, _ = parse_career(valid_data, FILE, characteristics, skills, benefits)
-        assert career.throws["qualification"] == Throw(characteristic="INT", target=8)
-        assert career.throws["re-enlistment"] == Throw(characteristic=None, target=6)
+        assert career.throws["qualification"] == Throw(characteristic="INT", target=8, dice="2d6")
+        assert career.throws["re-enlistment"] == Throw(characteristic=None, target=6, dice="2d6")
 
     def test_commission_present(self, valid_data, characteristics, skills, benefits):
         career, _ = parse_career(valid_data, FILE, characteristics, skills, benefits)
-        assert career.throws["commission"] == Throw(characteristic="SOC", target=10)
+        assert career.throws["commission"] == Throw(characteristic="SOC", target=10, dice="2d6")
 
     def test_tables(self, valid_data, characteristics, skills, benefits):
         career, _ = parse_career(valid_data, FILE, characteristics, skills, benefits)
@@ -176,12 +180,12 @@ class TestValidCareer:
         assert len(career.ladders) == 2
         enlisted = next(ladder for ladder in career.ladders if ladder.name == "enlisted")
         assert isinstance(enlisted, RankLadder)
-        assert enlisted.ranks[0] == Rank(rank=1, title="Able Spacehand", bonus=None)
+        assert enlisted.ranks[0] == Rank(rank=0, title="Recruit", bonus=None)
 
     def test_rank_bonus_resolved_as_notation(self, valid_data, characteristics, skills, benefits):
         career, _ = parse_career(valid_data, FILE, characteristics, skills, benefits)
         enlisted = next(ladder for ladder in career.ladders if ladder.name == "enlisted")
-        petty_officer = enlisted.ranks[1]
+        petty_officer = enlisted.ranks[2]
         assert petty_officer.bonus == SkillGrant(
             skill=SkillReference(name="Mechanical", specialty=None), level=1
         )
@@ -205,13 +209,16 @@ class TestMissingRequiredElements:
         ("path", "location"),
         [
             (("name",), "name"),
+            (("medical-tier",), "medical-tier"),
             (("throws", "qualification"), "throws.qualification"),
             (("throws", "survival"), "throws.survival"),
-            (("throws", "promotion"), "throws.promotion"),
             (("throws", "re-enlistment"), "throws.re-enlistment"),
+            (("throws", "qualification", "dice"), "throws.qualification.dice"),
+            (("throws", "re-enlistment", "dice"), "throws.re-enlistment.dice"),
             (("tables", "personal"), "tables.personal"),
             (("tables", "service"), "tables.service"),
-            (("tables", "advanced"), "tables.advanced"),
+            (("tables", "specialist"), "tables.specialist"),
+            (("tables", "advanced-education"), "tables.advanced-education"),
             (("mustering-out", "cash"), "mustering-out.cash"),
             (("mustering-out", "benefits"), "mustering-out.benefits"),
         ],
@@ -269,12 +276,15 @@ class TestOptionalElements:
         assert problems == ()
         assert "commission" not in career.throws
 
-    def test_advanced_education_may_be_absent(self, valid_data, characteristics, skills, benefits):
+    def test_promotion_may_be_absent(self, valid_data, characteristics, skills, benefits):
+        # FR-035: a career offering no advancement declares no
+        # throws.promotion, which together with no throws.commission is
+        # what grants two skill rolls a term instead (FR-009).
         data = copy.deepcopy(valid_data)
-        del data["tables"]["advanced-education"]
+        del data["throws"]["promotion"]
         career, problems = parse_career(data, FILE, characteristics, skills, benefits)
         assert problems == ()
-        assert "advanced-education" not in career.tables
+        assert "promotion" not in career.throws
 
     def test_rank_bonus_may_be_absent(self, valid_data, characteristics, skills, benefits):
         data = copy.deepcopy(valid_data)
@@ -367,11 +377,12 @@ class TestRankPositions:
         data["ladders"][0]["ranks"] = [
             {"rank": 5, "title": "Petty Officer"},
             {"rank": 1, "title": "Able Spacehand"},
+            {"rank": 0, "title": "Recruit"},
         ]
         career, problems = parse_career(data, FILE, characteristics, skills, benefits)
         assert problems == ()
         enlisted = next(ladder for ladder in career.ladders if ladder.name == "enlisted")
-        assert [rank.rank for rank in enlisted.ranks] == [1, 5]
+        assert [rank.rank for rank in enlisted.ranks] == [0, 1, 5]
 
 
 class TestDistinctLadderNames:
@@ -507,7 +518,7 @@ class TestGateIsOptionalOnEveryTable:
     table left the whole suite passing.
     """
 
-    @pytest.mark.parametrize("table", ["personal", "service", "advanced"])
+    @pytest.mark.parametrize("table", ["personal", "service", "specialist"])
     def test_a_gate_on_a_table_other_than_advanced_education(
         self, valid_data, characteristics, skills, benefits, table
     ):
@@ -621,6 +632,38 @@ class TestEmptyStringsAreRejectedWhereANameIsRequired:
         career, problems = parse_career(data, FILE, characteristics, skills, benefits)
         assert career is None
         assert "ladders[0].name" in _problem_locations(problems)
+
+
+class TestThrowDice:
+    """`throws.*.dice` is what makes a throw's dice pool data rather than the
+    `_2D6` constant the engine used to hold (FR-038, Constitution V).
+    """
+
+    def test_a_non_string_dice_is_rejected(self, valid_data, characteristics, skills, benefits):
+        data = copy.deepcopy(valid_data)
+        data["throws"]["survival"]["dice"] = 26
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        matching = [p for p in problems if p.location == "throws.survival.dice"]
+        assert len(matching) == 1
+        assert matching[0].found == "an integer"
+
+    def test_d66_is_rejected(self, valid_data, characteristics, skills, benefits):
+        # The row a throw reads is the total of its dice, not a two-digit
+        # table value: the same reason `task.roll` and every chargen table's
+        # `roll` field reject `d66` (001-dice-task-engine FR-029).
+        data = copy.deepcopy(valid_data)
+        data["throws"]["survival"]["dice"] = "d66"
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "throws.survival.dice" in _problem_locations(problems)
+
+    def test_malformed_notation_is_rejected(self, valid_data, characteristics, skills, benefits):
+        data = copy.deepcopy(valid_data)
+        data["throws"]["survival"]["dice"] = "not dice"
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "throws.survival.dice" in _problem_locations(problems)
 
 
 class TestBooleansAreNotIntegers:
@@ -936,3 +979,173 @@ class TestSpecialtyDistinguishableInLoadedData:
         assert problems == ()
         bare = career.tables["service"].entries[4]
         assert bare.specialty == "Slug Rifle"
+
+
+class TestMedicalTier:
+    def test_medical_tier_value(self, valid_data, characteristics, skills, benefits):
+        career, problems = parse_career(valid_data, FILE, characteristics, skills, benefits)
+        assert problems == ()
+        assert career.medical_tier == "service"
+
+    def test_empty_medical_tier_is_rejected(self, valid_data, characteristics, skills, benefits):
+        data = copy.deepcopy(valid_data)
+        data["medical-tier"] = ""
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "medical-tier" in _problem_locations(problems)
+
+
+class TestAlwaysAvailableAndReEnterable:
+    """Both default to `false`; only Drifter ships with either set
+    (contracts/data-files.md).
+    """
+
+    def test_always_available_defaults_to_false(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        career, problems = parse_career(valid_data, FILE, characteristics, skills, benefits)
+        assert problems == ()
+        assert career.always_available is False
+
+    def test_re_enterable_defaults_to_false(self, valid_data, characteristics, skills, benefits):
+        career, problems = parse_career(valid_data, FILE, characteristics, skills, benefits)
+        assert problems == ()
+        assert career.re_enterable is False
+
+    def test_always_available_can_be_declared_true(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        data = copy.deepcopy(valid_data)
+        data["always-available"] = True
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert problems == ()
+        assert career.always_available is True
+
+    def test_re_enterable_can_be_declared_true(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        data = copy.deepcopy(valid_data)
+        data["re-enterable"] = True
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert problems == ()
+        assert career.re_enterable is True
+
+    def test_non_boolean_always_available_is_a_type_problem(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        data = copy.deepcopy(valid_data)
+        data["always-available"] = "yes"
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        matching = [p for p in problems if p.location == "always-available"]
+        assert len(matching) == 1
+        assert matching[0].expected == "a boolean"
+
+    def test_non_boolean_re_enterable_is_a_type_problem(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        data = copy.deepcopy(valid_data)
+        data["re-enterable"] = "yes"
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        matching = [p for p in problems if p.location == "re-enterable"]
+        assert len(matching) == 1
+        assert matching[0].expected == "a boolean"
+
+
+class TestLadderRole:
+    """FR-007b: `entry` or `commissioned`, exactly one `entry` ladder, at
+    most one `commissioned` ladder.
+    """
+
+    def test_entry_ladder_role(self, valid_data, characteristics, skills, benefits):
+        career, problems = parse_career(valid_data, FILE, characteristics, skills, benefits)
+        assert problems == ()
+        enlisted = next(ladder for ladder in career.ladders if ladder.name == "enlisted")
+        assert enlisted.role == "entry"
+
+    def test_commissioned_ladder_role(self, valid_data, characteristics, skills, benefits):
+        career, problems = parse_career(valid_data, FILE, characteristics, skills, benefits)
+        assert problems == ()
+        officer = next(ladder for ladder in career.ladders if ladder.name == "officer")
+        assert officer.role == "commissioned"
+
+    def test_missing_role_is_rejected(self, valid_data, characteristics, skills, benefits):
+        data = copy.deepcopy(valid_data)
+        del data["ladders"][0]["role"]
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "ladders[0].role" in _problem_locations(problems)
+
+    def test_unrecognized_role_value_is_rejected(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        data = copy.deepcopy(valid_data)
+        data["ladders"][0]["role"] = "enlisted"
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        matching = [p for p in problems if p.location == "ladders[0].role"]
+        assert len(matching) == 1
+        assert "entry" in matching[0].expected
+        assert "commissioned" in matching[0].expected
+
+    def test_no_entry_ladder_is_rejected(self, valid_data, characteristics, skills, benefits):
+        data = copy.deepcopy(valid_data)
+        data["ladders"][0]["role"] = "commissioned"
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "ladders" in _problem_locations(problems)
+
+    def test_two_entry_ladders_is_rejected(self, valid_data, characteristics, skills, benefits):
+        data = copy.deepcopy(valid_data)
+        data["ladders"][1]["role"] = "entry"
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "ladders" in _problem_locations(problems)
+
+    def test_two_commissioned_ladders_is_rejected(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        data = copy.deepcopy(valid_data)
+        data["ladders"].append(
+            {
+                "name": "second-officer-ladder",
+                "role": "commissioned",
+                "ranks": [{"rank": 1, "title": "Test"}],
+            }
+        )
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "ladders" in _problem_locations(problems)
+
+    def test_a_career_with_only_an_entry_ladder_and_no_commissioned_one_is_valid(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        # Scout and Drifter ship with a single entry ladder and no commission
+        # throw; the "at most one commissioned" rule does not require one.
+        data = copy.deepcopy(valid_data)
+        del data["ladders"][1]
+        del data["throws"]["commission"]
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert problems == ()
+        assert len(career.ladders) == 1
+        assert career.ladders[0].role == "entry"
+
+    def test_an_entry_ladder_with_no_rank_0_is_rejected(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        # T182: `run()` (generator.py) grants the entry ladder's rank-zero
+        # bonus with a bare `next(r for r in ladder.ranks if r.rank == 0)`
+        # on every career entry (FR-007) — an invariant nothing validated,
+        # so an entry ladder starting above rank 0 raised `StopIteration`
+        # mid-walk on data that had already validated clean.
+        data = copy.deepcopy(valid_data)
+        data["ladders"][0]["ranks"] = [
+            rank for rank in data["ladders"][0]["ranks"] if rank["rank"] != 0
+        ]
+        assert all(rank["rank"] != 0 for rank in data["ladders"][0]["ranks"])
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        matching = [p for p in problems if p.location == "ladders[0].ranks"]
+        assert len(matching) == 1
+        assert "rank 0" in matching[0].expected

@@ -13,7 +13,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 
-from cetools.errors import ValidationProblem, type_name
+from cetools.errors import RulesDataError, ValidationProblem, type_name
 from cetools.notation import (
     BenefitItem,
     CharacteristicAdjustment,
@@ -30,27 +30,31 @@ from cetools.registries import (
     SkillRegistry,
     SkillResolution,
 )
+from cetools.tasks import _check_dice
 
 type SkillTableEntry = SkillReference | SkillGrant | CharacteristicAdjustment
 
 _HEADER_KEYS = frozenset({"schema", "schema-version"})
-_REQUIRED_THROWS = ("qualification", "survival", "promotion", "re-enlistment")
-_OPTIONAL_THROWS = ("commission",)
+_REQUIRED_THROWS = ("qualification", "survival", "re-enlistment")
+_OPTIONAL_THROWS = ("commission", "promotion")
 _ALL_THROWS = frozenset(_REQUIRED_THROWS) | frozenset(_OPTIONAL_THROWS)
-_REQUIRED_TABLES = ("personal", "service", "advanced")
-_OPTIONAL_TABLES = ("advanced-education",)
-_ALL_TABLES = frozenset(_REQUIRED_TABLES) | frozenset(_OPTIONAL_TABLES)
+_REQUIRED_TABLES = ("personal", "service", "specialist", "advanced-education")
+_ALL_TABLES = frozenset(_REQUIRED_TABLES)
+_LADDER_ROLES = frozenset({"entry", "commissioned"})
 
 
 @dataclass(frozen=True, slots=True)
 class Throw:
     """`characteristic` is `None` when the throw takes no characteristic
     modifier, which is how re-enlistment is thrown. `target` is a plain
-    value, never notation (FR-004a, FR-014).
+    value, never notation (FR-004a, FR-014). `dice` is the throw's own dice
+    notation, so no die anywhere in the walk is held in engine code
+    (FR-038, Constitution V).
     """
 
     characteristic: str | None
     target: int
+    dice: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,7 +76,15 @@ class Rank:
 
 @dataclass(frozen=True, slots=True)
 class RankLadder:
+    """`role` is `"entry"` or `"commissioned"` (FR-007b). Exactly one ladder
+    in a career carries `entry`; at most one carries `commissioned`, and a
+    career declaring `throws.commission` must declare one (checked as a
+    cross-file rule in `rules.py`, alongside the other checks that need a
+    fully parsed `CareerDefinition`).
+    """
+
     name: str
+    role: str
     ranks: tuple[Rank, ...]
 
 
@@ -87,6 +99,9 @@ class CareerDefinition:
     """`name` is a human label, not the composition identity (FR-019a)."""
 
     name: str
+    medical_tier: str
+    always_available: bool
+    re_enterable: bool
     throws: Mapping[str, Throw]
     tables: Mapping[str, SkillTable]
     ladders: tuple[RankLadder, ...]
@@ -171,6 +186,40 @@ def _require_int(
         expected = "a positive integer" if minimum == 1 else f"an integer >= {minimum}"
         problems.append(
             ValidationProblem(file=file, location=location, found=str(value), expected=expected)
+        )
+        return None
+    return value
+
+
+def _require_roll(
+    container: Mapping[str, object],
+    key: str,
+    file: str,
+    location: str,
+    problems: list[ValidationProblem],
+) -> str | None:
+    """A dice-notation field, rejecting `d66` for the same reason
+    `chargen._require_roll` and `task.roll` do: the row a table reads is the
+    throw's total, not a two-digit table value.
+    """
+    if key not in container:
+        problems.append(
+            ValidationProblem(file=file, location=location, found="missing", expected="a string")
+        )
+        return None
+    value = container[key]
+    if not isinstance(value, str):
+        problems.append(
+            ValidationProblem(
+                file=file, location=location, found=type_name(value), expected="a string"
+            )
+        )
+        return None
+    try:
+        _check_dice(value)
+    except RulesDataError as exc:
+        problems.append(
+            ValidationProblem(file=file, location=location, found=repr(value), expected=str(exc))
         )
         return None
     return value
@@ -274,7 +323,9 @@ def _parse_throw(
         return None
 
     problems.extend(
-        _unrecognized_key_problems(table, {"characteristic", "target"}, file, f"{location}.")
+        _unrecognized_key_problems(
+            table, {"characteristic", "target", "dice"}, file, f"{location}."
+        )
     )
 
     characteristic = None
@@ -302,9 +353,10 @@ def _parse_throw(
             characteristic = code
 
     target = _require_int(table, "target", file, f"{location}.target", problems, minimum=1)
-    if target is None:
+    dice = _require_roll(table, "dice", file, f"{location}.dice", problems)
+    if target is None or dice is None:
         return None
-    return Throw(characteristic=characteristic, target=target)
+    return Throw(characteristic=characteristic, target=target, dice=dice)
 
 
 def _parse_throws(
@@ -561,9 +613,36 @@ def _parse_ladder(
     if table is None:
         return None
 
-    problems.extend(_unrecognized_key_problems(table, {"name", "ranks"}, file, f"{location}."))
+    problems.extend(
+        _unrecognized_key_problems(table, {"name", "role", "ranks"}, file, f"{location}.")
+    )
 
     name = _require_string(table, "name", file, f"{location}.name", problems)
+
+    role = None
+    if "role" not in table:
+        problems.append(
+            ValidationProblem(
+                file=file,
+                location=f"{location}.role",
+                found="missing",
+                expected=f"one of: {', '.join(sorted(_LADDER_ROLES))}",
+            )
+        )
+    else:
+        raw_role = table["role"]
+        if raw_role not in _LADDER_ROLES:
+            problems.append(
+                ValidationProblem(
+                    file=file,
+                    location=f"{location}.role",
+                    found=repr(raw_role),
+                    expected=f"one of: {', '.join(sorted(_LADDER_ROLES))}",
+                )
+            )
+        else:
+            role = raw_role
+
     ranks: tuple[Rank, ...] | None = None
     if "ranks" not in table:
         problems.append(
@@ -579,9 +658,9 @@ def _parse_ladder(
             table["ranks"], file, f"{location}.ranks", characteristics, skills, benefits, problems
         )
 
-    if name is None or ranks is None:
+    if name is None or role is None or ranks is None:
         return None
-    return RankLadder(name=name, ranks=ranks)
+    return RankLadder(name=name, role=role, ranks=ranks)
 
 
 def _parse_ladders(
@@ -624,6 +703,48 @@ def _parse_ladders(
             continue
         names_seen.add(ladder.name)
         ladders.append(ladder)
+
+    if not ok:
+        return None
+
+    entry_count = sum(1 for ladder in ladders if ladder.role == "entry")
+    if entry_count != 1:
+        problems.append(
+            ValidationProblem(
+                file=file,
+                location="ladders",
+                found=f"{entry_count} ladders with role 'entry'",
+                expected="exactly one ladder with role 'entry'",
+            )
+        )
+        ok = False
+
+    commissioned_count = sum(1 for ladder in ladders if ladder.role == "commissioned")
+    if commissioned_count > 1:
+        problems.append(
+            ValidationProblem(
+                file=file,
+                location="ladders",
+                found=f"{commissioned_count} ladders with role 'commissioned'",
+                expected="at most one ladder with role 'commissioned'",
+            )
+        )
+        ok = False
+
+    # `run()` (generator.py) grants the entry ladder's rank-zero bonus
+    # unconditionally on entering a career (FR-007); a ladder with no
+    # rank 0 has nothing for that bare `next(...)` to find (T182).
+    for index, ladder in enumerate(ladders):
+        if ladder.role == "entry" and not any(rank.rank == 0 for rank in ladder.ranks):
+            problems.append(
+                ValidationProblem(
+                    file=file,
+                    location=f"ladders[{index}].ranks",
+                    found="no rank 0",
+                    expected="a rank 0, since the entry ladder's bonus is always granted there",
+                )
+            )
+            ok = False
 
     if not ok:
         return None
@@ -756,11 +877,54 @@ def parse_career(
     problems: list[ValidationProblem] = []
     problems.extend(
         _unrecognized_key_problems(
-            data, _HEADER_KEYS | {"name", "throws", "tables", "ladders", "mustering-out"}, file
+            data,
+            _HEADER_KEYS
+            | {
+                "name",
+                "medical-tier",
+                "always-available",
+                "re-enterable",
+                "throws",
+                "tables",
+                "ladders",
+                "mustering-out",
+            },
+            file,
         )
     )
 
     name = _require_string(data, "name", file, "name", problems)
+    medical_tier = _require_string(data, "medical-tier", file, "medical-tier", problems)
+
+    always_available = False
+    if "always-available" in data:
+        raw_always_available = data["always-available"]
+        if not isinstance(raw_always_available, bool):
+            problems.append(
+                ValidationProblem(
+                    file=file,
+                    location="always-available",
+                    found=type_name(raw_always_available),
+                    expected="a boolean",
+                )
+            )
+        else:
+            always_available = raw_always_available
+
+    re_enterable = False
+    if "re-enterable" in data:
+        raw_re_enterable = data["re-enterable"]
+        if not isinstance(raw_re_enterable, bool):
+            problems.append(
+                ValidationProblem(
+                    file=file,
+                    location="re-enterable",
+                    found=type_name(raw_re_enterable),
+                    expected="a boolean",
+                )
+            )
+        else:
+            re_enterable = raw_re_enterable
 
     throws: Mapping[str, Throw] = {}
     if "throws" not in data:
@@ -810,12 +974,15 @@ def parse_career(
             data["mustering-out"], file, characteristics, skills, benefits, problems
         )
 
-    if problems:
+    if problems or name is None or medical_tier is None:
         return None, tuple(problems)
 
     return (
         CareerDefinition(
             name=name,
+            medical_tier=medical_tier,
+            always_available=always_available,
+            re_enterable=re_enterable,
             throws=MappingProxyType(dict(throws)),
             tables=MappingProxyType(dict(tables)),
             ladders=ladders,

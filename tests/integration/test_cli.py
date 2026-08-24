@@ -329,3 +329,18 @@ def test_check_json_error_writes_nothing_to_stdout_and_plain_text_to_stderr():
     assert result.stderr != ""
     stripped = result.stderr.strip()
     assert not (stripped.startswith("{") and stripped.endswith("}"))
+
+
+def test_npc_help_lists_exactly_its_own_options(options_in_help):
+    # T127: the whole-set assertion for `npc`'s finished surface. It depends
+    # on `--full`/`--json` (US2, already shipped) as well as on `--count`
+    # (US3, T128) — an option added later breaks this deliberately.
+    assert options_in_help(["npc"]) == {
+        "--seed",
+        "--count",
+        "--name",
+        "--rules-data",
+        "--full",
+        "--json",
+        "--help",
+    }

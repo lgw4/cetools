@@ -3,10 +3,66 @@ from types import MappingProxyType
 import pytest
 
 from cetools import Band, Modifier, Roller, TaskParameters, check
+from cetools.chargen import (
+    AgingTable,
+    BackgroundSkills,
+    ChargenParameters,
+    DraftTable,
+    MedicalTiers,
+    MishapTable,
+)
 from cetools.errors import RulesDataError, TaskError
+from cetools.names import GivenNameTable
 from cetools.provenance import Provenance
 from cetools.registries import BenefitRegistry, CharacteristicRegistry, SkillRegistry
 from cetools.rules import RulesData
+
+# Placeholder values for the fields `check` never reads: only task resolution
+# is under test here, so these need only satisfy `RulesData`'s shape.
+_EMPTY_DRAFT = DraftTable(roll="1d6", careers=("Placeholder",))
+_EMPTY_AGING = AgingTable(roll="2d6", rows=())
+_EMPTY_MISHAPS = MishapTable(roll="1d6", rows=(), injury_roll="1d6", injuries=())
+_EMPTY_BACKGROUND_SKILLS = BackgroundSkills(law_level=(), trade_code=(), education=())
+_EMPTY_MEDICAL_TIERS = MedicalTiers(roll="2d6", rank_dm=False, tiers=MappingProxyType({}))
+_EMPTY_GIVEN_NAMES = GivenNameTable(source="test", names=("Placeholder",))
+_EMPTY_CHARGEN = ChargenParameters(
+    characteristics_roll="2d6",
+    background_skills_base=3,
+    background_skills_characteristic="EDU",
+    background_skills_homeworld_first=2,
+    terms_starting_age=18,
+    terms_term_years=4,
+    terms_mishap_term_years=2,
+    terms_cap=7,
+    terms_aging_begins_at_age=34,
+    qualification_penalty_per_previous_career=-2,
+    qualification_draft_entries_allowed=1,
+    basic_training_first_career_all=True,
+    basic_training_subsequent_career_count=1,
+    survival_natural_failure=2,
+    skill_rolls_per_term=1,
+    skill_rolls_per_term_without_throws=2,
+    skill_rolls_on_commission=1,
+    skill_rolls_on_advancement=1,
+    commission_drafted_first_term_barred=True,
+    continuation_roll="1d6",
+    continuation_target=4,
+    mustering_out_roll="1d6",
+    mustering_out_cash_choice_roll="1d6",
+    mustering_out_cash_choice_target=4,
+    mustering_out_maximum_cash_rolls=3,
+    mustering_out_retired_cash_dm=1,
+    mustering_out_per_term=1,
+    mustering_out_rank_benefits=(),
+    mustering_out_material_rank_dm=(),
+    pension_minimum_terms=5,
+    pension_base=10000,
+    pension_per_additional_term=2000,
+    medical_crisis_roll="1d6",
+    medical_crisis_multiplier=10000,
+    medical_crisis_restores_to=1,
+    medical_restore_cost_per_point=5000,
+)
 
 DIFFICULTY_LADDER = {
     "Simple": 6,
@@ -42,23 +98,35 @@ def _parameters(**overrides):
         target=8,
         unskilled_dm=-3,
         difficulty_dms=DIFFICULTY_LADDER,
-        characteristic_bands=CHARACTERISTIC_BANDS,
     )
     fields.update(overrides)
     return TaskParameters(**fields)
 
 
-def _rules(**overrides):
+def _characteristics(bands=CHARACTERISTIC_BANDS):
+    return CharacteristicRegistry(names=MappingProxyType({}), bands=bands)
+
+
+def _rules(*, characteristic_bands=CHARACTERISTIC_BANDS, **overrides):
     """A synthetic `RulesData` wrapping `_parameters(**overrides)`, for tests
     that exercise `check`'s task-resolution logic without a data set on disk
-    (contracts/library-api.md).
+    (contracts/library-api.md). `characteristic_bands` builds the
+    `CharacteristicRegistry` `check` now reads `characteristic_dm` from.
     """
     return RulesData(
         task_parameters=_parameters(**overrides),
-        characteristics=CharacteristicRegistry(names=MappingProxyType({})),
+        characteristics=_characteristics(characteristic_bands),
         skills=SkillRegistry(skills=MappingProxyType({})),
         benefits=BenefitRegistry(items=()),
         careers=MappingProxyType({}),
+        draft=_EMPTY_DRAFT,
+        aging=_EMPTY_AGING,
+        mishaps=_EMPTY_MISHAPS,
+        background_skills=_EMPTY_BACKGROUND_SKILLS,
+        medical_tiers=_EMPTY_MEDICAL_TIERS,
+        chargen=_EMPTY_CHARGEN,
+        given_names=_EMPTY_GIVEN_NAMES,
+        surnames=MappingProxyType({}),
         provenance=_EMPTY_PROVENANCE,
     )
 
@@ -117,8 +185,8 @@ def test_difficulty_ladder_steps_by_two_with_fixed_dice_and_target(name, expecte
     ],
 )
 def test_characteristic_bands_including_unbounded_top(score, expected_dm):
-    parameters = _parameters()
-    assert parameters.characteristic_dm(score) == expected_dm
+    registry = _characteristics()
+    assert registry.characteristic_dm(score) == expected_dm
 
 
 def test_default_difficulty_is_the_sole_zero_modifier_rung_by_value():
@@ -227,8 +295,8 @@ def test_characteristic_score_in_no_band_raises_rules_data_error():
     # force is a rules-data error, never a silent zero. Gap detection is
     # deliberately deferred to lookup time, which makes this raise the only
     # thing between a holed table and a wrong answer.
-    gapped = _parameters(
-        characteristic_bands=(
+    gapped = _characteristics(
+        bands=(
             Band(minimum=0, maximum=2, dm=-2),
             Band(minimum=6, maximum=8, dm=0),
             Band(minimum=9, maximum=None, dm=1),

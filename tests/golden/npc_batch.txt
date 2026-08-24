@@ -1,0 +1,13 @@
+Lieutenant Amara Okonkwo	9A7B86	Age 34
+Navy (4 terms)	Cr55,000
+Comms-1, Gun Combat (Slug Rifle)-1, Leadership-0, Melee Combat-0, Navigation-2, Tactics-1, Vehicle-0, Zero-G-1
+High Passage (x2), Weapon
+
+Kira Solis	798654	Age 22
+Scout (1 term)	Cr20,000
+Pilot-1, Survival-1, Vehicle (Grav)-0
+Weapon
+
+Devon Marsh	555555	Age 18
+Drifter (1 term)	Cr1,000
+Streetwise-0

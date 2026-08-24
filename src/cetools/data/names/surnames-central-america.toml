@@ -1,0 +1,22 @@
+# GPL-3.0-only project content; not Open Game Content. See LICENSE.
+
+schema = "surnames"
+schema-version = 1
+
+region = "Central America"
+source = "Surname frequencies compiled from national civil-registry and electoral-roll releases: Guatemala's Registro Nacional de las Personas (RENAP), reported by Prensa Libre and Infobae; Honduras's Registro Nacional de las Personas (RNP), reported by Diario La Tribuna and Televicentro; El Salvador's Registro Nacional de las Personas Naturales (RNPN), reported by elsalvador.com; Nicaragua's 2005 padron electoral, compiled by the Academia de Genealogia de la Diaspora Nicaraguense (https://diasporanica.com/efemerides/estadisticas/); Panama's Tribunal Electoral civil registry, reported by Metro Libre and La Estrella de Panama; and Costa Rica's Instituto Nacional de Estadistica y Censos (INEC) / Registro Civil, reported by La Nacion — cross-checked against Wikipedia's CC BY-SA \"List of common Spanish surnames.\""
+
+names = [
+  { name = "Lopez" }, { name = "Garcia" }, { name = "Morales" }, { name = "Hernandez" },
+  { name = "Perez" }, { name = "Gonzalez" }, { name = "Rodriguez" }, { name = "De Leon" },
+  { name = "Martinez" }, { name = "Castillo" }, { name = "Estrada" }, { name = "Marroquin" },
+  { name = "Gomez" }, { name = "Vasquez" }, { name = "Mendez" }, { name = "Reyes" },
+  { name = "Vargas" }, { name = "Jimenez" }, { name = "Mora" }, { name = "Rojas" },
+  { name = "Mejia" }, { name = "Cruz" }, { name = "Flores" }, { name = "Sanchez" },
+  { name = "Rivera" }, { name = "Ramos" }, { name = "Diaz" }, { name = "Pineda" },
+  { name = "Ramirez" }, { name = "Aguilar" }, { name = "Alvarado" }, { name = "Velasquez" },
+  { name = "Castro" }, { name = "Romero" }, { name = "Santos" }, { name = "Rivas" },
+  { name = "Gutierrez" }, { name = "Espinoza" }, { name = "Ruiz" }, { name = "Mendoza" },
+  { name = "Abrego" }, { name = "Escobar" }, { name = "Orellana" }, { name = "Araya" },
+  { name = "Solano" }, { name = "Chaves" }, { name = "Campos" }, { name = "Quesada" },
+]

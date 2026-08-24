@@ -9,13 +9,16 @@ FR-030, FR-031, FR-046).
 
 import json
 import os
+import tomllib
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
 from cetools.cli import app
+from cetools.dice import Roller
 from cetools.errors import RulesDataError
+from cetools.names import roll_name
 from cetools.rules import load_rules, validate_rules
 
 runner = CliRunner()
@@ -24,7 +27,74 @@ NAVY = (
     Path(__file__).resolve().parents[2] / "src" / "cetools" / "data" / "careers" / "navy.toml"
 ).read_text(encoding="utf-8")
 
-_COMMISSION_BLOCK = '[throws.commission]\ncharacteristic = "SOC"\ntarget = 7\n\n'
+_NAMES_DIR = Path(__file__).resolve().parents[2] / "src" / "cetools" / "data" / "names"
+SURNAMES_EUROPE = (_NAMES_DIR / "surnames-europe.toml").read_text(encoding="utf-8")
+
+_COMMISSION_BLOCK = '[throws.commission]\ncharacteristic = "SOC"\ntarget = 7\ndice = "2d6"\n\n'
+
+# A career the packaged data set does not ship, reusing Drifter's skills and
+# benefits so every name it references already resolves against the
+# packaged registries (FR-030, FR-031).
+_RAIDERS_CAREER = """\
+schema = "career"
+schema-version = 3
+
+name = "Raiders"
+medical-tier = "fringe"
+
+[throws.qualification]
+characteristic = "END"
+target = 3
+dice = "2d6"
+
+[throws.survival]
+characteristic = "END"
+target = 5
+dice = "2d6"
+
+[throws.re-enlistment]
+target = 5
+dice = "2d6"
+
+[tables.personal]
+entries = ["STR +1", "DEX +1", "END +1", "SOC -1", "Streetwise", "Carouse"]
+
+[tables.service]
+entries = ["Carouse", "Gambler", "Recon", "Stealth", "Streetwise", "Survival"]
+
+[tables.specialist]
+entries = ["Gambler", "Jack-of-All-Trades", "Melee Combat", "Recon", "Stealth", "Streetwise"]
+
+[tables.advanced-education]
+requires = "EDU 6+"
+entries = ["Admin", "Advocate", "Broker", "Electronics", "Medicine", "Navigation"]
+
+[[ladders]]
+name = "raiders"
+role = "entry"
+ranks = [
+  { rank = 0, title = "Raider" },
+]
+
+[mustering-out]
+cash = [1000, 1000, 2000, 2000, 5000, 5000]
+benefits = ["Low Passage", "Weapon", "Trade Goods", "Mid Passage", "SOC -1", "Personal Vehicle"]
+"""
+
+
+def _toml_escape(text: str) -> str:
+    return text.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _surname_table_text(region: str, source: str, names: list[str]) -> str:
+    entries = ", ".join(f'{{ name = "{name}" }}' for name in names)
+    return (
+        'schema = "surnames"\n'
+        "schema-version = 1\n\n"
+        f'region = "{_toml_escape(region)}"\n'
+        f'source = "{_toml_escape(source)}"\n'
+        f"names = [{entries}]\n"
+    )
 
 
 def test_an_overridden_survival_throw_reaches_the_loaded_career(tmp_path):
@@ -193,3 +263,147 @@ def test_an_override_file_carries_no_licensing_obligation(tmp_path):
     override.write_text(without_header_comment, encoding="utf-8")
     report = validate_rules(tmp_path)
     assert report.valid
+
+
+# --- npc: FR-058, an override's provenance always appears --------------------
+
+
+def test_a_career_the_packaged_set_does_not_ship_can_be_entered_and_is_reported_as_added(
+    tmp_path,
+):
+    (tmp_path / "raiders.toml").write_text(_RAIDERS_CAREER, encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "npc",
+            "--rules-data",
+            str(tmp_path),
+            "--seed",
+            "raiders-added",
+            "--count",
+            "150",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    files = payload["provenance"]["files"]
+    assert len(files) == 1
+    assert files[0]["file"] == "raiders.toml"
+    assert files[0]["disposition"] == "added"
+
+    entered = {
+        service["career"]
+        for character in payload["characters"]
+        for service in character["careers"]
+    }
+    assert "Raiders" in entered
+
+
+def test_a_replaced_file_is_reported_as_replaced_on_stderr_in_text_mode(tmp_path):
+    override = tmp_path / "navy.toml"
+    override.write_text(NAVY.replace("target = 5", "target = 9", 1), encoding="utf-8")
+
+    result = runner.invoke(app, ["npc", "--rules-data", str(tmp_path), "--seed", "session-alpha"])
+
+    assert result.exit_code == 0
+    assert "Rules: overridden" in result.stderr
+    assert "navy.toml" in result.stderr
+    assert "replaced" in result.stderr
+
+
+def test_an_overrides_provenance_appears_in_document_under_json(tmp_path):
+    override = tmp_path / "navy.toml"
+    override.write_text(NAVY.replace("target = 5", "target = 9", 1), encoding="utf-8")
+
+    result = runner.invoke(
+        app, ["npc", "--rules-data", str(tmp_path), "--seed", "session-alpha", "--json"]
+    )
+
+    assert result.exit_code == 0
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    assert payload["provenance"]["source"] == "overridden"
+    assert payload["provenance"]["files"][0]["file"] == "navy.toml"
+    assert payload["provenance"]["files"][0]["disposition"] == "replaced"
+
+
+# --- name-table overrides: FR-043f, FR-043i, FR-042 --------------------------
+
+
+def test_replacing_a_shipped_region_leaves_the_weighting_unchanged(tmp_path):
+    original = tomllib.loads(SURNAMES_EUROPE)
+    shrunk_names = [entry["name"] for entry in original["names"][:5]]
+    override = tmp_path / "surnames-europe.toml"
+    override.write_text(
+        _surname_table_text(original["region"], original["source"], shrunk_names),
+        encoding="utf-8",
+    )
+
+    rules = load_rules(override)
+    assert len(rules.surnames) == 7  # still seven regions in force: one replaced, none added
+
+    roller = Roller("europe-weight-check")
+    counts: dict[str, int] = {}
+    for _ in range(7_000):
+        name = roll_name(roller, rules.given_names, rules.surnames)
+        counts[name.region] = counts.get(name.region, 0) + 1
+
+    expected_share = 1 / 7
+    share = counts.get("Europe", 0) / 7_000
+    assert 0.9 * expected_share <= share <= 1.1 * expected_share
+
+
+def test_adding_an_eighth_region_gives_it_the_same_weight_as_each_of_the_others(tmp_path):
+    override = tmp_path / "surnames-oceania.toml"
+    override.write_text(
+        _surname_table_text(
+            "Oceania",
+            "An override-added region, no part of the shipped seven.",
+            [f"Name{i}" for i in range(40)],
+        ),
+        encoding="utf-8",
+    )
+
+    rules = load_rules(override)
+    assert len(rules.surnames) == 8
+
+    roller = Roller("oceania-weight-check")
+    counts: dict[str, int] = {}
+    for _ in range(8_000):
+        name = roll_name(roller, rules.given_names, rules.surnames)
+        counts[name.region] = counts.get(name.region, 0) + 1
+
+    expected_share = 1 / 8
+    for region, count in counts.items():
+        share = count / 8_000
+        assert 0.9 * expected_share <= share <= 1.1 * expected_share, (region, share)
+
+
+def test_neither_the_sixty_forty_floors_nor_either_designation_is_imposed_on_an_override(
+    tmp_path,
+):
+    (tmp_path / "surnames-oceania.toml").write_text(
+        _surname_table_text(
+            "Oceania",
+            "Two entries, well under the shipped forty-entry floor.",
+            ["Aroha", "Manaia"],
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "given-names.toml").write_text(
+        'schema = "given-names"\n'
+        "schema-version = 1\n\n"
+        'source = "Three entries, well under the shipped sixty-entry floor."\n'
+        'names = ["Rei", "Toa", "Nikau"]\n',
+        encoding="utf-8",
+    )
+
+    report = validate_rules(tmp_path)
+    assert report.valid
+
+    rules = load_rules(tmp_path)
+    assert len(rules.surnames["surnames-oceania"].names) == 2
+    assert len(rules.given_names.names) == 3

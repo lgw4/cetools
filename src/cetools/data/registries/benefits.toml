@@ -5,4 +5,7 @@
 schema = "benefits"
 schema-version = 1
 
-benefits = ["Low Passage", "Mid Passage", "High Passage", "Weapon", "Explorers' Society"]
+benefits = [
+  "Low Passage", "Mid Passage", "High Passage", "Weapon", "Armor",
+  "Explorers' Society", "Ship Share", "Personal Vehicle", "Trade Goods",
+]

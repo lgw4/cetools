@@ -7,7 +7,14 @@ import typer
 
 from cetools.dice import Roller, throw
 from cetools.errors import CetoolsError, RulesDataError
-from cetools.render import _problem_line, as_json, as_text
+from cetools.generator import generate_batch
+from cetools.render import (
+    _RULES_LABEL_WIDTH,
+    _problem_line,
+    _provenance_lines,
+    as_json,
+    as_text,
+)
 from cetools.rules import load_rules, validate_rules
 from cetools.tasks import Modifier
 from cetools.tasks import check as check_task
@@ -42,6 +49,14 @@ def _check_override_location(path: Optional[str], param_hint: str) -> Optional[s
         message = f"override location is neither a file nor a directory: {path}"
         raise typer.BadParameter(message, param_hint=param_hint)
     return path
+
+
+def _report_cetools_error(exc: CetoolsError) -> None:
+    if isinstance(exc, RulesDataError) and exc.problems:
+        for problem in exc.problems:
+            typer.echo(_problem_line(problem), err=True)
+    else:
+        typer.echo(str(exc), err=True)
 
 
 def _version_callback(show_version: bool) -> None:
@@ -145,6 +160,71 @@ def validate(
     report = validate_rules(path)
     typer.echo(as_json(report) if json_output else as_text(report), nl=False)
     if not report.valid:
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def npc(
+    seed: Optional[str] = typer.Option(
+        None, "--seed", help="Integer or arbitrary text. Omitted: drawn from secrets."
+    ),
+    count: int = typer.Option(
+        1, "--count", help="How many characters to generate from one master seed."
+    ),
+    name: Optional[str] = typer.Option(
+        None,
+        "--name",
+        help="A personal name for the character, used verbatim. Omitted: one is rolled.",
+    ),
+    rules_data: Optional[str] = typer.Option(
+        None,
+        "--rules-data",
+        help="Override location, a directory or a single file, composed over the packaged data.",
+    ),
+    full: bool = typer.Option(
+        False,
+        "--full",
+        help="The fuller text rendering. No effect under --json, which already carries "
+        "everything.",
+    ),
+    json_output: bool = typer.Option(
+        False, "--json", help="Emit machine-readable output instead of text."
+    ),
+) -> None:
+    if name is not None and not name.strip():
+        raise typer.BadParameter(
+            "--name must not be empty or whitespace-only", param_hint="--name"
+        )
+    if name is not None and ("\t" in name or "\n" in name):
+        raise typer.BadParameter("--name must not contain a tab or a newline", param_hint="--name")
+    if count < 1:
+        raise typer.BadParameter(f"--count must be at least 1, got {count}", param_hint="--count")
+    if name is not None and count > 1:
+        raise typer.BadParameter(
+            "--name may not be combined with --count above 1", param_hint="--name"
+        )
+    rules_data = _check_override_location(rules_data, "--rules-data")
+    try:
+        rules = load_rules(rules_data)
+        batch = generate_batch(seed, rules, count=count, name=name)
+    except CetoolsError as exc:
+        _report_cetools_error(exc)
+        raise typer.Exit(code=1)
+    # Rendering stays inside its own try/except: `CharacteristicRegistry.symbol`
+    # can raise `RulesDataError` for a score outside the declared pseudo-hex
+    # range, and a render-time failure must still be the clean "reason on
+    # standard error, nothing on standard output" FR-054 requires, not an
+    # unhandled traceback (T175).
+    try:
+        if json_output:
+            typer.echo(as_json(batch), nl=False)
+            return
+        typer.echo(f"{'Seed:'.ljust(_RULES_LABEL_WIDTH)}{batch.seed}", err=True)
+        for line in _provenance_lines(batch.provenance, indent=0):
+            typer.echo(line, err=True)
+        typer.echo(as_text(batch, full=full))
+    except CetoolsError as exc:
+        _report_cetools_error(exc)
         raise typer.Exit(code=1)
 
 

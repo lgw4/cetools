@@ -1,0 +1,43 @@
+# GPL-3.0-only project content; not Open Game Content. See LICENSE.
+#
+# Deliberately the largest of the seven shipped surname tables: the shipped
+# tables differ in size by enough that weighting taken over names rather
+# than over regions would put at least one region's expected share outside
+# SC-019's band (research, tests/unit/test_names.py).
+
+schema = "surnames"
+schema-version = 1
+
+region = "Europe"
+source = "Compiled from Wikipedia's \"List of most common surnames in European countries\" (https://en.wikipedia.org/wiki/List_of_most_common_surnames_in_European_countries) and \"List of the most common surnames in Germany\" (https://en.wikipedia.org/wiki/List_of_the_most_common_surnames_in_Germany), CC BY-SA 4.0, which compile national census/registry and demographic-survey data: England (UCL paediatric-epidemiology surname study), Ireland (Irish surname genealogical/etymological sources), Italy (Mappa dei Cognomi and Forebears.io), Germany (Forebears.io and the Digitales Familiennamenwörterbuch Deutschlands), France (L'Internaute), Poland (Polish Ministry of Interior 2009 surname statistics), Sweden (Statistics Sweden/SCB), Norway (Statistics Norway/SSB), and Denmark (Statistics Denmark/DST)."
+
+names = [
+  { name = "Smith" }, { name = "Jones" }, { name = "Taylor" }, { name = "Brown" },
+  { name = "Williams" }, { name = "Wilson" }, { name = "Johnson" }, { name = "Davies" },
+  { name = "Robinson" }, { name = "Wright" }, { name = "Thompson" }, { name = "Evans" },
+  { name = "Walker" }, { name = "White" }, { name = "Roberts" },
+  { name = "Murphy" }, { name = "Kelly" }, { name = "O'Sullivan" }, { name = "Walsh" },
+  { name = "O'Brien" }, { name = "Byrne" }, { name = "Ryan" }, { name = "O'Connor" },
+  { name = "O'Neill" }, { name = "Reilly" }, { name = "Doyle" }, { name = "McCarthy" },
+  { name = "Gallagher" }, { name = "Doherty" }, { name = "Kennedy" },
+  { name = "Rossi" }, { name = "Russo" }, { name = "Ferrari" }, { name = "Esposito" },
+  { name = "Bianchi" }, { name = "Romano" }, { name = "Colombo" }, { name = "Bruno" },
+  { name = "Ricci" }, { name = "Greco" }, { name = "Marino" }, { name = "Gallo" },
+  { name = "De Luca" }, { name = "Conti" }, { name = "Costa" },
+  { name = "Muller" }, { name = "Schmidt" }, { name = "Schneider" }, { name = "Fischer" },
+  { name = "Weber" }, { name = "Meyer" }, { name = "Wagner" }, { name = "Becker" },
+  { name = "Schulz" }, { name = "Hoffmann" }, { name = "Schafer" }, { name = "Koch" },
+  { name = "Bauer" }, { name = "Richter" }, { name = "Klein" },
+  { name = "Martin" }, { name = "Bernard" }, { name = "Dubois" }, { name = "Thomas" },
+  { name = "Robert" }, { name = "Richard" }, { name = "Petit" }, { name = "Durand" },
+  { name = "Leroy" }, { name = "Moreau" }, { name = "Simon" }, { name = "Laurent" },
+  { name = "Lefebvre" }, { name = "Michel" }, { name = "Vincent" },
+  { name = "Nowak" }, { name = "Kowalski" }, { name = "Wisniewski" }, { name = "Wojcik" },
+  { name = "Kowalczyk" }, { name = "Kaminski" }, { name = "Lewandowski" }, { name = "Zielinski" },
+  { name = "Szymanski" }, { name = "Wozniak" }, { name = "Dabrowski" }, { name = "Kozlowski" },
+  { name = "Jankowski" }, { name = "Mazur" }, { name = "Kwiatkowski" },
+  { name = "Andersson" }, { name = "Johansson" }, { name = "Karlsson" }, { name = "Nilsson" },
+  { name = "Eriksson" }, { name = "Hansen" }, { name = "Olsen" }, { name = "Larsen" },
+  { name = "Berg" }, { name = "Haugen" }, { name = "Nielsen" }, { name = "Jensen" },
+  { name = "Pedersen" }, { name = "Sorensen" }, { name = "Rasmussen" },
+]

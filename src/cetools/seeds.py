@@ -49,6 +49,28 @@ def resolve_seed(seed: int | str | None) -> int:
     return _fold(seed)
 
 
+def derive_seed(seed: int, *parts: int | str) -> int:
+    """Fold `seed` and one or more `parts` into a new seed.
+
+    Reuses `_fold`, the same blake2b digest a text seed and a negative
+    `rng_seed` are already folded through (research R2), rather than
+    introducing a second one. `generator.py` uses this for a batch
+    position's seed and for the name stream, which is drawn from a roller
+    the walk's own roller never touches.
+
+    `_fold` always returns a non-negative 64-bit integer, so the result is
+    in the space `resolve_seed` accepts and `str(derive_seed(...))`
+    round-trips back through it unchanged — the property FR-050a's
+    per-character reported seed depends on.
+
+    The parts join on a unit separator unlikely to appear in a seed or a
+    part's own text, so `derive_seed(1, "ab")` and `derive_seed(1, "a", "b")`
+    fold to different text rather than colliding.
+    """
+    text = "\x1f".join((str(seed), *(str(part) for part in parts)))
+    return _fold(text)
+
+
 def rng_seed(resolved: int) -> int:
     """Map a resolved seed onto the value `random.Random` is seeded with.
 

@@ -542,3 +542,49 @@ def test_rendering_an_unregistered_type_raises_a_cetools_error(render):
     # signaled through the base class every other library error descends from.
     with pytest.raises(CetoolsError, match="object"):
         render(object())
+
+
+# --- as_text(full=True): every existing registration has no fuller form ---
+
+
+def _throw_result():
+    return ThrowResult(notation="1d6", faces=(1,), modifier=0, total=1, seed=1)
+
+
+def _check_result():
+    return CheckResult(
+        faces=(2, 5),
+        dice_total=7,
+        modifiers=(Modifier(label="Difficulty (Average)", value=0),),
+        total=7,
+        target=8,
+        success=False,
+        seed=1,
+        provenance=_PACKAGED,
+    )
+
+
+def _validation_report():
+    return ValidationReport(provenance=_PACKAGED, file_count=5, problems=())
+
+
+@pytest.mark.parametrize(
+    "result", [_throw_result(), _check_result(), _validation_report()], ids=type
+)
+def test_as_text_full_true_raises_for_a_registration_with_no_fuller_form(result):
+    # A rendering that silently gave less than was asked for is the miss the
+    # dispatch fallback already exists to detect, one level down: these three
+    # registrations have no fuller form, so `full=True` must say so rather
+    # than quietly returning the plain rendering.
+    with pytest.raises(CetoolsError):
+        as_text(result, full=True)
+
+
+def test_as_text_full_defaults_to_false_and_existing_rendering_is_unchanged():
+    result = _check_result()
+    assert as_text(result) == as_text(result, full=False)
+
+
+def test_as_text_fallback_accepts_full_keyword_for_an_unregistered_type():
+    with pytest.raises(CetoolsError, match="object"):
+        as_text(object(), full=True)

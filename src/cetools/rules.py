@@ -8,7 +8,6 @@ a `RulesData` (if the whole set is clean) alongside a `ValidationReport`.
 with the result (research R7).
 """
 
-import re
 import tomllib
 from collections import defaultdict
 from collections.abc import Mapping
@@ -20,7 +19,24 @@ from types import MappingProxyType
 
 from cetools.careers import CareerDefinition
 from cetools.careers import parse_career as _parse_career
+from cetools.chargen import (
+    AgingTable,
+    BackgroundSkills,
+    ChargenParameters,
+    DraftTable,
+    MedicalTiers,
+    MishapTable,
+    parse_aging_table,
+    parse_background_skills,
+    parse_chargen_parameters,
+    parse_draft_table,
+    parse_medical_tiers,
+    parse_mishap_table,
+)
+from cetools.dice import parse_notation
 from cetools.errors import RulesDataError, ValidationProblem, type_name
+from cetools.names import GivenNameTable, SurnameTable, parse_given_names
+from cetools.names import parse_surnames as _parse_surnames
 from cetools.provenance import (
     Disposition,
     FileProvenance,
@@ -36,25 +52,50 @@ from cetools.registries import (
     parse_characteristics,
     parse_skills,
 )
-from cetools.tasks import Band, TaskParameters, _check_dice
+from cetools.tasks import TaskParameters, _check_dice
 
 _HEADER_KEYS = frozenset({"schema", "schema-version"})
-_BAND_RANGE = re.compile(r"^(\d+)-(\d+)$")
-_BAND_UNBOUNDED = re.compile(r"^(\d+)\+$")
 
 _SUPPORTED_VERSION = {
-    "task-parameters": 1,
-    "characteristics": 1,
+    "task-parameters": 2,
+    "characteristics": 2,
     "skills": 1,
     "benefits": 1,
-    "career": 1,
+    "career": 3,
+    "draft-table": 1,
+    "aging-table": 1,
+    "mishap-table": 1,
+    "background-skills": 1,
+    "medical-tiers": 1,
+    "chargen-parameters": 2,
+    "given-names": 1,
+    "surnames": 1,
 }
-_SINGLETON_KINDS = ("task-parameters", "characteristics", "skills", "benefits")
+_SINGLETON_KINDS = (
+    "task-parameters",
+    "characteristics",
+    "skills",
+    "benefits",
+    "draft-table",
+    "aging-table",
+    "mishap-table",
+    "background-skills",
+    "medical-tiers",
+    "chargen-parameters",
+    "given-names",
+)
 _CANONICAL_FILE = {
     "task-parameters": "tasks.toml",
     "characteristics": "characteristics.toml",
     "skills": "skills.toml",
     "benefits": "benefits.toml",
+    "draft-table": "draft.toml",
+    "aging-table": "aging.toml",
+    "mishap-table": "mishaps.toml",
+    "background-skills": "background-skills.toml",
+    "medical-tiers": "medical-tiers.toml",
+    "given-names": "given-names.toml",
+    "chargen-parameters": "chargen-parameters.toml",
 }
 _KIND_AT_CANONICAL_FILE = {file: kind for kind, file in _CANONICAL_FILE.items()}
 
@@ -68,6 +109,14 @@ class RulesData:
     skills: SkillRegistry
     benefits: BenefitRegistry
     careers: Mapping[str, CareerDefinition]
+    draft: DraftTable
+    aging: AgingTable
+    mishaps: MishapTable
+    background_skills: BackgroundSkills
+    medical_tiers: MedicalTiers
+    chargen: ChargenParameters
+    given_names: GivenNameTable
+    surnames: Mapping[str, SurnameTable]
     provenance: Provenance
 
 
@@ -114,9 +163,7 @@ def parse_task_parameters(
     """
     problems: list[ValidationProblem] = []
     problems.extend(
-        _unrecognized_key_problems(
-            data, _HEADER_KEYS | {"task", "difficulty-dms", "characteristic-dms"}, file
-        )
+        _unrecognized_key_problems(data, _HEADER_KEYS | {"task", "difficulty-dms"}, file)
     )
 
     task = data.get("task")
@@ -206,64 +253,6 @@ def parse_task_parameters(
                 )
             )
 
-    bands: list[Band] = []
-    cd = data.get("characteristic-dms")
-    if not isinstance(cd, dict) or not cd:
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location="characteristic-dms",
-                found=(
-                    "missing" if cd is None else ("an empty table" if cd == {} else type_name(cd))
-                ),
-                expected="a [characteristic-dms] table with at least one entry",
-            )
-        )
-    else:
-        unbounded_count = 0
-        ok = True
-        for key, value in cd.items():
-            if not isinstance(value, int) or isinstance(value, bool):
-                problems.append(
-                    ValidationProblem(
-                        file=file,
-                        location=f"characteristic-dms.{key}",
-                        found=type_name(value),
-                        expected="an integer",
-                    )
-                )
-                ok = False
-                continue
-            range_match = _BAND_RANGE.match(key)
-            unbounded_match = _BAND_UNBOUNDED.match(key)
-            if range_match:
-                minimum, maximum = int(range_match.group(1)), int(range_match.group(2))
-            elif unbounded_match:
-                minimum, maximum = int(unbounded_match.group(1)), None
-                unbounded_count += 1
-            else:
-                problems.append(
-                    ValidationProblem(
-                        file=file,
-                        location=f"characteristic-dms.{key}",
-                        found=repr(key),
-                        expected="a key of the form N-M or N+",
-                    )
-                )
-                ok = False
-                continue
-            bands.append(Band(minimum=minimum, maximum=maximum, dm=value))
-        if ok and unbounded_count != 1:
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location="characteristic-dms",
-                    found=f"{unbounded_count} unbounded bands",
-                    expected="exactly one unbounded band",
-                )
-            )
-    bands.sort(key=lambda band: band.minimum)
-
     if problems:
         return None, tuple(problems)
     return (
@@ -272,7 +261,6 @@ def parse_task_parameters(
             target=target,
             unskilled_dm=unskilled_dm,
             difficulty_dms=difficulty_dms,
-            characteristic_bands=tuple(bands),
         ),
         (),
     )
@@ -299,6 +287,24 @@ def _require_int(
         )
         return None
     return value
+
+
+# Kind to parse function, one entry per single-instance kind whose parser
+# needs nothing beyond its own file's data. `background-skills` is the one
+# exception: its parser also takes the skills registry, so it is parsed
+# separately once that registry is resolved, below.
+_SINGLETON_PARSERS = {
+    "task-parameters": parse_task_parameters,
+    "characteristics": parse_characteristics,
+    "skills": parse_skills,
+    "benefits": parse_benefits,
+    "draft-table": parse_draft_table,
+    "aging-table": parse_aging_table,
+    "mishap-table": parse_mishap_table,
+    "medical-tiers": parse_medical_tiers,
+    "chargen-parameters": parse_chargen_parameters,
+    "given-names": parse_given_names,
+}
 
 
 # --- discovery ---------------------------------------------------------------
@@ -711,29 +717,25 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
         else:
             resolved_singleton[kind] = declarers[0]
 
-    task_parameters: TaskParameters | None = None
-    if "task-parameters" in resolved_singleton:
-        basename = resolved_singleton["task-parameters"]
-        task_parameters, sub_problems = parse_task_parameters(parsed[basename][1], basename)
+    singletons: dict[str, object] = {}
+    for kind, parser in _SINGLETON_PARSERS.items():
+        if kind not in resolved_singleton:
+            continue
+        basename = resolved_singleton[kind]
+        value, sub_problems = parser(parsed[basename][1], basename)
         problems.extend(sub_problems)
+        singletons[kind] = value
 
-    characteristics: CharacteristicRegistry | None = None
-    if "characteristics" in resolved_singleton:
-        basename = resolved_singleton["characteristics"]
-        characteristics, sub_problems = parse_characteristics(parsed[basename][1], basename)
-        problems.extend(sub_problems)
-
-    skills: SkillRegistry | None = None
-    if "skills" in resolved_singleton:
-        basename = resolved_singleton["skills"]
-        skills, sub_problems = parse_skills(parsed[basename][1], basename)
-        problems.extend(sub_problems)
-
-    benefits: BenefitRegistry | None = None
-    if "benefits" in resolved_singleton:
-        basename = resolved_singleton["benefits"]
-        benefits, sub_problems = parse_benefits(parsed[basename][1], basename)
-        problems.extend(sub_problems)
+    task_parameters: TaskParameters | None = singletons.get("task-parameters")
+    characteristics: CharacteristicRegistry | None = singletons.get("characteristics")
+    skills: SkillRegistry | None = singletons.get("skills")
+    benefits: BenefitRegistry | None = singletons.get("benefits")
+    draft: DraftTable | None = singletons.get("draft-table")
+    aging: AgingTable | None = singletons.get("aging-table")
+    mishaps: MishapTable | None = singletons.get("mishap-table")
+    medical_tiers: MedicalTiers | None = singletons.get("medical-tiers")
+    chargen: ChargenParameters | None = singletons.get("chargen-parameters")
+    given_names: GivenNameTable | None = singletons.get("given-names")
 
     # Career validation proceeds even when a registry is missing or invalid,
     # against an empty substitute, so every reference cascades into its own
@@ -741,6 +743,14 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
     career_characteristics = characteristics or CharacteristicRegistry(names=MappingProxyType({}))
     career_skills = skills or SkillRegistry(skills=MappingProxyType({}))
     career_benefits = benefits or BenefitRegistry(items=())
+
+    background_skills: BackgroundSkills | None = None
+    if "background-skills" in resolved_singleton:
+        bg_basename = resolved_singleton["background-skills"]
+        background_skills, bg_problems = parse_background_skills(
+            parsed[bg_basename][1], bg_basename, career_skills
+        )
+        problems.extend(bg_problems)
 
     careers: dict[str, CareerDefinition] = {}
     career_names_seen: dict[str, str] = {}
@@ -768,6 +778,273 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
         career_names_seen[career.name] = basename
         careers[basename.removesuffix(".toml")] = career
 
+    surnames: dict[str, SurnameTable] = {}
+    surname_regions_seen: dict[str, str] = {}
+    for basename, (kind, toml_data) in sorted(parsed.items()):
+        if kind != "surnames":
+            continue
+        table, sub_problems = _parse_surnames(toml_data, basename)
+        problems.extend(sub_problems)
+        if table is None:
+            continue
+        if table.region in surname_regions_seen:
+            both = sorted((basename, surname_regions_seen[table.region]))
+            problems.append(
+                ValidationProblem(
+                    file=both[0],
+                    found=f"both declare the region {table.region!r}: {', '.join(both)}",
+                    expected="a region distinct across surname tables in force",
+                )
+            )
+            continue
+        surname_regions_seen[table.region] = basename
+        surnames[basename.removesuffix(".toml")] = table
+
+    if not surnames:
+        # `surnames` is repeatable, like `career`, so there is no one
+        # canonical file to name the way a singleton kind's absence does
+        # (FR-043f: weighting is over the tables in force, and none in force
+        # means no surname can be drawn).
+        problems.append(
+            ValidationProblem(
+                file="names/surnames-*.toml",
+                found="no file",
+                expected="at least one file declaring kind 'surnames'",
+            )
+        )
+
+    # --- cross-file rules (contracts/data-files.md) ---------------------
+
+    if draft is not None:
+        draft_basename = resolved_singleton["draft-table"]
+        for index, name in enumerate(draft.careers):
+            if name not in career_names_seen:
+                problems.append(
+                    ValidationProblem(
+                        file=draft_basename,
+                        location=f"careers[{index}]",
+                        found=repr(name),
+                        expected="a career's declared name, in force",
+                    )
+                )
+
+    # A missing or invalid medical-tiers file leaves no tier name to match,
+    # so every career's reference cascades into its own problem here too
+    # (research R13), rather than this rule being silently skipped.
+    tier_names = frozenset(medical_tiers.tiers) if medical_tiers is not None else frozenset()
+    for stem, career in careers.items():
+        career_basename = f"{stem}.toml"
+        if career.medical_tier not in tier_names:
+            problems.append(
+                ValidationProblem(
+                    file=career_basename,
+                    location="medical-tier",
+                    found=repr(career.medical_tier),
+                    expected=(
+                        f"one of the declared medical tiers: {', '.join(sorted(tier_names))}"
+                        if tier_names
+                        else "a name declared by the medical-tiers file"
+                    ),
+                )
+            )
+        if "commission" in career.throws and not any(
+            ladder.role == "commissioned" for ladder in career.ladders
+        ):
+            problems.append(
+                ValidationProblem(
+                    file=career_basename,
+                    location="ladders",
+                    found="throws.commission with no ladder of role 'commissioned'",
+                    expected="exactly one ladder with role 'commissioned'",
+                )
+            )
+
+    if chargen is not None and characteristics is not None:
+        # `generator.py`'s `characteristic_dm` indexes
+        # `self.characteristics[code]` directly (T194): a code this check
+        # does not resolve reaches a bare `KeyError` no `CetoolsError`
+        # handler catches, on the second step of every walk.
+        chargen_basename = resolved_singleton["chargen-parameters"]
+        code = chargen.background_skills_characteristic
+        if code not in characteristics:
+            problems.append(
+                ValidationProblem(
+                    file=chargen_basename,
+                    location="background-skills.characteristic",
+                    found=repr(code),
+                    expected="a code in the characteristics registry",
+                )
+            )
+
+        # `roll_characteristics` (generator.py) hands every drawn score
+        # straight to `CharacteristicRegistry.symbol`, which raises
+        # `RulesDataError` for a score outside the declared pseudo-hex
+        # range — a failure only some seeds reach, well after this
+        # function has already reported the data set clean. Both ends are
+        # statically decidable: `parse_notation` gives the roll's
+        # count/sides/modifier, so its possible span is
+        # `count + modifier` through `count * sides + modifier`, and the
+        # registry declares `pseudo_hex_minimum` and `pseudo_hex` (T209).
+        parsed_roll = parse_notation(chargen.characteristics_roll)
+        if parsed_roll is not None:
+            roll_count, roll_sides, roll_modifier = parsed_roll
+            low = roll_count + roll_modifier
+            high = roll_count * roll_sides + roll_modifier
+            range_floor = characteristics.pseudo_hex_minimum
+            range_top = characteristics.pseudo_hex_minimum + len(characteristics.pseudo_hex) - 1
+            if low < range_floor or high > range_top:
+                problems.append(
+                    ValidationProblem(
+                        file=chargen_basename,
+                        location="characteristics.roll",
+                        found=f"a possible score range of {low}-{high}",
+                        expected=(
+                            "a roll whose possible scores fall within the declared "
+                            f"pseudo-hex range {range_floor}-{range_top}"
+                        ),
+                    )
+                )
+
+    # `generator.py`'s `enter_career` takes a bare `next(...)` over each of
+    # these (the qualification fallback, FR-006; FR-015's re-entry
+    # exception), so a data set with neither would fail mid-walk with a
+    # `StopIteration` rather than at the load this check belongs to (T166).
+    if not any(career.always_available for career in careers.values()):
+        problems.append(
+            ValidationProblem(
+                file="careers/*.toml",
+                found="no career declares always-available = true",
+                expected="at least one career with always-available = true",
+            )
+        )
+    if not any(career.re_enterable for career in careers.values()):
+        problems.append(
+            ValidationProblem(
+                file="careers/*.toml",
+                found="no career declares re-enterable = true",
+                expected="at least one career with re-enterable = true",
+            )
+        )
+
+    if characteristics is not None and characteristics.bands:
+        # `characteristic_dm` (registries.py) raises `RulesDataError` for a
+        # score no band covers and, on overlap, silently returns whichever
+        # band sorts first by `minimum` — neither is caught at load, so a
+        # data set that "validates" can still fail (or silently misbehave)
+        # mid-walk on an ordinary score (T180).
+        characteristics_basename = resolved_singleton["characteristics"]
+        bands = characteristics.bands
+        band_problem: str | None = None
+        expected = characteristics.pseudo_hex_minimum
+        if bands[0].minimum != expected:
+            band_problem = f"a gap: no band covers score {expected}"
+        else:
+            for previous, current in zip(bands, bands[1:]):
+                if previous.maximum is None:
+                    # `characteristic_dm` returns the *first* matching band
+                    # (registries.py), so a band sorted after the unbounded
+                    # one is dead data: every score it claims already
+                    # matched the unbounded band first (T199).
+                    band_problem = (
+                        f"a band above the unbounded band: {current.minimum} "
+                        f"sorts higher than the unbounded band's minimum of {previous.minimum}"
+                    )
+                    break
+                if current.minimum > previous.maximum + 1:
+                    band_problem = f"a gap: no band covers score {previous.maximum + 1}"
+                    break
+                if current.minimum <= previous.maximum:
+                    band_problem = f"an overlap: more than one band covers score {current.minimum}"
+                    break
+        if band_problem is not None:
+            problems.append(
+                ValidationProblem(
+                    file=characteristics_basename,
+                    location="modifier-dms",
+                    found=band_problem,
+                    expected=(
+                        f"bands covering every score from {expected} up to the unbounded "
+                        "band with no gap and no overlap"
+                    ),
+                )
+            )
+
+    if aging is not None and aging.rows:
+        # `chargen.py`'s parser counts unbounded rows and sorts by
+        # `minimum`, nothing else; the aging lookup (generator.py) takes
+        # the *first* row whose range covers the modified total, so an
+        # overlap or a row sorted above the unbounded row is resolved by
+        # nothing but TOML file order and is silently unreachable once
+        # shadowed — the T180/T199 shape, for the one other positional
+        # range table in the package (T210). Unlike the characteristic
+        # bands, a gap here is permitted (the lowest row is a floor and
+        # the contract says so), so only overlap and ordering are checked.
+        aging_basename = resolved_singleton["aging-table"]
+        aging_rows = aging.rows
+        aging_row_problem: str | None = None
+        for previous, current in zip(aging_rows, aging_rows[1:]):
+            if previous.maximum is None:
+                aging_row_problem = (
+                    f"a row above the unbounded row: {current.minimum} "
+                    f"sorts higher than the unbounded row's minimum of {previous.minimum}"
+                )
+                break
+            if current.minimum <= previous.maximum:
+                aging_row_problem = f"an overlap: more than one row covers score {current.minimum}"
+                break
+        if aging_row_problem is not None:
+            problems.append(
+                ValidationProblem(
+                    file=aging_basename,
+                    location="rows",
+                    found=aging_row_problem,
+                    expected="exactly one row unbounded above, with no overlap between rows",
+                )
+            )
+
+    characteristic_classes = (
+        frozenset(characteristics.classes.values()) if characteristics is not None else frozenset()
+    )
+
+    def _class_effect_problems(file: str, location: str, characteristic_class: str) -> None:
+        if characteristic_class not in characteristic_classes:
+            problems.append(
+                ValidationProblem(
+                    file=file,
+                    location=location,
+                    found=repr(characteristic_class),
+                    expected=(
+                        f"one of the declared characteristic classes: "
+                        f"{', '.join(sorted(characteristic_classes))}"
+                        if characteristic_classes
+                        else "a class declared by the characteristics registry"
+                    ),
+                )
+            )
+
+    if aging is not None:
+        aging_basename = resolved_singleton["aging-table"]
+        for row_index, row in enumerate(aging.rows):
+            for effect_index, effect in enumerate(row.effects):
+                _class_effect_problems(
+                    aging_basename,
+                    f"rows[{row_index}].effects[{effect_index}].class",
+                    effect.characteristic_class,
+                )
+
+    if mishaps is not None:
+        mishaps_basename = resolved_singleton["mishap-table"]
+        for section, section_rows in (("mishaps", mishaps.rows), ("injuries", mishaps.injuries)):
+            for row_index, row in enumerate(section_rows):
+                for effect_index, effect in enumerate(row.effects):
+                    if effect.kind != "characteristic-class":
+                        continue
+                    _class_effect_problems(
+                        mishaps_basename,
+                        f"{section}[{row_index}].effects[{effect_index}].class",
+                        effect.characteristic_class,
+                    )
+
     problems.sort()
     report = ValidationReport(
         provenance=provenance, file_count=len(composed), problems=tuple(problems)
@@ -779,6 +1056,14 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
         or characteristics is None
         or skills is None
         or benefits is None
+        or draft is None
+        or aging is None
+        or mishaps is None
+        or background_skills is None
+        or medical_tiers is None
+        or chargen is None
+        or given_names is None
+        or not surnames
     ):
         return None, report
 
@@ -789,6 +1074,14 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
             skills=skills,
             benefits=benefits,
             careers=MappingProxyType(careers),
+            draft=draft,
+            aging=aging,
+            mishaps=mishaps,
+            background_skills=background_skills,
+            medical_tiers=medical_tiers,
+            chargen=chargen,
+            given_names=given_names,
+            surnames=MappingProxyType(surnames),
             provenance=provenance,
         ),
         report,

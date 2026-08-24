@@ -1,0 +1,12 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# Read positionally: the row a drafted character lands on is the throw's
+# total, so row order is significant (FR-005). Career-table spellings, not
+# the source's parenthetical aliases.
+
+schema = "draft-table"
+schema-version = 1
+
+roll = "1d6"
+careers = ["Aerospace Defense", "Marine", "Maritime Defense",
+           "Navy", "Scout", "Surface Defense"]

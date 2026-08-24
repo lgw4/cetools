@@ -1,0 +1,34 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# The tier names are this project's labels, not the source's. The source
+# groups careers into three tiers and names none of them; "professional" is
+# this project's own word and the other two are chosen to match how the
+# source groups them (FR-032).
+
+schema = "medical-tiers"
+schema-version = 1
+
+roll = "2d6"
+rank-dm = true
+
+[[tiers]]
+name = "service"
+thresholds = [
+  { target = 4, paid-percent = 75 },
+  { target = 8, paid-percent = 100 },
+]
+
+[[tiers]]
+name = "professional"
+thresholds = [
+  { target = 4, paid-percent = 50 },
+  { target = 8, paid-percent = 75 },
+  { target = 12, paid-percent = 100 },
+]
+
+[[tiers]]
+name = "fringe"
+thresholds = [
+  { target = 8, paid-percent = 50 },
+  { target = 12, paid-percent = 75 },
+]

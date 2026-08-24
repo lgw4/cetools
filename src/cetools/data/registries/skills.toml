@@ -1,25 +1,46 @@
 # Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
 #
-# Skills referenced by the shipped career data. Each entry declares its
+# Skills referenced by the shipped chargen data. Each entry declares its
 # permitted specialties explicitly, empty when it has none.
 
 schema = "skills"
 schema-version = 1
 
 [skills]
+"Admin" = []
 "Advocate" = []
+"Animals" = []
+"Art" = []
+"Athletics" = []
+"Broker" = []
+"Carouse" = []
 "Comms" = []
 "Computer" = []
+"Diplomat" = []
+"Drive" = []
+"Electronics" = []
 "Engineering" = []
+"Flyer" = []
+"Gambler" = []
 "Gravitics" = []
 "Gun Combat" = ["Archery", "Energy Pistol", "Energy Rifle", "Shotgun", "Slug Pistol", "Slug Rifle"]
 "Gunnery" = ["Bay Weapons", "Heavy Weapons", "Screens", "Spinal Mounts", "Turret Weapons"]
 "Jack-of-All-Trades" = []
+"Language" = []
 "Leadership" = []
+"Mechanic" = []
 "Medicine" = []
 "Melee Combat" = ["Bludgeoning Weapons", "Natural Weapons", "Piercing Weapons", "Slashing Weapons"]
 "Navigation" = []
+"Persuade" = []
 "Piloting" = []
+"Profession" = []
+"Recon" = []
+"Seafarer" = []
+"Stealth" = []
+"Steward" = []
+"Streetwise" = []
+"Survival" = []
 "Tactics" = []
 "Vehicle" = ["Aircraft", "Mole", "Tracked Vehicle", "Watercraft", "Wheeled Vehicle"]
 "Zero-G" = []

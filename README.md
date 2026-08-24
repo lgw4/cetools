@@ -46,21 +46,70 @@ Check: FAILURE
   Rules: packaged (cetools 2026.8.1)
 ```
 
-`roll`, `check`, and `validate` all accept `--json` for machine-readable
-output, and `roll` and `check` each print the seed used (fresh, if none was
-given), so any result is reproducible from `--seed <that seed> --json` given
-the same package version. `cetools --version` prints the installed package
-version.
+`roll`, `check`, `validate`, and `npc` all accept `--json` for
+machine-readable output, and `roll`, `check`, and `npc` each print the seed
+used (fresh, if none was given), so any result is reproducible from
+`--seed <that seed> --json` given the same package version. `cetools
+--version` prints the installed package version.
+
+`cetools npc` walks the source material's lifepath end to end and prints
+the Universal Character Format — the source material's own sheet, tab
+separated — to standard output, with the seed and provenance on standard
+error so a redirected sheet is exactly a sheet and nothing else:
+
+```sh
+$ cetools npc --seed session-alpha
+Flight Lieutenant Darrell Soyinka	689869	Age 30
+Aerospace Defense (3 terms)	Cr1,000
+Animals-0, Electronics-0, Flyer-1, Gun Combat (Energy Pistol)-0, Gunnery (Screens)-0, Gunnery (Spinal Mounts)-0, Gunnery (Turret Weapons)-1, Jack-of-All-Trades-0, Mechanic-1, Navigation-0, Vehicle (Aircraft)-0, Vehicle (Wheeled Vehicle)-0
+Personal Vehicle
+```
+
+The character is always alive, always named, and always internally
+consistent; nothing is discarded and re-rolled. `--full` adds the
+outstanding debt, the pension, and the generation history — one line per
+step, composed from the step's own kind, career, term, throw, and effects
+— so a surprising sheet is diagnosed from output rather than a debugger.
+`--json` emits the same character as a machine-readable document instead,
+with the seed and provenance in the document rather than on standard
+error; the two options combine without conflict. `--count N` generates
+`N` characters from the same seed, one blank line between consecutive
+sheets:
+
+```sh
+$ cetools npc --seed table-of-twelve --count 3
+Scout Bennette Kalama	5887BA	Age 22
+Scout (1 term)	Cr20,000
+Advocate-0, Electronics-1, Gambler-0, Gun Combat (Archery)-0, Gunnery (Turret Weapons)-0, Mechanic-0, Medicine-0, Navigation-0, Piloting-0, Survival-1, Vehicle (Tracked Vehicle)-0
+
+Flight Lieutenant Quinn Yoon	68A868	Age 22
+Aerospace Defense (1 term)	Cr0
+Admin-0, Electronics-0, Flyer-1, Gun Combat (Energy Rifle)-0, Gunnery (Spinal Mounts)-0, Gunnery (Turret Weapons)-1, Mechanic-0, Vehicle (Tracked Vehicle)-0, Vehicle (Wheeled Vehicle)-0
+Personal Vehicle
+
+Captain Kim Davis	9A6636	Age 26
+Marine (2 terms)	Cr15,000
+Athletics-0, Gun Combat (Energy Rifle)-0, Gun Combat (Slug Pistol)-0, Gun Combat (Slug Rifle)-1, Melee Combat (Piercing Weapons)-1, Melee Combat (Slashing Weapons)-0, Recon-1, Vehicle (Tracked Vehicle)-0, Zero-G-0
+```
+
+A batch of one is byte-identical to the single character of that seed, and
+the same seed reproduces the whole batch: quoting a batch member's own
+seed (printed with `--json`) back to `--seed` regenerates that one person
+alone. `--name` supplies a name verbatim instead of rolling one, and
+changes nothing else about the character the seed produces; it cannot be
+combined with `--count` above 1, since a personal name names one
+character.
 
 `check` resolves against the rules data packaged with `cetools`: a task
-definition, three registries of names, and a career. `cetools validate`
-checks that data set, or a house rule composed over it, and reports every
-problem it finds in one run:
+definition, three registries of names, the universal chargen tables, eight
+careers, and the name tables the NPC generator draws from. `cetools
+validate` checks that data set, or a house rule composed over it, and
+reports every problem it finds in one run:
 
 ```sh
 $ cetools validate
 Rules data is valid.
-  Files: 5
+  Files: 26
   Rules: packaged (cetools 2026.8.1)
 ```
 
@@ -92,11 +141,20 @@ licensing constraints on new files, and `CHANGELOG.md` for release history.
 ## Licensing
 
 This repository carries two licenses. Every `.toml` file under
-`src/cetools/data/` — the rules data, which ships as `cetools/data/` in an
-installed package — is Open Game Content under the Open Game License v1.0a
-(see `LICENSE-OGL.txt`). Everything else — the library and CLI source, the
-`__init__.py` that makes the data directory importable, tests, and packaging
-— is licensed under the GNU General Public License v3.0 (see `LICENSE`).
+`src/cetools/data/registries/`, `src/cetools/data/chargen/`, and
+`src/cetools/data/careers/`, plus `src/cetools/data/tasks.toml` itself — the
+rules data, which ships as `cetools/data/` in an installed package — is Open
+Game Content under the Open Game License v1.0a (see `LICENSE-OGL.txt`).
+Every `.toml` file under `src/cetools/data/names/` is this project's own
+content, not Open Game Content, and is licensed GPL-3.0-only along with
+everything else — the library and CLI source, the `__init__.py` that makes
+the data directory importable, tests, and packaging — under the GNU General
+Public License v3.0 (see `LICENSE`). Most of those name tables draw part of
+their entries from CC BY-SA 4.0 Wikipedia and Wiktionary material, plus
+public-domain government census and civil-registry data; each file's own
+`source` field names exactly what it drew on. CC BY-SA 4.0 is one-way
+compatible with GPLv3, and a bare list of names may not be copyrightable
+expression at all, but this project credits the source either way.
 
 A house rule supplied through `--rules-data` or `cetools validate PATH`
 carries no such obligation: it is your own content, not something this

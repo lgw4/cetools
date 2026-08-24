@@ -1,0 +1,24 @@
+# GPL-3.0-only project content; not Open Game Content. See LICENSE.
+
+schema = "surnames"
+schema-version = 1
+
+region = "Africa"
+source = "Surnames drawn from Wikipedia's language-tagged surname categories (Category:Yoruba-language surnames, Category:Igbo-language surnames, Category:Hausa-language surnames, Category:Zulu-language surnames, Category:Xhosa-language surnames, Category:Sotho-language surnames, Category:Tswana-language surnames, Category:Shona-language surnames, and Category:Swahili-language surnames, at https://en.wikipedia.org) and Wiktionary's Category:English surnames from Kikuyu (https://en.wiktionary.org); both projects' text is CC BY-SA 4.0."
+
+names = [
+  { name = "Adeyemi" }, { name = "Babatunde" }, { name = "Balogun" }, { name = "Fashola" },
+  { name = "Ogunleye" }, { name = "Soyinka" }, { name = "Taiwo" }, { name = "Bankole" },
+  { name = "Achebe" }, { name = "Chukwu" }, { name = "Nwachukwu" }, { name = "Nwosu" },
+  { name = "Obi" }, { name = "Okafor" }, { name = "Okeke" }, { name = "Aliyu" },
+  { name = "Mwangi" }, { name = "Kariuki" }, { name = "Kimani" }, { name = "Njoroge" },
+  { name = "Mbugua" }, { name = "Njuguna" }, { name = "Onyango" }, { name = "Odhiambo" },
+  { name = "Otieno" }, { name = "Ochieng" }, { name = "Shabani" }, { name = "Cheboi" },
+  { name = "Shamasdin" },
+  { name = "Buthelezi" }, { name = "Cele" }, { name = "Dube" }, { name = "Mtshali" },
+  { name = "Ncube" }, { name = "Ntuli" }, { name = "Qwabe" }, { name = "Radebe" },
+  { name = "Sithole" }, { name = "Vilakazi" }, { name = "Zuma" }, { name = "Dlungwana" },
+  { name = "Mandela" }, { name = "Sisulu" }, { name = "Sobukwe" }, { name = "Mbeki" },
+  { name = "Makeba" }, { name = "Mokoena" }, { name = "Motaung" }, { name = "Thabane" },
+  { name = "Motsepe" }, { name = "Gumbo" }, { name = "Mukarakate" },
+]

@@ -1,0 +1,54 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# `2d6` modified by terms served. The lowest row is a floor: a modified
+# result below it reads that row too.
+
+schema = "aging-table"
+schema-version = 1
+
+roll = "2d6"
+modifier = "terms-served"
+
+[[rows]]
+range = "-6"
+effects = [
+  { class = "physical", count = 3, amount = -2 },
+  { class = "mental", count = 1, amount = -1 },
+]
+
+[[rows]]
+range = "-5"
+effects = [
+  { class = "physical", count = 2, amount = -2 },
+  { class = "mental", count = 1, amount = -1 },
+]
+
+[[rows]]
+range = "-4"
+effects = [
+  { class = "physical", count = 2, amount = -1 },
+  { class = "mental", count = 1, amount = -1 },
+]
+
+[[rows]]
+range = "-3"
+effects = [{ class = "physical", count = 1, amount = -2 }]
+
+[[rows]]
+range = "-2"
+effects = [
+  { class = "physical", count = 1, amount = -1 },
+  { class = "mental", count = 1, amount = -1 },
+]
+
+[[rows]]
+range = "-1"
+effects = [{ class = "physical", count = 1, amount = -1 }]
+
+[[rows]]
+range = "0"
+effects = [{ class = "physical", count = 1, amount = -1 }]
+
+[[rows]]
+range = "1+"
+effects = []

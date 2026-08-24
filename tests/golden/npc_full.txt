@@ -1,0 +1,15 @@
+Sergeant Jonah Vance	879654	Age 26
+Navy (2 terms)	Cr4,000
+Gunnery-1
+Weapon
+
+  Debt:    Cr1,200
+  Pension: Cr10,000
+
+  History:
+    characteristics            STR 8, DEX 7, END 9, INT 6, EDU 5, SOC 4
+    qualification    Navy  t1  2, 5 (sum 7) Characteristic 6 +1 = 8 vs 6  SUCCESS
+    career-entered   Navy  t1  selected
+    mishap           Navy  t2  3, 2 (sum 5)  Injury
+    mishap           Navy  t2  Cr1,200 debt
+    pension          Navy      Cr10,000 pension

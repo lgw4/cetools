@@ -1,0 +1,24 @@
+# GPL-3.0-only project content; not Open Game Content. See LICENSE.
+
+schema = "surnames"
+schema-version = 1
+
+region = "North America"
+source = "U.S. Census Bureau, \"Frequently Occurring Surnames from the 2010 Census\" (public domain U.S. government data, https://www.census.gov/topics/population/genealogy/data/2010_surnames.html), combined with Wikipedia's \"List of Ashkenazi Jewish surnames\" (https://en.wikipedia.org/wiki/List_of_Ashkenazi_Jewish_surnames) and \"Category:Ashkenazi surnames\" (https://en.wikipedia.org/wiki/Category:Ashkenazi_surnames), and Wikipedia surname articles for French-Canadian names citing the Institut de la Statistique du Québec's 2006 study of Quebec surnames, all CC BY-SA 4.0."
+
+names = [
+  { name = "Smith" }, { name = "Johnson" }, { name = "Williams" }, { name = "Brown" },
+  { name = "Jones" }, { name = "Miller" }, { name = "Davis" }, { name = "Wilson" },
+  { name = "Anderson" }, { name = "Thomas" }, { name = "Taylor" }, { name = "Moore" },
+  { name = "Jackson" }, { name = "Martin" }, { name = "Lee" }, { name = "Thompson" },
+  { name = "White" }, { name = "Harris" }, { name = "Clark" }, { name = "Lewis" },
+  { name = "Tremblay" }, { name = "Gagnon" }, { name = "Roy" }, { name = "Cote" },
+  { name = "Bouchard" }, { name = "Gauthier" }, { name = "Morin" }, { name = "Lavoie" },
+  { name = "Fortin" }, { name = "Gagne" }, { name = "Ouellet" }, { name = "Pelletier" },
+  { name = "Belanger" }, { name = "Levesque" }, { name = "Bergeron" }, { name = "Leblanc" },
+  { name = "Girard" }, { name = "Simard" }, { name = "Boucher" },
+  { name = "Cohen" }, { name = "Kahn" }, { name = "Katz" }, { name = "Abrahams" },
+  { name = "Abramson" }, { name = "Rosen" }, { name = "Rosenberg" }, { name = "Goldberg" },
+  { name = "Bernstein" }, { name = "Epstein" }, { name = "Shapiro" }, { name = "Grossman" },
+  { name = "Landau" }, { name = "Horowitz" }, { name = "Kaminsky" },
+]

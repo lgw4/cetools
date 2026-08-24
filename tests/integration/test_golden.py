@@ -4,6 +4,9 @@ import pytest
 from typer.testing import CliRunner
 
 from cetools.cli import app
+from cetools.generator import generate_batch
+from cetools.render import as_text
+from cetools.rules import load_rules
 
 runner = CliRunner()
 
@@ -171,7 +174,16 @@ def _readme_blocks() -> dict[str, str]:
             command = command[:-1].rstrip() + " " + lines[index].strip()
             index += 1
         output: list[str] = []
-        while index < len(lines) and lines[index].strip() and not lines[index].startswith("```"):
+        while index < len(lines) and not lines[index].startswith("```"):
+            # A blank line ends the block only when it separates two
+            # documented commands sharing one fence; a blank line inside a
+            # command's own output (the separator between npc batch sheets)
+            # stays part of the block.
+            if not lines[index].strip() and (
+                index + 1 >= len(lines) or lines[index + 1].startswith("$ ")
+            ):
+                index += 1
+                break
             output.append(lines[index])
             index += 1
         blocks[command] = "\n".join(output) + "\n"
@@ -196,6 +208,14 @@ README_EXAMPLES = {
         "session-alpha",
     ],
     "cetools validate": ["validate"],
+    "cetools npc --seed session-alpha": ["npc", "--seed", "session-alpha"],
+    "cetools npc --seed table-of-twelve --count 3": [
+        "npc",
+        "--seed",
+        "table-of-twelve",
+        "--count",
+        "3",
+    ],
 }
 
 # Worked examples the README shows with elided or otherwise non-literal
@@ -232,3 +252,31 @@ def test_the_readme_shows_what_the_command_actually_prints(documented):
     result = runner.invoke(app, README_EXAMPLES[documented])
     assert result.exit_code == 0
     assert _readme_blocks()[documented] == result.stdout
+
+
+def test_npc_stdout_is_the_renderers_own_output_plus_one_newline(read_golden_bytes):
+    """T106: the command's stdout is a derivation from the renderer, not a
+    second expectation. The six committed `npc_*.txt` references are wired
+    against `as_text` directly in `tests/unit/test_render_character.py`; this
+    is the one assertion that ties the *command* to them, checkable without
+    a captured expectation.
+    """
+    result = runner.invoke(app, ["npc", "--seed", "session-alpha"])
+    assert result.exit_code == 0
+    rules = load_rules()
+    batch = generate_batch("session-alpha", rules, count=1)
+    expected = as_text(batch.characters[0]).encode("utf-8") + b"\n"
+    assert result.stdout.encode("utf-8") == expected
+
+
+def test_npc_batch_stdout_is_the_renderers_own_output_plus_one_newline():
+    """T126/SC-011: a `--count N` run's stdout is a derivation from the
+    renderer, tying the *command* to the blank-line batch separator without
+    a second, captured expectation.
+    """
+    result = runner.invoke(app, ["npc", "--seed", "session-alpha", "--count", "3"])
+    assert result.exit_code == 0
+    rules = load_rules()
+    batch = generate_batch("session-alpha", rules, count=3)
+    expected = as_text(batch).encode("utf-8") + b"\n"
+    assert result.stdout.encode("utf-8") == expected

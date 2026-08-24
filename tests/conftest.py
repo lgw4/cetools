@@ -54,8 +54,11 @@ SECTION_15_NOTICES = (
     "Publishing Ltd Authorized User.",
     "Cepheus Engine System Reference Document, Copyright © 2016 Samardan Press; "
     'Author Jason "Flynn" Kemp.',
-    "cetools rules data, every .toml file under (src/cetools/data/) as distributed in "
-    "source and under (cetools/data/) as installed, Copyright 2026, the cetools "
+    "cetools rules data—every .toml file under (src/cetools/data/registries/), "
+    "(src/cetools/data/chargen/), or (src/cetools/data/careers/), and "
+    "(src/cetools/data/tasks.toml) itself, as distributed in source, and under "
+    "(cetools/data/registries/), (cetools/data/chargen/), or (cetools/data/careers/), and "
+    "(cetools/data/tasks.toml) itself, as installed—Copyright 2026, the cetools "
     "contributors.",
 )
 
@@ -86,8 +89,55 @@ def section_15_notices() -> tuple[str, ...]:
     return SECTION_15_NOTICES
 
 
+# The designation as the data files actually write it, not the bare phrase.
+# Keying on "Open Game Content" alone would match every file that merely
+# discusses the licence — this module, the README, CONTRIBUTING, the OGL text
+# itself — so the obligation set has to be derived from the designation, which
+# only a designated file carries.
+#
+# Written in two fragments on purpose. `tests/` ships in the sdist, so a
+# contiguous literal here would make this guard designate its own source and
+# then report it uncovered, which is a guard failing on itself rather than on
+# the tree.
+DESIGNATION = b"Open Game Content" b" per OGL 1.0a"
+
+# The GPL-3.0 designation, carried by project content that is not Open Game
+# Content (003-npc-generator's name tables). Two fragments for the same
+# reason `DESIGNATION` is: this module ships in the sdist, and a contiguous
+# literal here would make it designate itself.
+GPL_DESIGNATION = b"GPL-3.0-only project content" b"; not Open Game Content"
+
 _NOTICE_PATH = re.compile(r"\(([^()]+)\)")
 _NOTICE_SUFFIX = re.compile(r"every (\.[a-z0-9]+) file")
+
+
+def _uncovered(paths, covered: tuple[str, ...], suffix: str) -> list[str]:
+    """Which of `paths` the notice does not designate.
+
+    Both halves of the notice's scope, because it names directories *and*
+    qualifies them with an extension: a designated file inside a covered
+    directory but of another kind is not covered by a notice that says `.toml`.
+    """
+    return [
+        path
+        for path in paths
+        if not (path.endswith(suffix) and any(path.startswith(p) for p in covered))
+    ]
+
+
+def _wrongly_covered(paths, covered: tuple[str, ...], suffix: str) -> list[str]:
+    """The mirror of `_uncovered`: which of `paths` — GPL-designated files —
+    the OGC notice's paths and suffix wrongly claim.
+
+    A name table that drifts into an OGC subtree (`registries/`, `chargen/`,
+    `careers/`, or `tasks.toml`) would otherwise ship there silently, sold
+    under a licence its GPL designation contradicts.
+    """
+    return [
+        path
+        for path in paths
+        if path.endswith(suffix) and any(path.startswith(p) for p in covered)
+    ]
 
 
 @pytest.fixture
@@ -215,6 +265,19 @@ def read_golden():
 
     def _read(name: str) -> str:
         return (golden_dir / name).read_text(encoding="utf-8")
+
+    return _read
+
+
+@pytest.fixture
+def read_golden_bytes():
+    """Read a golden file as raw bytes, so a tab or a CRLF it pins is not
+    normalized away the way ``Path.read_text``'s universal-newline mode
+    would normalize it."""
+    golden_dir = Path(__file__).resolve().parent / "golden"
+
+    def _read(name: str) -> bytes:
+        return (golden_dir / name).read_bytes()
 
     return _read
 

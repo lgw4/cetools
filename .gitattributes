@@ -15,3 +15,11 @@
 # alone; `eol=lf` pins the working-tree ending for everything it does treat
 # as text.
 * text=auto eol=lf
+
+# The npc golden files are tab separated (exactly one tab between fields,
+# per the Universal Character Format) and are compared as bytes in
+# `tests/integration/test_golden.py`. `-diff` keeps diff and merge tooling
+# from treating them as ordinary text and rewriting the tabs or line endings
+# they pin; `eol=lf` still settles the checked-out line ending at the source,
+# the same way it does for every other text file in this repository.
+tests/golden/npc_*.txt text eol=lf -diff
