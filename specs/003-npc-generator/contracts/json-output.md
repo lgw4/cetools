@@ -189,7 +189,7 @@ arithmetic invariant the `check` payload carries and which a contract test asser
 
 An effect object: `kind` (string), `subject` (string), `amount` (number), in that order.
 `amount` is `0` where the effect is not numeric, and the contract states rather than hides
-that: for `kind` values such as `commission` the field carries no meaning.
+that: for `kind` values such as `benefit` the field carries no meaning.
 
 **This is what SC-005 reads.** Every characteristic, skill, career, credit, and item on a
 sheet traces to a step here, checked over the sample by reading these named parts rather

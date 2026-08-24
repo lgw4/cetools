@@ -88,7 +88,7 @@ class StepThrow:
 @dataclass(frozen=True, slots=True)
 class StepEffect:
     """One consequence of a history step. `amount` means nothing for
-    `commission`, and is `0` there.
+    `benefit`, and is `0` there.
     """
 
     kind: str
