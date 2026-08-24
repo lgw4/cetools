@@ -80,6 +80,33 @@ psionics, anagathics, world generation, a lethal generation mode, and post-creat
 The previous feature's specification is left intact as the record of what was decided then,
 with a cross-reference added where its reasoning for excluding Noble is now superseded."
 
+## Clarifications
+
+### Session 2026-08-24
+
+- Q: When the validator checks that a career's mustering-out tables are long enough (FR-020), which
+  bonuses should it assume a character might have when rolling on those tables? → A: Every bonus the
+  generation walk can apply to that career — rank bonuses for the material table, and the retirement
+  bonus for the cash table. Cash tables therefore need every row up to the highest a retired
+  character can roll; material tables may be shorter where ranks cannot reach.
+- Q: Where should the source-first re-read of each career be recorded so that the verification
+  record is inspectable? → A: A committed artifact under the feature directory — one file per
+  career, or one table covering all 24 — listing the source's printed values field by field, then
+  the committed file's values, then the verdict.
+- Q: How should a character with no rank title appear in the machine-readable output, which today
+  always emits a `title` field holding an empty string? → A: Keep the empty string. The field stays
+  present and its shape unchanged; the placeholder FR-009 forbids is invented title text, not the
+  empty marker the format already uses.
+- Q: When a mustering-out row awards a rolled number of ship shares, how should the sheet record
+  them? → A: Append the item once per share rolled, so the existing repeat-collapsing renderer shows
+  "Ship Share (x3)" and the machine-readable benefits list holds three identical entries. No new
+  benefit entry shape.
+- Q: How should the per-career fields the source's career tables do not print — medical-care tier,
+  always-available, re-enterable — be set for the sixteen new careers? → A: Transcribe them from
+  wherever the source states them, including sections outside the career tables, and verify them in
+  the re-read. Where the source is genuinely silent for a career, record the chosen default and its
+  reason in that career's file.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Generate a character from any career the source publishes (Priority: P1)
@@ -137,11 +164,12 @@ renders without a title and a benefit roll never lands past a career's last real
    loaded, **Then** it validates with that rank carrying a grant and no title.
 2. **Given** a career whose every rank row prints no title at all, **When** a character serves in it
    and is rendered, **Then** no rank title is attached to the name and no placeholder is emitted.
-3. **Given** a career whose ranks cannot reach the seventh benefit row, **When** the file is loaded,
-   **Then** it validates with tables shorter than seven rows, and no generated character ever rolls
-   a row that career does not print.
+3. **Given** a career whose ranks cannot reach the seventh material benefit row, **When** the file is
+   loaded, **Then** it validates with a material table shorter than seven rows, and no generated
+   character ever rolls a row that career does not print.
 4. **Given** a benefit award of ship shares, **When** a character receives it, **Then** the sheet
-   records the rolled number of shares, and the number is determined by the seed.
+   records the rolled number of shares as that many receipts of the item, the human-readable output
+   reports the total through its existing repeat display, and the number is determined by the seed.
 5. **Given** a skill grant naming a cascade whose chosen specialty is itself a cascade, **When** the
    grant is resolved, **Then** resolution continues until a terminal skill is reached and the sheet
    never records a name that no rule defines.
@@ -202,8 +230,9 @@ and confirm it reports none.
    validated, **Then** validation fails naming the file, the location, and the unresolvable name.
 2. **Given** a career file whose rank ladder skips a position or does not start at its base, **When**
    it is validated, **Then** validation fails naming the gap.
-3. **Given** a career file whose ranks can reach a benefit row its tables do not print, **When** it
-   is validated, **Then** validation fails naming the shortfall and the row that cannot be reached.
+3. **Given** a career file a character serving in it can roll past the end of — whether through rank
+   on the material table or through the retirement bonus on the cash table — **When** it is
+   validated, **Then** validation fails naming the shortfall and the missing row.
 4. **Given** every career shipped in the package, **When** validation runs over the whole rules set,
    **Then** it reports no problems and exits successfully.
 
@@ -220,9 +249,9 @@ error: starting from the source's printed tables and comparing them against the 
 ranks last; but it is stated as a requirement rather than left to working habit, because a check
 performed in the convenient direction is a formality.
 
-**Independent Test**: For each career, confirm a record exists showing the re-read began from the
-source's tables and enumerated every field, and that any discrepancy it found was resolved in the
-file rather than explained away.
+**Independent Test**: For each career, open the committed verification artifact in the feature
+directory and confirm it shows the re-read began from the source's tables, enumerated every field,
+and that any discrepancy it found was resolved in the file rather than explained away.
 
 **Acceptance Scenarios**:
 
@@ -245,7 +274,10 @@ file rather than explained away.
   validated coverage invariant guarantees no rank that career can reach produces such a roll, and
   a house-rule file that breaks the guarantee is rejected at validation rather than at generation.
 - What happens when a career's benefit table is shorter than another's? Nothing is padded and no
-  row is duplicated to fill the gap; the table ends where the source ends it.
+  row is duplicated to fill the gap; the table ends where the source ends it. Which tables can end
+  early is not uniform: the material table may stop short in a career whose ranks cannot reach the
+  last row, while the cash table must run to the row a retired character reaches, because the
+  retirement bonus applies in every career.
 - What happens when a cascade specialty is itself a cascade? Resolution continues until a terminal
   skill is reached. A cycle in the vocabulary is a data error, reported at validation.
 - What happens when a career grants a skill the source's skill chapter never defines? The name is
@@ -285,6 +317,11 @@ file rather than explained away.
   which for the three planetary-defense careers means the source's long names rather than an
   abbreviated column label.
 - **FR-006**: The Noble career MUST ship, with its rank titles carried as ordinary rank titles.
+- **FR-006a**: The per-career fields the source's career tables do not print — the medical-care
+  tier, and the flags marking a career always available or re-enterable — MUST be transcribed from
+  wherever the source does state them, including sections outside the career tables, and MUST be
+  covered by the re-read in FR-023. Where the source is genuinely silent for a career, the value
+  chosen MUST be recorded in that career's file together with the reason, rather than set silently.
 
 #### Faithful data shape
 
@@ -294,13 +331,20 @@ file rather than explained away.
 - **FR-008**: A career whose source rank rows print no titles at all MUST be recorded with no titles
   on any rank.
 - **FR-009**: A character holding only untitled ranks MUST be rendered with no rank title and no
-  placeholder standing in for one, in every output rendering.
+  invented text standing in for one, in every output rendering. In human-readable output the name
+  appears with no title and no dangling separator. In machine-readable output the title field
+  remains present and carries the empty string, which is the existing marker for "no title"; the
+  field is not removed and does not become a null.
 - **FR-010**: A career's mustering-out cash and material tables MUST be permitted to run fewer rows
   than the maximum, ending at the last row the source prints, and MUST NOT be padded or have a final
-  row duplicated to reach a fixed length.
+  row duplicated to reach a fixed length. A table shorter than the coverage rule in FR-020 demands
+  is a defect in the transcription, not a licence to pad: it is resolved by re-reading the source,
+  and if the source truly prints no such row, by recording the deviation under FR-024.
 - **FR-011**: A mustering-out award of ship shares MUST be a quantity determined by a roll rather
   than a fixed single share, MUST be expressed in data rather than hard-coded, and MUST be derived
-  solely from the seeded generator.
+  solely from the seeded generator. The award MUST be recorded as that many separate receipts of the
+  same item, so that the existing repeat-collapsing display reports the total and the
+  machine-readable benefits list stays a list of plain item names with no quantity field.
 - **FR-012**: Resolution of a cascade skill whose selected specialty is itself a cascade MUST
   continue until a terminal skill is reached, so that no recorded skill is a name for which no rule
   defines a level.
@@ -328,7 +372,11 @@ file rather than explained away.
 - **FR-019**: The same validation MUST reject a rank ladder whose rank positions are not contiguous
   from that ladder's base position.
 - **FR-020**: The same validation MUST reject a career whose mustering-out tables do not cover every
-  row that career's own rank ladders can cause a character to reach, naming the shortfall.
+  row a character serving in that career can reach, naming the shortfall. Reachability MUST account
+  for every bonus the generation walk can apply to a roll on that career's tables, not rank alone:
+  the material table MUST cover every row the career's own rank ladders can reach, and the cash
+  table MUST additionally cover the rows a retired character reaches through the retirement bonus,
+  which applies to every career regardless of rank.
 - **FR-021**: The coverage rule in FR-020 MUST be enforced by the validation users run, not stated
   only in documentation, so that an author of override career data is subject to it.
 - **FR-022**: Every career shipped in the package MUST pass validation with no reported problems.
@@ -338,6 +386,11 @@ file rather than explained away.
 - **FR-023**: Every one of the twenty-four careers MUST receive an independent re-read that begins
   from the source's printed tables and compares them against the committed file, never beginning
   from the file.
+- **FR-023a**: Each re-read MUST leave a committed verification artifact under this feature's
+  directory — one file per career, or one table covering all twenty-four — that enumerates the
+  source's printed values field by field, records the committed file's corresponding values, and
+  states a verdict per field. The artifact MUST be inspectable after the fact, so that "the re-read
+  was done" is a checkable claim rather than a recollection.
 - **FR-024**: A discrepancy found by a re-read MUST be resolved by changing the committed file to
   match the source, or by recording the deliberate deviation and its reason in the file itself.
 - **FR-025**: Acceptance MUST NOT rest on a human review of the content diff.
@@ -370,13 +423,16 @@ file rather than explained away.
 
 - **Career**: One profession from the source. Carries qualification, survival, and re-enlistment
   throws, optional commission and promotion throws, skill tables, one or more rank ladders, and
-  mustering-out cash and material tables. Twenty-four exist.
+  mustering-out cash and material tables. It also carries a medical-care tier and the flags marking
+  it always available or re-enterable, which the source states outside its career tables.
+  Twenty-four exist.
 - **Rank**: A position on a ladder. Carries a position, an optional title, and an optional skill
   grant. A rank with neither a title nor a grant is possible where the source prints an empty row.
 - **Rank ladder**: An ordered, contiguous run of ranks from a base position. A career has an entry
   ladder and may have a commissioned ladder.
 - **Mustering-out table**: An ordered run of rows, cash or material, ending at the last row the
-  source prints. Its length is a fact about the career, not a fixed constant.
+  source prints. Its length is a fact about the career, not a fixed constant, and must still reach
+  every row a character in that career can roll (FR-020).
 - **Benefit item**: A named award recorded as received — a passage, a weapon, a membership, a
   quantity of ship shares, a vessel, a characteristic adjustment. Its prose consequences are the
   referee's.
@@ -394,8 +450,9 @@ file rather than explained away.
 - **SC-002**: Validation over the complete shipped rules content reports zero problems, and each
   invariant in FR-018 through FR-020 is demonstrated to reject a violating file with a message
   naming the file and location.
-- **SC-003**: The independent source-first re-read is complete for 24 of 24 careers, and every
-  discrepancy it raised is either fixed in the file or recorded there with its reason.
+- **SC-003**: The independent source-first re-read is complete for 24 of 24 careers, each evidenced
+  by a committed verification artifact in the feature directory, and every discrepancy it raised is
+  either fixed in the file or recorded there with its reason.
 - **SC-004**: The skill and benefit vocabularies match the source exactly in both directions: zero
   entries absent from the source, zero source names absent from the vocabulary.
 - **SC-005**: No shipped career contains an invented rank title or a padded mustering-out row; every
