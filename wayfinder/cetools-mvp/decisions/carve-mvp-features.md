@@ -46,7 +46,7 @@ link it here:
 
 - dice-task-engine: [specs/001-dice-task-engine](../../../specs/001-dice-task-engine/spec.md)
 - rules-data-loading: [specs/002-rules-data-loading](../../../specs/002-rules-data-loading/spec.md)
-- npc-generator: (not yet specified)
+- npc-generator: [specs/003-npc-generator](../../../specs/003-npc-generator/spec.md)
 - career-data: (not yet specified)
 - packaging-release: (not yet specified)
 
