@@ -57,7 +57,8 @@ which touches only in-memory dict sizes and a load-time validation loop.
 
 **Scale/Scope**: 24 career files (8 reconciled, 16 added, 3 renamed), 2 registry files rebuilt,
 1 draft table updated, 1 new validation rule, 2 schema-version bumps, 1 notation form added,
-24 committed verification artifacts.
+24 committed verification artifacts plus a completeness index and a roster-level record
+(FR-023a, FR-023b).
 
 ## Constitution Check
 

@@ -279,7 +279,9 @@ and that any discrepancy it found was resolved in the file rather than explained
   last row, while the cash table must run to the row a retired character reaches, because the
   retirement bonus applies in every career.
 - What happens when a cascade specialty is itself a cascade? Resolution continues until a terminal
-  skill is reached. A cycle in the vocabulary is a data error, reported at validation.
+  skill is reached, and the sheet records the innermost cascade with its terminal specialty
+  (FR-012). A cycle in the vocabulary is a data error rejected at validation (FR-012a), which is
+  what guarantees the resolution terminates.
 - What happens when a career grants a skill the source's skill chapter never defines? The name is
   carried in the vocabulary so the grant resolves, and the discrepancy is recorded in the registry
   rather than silently normalized to something the chapter does define.
@@ -306,50 +308,116 @@ and that any discrepancy it found was resolved in the file rather than explained
 - **FR-001**: The package MUST ship career content for all twenty-four careers the source
   publishes, comprising the eight already shipped and the sixteen currently missing.
 - **FR-002**: Every shipped career's throws, skill tables, rank ladders, and mustering-out tables
-  MUST agree with the single source of truth named in Assumptions, and no career may be transcribed
-  from any other edition or from illustrative values in this project's own design documents.
+  MUST agree with the single source of truth named in Assumptions — the pages named there and no
+  others — and no career may be transcribed from any other edition or from illustrative values in
+  this project's own design documents. "Agree" MUST be reduced to a field-by-field comparison and
+  MUST NOT be asserted for a file as a whole: every field FR-023a enumerates is compared
+  individually against the source's printed value and carries its own recorded verdict.
 - **FR-003**: The existing Scout and Drifter careers MUST be reconciled against the source across
-  every field the audit found differing, including qualification target, re-enlistment target,
-  rank-zero skill grant, mustering-out cash table, mustering-out material table, and service skills.
+  every field, not only the fields the audit found differing. The fields the audit named —
+  qualification target, re-enlistment target, rank-zero skill grant, mustering-out cash table,
+  mustering-out material table, and service skills — are known differences and do not bound the
+  work; the field set FR-023a enumerates bounds it, and these two careers are reconciled by the
+  same field-by-field comparison as the other twenty-two.
 - **FR-004**: The advanced-education table requirement MUST be applied uniformly across all careers
   as the source applies it, rather than one career declaring a different requirement.
-- **FR-005**: Each career's display name MUST be the name the source uses when naming the career,
-  which for the three planetary-defense careers means the source's long names rather than an
-  abbreviated column label.
+- **FR-005**: Each career's display name MUST be the name the source uses where it is naming the
+  career rather than labeling a column or glossing it. Where the source renders a career's name
+  more than one way, the renderings rank: the career-descriptions list, which names careers, is
+  authoritative; a career-table column header is not, because it is abbreviated to fit a
+  six-column layout; and the draft table's parenthetical gloss is not, because the gloss explains
+  what the career is rather than forming part of its name. For the three planetary-defense careers
+  this means the descriptions list's long names, neither the tables' abbreviated labels nor the
+  draft table's glossed form.
 - **FR-006**: The Noble career MUST ship, with its rank titles carried as ordinary rank titles.
 - **FR-006a**: The per-career fields the source's career tables do not print — the medical-care
   tier, and the flags marking a career always available or re-enterable — MUST be transcribed from
   wherever the source does state them, including sections outside the career tables, and MUST be
-  covered by the re-read in FR-023. Where the source is genuinely silent for a career, the value
-  chosen MUST be recorded in that career's file together with the reason, rather than set silently.
+  covered by the re-read in FR-023. Their permitted values and meanings are:
+  - **Medical-care tier**: one of the tiers the source's medical-care table defines, named by the
+    tier vocabulary the package already ships. The source assigns every career to a tier, whether
+    individually or as a member of a named group.
+  - **Always available**: true where the source states the career may be entered regardless of
+    what the character has already attempted, false otherwise. It is not a synonym for
+    re-enterable, and the draft is not modeled through it.
+  - **Re-enterable**: true where the source states a character who has left the career may return
+    to it, false otherwise.
+
+  A career is **genuinely silent** only after all three places the source could state the field
+  have been read and none does: the career's own table, the career's entry in the descriptions
+  list, and the section that states the field for careers generally, including any group the
+  section names that the career could belong to. Failing to find the field in the career tables
+  alone is not silence. Where a career is genuinely silent, the value chosen MUST be recorded in
+  that career's file together with the reason, rather than set silently, and the re-read MUST
+  record it as a deviation under FR-023a rather than as a match.
 
 #### Faithful data shape
 
 - **FR-007**: A rank MUST be able to carry no title. Career data MUST NOT invent a title for a rank
   whose source row prints none, and a rank row that prints only a skill grant MUST be recorded as a
-  grant with no title.
+  grant with no title. In the data file, an absent title MUST be written by omitting the title key;
+  a title key present with an empty value MUST be rejected, because an empty value in a file is an
+  author saying something rather than saying nothing. The empty string FR-009 preserves is a
+  machine-readable-output marker and carries no implication for the file's shape.
+- **FR-007a**: A career's entry ladder MUST carry its base rank even where that rank's source row
+  prints neither a title nor a skill grant, because entering the career grants that row
+  unconditionally and a ladder missing its base has no row to grant. A base rank carrying no grant
+  grants nothing, which is a valid outcome and not a defect.
 - **FR-008**: A career whose source rank rows print no titles at all MUST be recorded with no titles
   on any rank.
 - **FR-009**: A character holding only untitled ranks MUST be rendered with no rank title and no
-  invented text standing in for one, in every output rendering. In human-readable output the name
-  appears with no title and no dangling separator. In machine-readable output the title field
-  remains present and carries the empty string, which is the existing marker for "no title"; the
-  field is not removed and does not become a null.
+  invented text standing in for one, in both of the output renderings the package produces, which
+  are the complete set of surfaces this requirement governs. In the human-readable character sheet
+  the name appears with no title and no dangling separator. In the machine-readable document the
+  title field remains present and carries the empty string, which is the existing marker for "no
+  title"; the field is not removed and does not become a null.
+- **FR-009a**: The existing rule that a rendered title comes from the most recently served career
+  whose ladder names a title for the rank held MUST hold across untitled ladders, and MUST be
+  testable rather than assumed: a character who serves in a titled career and then in an untitled
+  one MUST still be rendered with the title the earlier ladder supplied, because an untitled ladder
+  supplies no title and therefore neither replaces nor clears one.
 - **FR-010**: A career's mustering-out cash and material tables MUST be permitted to run fewer rows
   than the maximum, ending at the last row the source prints, and MUST NOT be padded or have a final
-  row duplicated to reach a fixed length. A table shorter than the coverage rule in FR-020 demands
-  is a defect in the transcription, not a licence to pad: it is resolved by re-reading the source,
-  and if the source truly prints no such row, by recording the deviation under FR-024.
+  row duplicated to reach a fixed length. A row whose source value is zero is a real printed row and
+  MUST be recorded as zero; it is neither an absent row nor padding, and MUST NOT be dropped,
+  skipped, or treated as the table ending early. A table shorter than the coverage rule in FR-020
+  demands is a defect in the transcription, not a licence to pad: it is resolved by re-reading the
+  source. FR-022 admits no exception, so the deviation path in FR-024 MUST NOT be used to ship a
+  career whose tables fail FR-020; if a re-read establishes that the source genuinely prints no such
+  row, that career MUST NOT ship under this specification and the conflict MUST be raised as a
+  change to it. No career in the source presents this case.
 - **FR-011**: A mustering-out award of ship shares MUST be a quantity determined by a roll rather
   than a fixed single share, MUST be expressed in data rather than hard-coded, and MUST be derived
   solely from the seeded generator. The award MUST be recorded as that many separate receipts of the
   same item, so that the existing repeat-collapsing display reports the total and the
-  machine-readable benefits list stays a list of plain item names with no quantity field.
+  machine-readable benefits list stays a list of plain item names with no quantity field. The
+  quantity MUST be written in the same dice notation every other dice field in the rules content
+  uses, and MUST be subject to the same restrictions that notation already carries — in particular
+  the two-digit table-lookup form is not an admissible quantity. A quantity notation MUST have a
+  minimum total of at least one, so that an award always awards something, and MUST NOT be
+  admissible anywhere but a mustering-out material row.
 - **FR-012**: Resolution of a cascade skill whose selected specialty is itself a cascade MUST
   continue until a terminal skill is reached, so that no recorded skill is a name for which no rule
-  defines a level.
+  defines a level. What the sheet records is the innermost cascade reached paired with the terminal
+  specialty chosen from it — not the outer cascade and its intermediate choice, and not the bare
+  terminal name stripped of the cascade it sits under — so the recorded pair is always a name and
+  specialty a rule gives a level to.
+- **FR-012a**: Cascade resolution MUST be guaranteed to terminate. The skill vocabulary's specialty
+  graph MUST be acyclic, and a chain of specialties that revisits a name MUST be rejected at
+  validation naming the file, the location, and the cycle, rather than discovered as a
+  non-terminating resolution during generation.
 - **FR-013**: Career data MUST express absence as absence. Where the source prints nothing, the data
-  MUST record nothing, rather than satisfying a shape requirement with invented content.
+  MUST record nothing, rather than satisfying a shape requirement with invented content. This is
+  not left to reviewer judgment: it is discharged by the checkable rules that implement it — an
+  absent rank title written by omitting the key and an empty title value rejected (FR-007), a
+  career with no printed titles carrying none (FR-008), a table ending where the source ends it
+  with no padding and no duplicated final row (FR-010), and every field where the source prints
+  nothing enumerated and given a verdict by the re-read (FR-023a).
+- **FR-013a**: The re-enlistment throw MUST admit a target and dice only. No source career modifies
+  re-enlistment by a characteristic, so the characteristic field MUST be removed from that throw's
+  admitted shape rather than left admissible and silently ignored, and a file declaring it MUST be
+  rejected naming the field and the keys the position admits. The other throw positions are
+  unchanged.
 
 #### Vocabularies
 
@@ -358,11 +426,43 @@ and that any discrepancy it found was resolved in the file rather than explained
   another edition or names the source never uses.
 - **FR-015**: The mustering-out benefits vocabulary MUST contain exactly the items the source's
   career tables award, and MUST NOT contain items the source never awards.
+- **FR-015a**: Where a source table cell prints a name in a different grammatical number from the
+  name the source's own prose uses for that skill or item, the vocabulary MUST carry the form the
+  prose uses and career data MUST reference that form. A difference of number MUST NOT produce a
+  second vocabulary entry, and MUST NOT be treated as a misspelling under FR-017. Where a plural
+  in a table cell accompanies a printed quantity, the quantity is carried as a quantity (FR-011)
+  and the name is carried in the prose's singular form.
 - **FR-016**: A skill that career tables grant but the source's skill chapter never defines MUST be
   carried in the vocabulary so grants resolve, and the discrepancy MUST be recorded in the
   vocabulary file that carries the name.
-- **FR-017**: Misspelled skill grants and the misspelled rank title found by the audit MUST be
-  corrected, and each correction MUST be noted in the file that carries it.
+- **FR-016a**: Where the source lists a name both as a top-level skill and as a specialty of a
+  cascade, the two MUST be recorded and presented as distinct skill entries, each carrying its own
+  level. Output MUST NOT merge them or treat one as an alias of the other, and MUST render the
+  specialty form with its cascade named, so that a sheet holding both is unambiguous about which
+  entry is which.
+- **FR-017**: Misspelled skill grants and misspelled rank titles MUST be corrected, and each
+  correction MUST be noted in the file that carries it. The instances the audit found are the known
+  set, not a closed one: the re-read required by FR-023 MUST apply the criteria in FR-017a to every
+  name it reads and MUST correct and note any further instance it finds, on the same terms.
+- **FR-017a**: Every name a source table prints MUST receive exactly one of three dispositions,
+  chosen by these criteria:
+  - **Carried verbatim** — the default, and the disposition whenever the tests below do not settle
+    the name. The printed form is what the data records, including an abbreviation the source
+    prints and prints nowhere in a fuller form.
+  - **Normalized to a canonical form** — the source defines the same name elsewhere in a fuller or
+    different form and sanctions the printed form as its short form or alias, whether by
+    introducing it explicitly or by using it consistently. The data records the canonical form and
+    the vocabulary file records the alias. A difference of grammatical number is normalized under
+    FR-015a.
+  - **Corrected as a misspelling** — the source uses the name correctly elsewhere, and the printed
+    form is one the source sanctions nowhere. The data records the correct spelling and the file
+    carrying it notes the correction.
+
+  An alias and a misspelling are distinguished by whether the source sanctions the printed form: a
+  form the source introduces or uses consistently is an alias and is normalized; a form appearing
+  against the source's otherwise consistent usage, and introduced nowhere, is a misspelling and is
+  corrected. A name that is merely shorter than another name is not thereby an alias, and a name
+  the source prints only once is not thereby a misspelling.
 
 #### Enforced invariants
 
@@ -380,19 +480,73 @@ and that any discrepancy it found was resolved in the file rather than explained
 - **FR-021**: The coverage rule in FR-020 MUST be enforced by the validation users run, not stated
   only in documentation, so that an author of override career data is subject to it.
 - **FR-022**: Every career shipped in the package MUST pass validation with no reported problems.
+  This admits no exception: a deviation recorded under FR-024 explains why a value differs from the
+  source, and never exempts the career from validating cleanly.
 
 #### Verification
 
 - **FR-023**: Every one of the twenty-four careers MUST receive an independent re-read that begins
   from the source's printed tables and compares them against the committed file, never beginning
-  from the file.
+  from the file. **Independent** means independent of the transcription pass and its working notes,
+  not merely of the committed file: the re-read MUST be a fresh reading of the source, performed as
+  a pass separate from the one that produced the transcription, consulting the committed file only
+  to compare against what the source has already been read to say. It MUST NOT substitute the
+  transcription's intermediate notes, tables, or summaries for the source itself, since a re-read
+  that reconstructs the source from the transcriber's own record can only confirm the
+  transcription. Because FR-025 forbids acceptance resting on a human review of the diff, this
+  re-read is the control; a re-read performed in the convenient direction, or from the
+  transcription's own working record, does not discharge the requirement.
 - **FR-023a**: Each re-read MUST leave a committed verification artifact under this feature's
-  directory — one file per career, or one table covering all twenty-four — that enumerates the
-  source's printed values field by field, records the committed file's corresponding values, and
-  states a verdict per field. The artifact MUST be inspectable after the fact, so that "the re-read
-  was done" is a checkable claim rather than a recollection.
+  directory — one file per career, or one table covering all twenty-four — written source-first:
+  for each field, the source's printed value, then the committed file's corresponding value, then
+  a verdict. The fields each artifact MUST enumerate are: the career's display name; its
+  qualification, survival, commission, promotion, and re-enlistment throws; its medical-care tier,
+  always-available flag, and re-enterable flag (FR-006a); every row of every skill table; every
+  rank row of every ladder, including the title and the skill grant separately; and every row of
+  both mustering-out tables.
+
+  The permitted verdicts are exactly three, and each asserts something different:
+  - **match** — the committed file's value is the source's printed value.
+  - **corrected** — the two differed, and the committed file was changed to the source's value.
+  - **deviation** — the committed file deliberately keeps a value the source does not print; the
+    reason is recorded in the artifact and, under FR-024, in the career data file itself.
+
+  The re-read MUST cover fields where the source prints nothing as fully as fields with a value to
+  compare: a rank row printed empty, a rank printing no title, and a mustering-out row the source
+  leaves blank each get an enumerated field and a verdict of their own. Absence recorded as absence
+  (FR-013) is precisely what an unenumerated field would hide, so a field may not be omitted from
+  an artifact on the grounds that there was nothing to compare.
+
+  Completeness of the set MUST be recorded in an inspectable index committed alongside the
+  artifacts, naming each of the twenty-four and whether its re-read is complete, so that "all
+  twenty-four were re-read, and none only partially" is checkable without reading every artifact.
+
+  The artifacts MUST be inspectable after the fact, so that "the re-read was done" is a checkable
+  claim rather than a recollection. Because they reproduce values printed in the source, each
+  artifact and the index MUST carry the same Open Game Content header the shipped source-derived
+  data files carry, even though they are not part of the distributed package, so that their
+  provenance is unambiguous to a reader of the repository.
+- **FR-023b**: The roster MUST be verified at the roster level, separately from the per-career
+  field verification: the set of careers the source publishes MUST be enumerated from the source
+  and compared against the set the package ships, establishing both that no career the source
+  publishes is missing and that no career the source does not publish has been invented. A
+  per-career re-read cannot establish either, because it starts from a career already on the
+  roster. This verification MUST leave its own committed record alongside the per-career artifacts,
+  and MUST govern the count in Assumptions rather than be checked against it.
 - **FR-024**: A discrepancy found by a re-read MUST be resolved by changing the committed file to
-  match the source, or by recording the deliberate deviation and its reason in the file itself.
+  match the source, or by recording the deliberate deviation and its reason in the career data file
+  that carries the value — that data file itself, not only the verification artifact, so a reader
+  of the shipped data sees the deviation without consulting this feature's directory.
+
+  Changing the file to match is the default and requires no justification. A deviation is
+  acceptable only where the source's printed value cannot be recorded as printed, and the reason is
+  a property of the source or of the data shape rather than of the transcriber's convenience:
+  the source is internally inconsistent and one reading must be chosen; the source prints a name
+  its own rules never define (FR-016); or the source's stated general rule overrides a career
+  table's printed value (FR-004). A discrepancy MUST NOT be reclassified as a deviation because
+  fixing it is inconvenient, and a deviation MUST NOT be used to ship a career that fails FR-022.
+  A deviation is accepted by whoever accepts this feature, on the record the artifact and the data
+  file leave; none is accepted implicitly by having been written.
 - **FR-025**: Acceptance MUST NOT rest on a human review of the content diff.
 
 #### Traversal acceptance
@@ -408,7 +562,9 @@ and that any discrepancy it found was resolved in the file rather than explained
 - **FR-028**: Career selection MUST draw from every career in force, so the enlarged pool applies to
   all generation.
 - **FR-029**: The change in generated output for a given seed MUST be released as a breaking change
-  with no compatibility path, flagged prominently in the changelog.
+  with no compatibility path, flagged prominently in the changelog. FR-029 covers the seed-output
+  change; the career-file renames are a separate breaking change flagged under FR-035, and the
+  schema bumps under FR-033 and FR-034.
 - **FR-030**: The pinned human-readable outputs MUST be re-pinned once in a behavior-preserving step
   before any career content changes, and regenerated once after those changes, so that the second
   regeneration is attributable entirely to the enlarged career pool.
@@ -418,6 +574,28 @@ and that any discrepancy it found was resolved in the file rather than explained
 - **FR-032**: The previous feature's specification MUST be left intact as the record of what was
   decided then, with a cross-reference added at the point where its reasoning for excluding Noble is
   superseded by this feature.
+
+#### Schema and override impact
+
+- **FR-033**: Every data-shape change this feature makes MUST be carried by a version bump on the
+  schema it changes: the career schema for the optional rank title (FR-007), the quantified benefit
+  entry (FR-011), and the removed re-enlistment characteristic (FR-013a); the skill vocabulary's
+  schema for a specialty naming a cascade and for resolution continuing through it (FR-012), since
+  a reader of the previous version would stop at the intermediate name and record a skill no rule
+  gives a level. A vocabulary whose contents change but whose shape and semantics do not MUST NOT
+  be bumped.
+- **FR-034**: A file declaring a superseded schema version MUST be rejected on its version header,
+  naming the version found and the version supported. That rejection is how an author of an
+  existing override learns the shape moved: there is no migration of override files written against
+  the previous career or skill-vocabulary schema, and no silent acceptance of the previous shape.
+  The changed shapes MUST be documented in this feature's data-file contract, so the rejection
+  points at a description of what changed rather than only at a number.
+- **FR-035**: The renaming of the three planetary-defense career files MUST be flagged as a
+  breaking change in its own right, alongside the seed-output change of FR-029. An override
+  composes onto shipped career data by file basename, so a rename changes a public composition key,
+  and an existing override targeting an old basename stops composing silently rather than failing
+  loudly. The changelog MUST therefore name the old and the new basenames, so an override author
+  can retarget rather than discover the change through absent output.
 
 ### Key Entities
 
@@ -451,27 +629,45 @@ and that any discrepancy it found was resolved in the file rather than explained
   invariant in FR-018 through FR-020 is demonstrated to reject a violating file with a message
   naming the file and location.
 - **SC-003**: The independent source-first re-read is complete for 24 of 24 careers, each evidenced
-  by a committed verification artifact in the feature directory, and every discrepancy it raised is
-  either fixed in the file or recorded there with its reason.
+  by a committed verification artifact in the feature directory, and the committed index records
+  all twenty-four complete with none partial. The roster-level verification of FR-023b is likewise
+  recorded. Every discrepancy raised is either fixed in the file or recorded there with a reason
+  meeting FR-024's criteria, and no deviation stands against a career that fails validation.
 - **SC-004**: The skill and benefit vocabularies match the source exactly in both directions: zero
   entries absent from the source, zero source names absent from the vocabulary.
 - **SC-005**: No shipped career contains an invented rank title or a padded mustering-out row; every
-  rank title and every table row traces to a printed row in the source.
+  rank title and every table row traces to a printed row in the source. The trace is not an
+  unaudited claim: FR-023a's artifacts enumerate every rank row and every mustering-out row of every
+  career against the source's printed value with a per-field verdict, so any title or row without a
+  source counterpart appears there as a deviation rather than passing unnoticed.
 - **SC-006**: Pinned human-readable outputs change exactly twice: once in a step that changes no
   behavior, and once attributable entirely to the enlarged career pool.
 - **SC-007**: A generated batch large enough to sample the pool produces characters from careers
   outside the previously shipped eight, confirming the enlarged pool reaches new content.
-- **SC-008**: The release notes flag the seed-output change as breaking, and state that reproducing
-  the previous pool requires shipping it as an override.
+- **SC-008**: The release notes flag three breaking changes — the seed-output change, the two schema
+  version bumps, and the three career-file renames with their old and new basenames — and state that
+  reproducing the previous pool requires shipping it as an override.
 
 ## Assumptions
 
 - **The single source of truth** is the published SRD at
-  https://evolvedexperiment.github.io/cepheus-srd/. Where an earlier transcription, another
-  edition, or this project's own design documents disagree with it, it wins.
-- **Twenty-four is the source's career count**, and the sixteen to be added are exactly those the
-  source publishes and the package does not yet ship. The specific roster is enumerated during
-  planning by reading the source, not assumed here.
+  https://evolvedexperiment.github.io/cepheus-srd/, **as retrieved on 2026-08-25** — the date of
+  the source reading this feature's research records. Two pages carry everything in scope:
+  `character-creation.html` (the careers narrative, the draft table, the medical-care table, the
+  mustering-out rules, and the four in-page tabs of the "Career Tables" section) and `skills.html`
+  (the available-skills list, the skill descriptions, and each cascade skill's specialty list).
+  Where an earlier transcription, another edition, or this project's own design documents disagree
+  with it, it wins.
+- **The transcription is frozen at that retrieval.** The source is a living page with no published
+  revision identifier, so the retrieval date is the pin. A change published to it after 2026-08-25
+  does not retroactively invalidate this feature's transcription and does not reopen its re-reads;
+  reconciling against a later revision is separate work that begins with a new pinned retrieval
+  date. Throughout this specification, "the source" means the 2026-08-25 retrieval.
+- **Twenty-four is the source's career count**, confirmed by reading the source during planning
+  rather than assumed. The roster governs and the count follows it: if the roster-level
+  verification required by FR-023b finds the source publishes a career the roster omits, or names
+  one the source does not publish, the roster and this count are corrected to what the source
+  publishes.
 - **Benefit prose semantics belong to the referee.** A sheet records what was received — counts of
   weapons, shares, memberships, a vessel. Once-only membership, a repeated weapon taken as a skill
   instead, share valuation toward a vessel, and vessel duty conditions are deliberately not

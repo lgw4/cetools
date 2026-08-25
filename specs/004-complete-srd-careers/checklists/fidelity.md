@@ -6,6 +6,11 @@ the data shapes that carry it are complete, unambiguous, consistent, and measura
 
 **Created**: 2026-08-25
 
+**Reviewed**: 2026-08-25 — all 40 items reviewed. Every item required a change to `spec.md`; the
+resolution column below names the requirement that now carries it. Where the fix lifted a decision
+already made in `research.md` or `data-model.md`, the design document is unchanged and the spec now
+states the rule normatively.
+
 **Feature**: [spec.md](../spec.md) (with [plan.md](../plan.md), [research.md](../research.md),
 [data-model.md](../data-model.md) as the design context these items test the spec against)
 
@@ -15,64 +20,64 @@ the data shapes that carry it are complete, unambiguous, consistent, and measura
 
 ## Source Definition & Provenance
 
-- [ ] CHK001 Is the source of truth pinned to a specific revision, snapshot, or retrieval date rather than a bare URL to a living page? [Gap, Spec §Assumptions]
-- [ ] CHK002 Are the specific source pages and sections that constitute career and skill content identified in the requirements themselves, or only in research? [Traceability, Spec §FR-002]
-- [ ] CHK003 Is behavior specified for the case where the source changes after transcription — is re-verification triggered, or is the transcription frozen? [Gap, Edge Case]
-- [ ] CHK004 Are provenance and licensing requirements defined for the verification artifacts, which reproduce source table values but are not part of the shipped package? [Gap, Spec §FR-023a]
-- [ ] CHK005 Is roster-level verification specified — that no career the source publishes is omitted and none is invented — separately from per-career field verification? [Coverage, Spec §FR-001, §FR-023]
-- [ ] CHK006 Is "twenty-four" stated as a verified count or as an assumption the transcription may revise if the source proves otherwise? [Ambiguity, Spec §Assumptions, §FR-001]
+- [x] CHK001 Is the source of truth pinned to a specific revision, snapshot, or retrieval date rather than a bare URL to a living page? [Gap, Spec §Assumptions] — *was a bare URL; Assumptions now pins the 2026-08-25 retrieval and says why a date is the pin for a page with no revision identifier.*
+- [x] CHK002 Are the specific source pages and sections that constitute career and skill content identified in the requirements themselves, or only in research? [Traceability, Spec §FR-002] — *the two pages and their sections moved from research.md into Assumptions; FR-002 now binds to "the pages named there and no others".*
+- [x] CHK003 Is behavior specified for the case where the source changes after transcription — is re-verification triggered, or is the transcription frozen? [Gap, Edge Case] — *frozen: new Assumptions bullet states a post-retrieval change neither invalidates the transcription nor reopens the re-reads, and that reconciling is separate work with a new pinned date.*
+- [x] CHK004 Are provenance and licensing requirements defined for the verification artifacts, which reproduce source table values but are not part of the shipped package? [Gap, Spec §FR-023a] — *FR-023a now requires the same OGC header the shipped source-derived data files carry, on each artifact and the index; previously only the plan's licensing gate said so.*
+- [x] CHK005 Is roster-level verification specified — that no career the source publishes is omitted and none is invented — separately from per-career field verification? [Coverage, Spec §FR-001, §FR-023] — *new FR-023b, with its own committed record; it notes why a per-career re-read cannot establish either direction.*
+- [x] CHK006 Is "twenty-four" stated as a verified count or as an assumption the transcription may revise if the source proves otherwise? [Ambiguity, Spec §Assumptions, §FR-001] — *Assumptions now states the count was confirmed by reading the source, and that the roster governs: FR-023b's finding corrects the count, not the reverse.*
 
 ## Transcription Rules & Normalization
 
-- [ ] CHK007 Is the rule for choosing among a source's multiple renderings of a career name stated in the requirement itself, or only derived during research? [Clarity, Spec §FR-005]
-- [ ] CHK008 Are the dispositions a source-printed name can receive — carried verbatim, corrected as a misspelling, normalized to a canonical form — defined with criteria for choosing among them? [Gap, Spec §FR-002, §FR-013, §FR-017]
-- [ ] CHK009 Is a source-sanctioned short form or alias distinguished in requirements from a misspelling, given the two receive different treatment? [Ambiguity, Spec §FR-017]
-- [ ] CHK010 Is the audit's list of misspellings normative and closed, or may the re-read add corrections the audit never named? [Ambiguity, Spec §FR-017, §FR-023]
-- [ ] CHK011 Is the Scout/Drifter reconciliation field list exhaustive or illustrative — does "including" bound the work or merely sample it? [Clarity, Spec §FR-003]
-- [ ] CHK012 Is a rule specified for singular/plural normalization between a source table cell and the vocabulary entry it resolves to? [Gap, Spec §FR-011, §FR-015]
-- [ ] CHK013 Is "genuinely silent" defined with criteria for how far the source must be searched before a default may be recorded? [Ambiguity, Spec §FR-006a]
-- [ ] CHK014 Are the permitted values and their meaning specified for the per-career fields transcribed from outside the career tables (medical-care tier, always-available, re-enterable)? [Completeness, Spec §FR-006a]
+- [x] CHK007 Is the rule for choosing among a source's multiple renderings of a career name stated in the requirement itself, or only derived during research? [Clarity, Spec §FR-005] — *FR-005 now states the general precedence — descriptions list over abbreviated column header over draft-table gloss — rather than only naming the three careers' outcome.*
+- [x] CHK008 Are the dispositions a source-printed name can receive — carried verbatim, corrected as a misspelling, normalized to a canonical form — defined with criteria for choosing among them? [Gap, Spec §FR-002, §FR-013, §FR-017] — *new FR-017a defines all three with criteria and makes verbatim the default when the tests do not settle a name.*
+- [x] CHK009 Is a source-sanctioned short form or alias distinguished in requirements from a misspelling, given the two receive different treatment? [Ambiguity, Spec §FR-017] — *FR-017a's distinguishing test: whether the source sanctions the printed form by introducing it or using it consistently.*
+- [x] CHK010 Is the audit's list of misspellings normative and closed, or may the re-read add corrections the audit never named? [Ambiguity, Spec §FR-017, §FR-023] — *FR-017 now says the audit's instances are the known set, not a closed one, and requires the re-read to apply FR-017a to every name it reads.*
+- [x] CHK011 Is the Scout/Drifter reconciliation field list exhaustive or illustrative — does "including" bound the work or merely sample it? [Clarity, Spec §FR-003] — *"including" removed; FR-003 now says the audit's fields are known differences that do not bound the work, and FR-023a's field set does.*
+- [x] CHK012 Is a rule specified for singular/plural normalization between a source table cell and the vocabulary entry it resolves to? [Gap, Spec §FR-011, §FR-015] — *new FR-015a: the prose's form wins, number never creates a second entry and is never a misspelling, and a printed quantity is carried as a quantity.*
+- [x] CHK013 Is "genuinely silent" defined with criteria for how far the source must be searched before a default may be recorded? [Ambiguity, Spec §FR-006a] — *FR-006a now names the three places that must be read first, and states that absence from the career tables alone is not silence.*
+- [x] CHK014 Are the permitted values and their meaning specified for the per-career fields transcribed from outside the career tables (medical-care tier, always-available, re-enterable)? [Completeness, Spec §FR-006a] — *FR-006a now enumerates the permitted values and the meaning of each, including that always-available is not a synonym for re-enterable.*
 
 ## Re-read Verification Requirements
 
-- [ ] CHK015 Is "independent" defined — independent of the transcriber, of the session, or only of the committed file? [Ambiguity, Spec §FR-023]
-- [ ] CHK016 Given FR-025 forbids acceptance resting on human diff review, is the actor performing the re-read required to differ from the actor that produced the transcription? [Gap, Spec §FR-023, §FR-025]
-- [ ] CHK017 Is the complete set of fields each verification artifact must enumerate specified in the requirements, or only in the data model? [Traceability, Spec §FR-023a]
-- [ ] CHK018 Are the permitted verdict values, and what each asserts, defined in the requirements? [Clarity, Spec §FR-023a]
-- [ ] CHK019 In FR-024, is "the file itself" unambiguously the career data file rather than the verification artifact? [Ambiguity, Spec §FR-024]
-- [ ] CHK020 Are criteria defined for when a deliberate deviation is acceptable, and who accepts it, or may any discrepancy be reclassified as a deviation? [Gap, Spec §FR-024, §SC-003]
-- [ ] CHK021 Is completeness of the re-read set — all twenty-four done, none partial — required to be recorded somewhere inspectable? [Completeness, Spec §FR-023a, §SC-003]
-- [ ] CHK022 Is the re-read required to cover fields where the source prints nothing (an empty rank row, an absent table row), not only fields with a value to compare? [Coverage, Spec §FR-023a, §FR-013]
+- [x] CHK015 Is "independent" defined — independent of the transcriber, of the session, or only of the committed file? [Ambiguity, Spec §FR-023] — *FR-023 defines it as independent of the transcription pass and its working notes, and forbids substituting the transcription's intermediate notes for the source.*
+- [x] CHK016 Given FR-025 forbids acceptance resting on human diff review, is the actor performing the re-read required to differ from the actor that produced the transcription? [Gap, Spec §FR-023, §FR-025] — *resolved as a separate-pass requirement rather than a separate-actor one: FR-023 requires a pass distinct from the transcription's, reading the source afresh. Reviewer judgment, and the substantive question the item raises — that a re-read reconstructing the source from the transcriber's own record only confirms itself — is now stated in the requirement.*
+- [x] CHK017 Is the complete set of fields each verification artifact must enumerate specified in the requirements, or only in the data model? [Traceability, Spec §FR-023a] — *the field list is lifted from data-model.md into FR-023a, with title and skill grant enumerated separately per rank row.*
+- [x] CHK018 Are the permitted verdict values, and what each asserts, defined in the requirements? [Clarity, Spec §FR-023a] — *FR-023a now defines exactly three — match, corrected, deviation — and what each asserts.*
+- [x] CHK019 In FR-024, is "the file itself" unambiguously the career data file rather than the verification artifact? [Ambiguity, Spec §FR-024] — *FR-024 now says "the career data file that carries the value — that data file itself, not only the verification artifact", with the reason.*
+- [x] CHK020 Are criteria defined for when a deliberate deviation is acceptable, and who accepts it, or may any discrepancy be reclassified as a deviation? [Gap, Spec §FR-024, §SC-003] — *FR-024 makes matching the default, admits a deviation only on three named grounds, forbids reclassification for convenience, and names who accepts it.*
+- [x] CHK021 Is completeness of the re-read set — all twenty-four done, none partial — required to be recorded somewhere inspectable? [Completeness, Spec §FR-023a, §SC-003] — *FR-023a now requires a committed index naming each career and whether its re-read is complete; SC-003 measures against it.*
+- [x] CHK022 Is the re-read required to cover fields where the source prints nothing (an empty rank row, an absent table row), not only fields with a value to compare? [Coverage, Spec §FR-023a, §FR-013] — *FR-023a now requires it explicitly, and forbids omitting a field on the grounds that there was nothing to compare.*
 
 ## Data Shape — Requirement Completeness
 
-- [ ] CHK023 Is the file-level representation of an absent rank title specified in requirements (key omitted versus empty value), given FR-009 mandates an empty string in machine-readable output? [Consistency, Spec §FR-007, §FR-009, §FR-013]
-- [ ] CHK024 Is it required that a career's entry ladder still carry its base rank even when that rank prints neither a title nor a grant? [Gap, Spec §FR-007, §Key Entities]
-- [ ] CHK025 Are the permitted dice forms and bounds for a rolled benefit quantity specified in requirements? [Gap, Spec §FR-011]
-- [ ] CHK026 Is it specified which skill name and specialty a nested cascade records on the sheet once a terminal skill is reached? [Gap, Spec §FR-012]
-- [ ] CHK027 Is a depth bound or termination guarantee required for cascade resolution, given each level consumes a seeded draw? [Gap, Spec §FR-012]
-- [ ] CHK028 Is the removal of the re-enlistment characteristic field covered by any functional requirement, or does it appear only in the plan and data model? [Traceability, Spec §Requirements, Plan §Summary]
-- [ ] CHK029 Are requirements defined for how output presents two skill entries that differ only by cascade nesting — a bare skill and the same name held as a specialty? [Gap, Plan §Known risks]
-- [ ] CHK030 Is a zero-valued mustering-out row explicitly admitted by requirements, or only implied by the source's tables? [Edge Case, Spec §FR-010]
+- [x] CHK023 Is the file-level representation of an absent rank title specified in requirements (key omitted versus empty value), given FR-009 mandates an empty string in machine-readable output? [Consistency, Spec §FR-007, §FR-009, §FR-013] — *FR-007 now requires the key be omitted and an empty title value be rejected, and states that FR-009's empty string is an output marker with no implication for the file.*
+- [x] CHK024 Is it required that a career's entry ladder still carry its base rank even when that rank prints neither a title nor a grant? [Gap, Spec §FR-007, §Key Entities] — *new FR-007a, with the reason (entering grants that row unconditionally) and the outcome (a base rank with no grant grants nothing).*
+- [x] CHK025 Are the permitted dice forms and bounds for a rolled benefit quantity specified in requirements? [Gap, Spec §FR-011] — *FR-011 now binds the quantity to the existing dice notation and its restrictions, excludes the two-digit table-lookup form, requires a minimum total of at least one, and confines the form to a material row.*
+- [x] CHK026 Is it specified which skill name and specialty a nested cascade records on the sheet once a terminal skill is reached? [Gap, Spec §FR-012] — *FR-012 now specifies the innermost cascade with its terminal specialty, and rules out both the outer pair and the bare terminal name.*
+- [x] CHK027 Is a depth bound or termination guarantee required for cascade resolution, given each level consumes a seeded draw? [Gap, Spec §FR-012] — *new FR-012a requires termination, guaranteed by an acyclic specialty graph checked at validation rather than a depth constant.*
+- [x] CHK028 Is the removal of the re-enlistment characteristic field covered by any functional requirement, or does it appear only in the plan and data model? [Traceability, Spec §Requirements, Plan §Summary] — *new FR-013a, including the reason (a silently ignored field would let an override declare a modifier the engine drops) and the required rejection message.*
+- [x] CHK029 Are requirements defined for how output presents two skill entries that differ only by cascade nesting — a bare skill and the same name held as a specialty? [Gap, Plan §Known risks] — *new FR-016a: distinct entries, never merged or aliased, with the specialty form rendered under its named cascade.*
+- [x] CHK030 Is a zero-valued mustering-out row explicitly admitted by requirements, or only implied by the source's tables? [Edge Case, Spec §FR-010] — *FR-010 now states a zero row is a real printed row, neither absence nor padding, and must not be dropped or treated as the table ending early.*
 
 ## Data Shape — Consistency & Conflicts
 
-- [ ] CHK031 Do FR-010 and FR-022 conflict — FR-010 permits recording a deviation for a table the source genuinely prints short, while FR-022 requires every shipped career to pass validation with no reported problems? [Conflict, Spec §FR-010, §FR-022]
-- [ ] CHK032 Is rejection of a cascade cycle stated as a functional requirement, or does it appear only among the edge cases? [Consistency, Spec §Edge Cases, §FR-018–FR-020]
-- [ ] CHK033 Are the rendering surfaces FR-009 governs enumerated, so that "in every output rendering" is checkable rather than open-ended? [Clarity, Spec §FR-009]
-- [ ] CHK034 Is rank-title carry-forward across an untitled ladder stated as a testable requirement rather than only as an assumption? [Traceability, Spec §Assumptions, §FR-009]
+- [x] CHK031 Do FR-010 and FR-022 conflict — FR-010 permits recording a deviation for a table the source genuinely prints short, while FR-022 requires every shipped career to pass validation with no reported problems? [Conflict, Spec §FR-010, §FR-022] — *they did. Resolved in FR-022's favor: FR-022 now admits no exception, FR-010's deviation path may not be used to ship a career failing FR-020, and such a career must not ship until the specification itself is changed. No source career presents the case.*
+- [x] CHK032 Is rejection of a cascade cycle stated as a functional requirement, or does it appear only among the edge cases? [Consistency, Spec §Edge Cases, §FR-018–FR-020] — *promoted to FR-012a; the edge case now cites it rather than being its only statement.*
+- [x] CHK033 Are the rendering surfaces FR-009 governs enumerated, so that "in every output rendering" is checkable rather than open-ended? [Clarity, Spec §FR-009] — *FR-009 now names the human-readable sheet and the machine-readable document as the complete set of surfaces it governs.*
+- [x] CHK034 Is rank-title carry-forward across an untitled ladder stated as a testable requirement rather than only as an assumption? [Traceability, Spec §Assumptions, §FR-009] — *new FR-009a states the carry-forward case — titled career then untitled one — as a requirement with an observable outcome.*
 
 ## Schema Migration & Override Impact
 
-- [ ] CHK035 Are requirements defined for the schema version bumps and for how an override author learns the career and skills shapes moved? [Gap, Spec §Requirements]
-- [ ] CHK036 Does the breaking-change requirement cover the career-file renames, which change a public override composition key, or only the seed-output change? [Coverage, Spec §FR-005, §FR-029]
-- [ ] CHK037 Are requirements stated for existing override files written against the previous career schema — rejected, migrated, or deliberately unaddressed? [Gap, Spec §FR-029]
+- [x] CHK035 Are requirements defined for the schema version bumps and for how an override author learns the career and skills shapes moved? [Gap, Spec §Requirements] — *new "Schema and override impact" subsection: FR-033 requires a bump per changed shape and forbids one for a contents-only change; FR-034 makes header rejection the notification path.*
+- [x] CHK036 Does the breaking-change requirement cover the career-file renames, which change a public override composition key, or only the seed-output change? [Coverage, Spec §FR-005, §FR-029] — *it covered only the seed output. New FR-035 flags the renames separately, noting they break an override silently rather than loudly, and requires the changelog to name old and new basenames; FR-029 and SC-008 now scope accordingly.*
+- [x] CHK037 Are requirements stated for existing override files written against the previous career schema — rejected, migrated, or deliberately unaddressed? [Gap, Spec §FR-029] — *FR-034: rejected on the version header, no migration, no silent acceptance, with the contract documenting what moved.*
 
 ## Measurability
 
-- [ ] CHK038 Can "career data expresses absence as absence" be objectively verified, or does it rest on reviewer judgment? [Measurability, Spec §FR-013]
-- [ ] CHK039 Is SC-005's "traces to a printed row in the source" backed by a required traceability mechanism, or is it an unaudited claim? [Measurability, Spec §SC-005, §FR-023a]
-- [ ] CHK040 Is "MUST agree with the single source of truth" reduced anywhere in the requirements to a checkable field-by-field comparison? [Measurability, Spec §FR-002]
+- [x] CHK038 Can "career data expresses absence as absence" be objectively verified, or does it rest on reviewer judgment? [Measurability, Spec §FR-013] — *FR-013 is now discharged by the four checkable rules that implement it (FR-007, FR-008, FR-010, FR-023a) rather than standing alone as a principle.*
+- [x] CHK039 Is SC-005's "traces to a printed row in the source" backed by a required traceability mechanism, or is it an unaudited claim? [Measurability, Spec §SC-005, §FR-023a] — *SC-005 now rests on FR-023a's per-field enumeration of every rank row and every mustering-out row; an untraceable title or row surfaces there as a deviation.*
+- [x] CHK040 Is "MUST agree with the single source of truth" reduced anywhere in the requirements to a checkable field-by-field comparison? [Measurability, Spec §FR-002] — *FR-002 now reduces "agree" to FR-023a's per-field comparison and forbids asserting it for a file as a whole.*
 
 ## Notes
 
@@ -82,3 +87,18 @@ the data shapes that carry it are complete, unambiguous, consistent, and measura
 - `checklists/requirements.md` has a separate built-in lifecycle maintained by `/speckit-specify` and `/speckit-clarify`
 - Several items test the spec against decisions already made in `research.md` and `data-model.md`; where the design settles a question the spec leaves open, the fix is usually to lift the decision into the spec, not to restate it here
 - Items are numbered sequentially for easy reference
+
+## Review outcome
+
+Requirements added or rewritten in `spec.md` during this review: FR-002, FR-003, FR-005, FR-006a,
+FR-007, **FR-007a**, FR-009, **FR-009a**, FR-010, FR-011, FR-012, **FR-012a**, FR-013, **FR-013a**,
+**FR-015a**, **FR-016a**, FR-017, **FR-017a**, FR-022, FR-023, FR-023a, **FR-023b**, FR-024,
+FR-029, **FR-033**, **FR-034**, **FR-035**, plus SC-003, SC-005, SC-008, the source Assumptions, and
+the cascade edge case. Bold entries are new. `data-model.md` and `plan.md` gained a line each for
+the roster-level record FR-023b requires.
+
+One item was resolved by reviewer judgment rather than by lifting an existing decision: CHK016.
+The re-read is required to be a pass separate from the transcription's, reading the source afresh
+and not through the transcriber's working notes — not to be performed by a different actor, which
+this project's working arrangement cannot guarantee and which the item's underlying concern does
+not actually require.

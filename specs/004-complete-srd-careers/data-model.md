@@ -211,7 +211,9 @@ shape moved.
 ## Verification artifacts (FR-023a)
 
 `specs/004-complete-srd-careers/verification/<basename>.md`, one per career, twenty-four in all,
-plus `index.md` recording which are complete.
+plus `index.md` recording which are complete and `roster.md` carrying the roster-level
+verification FR-023b requires — the set of careers enumerated from the source compared against
+the set the package ships, establishing that none is omitted and none invented.
 
 Each file is written source-first: for every field, the source's printed value, then the
 committed file's value, then a verdict of `match`, `corrected` (the file was changed to match),
