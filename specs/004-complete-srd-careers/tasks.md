@@ -118,45 +118,45 @@ real row.
 
 ### 3a. Notation: the quantified benefit form (FR-011, contracts/notation.md)
 
-- [ ] T008 [P] [US2] Failing test: `parse_entry("1d6 Ship Share", EntryContext.BENEFIT_TABLE)`
+- [X] T008 [P] [US2] Failing test: `parse_entry("1d6 Ship Share", EntryContext.BENEFIT_TABLE)`
       returns `QuantifiedBenefit(dice="1d6", name="Ship Share")`, in `tests/unit/test_notation.py`
-- [ ] T009 [US2] Add the `QuantifiedBenefit` frozen slots dataclass and leading-token recognition
+- [X] T009 [US2] Add the `QuantifiedBenefit` frozen slots dataclass and leading-token recognition
       to `src/cetools/notation.py`, running before the existing trailing-token match so no entry
       that parsed before parses differently now
-- [ ] T010 [P] [US2] Failing test: the quantified form is inadmissible in `SKILL_TABLE` and
+- [X] T010 [P] [US2] Failing test: the quantified form is inadmissible in `SKILL_TABLE` and
       `GATE`, reported with the entry as written and the forms the position accepts, in
       `tests/unit/test_notation.py`
-- [ ] T011 [US2] Extend `_ADMISSIBLE_KINDS` and `_ADMISSIBLE_FORMS` in `src/cetools/notation.py`
+- [X] T011 [US2] Extend `_ADMISSIBLE_KINDS` and `_ADMISSIBLE_FORMS` in `src/cetools/notation.py`
       so `quantified` is admitted by `EntryContext.BENEFIT_TABLE` and nowhere else
-- [ ] T012 [P] [US2] Failing test: `"1d6"` alone is malformed and reported as needing a name after
+- [X] T012 [P] [US2] Failing test: `"1d6"` alone is malformed and reported as needing a name after
       the quantity; `"d66 Ship Share"` is rejected by `_check_dice`; a name carrying a specialty
       group (`"1d6 Ship Share (Bulk)"`) is rejected — in `tests/unit/test_notation.py`
-- [ ] T013 [US2] Implement those three rejections in `src/cetools/notation.py`, routing the dice
+- [X] T013 [US2] Implement those three rejections in `src/cetools/notation.py`, routing the dice
       through the same `_check_dice` from `src/cetools/tasks.py` every other dice field uses
-- [ ] T013a [P] [US2] Failing test (FR-011, contracts/notation.md): a quantity whose minimum total
+- [X] T013a [P] [US2] Failing test (FR-011, contracts/notation.md): a quantity whose minimum total
       is below one is rejected naming the entry and the minimum found — `"0d6 Ship Share"` and
       `"1d6-6 Ship Share"` — while `"1d6-5 Ship Share"` (minimum 1) is accepted, in
       `tests/unit/test_notation.py`
-- [ ] T013b [US2] Implement the minimum-total check in `src/cetools/notation.py`. `_check_dice`
+- [X] T013b [US2] Implement the minimum-total check in `src/cetools/notation.py`. `_check_dice`
       does not supply it: a minimum of zero is legitimate for a modifier elsewhere, and FR-011
       constrains the *quantity* specifically, so an award always awards something
-- [ ] T014 [US2] Export `QuantifiedBenefit` from `src/cetools/__init__.py` and its `__all__`, and
+- [X] T014 [US2] Export `QuantifiedBenefit` from `src/cetools/__init__.py` and its `__all__`, and
       extend the public-surface assertion in `tests/unit/test_library_api.py`
 
 ### 3b. Skill registry: nested cascades and an acyclic graph (FR-012, FR-012a, D4, D5)
 
-- [ ] T015 [P] [US2] Failing test: `SkillRegistry.resolve` returns `VALID` for
+- [X] T015 [P] [US2] Failing test: `SkillRegistry.resolve` returns `VALID` for
       `Aircraft (Winged Aircraft)` and `Vehicle (Aircraft)` once a specialty may name another
       entry, in `tests/unit/test_registries.py`
-- [ ] T016 [P] [US2] Failing test: a specialty chain that revisits a name is reported at
+- [X] T016 [P] [US2] Failing test: a specialty chain that revisits a name is reported at
       `skills.<name>` naming the file, the location, and the cycle, in
       `tests/unit/test_registries.py`
-- [ ] T017 [US2] Implement the acyclic specialty-graph check in `src/cetools/registries.py`, which
+- [X] T017 [US2] Implement the acyclic specialty-graph check in `src/cetools/registries.py`, which
       is what guarantees generation-time resolution terminates
-- [ ] T018 [P] [US2] Failing test: a `skills` file declaring `schema-version = 1` is rejected on
+- [X] T018 [P] [US2] Failing test: a `skills` file declaring `schema-version = 1` is rejected on
       its header naming the version found and the version supported, and `2` is accepted, in
       `tests/unit/test_rules.py`
-- [ ] T019 [US2] Bump `skills` to `2` in `rules._SUPPORTED_VERSION` (`src/cetools/rules.py:59`)
+- [X] T019 [US2] Bump `skills` to `2` in `rules._SUPPORTED_VERSION` (`src/cetools/rules.py:59`)
       and in the header of `src/cetools/data/registries/skills.toml`
 
 ### 3c. Career schema v4 (FR-007, FR-007a, FR-010, FR-013a, D1, D2)

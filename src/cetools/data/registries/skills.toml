@@ -4,7 +4,7 @@
 # permitted specialties explicitly, empty when it has none.
 
 schema = "skills"
-schema-version = 1
+schema-version = 2
 
 [skills]
 "Admin" = []

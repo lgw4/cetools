@@ -9,6 +9,7 @@ from cetools.rules import load_rules, parse_task_parameters, validate_rules
 _DATA = Path(__file__).resolve().parents[2] / "src" / "cetools" / "data"
 CHARACTERISTICS = (_DATA / "registries" / "characteristics.toml").read_text(encoding="utf-8")
 SKILLS = (_DATA / "registries" / "skills.toml").read_text(encoding="utf-8")
+BENEFITS = (_DATA / "registries" / "benefits.toml").read_text(encoding="utf-8")
 TASKS = (_DATA / "tasks.toml").read_text(encoding="utf-8")
 NAVY = (_DATA / "careers" / "navy.toml").read_text(encoding="utf-8")
 
@@ -303,36 +304,57 @@ def test_a_supported_schema_version_is_counted_per_kind(tmp_path, monkeypatch):
     # FR-002a states the claim: "a change to one kind's shape MUST NOT
     # invalidate a user-supplied file of a kind whose shape did not change".
     # It is the sole justification the spec's Assumptions give for the version
-    # field existing at all. `skills` is used here rather than
-    # `characteristics`, which is genuinely at version 2 in this feature: the
-    # claim needs a kind whose packaged file still declares version 1.
+    # field existing at all. `benefits` is used here rather than
+    # `characteristics` or `skills`, both genuinely bumped in this feature:
+    # the claim needs a kind whose packaged file still declares version 1.
     from cetools import rules as rules_module
 
-    monkeypatch.setitem(rules_module._SUPPORTED_VERSION, "skills", 2)
-    (tmp_path / "skills.toml").write_text(
-        SKILLS.replace("schema-version = 1", "schema-version = 2", 1), encoding="utf-8"
+    monkeypatch.setitem(rules_module._SUPPORTED_VERSION, "benefits", 2)
+    (tmp_path / "benefits.toml").write_text(
+        BENEFITS.replace("schema-version = 1", "schema-version = 2", 1), encoding="utf-8"
     )
     report = validate_rules(tmp_path)
     assert report.valid, report.problems
 
 
 def test_raising_one_kinds_version_rejects_that_kinds_file_and_no_others(tmp_path, monkeypatch):
-    # The same claim from the other side: with skills at 2 and every packaged
-    # file still declaring 1, the skills registry is the only file whose
-    # version is refused, and the files of the untouched kinds validate as
-    # they did. navy.toml is not among those, because a rejected skills
-    # registry cascades into every name it would have resolved — which is
-    # research R13's deliberate choice, not a version judgement about the
-    # career.
+    # The same claim from the other side: with benefits at 2 and every
+    # packaged file still declaring 1, the benefits registry is the only
+    # file whose version is refused, and the files of the untouched kinds
+    # validate as they did. navy.toml is not among those, because a rejected
+    # benefits registry cascades into every name it would have resolved —
+    # which is research R13's deliberate choice, not a version judgement
+    # about the career.
     from cetools import rules as rules_module
 
-    monkeypatch.setitem(rules_module._SUPPORTED_VERSION, "skills", 2)
+    monkeypatch.setitem(rules_module._SUPPORTED_VERSION, "benefits", 2)
     report = validate_rules(tmp_path)
     assert not report.valid
     version_problems = [p for p in report.problems if p.expected.startswith("version ")]
-    assert [p.file for p in version_problems] == ["skills.toml"]
-    for untouched in ("tasks.toml", "characteristics.toml", "benefits.toml"):
+    assert [p.file for p in version_problems] == ["benefits.toml"]
+    for untouched in ("tasks.toml", "characteristics.toml", "skills.toml"):
         assert not [p for p in report.problems if p.file == untouched]
+
+
+def test_a_skills_file_declaring_the_old_version_is_rejected_naming_both_versions(tmp_path):
+    # FR-012, D4: a specialty may now name another cascade, which a
+    # version-1 reader stops at, so the bump is not optional even though the
+    # file shape is unchanged.
+    (tmp_path / "skills.toml").write_text(
+        SKILLS.replace("schema-version = 2", "schema-version = 1", 1), encoding="utf-8"
+    )
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    version_problems = [p for p in report.problems if p.file == "skills.toml"]
+    assert version_problems
+    assert version_problems[0].found == "version 1"
+    assert version_problems[0].expected == "version 2"
+
+
+def test_a_skills_file_declaring_the_new_version_is_accepted(tmp_path):
+    (tmp_path / "skills.toml").write_text(SKILLS, encoding="utf-8")
+    report = validate_rules(tmp_path)
+    assert not [p for p in report.problems if p.file == "skills.toml"]
 
 
 class TestBooleansAreNotIntegers:
@@ -480,11 +502,11 @@ class TestCollectedRatherThanRaisedOrDropped:
 
         monkeypatch.setattr(rules_module, "_discover_packaged", without_skills)
         (tmp_path / "house-skills.toml").write_text(
-            'schema = "skills"\nschema-version = 2\n\n[skills]\n"Comms" = []\n', encoding="utf-8"
+            'schema = "skills"\nschema-version = 1\n\n[skills]\n"Comms" = []\n', encoding="utf-8"
         )
         report = validate_rules(tmp_path)
         assert not report.valid
-        version_problems = [p for p in report.problems if p.expected == "version 1"]
+        version_problems = [p for p in report.problems if p.expected == "version 2"]
         assert [p.file for p in version_problems] == ["house-skills.toml"]
         assert not [p for p in report.problems if "declaring kind 'skills'" in p.expected]
 
@@ -512,7 +534,7 @@ class TestRegistrySubProblemsAllReachTheReport:
 
     def test_two_bad_skill_specialty_arrays(self, tmp_path):
         (tmp_path / "skills.toml").write_text(
-            'schema = "skills"\nschema-version = 1\n\n[skills]\nFoo = 5\nBar = 7\n',
+            'schema = "skills"\nschema-version = 2\n\n[skills]\nFoo = 5\nBar = 7\n',
             encoding="utf-8",
         )
         report = validate_rules(tmp_path)

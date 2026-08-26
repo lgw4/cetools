@@ -59,7 +59,7 @@ _HEADER_KEYS = frozenset({"schema", "schema-version"})
 _SUPPORTED_VERSION = {
     "task-parameters": 2,
     "characteristics": 2,
-    "skills": 1,
+    "skills": 2,
     "benefits": 1,
     "career": 3,
     "draft-table": 1,
