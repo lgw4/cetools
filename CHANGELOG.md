@@ -363,6 +363,52 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   granular set of steps than before, so every character whose walk
   reaches such a reduction changes from this version forward (FR-030,
   FR-030a, `contracts/json-output.md:187`, T208).
+- **The package now ships all twenty-four SRD careers, not eight, and a seed
+  from an earlier version is not reproducible against this one.** Three
+  independent causes each reorder or resize the draws a walk makes, and all
+  three land together: the career pool a random selection or a draft throw
+  can land on grows from eight entries to twenty-four (FR-001, FR-026); the
+  background-skills table's three lists are corrected to the source's actual
+  rows, including repeats a uniform draw had flattened away (FR-014a); and a
+  bare skill grant that resolves through more than one cascade level now
+  costs one die per level instead of one die total (FR-012). No seed's
+  output from a prior release is preserved — reproducing the previous
+  eight-career pool requires shipping it explicitly as a `--rules-data`
+  override, the same mechanism any other house rule uses.
+- **The career schema rises to `schema-version = 4`, and the skills registry
+  schema rises to `schema-version = 2`.** A career file declaring the old
+  version is rejected on its header with no migration path: `ranks[].title`
+  is now optional (a rank whose source row prints no title omits the key
+  rather than inventing one, FR-007/FR-008); `mustering-out.benefits`
+  entries admit a dice-quantity form (`"1d6 Ship Share"`, FR-011); and
+  `throws.re-enlistment` no longer admits a `characteristic`, since no
+  source career's re-enlistment throw ever used one. The skills registry
+  admits a specialty that is itself a cascade with specialties of its own
+  (`Vehicle` naming `Aircraft` and `Watercraft`, each resolving further,
+  FR-012).
+- **Three careers are renamed to their long source-published forms.** The
+  working names `aerospace-defense`, `maritime-defense`, and
+  `surface-defense` become `aerospace-system-defense`,
+  `maritime-system-defense`, and `surface-system-defense` (composition keys
+  and file basenames both), matching the source's own career-descriptions
+  list rather than an abbreviated in-house label (FR-005). A house rule that
+  overrides one of these three files by its old basename now composes as an
+  addition, not a replacement, until it is renamed to match.
+- **Scout's and Drifter's data is corrected against the source.** Scout's
+  qualification and re-enlistment targets, its rank 0 title and grant, its
+  cash table, and its service skills were wrong; Drifter's qualification
+  target, its advanced-education gate, its cash table, its rank titles
+  (the source prints none, on any rank), and several skill names were
+  wrong. Both careers' mustering-out material tables drop a padded seventh
+  row the source never prints, in favor of the coverage rule added
+  alongside them (FR-020, FR-021) rather than a fixed seven-row table.
+
+  **Not a bug, if you see it**: a sheet may now show a skill twice under
+  different names — `Life Sciences-0` beside `Sciences (Life Sciences)-1`,
+  for instance — because the source lists some names both as a bare skill
+  and as a specialty of a cascade skill, and the two are recorded as
+  distinct entries rather than merged (FR-016a). The background-skills
+  table's education list is what makes this routine rather than rare.
 
 ### Added
 

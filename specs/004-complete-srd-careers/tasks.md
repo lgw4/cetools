@@ -514,22 +514,22 @@ checks — but one file each, not both twice.
 would move the pinned block a third time. So **do Phase 7 first, then come back here.** Nothing is
 red in the interim: Phase 6 ends green precisely because the goldens are fixtures.
 
-- [ ] T078 [US1] Confirm `tests/golden/npc_*.txt` are **unchanged** since T004 — `git diff` over
+- [X] T078 [US1] Confirm `tests/golden/npc_*.txt` are **unchanged** since T004 — `git diff` over
       `tests/golden/` from the Phase 2 commit is empty. If any of them moved, a hand-built render
       fixture was edited during Phase 6, which is a mistake: those literals are independent of
       career content and keeping them so is what makes SC-006's count meaningful
-- [ ] T079 [US1] Regenerate the pinned output blocks in `README.md` **once**, after all career
+- [X] T079 [US1] Regenerate the pinned output blocks in `README.md` **once**, after all career
       content has landed *and after T087 has applied the re-read's corrections*: the
       `cetools npc --seed table-of-twelve --count 3` block, the `Files: 26` line → `Files: 42`,
       and the prose "eight careers" in the sentence listing what the packaged data holds →
       "twenty-four careers". Keep the `(cetools 2026.8.1)` version strings
       `tests/guards/test_documented_version.py` pins
-- [ ] T080 [US1] Confirm the `--json` contract tests still pass unchanged. Their `file_count`
+- [X] T080 [US1] Confirm the `--json` contract tests still pass unchanged. Their `file_count`
       values (`5`, `6`) are hand-built `ValidationReport` fixtures, not the packaged count, so
       T077's 26 → 42 does not reach them; the contract **shape** must not change either. If
       anything in `tests/contract/test_json_contract.py` or `tests/contract/test_npc_json.py`
       does move, it is a contract change and needs justifying, not updating
-- [ ] T081 [US1] Re-run `tests/integration/test_npc_determinism.py` and
+- [X] T081 [US1] Re-run `tests/integration/test_npc_determinism.py` and
       `tests/property/test_invariants.py`, updating any pinned seed expectations, and confirm every
       draw still comes from the seeded `Roller` per `tests/guards/test_seed_contract.py`
 
