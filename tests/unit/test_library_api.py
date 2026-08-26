@@ -297,6 +297,10 @@ class TestPublicSurfaceMatchesTheContract:
     def test_all_is_exactly_the_inherited_surface_less_what_was_removed_plus_what_was_added(self):
         expected = (self._INHERITED - self._REMOVED) | self._ADDED
         expected = (expected - self._REMOVED_003) | self._ADDED_003
+        # 004-complete-srd-careers carries no library-api.md contract delta of
+        # its own; `QuantifiedBenefit` (contracts/notation.md) is the one name
+        # it adds to the public surface (T014).
+        expected = expected | {"QuantifiedBenefit"}
         assert set(cetools.__all__) == expected
 
     def test_all_has_no_duplicates(self):

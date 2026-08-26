@@ -8,6 +8,7 @@ from cetools.notation import (
     CharacteristicCheck,
     EntryContext,
     NotationProblem,
+    QuantifiedBenefit,
     SkillGrant,
     SkillReference,
     parse_entry,
@@ -347,10 +348,12 @@ class TestMalformedEntriesNameTheFormsTheirPositionAdmits:
         assert "four" not in result.expected
 
     @pytest.mark.parametrize("text", [*_GATE_CASES, "SOC (Foo) -1"])
-    def test_a_benefit_table_names_its_two_forms(self, text):
+    def test_a_benefit_table_names_its_three_forms(self, text):
         result = parse_entry(text, EntryContext.BENEFIT_TABLE)
         assert isinstance(result, NotationProblem)
-        assert result.expected.startswith("a characteristic adjustment or a bare benefit item")
+        assert result.expected.startswith(
+            "a characteristic adjustment, a bare benefit item, or a quantified benefit"
+        )
         assert "four" not in result.expected
 
     @pytest.mark.parametrize("text", [*_GATE_CASES, "STR (Foo) +1"])
@@ -438,6 +441,62 @@ class TestNoRegistryLookup:
     def test_unrecognized_skill_still_parses(self):
         assert parse_entry("Not A Real Skill", EntryContext.SKILL_TABLE) == SkillReference(
             name="Not A Real Skill", specialty=None
+        )
+
+
+class TestQuantifiedBenefit:
+    """FR-011, contracts/notation.md: a material-benefit row awarding a
+    rolled number of one item. Admissible only in `BENEFIT_TABLE`.
+    """
+
+    def test_the_leading_dice_token_anchors_the_form(self):
+        assert parse_entry("1d6 Ship Share", EntryContext.BENEFIT_TABLE) == QuantifiedBenefit(
+            dice="1d6", name="Ship Share"
+        )
+
+    def test_not_admitted_in_skill_table(self):
+        result = parse_entry("1d6 Ship Share", EntryContext.SKILL_TABLE)
+        assert isinstance(result, NotationProblem)
+        assert result.found == "1d6 Ship Share"
+        assert result.expected.startswith(
+            "a characteristic adjustment, a skill grant, or a bare skill reference"
+        )
+
+    def test_not_admitted_in_gate(self):
+        result = parse_entry("1d6 Ship Share", EntryContext.GATE)
+        assert isinstance(result, NotationProblem)
+        assert result.expected.startswith("a characteristic check")
+
+    def test_quantity_with_no_name_is_malformed(self):
+        result = parse_entry("1d6", EntryContext.BENEFIT_TABLE)
+        assert isinstance(result, NotationProblem)
+        assert result.found == "1d6"
+        assert "a name after the quantity" in result.expected
+
+    def test_d66_is_rejected_as_a_quantity(self):
+        result = parse_entry("d66 Ship Share", EntryContext.BENEFIT_TABLE)
+        assert isinstance(result, NotationProblem)
+        assert result.found == "d66 Ship Share"
+
+    def test_a_specialty_group_on_the_name_is_rejected(self):
+        result = parse_entry("1d6 Ship Share (Bulk)", EntryContext.BENEFIT_TABLE)
+        assert isinstance(result, NotationProblem)
+        assert result.found == "1d6 Ship Share (Bulk)"
+
+    def test_a_zero_count_is_rejected_as_invalid_dice_notation(self):
+        result = parse_entry("0d6 Ship Share", EntryContext.BENEFIT_TABLE)
+        assert isinstance(result, NotationProblem)
+        assert result.found == "0d6 Ship Share"
+
+    def test_a_negative_modifier_that_can_reach_zero_is_rejected(self):
+        result = parse_entry("1d6-6 Ship Share", EntryContext.BENEFIT_TABLE)
+        assert isinstance(result, NotationProblem)
+        assert result.found == "1d6-6 Ship Share"
+        assert "at least one" in result.expected
+
+    def test_a_negative_modifier_whose_minimum_is_exactly_one_is_accepted(self):
+        assert parse_entry("2d6-1 Ship Share", EntryContext.BENEFIT_TABLE) == QuantifiedBenefit(
+            dice="2d6-1", name="Ship Share"
         )
 
 
