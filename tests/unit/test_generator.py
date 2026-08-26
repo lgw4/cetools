@@ -184,11 +184,13 @@ class TestCareerEntry:
                 return self._sequence.pop(0)
 
         drifter = (_DATA / "careers" / "drifter.toml").read_text(encoding="utf-8")
-        service_entries = '["Carousing", "Gambling", "Recon", "Broker", "Streetwise", "Survival"]'
+        service_entries = (
+            '["Streetwise", "Mechanics", "Gun Combat", "Melee Combat", "Recon", "Vehicle"]'
+        )
         assert service_entries in drifter
         overridden = drifter.replace(
             service_entries,
-            service_entries.replace('"Carousing"', '"END +1"', 1),
+            service_entries.replace('"Streetwise"', '"END +1"', 1),
             1,
         )
         (tmp_path / "drifter.toml").write_text(overridden, encoding="utf-8")

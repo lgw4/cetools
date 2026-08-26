@@ -1,6 +1,8 @@
 # Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
 #
-# Draft row 2.
+# Draft row 2. Reconciled against the source (research.md R7): the material
+# table's seventh row was a comment-acknowledged repeat of the sixth; the
+# source prints "Explorers' Society" there.
 
 schema = "career"
 schema-version = 4
@@ -65,6 +67,5 @@ ranks = [
 ]
 
 [mustering-out]
-# Row 7 repeats row 6 (T187); see aerospace-defense.toml's comment.
 cash = [2000, 5000, 5000, 10000, 10000, 20000, 20000]
-benefits = ["Low Passage", "Weapon", "Weapon", "Mid Passage", "STR +1", "SOC +1", "SOC +1"]
+benefits = ["Low Passage", "Weapon", "Weapon", "Mid Passage", "STR +1", "SOC +1", "Explorers' Society"]

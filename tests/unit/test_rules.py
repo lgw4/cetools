@@ -687,16 +687,13 @@ class TestMusteringOutCoverage:
         self, tmp_path
     ):
         # Scout's one ladder never reaches rank 5, so no `material-rank-dm`
-        # row applies and six rows (the `1d6` roll alone) suffice.
-        text = SCOUT.replace(
-            'benefits = ["Low Passage", "Ship Share", "Weapon", "Explorers\' Society", '
-            '"High Passage", "INT +1", "INT +1"]',
-            'benefits = ["Low Passage", "Ship Share", "Weapon", "Explorers\' Society", '
-            '"High Passage", "INT +1"]',
-            1,
-        )
-        assert text != SCOUT
-        (tmp_path / "scout.toml").write_text(text, encoding="utf-8")
+        # row applies and six rows (the `1d6` roll alone) suffice — which is
+        # exactly what the packaged file already carries.
+        assert (
+            'benefits = ["Low Passage", "EDU +1", "Weapon", "Mid Passage", '
+            '"Explorers\' Society", "Courier Vessel"]'
+        ) in SCOUT
+        (tmp_path / "scout.toml").write_text(SCOUT, encoding="utf-8")
         report = validate_rules(tmp_path)
         assert not [
             p
@@ -706,10 +703,10 @@ class TestMusteringOutCoverage:
 
     def test_a_material_table_one_row_short_of_that_same_six_is_rejected(self, tmp_path):
         text = SCOUT.replace(
-            'benefits = ["Low Passage", "Ship Share", "Weapon", "Explorers\' Society", '
-            '"High Passage", "INT +1", "INT +1"]',
-            'benefits = ["Low Passage", "Ship Share", "Weapon", "Explorers\' Society", '
-            '"High Passage"]',
+            'benefits = ["Low Passage", "EDU +1", "Weapon", "Mid Passage", '
+            '"Explorers\' Society", "Courier Vessel"]',
+            'benefits = ["Low Passage", "EDU +1", "Weapon", "Mid Passage", '
+            '"Explorers\' Society"]',
             1,
         )
         assert text != SCOUT

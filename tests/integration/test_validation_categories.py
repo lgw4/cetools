@@ -715,8 +715,8 @@ def test_an_entry_ladder_with_no_rank_0_is_rejected(tmp_path):
     # starting at rank 1 validates clean and then raises `StopIteration`
     # mid-walk.
     text = SCOUT.replace(
-        '{ rank = 0, title = "Scout", bonus = "Survival 1" }',
-        '{ rank = 1, title = "Scout", bonus = "Survival 1" }',
+        '{ rank = 0, bonus = "Piloting 1" }',
+        '{ rank = 1, bonus = "Piloting 1" }',
         1,
     )
     assert text != SCOUT

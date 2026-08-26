@@ -2,7 +2,11 @@
 #
 # Draft row 5. Neither commission nor promotion: FR-009's two skill rolls a
 # term follow from the absence of both throws rather than from a flag. The
-# single ladder names no distinct rank title, matching the source.
+# single ladder names no distinct rank title, matching the source; its rank
+# 0 grant is corrected from the source's misprinted "Pilot" to "Piloting"
+# (FR-017, D9). Reconciled against the source (research.md R7): the
+# qualification and re-enlistment targets, the material table's real row
+# count, and the service skills all differ from the earlier transcription.
 
 schema = "career"
 schema-version = 4
@@ -12,7 +16,7 @@ medical-tier = "service"
 
 [throws.qualification]
 characteristic = "INT"
-target = 5
+target = 6
 dice = "2d6"
 
 [throws.survival]
@@ -21,30 +25,29 @@ target = 7
 dice = "2d6"
 
 [throws.re-enlistment]
-target = 3
+target = 6
 dice = "2d6"
 
 [tables.personal]
-entries = ["STR +1", "DEX +1", "END +1", "INT +1", "EDU +1", "Gun Combat"]
+entries = ["STR +1", "DEX +1", "END +1", "Jack-of-All-Trades", "EDU +1", "Melee Combat"]
 
 [tables.service]
-entries = ["Piloting", "Navigation", "Mechanics", "Electronics", "Vehicle", "Gunnery"]
+entries = ["Comms", "Electronics", "Gun Combat", "Gunnery", "Recon", "Piloting"]
 
 [tables.specialist]
-entries = ["Piloting", "Navigation", "Electronics", "Survival", "Recon", "Jack-of-All-Trades"]
+entries = ["Engineering", "Gunnery", "Demolitions", "Navigation", "Medicine", "Vehicle"]
 
 [tables.advanced-education]
 requires = "EDU 8+"
-entries = ["Admin", "Advocate", "Computer", "Engineering", "Medicine", "Navigation"]
+entries = ["Advocate", "Computer", "Linguistics", "Medicine", "Navigation", "Tactics"]
 
 [[ladders]]
 name = "scout"
 role = "entry"
 ranks = [
-  { rank = 0, title = "Scout", bonus = "Survival 1" },
+  { rank = 0, bonus = "Piloting 1" },
 ]
 
 [mustering-out]
-# Row 7 repeats row 6 (T187); see aerospace-defense.toml's comment.
-cash = [20000, 20000, 30000, 30000, 50000, 50000, 50000]
-benefits = ["Low Passage", "Ship Share", "Weapon", "Explorers' Society", "High Passage", "INT +1", "INT +1"]
+cash = [1000, 5000, 10000, 10000, 20000, 50000, 50000]
+benefits = ["Low Passage", "EDU +1", "Weapon", "Mid Passage", "Explorers' Society", "Courier Vessel"]

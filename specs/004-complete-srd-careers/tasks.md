@@ -436,31 +436,31 @@ name, all five throws, medical tier, always-available, re-enterable, every skill
 rank row's title and grant separately, and every row of both mustering-out tables. The audit in
 research.md R7 names known differences; it does not bound the work.
 
-- [ ] T065 [P] [US1] Reconcile `src/cetools/data/careers/scout.toml`: qualification `Int 5+` →
+- [X] T065 [P] [US1] Reconcile `src/cetools/data/careers/scout.toml`: qualification `Int 5+` →
       `Int 6+`, re-enlistment `3+` → `6+`, rank 0 loses its invented `Scout` title and grants
       `Piloting 1` (corrected from `Pilot`, noted in the file), cash becomes
       `[1000, 5000, 10000, 10000, 20000, 50000, 50000]`, the material table drops its padded
       seventh row to six with row 5 `Explorers' Society` and row 6 `Courier Vessel`, and service
       skills become the source's `Comms, Electronics, Gun Combat, Gunnery, Recon, Piloting`
-- [ ] T066 [P] [US1] Reconcile `src/cetools/data/careers/drifter.toml`: qualification `End 3+` →
+- [X] T066 [P] [US1] Reconcile `src/cetools/data/careers/drifter.toml`: qualification `End 3+` →
       `Dex 5+`, the advanced-education gate becomes the uniform `Edu 8+` (FR-004), cash becomes
       `[0, 1000, 2000, 5000, 5000, 10000, 10000]` with row 1 a real zero, the material table drops
       its padded seventh row to six, every rank row loses its title (the source prints nothing at
       all across every rank, so rank 0 carries neither title nor bonus, FR-008), and
       `Trade Goods`, `Personal Vehicle`, `Carouse`, `Gambler`, `Stealth` give way to source names
-- [ ] T067 [P] [US1] Reconcile `src/cetools/data/careers/navy.toml` (research.md R7 records it
+- [X] T067 [P] [US1] Reconcile `src/cetools/data/careers/navy.toml` (research.md R7 records it
       matching across every field checked; the re-read still enumerates every field)
-- [ ] T068 [P] [US1] Reconcile `src/cetools/data/careers/marine.toml`, replacing its
+- [X] T068 [P] [US1] Reconcile `src/cetools/data/careers/marine.toml`, replacing its
       comment-acknowledged repeated seventh material row with the source's printed row
-- [ ] T069 [P] [US1] Reconcile `src/cetools/data/careers/merchant.toml`, replacing its repeated
+- [X] T069 [P] [US1] Reconcile `src/cetools/data/careers/merchant.toml`, replacing its repeated
       seventh material row, correcting the rank 3 grant `Pilot` → `Piloting` with a note, and
       setting material row 5 to `1d6 Ship Share`
-- [ ] T070 [P] [US1] Reconcile `src/cetools/data/careers/aerospace-system-defense.toml`, replacing
+- [X] T070 [P] [US1] Reconcile `src/cetools/data/careers/aerospace-system-defense.toml`, replacing
       its repeated seventh material row (grants `Aircraft` directly, which v2 resolves as a nested
       cascade)
-- [ ] T071 [P] [US1] Reconcile `src/cetools/data/careers/maritime-system-defense.toml`, replacing
+- [X] T071 [P] [US1] Reconcile `src/cetools/data/careers/maritime-system-defense.toml`, replacing
       its repeated seventh material row (grants `Watercraft` directly)
-- [ ] T072 [P] [US1] Reconcile `src/cetools/data/careers/surface-system-defense.toml`, replacing
+- [X] T072 [P] [US1] Reconcile `src/cetools/data/careers/surface-system-defense.toml`, replacing
       its repeated seventh material row
 
 ### 6d. Acceptance: traversal and the enlarged pool (FR-026, FR-027, FR-028)

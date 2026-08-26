@@ -4,7 +4,8 @@
 # from the illustrative values in contracts/data-files.md. It exercises
 # every element of the career schema: a commission, a second rank ladder,
 # a bonus on a rank of each ladder, and a characteristic-gated table
-# (FR-018).
+# (FR-018). Reconciled against the source (research.md R7): every field
+# already matched, so this file is unchanged.
 
 schema = "career"
 schema-version = 4
