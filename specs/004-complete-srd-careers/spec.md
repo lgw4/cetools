@@ -426,15 +426,38 @@ and that any discrepancy it found was resolved in the file rather than explained
   defines together with any name a source career table grants, and MUST NOT contain names drawn from
   another edition or names the source never uses.
 - **FR-014a**: Rebuilding the skills vocabulary MUST leave every other shipped data file that
-  references it resolving. The background-skills table is such a file: it grants skill names, and
-  eleven of the names it currently grants are names FR-014 removes. It MUST therefore be brought
-  into agreement with the source's own background-skills tables — the law-level, trade-code, and
-  education lists on the page Assumptions pins — by the same field-by-field comparison FR-002
-  applies to a career, and MUST NOT be retargeted by guessing a nearest surviving name for each
-  removed one. Where the source's list prints the same skill in more than one row, every row MUST
-  be recorded, because the draw is uniform over the rows and a collapsed duplicate silently
-  reweights it. This file is not career content and is in scope only as a consequence of FR-014;
-  no other part of the generation walk is reopened by it.
+  references it resolving. The set of files that reference a vocabulary MUST be enumerated rather
+  than assumed, and the enumeration recorded, so that a later vocabulary change re-runs the same
+  sweep instead of rediscovering the breakage through a failing test. For this feature that set is
+  the twenty-four career files and the background-skills table.
+
+  The background-skills table grants skill names, and eleven of the names it currently grants are
+  names FR-014 removes. It MUST therefore be brought into agreement with the source's own
+  background-skills tables — the law-level, trade-code, and education lists on the page Assumptions
+  pins — by a source-first comparison on FR-023a's terms: each row enumerated individually with its
+  own verdict, never a whole-list assertion. Where the source's list prints the same skill in more
+  than one row, every row MUST be recorded, because the draw is uniform over the rows and a
+  collapsed duplicate silently reweights it.
+
+  It MUST NOT be retargeted by choosing a nearest surviving name for each removed one. Four of the
+  eleven have a canonical source form and would retarget mechanically; the other seven — `Art`,
+  `Diplomat`, `Drive`, `Flyer`, `Profession`, `Seafarer`, and `Stealth` — have none, so retargeting
+  them means either dropping the row, which changes the draw, or substituting a plausible
+  neighbor. Both are invention, which FR-013 forbids on the same terms it forbids a padded table or
+  a made-up rank title. The only non-inventing source of replacement names is the source's own
+  table, so the minimal fix and the full transcription are the same fix; this requirement records
+  that rather than leaving it to be re-argued.
+
+  Should a re-read find a name the source's background-skills tables print that the skill chapter
+  never defines, FR-016 governs it exactly as it governs `Perception` and `Prospecting`: the name
+  is carried in the vocabulary so the grant resolves, and the discrepancy is recorded in the
+  vocabulary file. (It does not arise under the pinned retrieval — every distinct name in the three
+  lists resolves in the rebuilt vocabulary — but this requirement does not rest on that having
+  stayed true.)
+
+  This file is not career content and is in scope only as a consequence of FR-014. The count rule
+  (`3 + Education DM`), the uniform draw over the concatenated law-level and trade-code rows, and
+  the homeworld-first rule are all unchanged; only the rows themselves move.
 - **FR-015**: The mustering-out benefits vocabulary MUST contain exactly the items the source's
   career tables award, and MUST NOT contain items the source never awards.
 - **FR-015a**: Where a source table cell prints a name in a different grammatical number from the

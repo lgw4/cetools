@@ -234,6 +234,25 @@ The count rule is unchanged and already correct: "3 + your Education DM", which
 seed-output break alongside the enlarged pool (FR-029). It is transcribed and verified on the
 same terms as a career (FR-014a, FR-023a), not patched name by name.
 
+**A second consequence, and a visible one.** The education list grants `Life Sciences`,
+`Physical Sciences`, `Social Sciences`, and `Space Sciences` bare, and each of those four is also
+a specialty of the `Sciences` cascade. That is the `Animals`/`Survival` situation of D6 — but
+background skills go to *every* character, where D6's case needed a career grant to collide with a
+top-level grant. So a sheet reading
+
+```text
+Life Sciences-0, Sciences (Life Sciences)-1
+```
+
+stops being an override curiosity and becomes routine output.
+
+No rule changes: D6 and FR-016a already settle it, and the two are distinct entries because the
+skill book keys on `(name, specialty)`. What changes is that the outcome is now common enough to
+need pinning in a test rather than reasoned about (T035) and naming in the changelog (T090), so it
+is not read as a duplicate-skill bug by the first person to see one. `Watercraft`, `Animals`,
+`Gun Combat`, and `Melee Combat` are likewise cascades granted bare by these lists, and resolve
+through to a terminal specialty exactly as any other bare cascade grant does (FR-012).
+
 ## Decisions
 
 ### D1. Career schema rises to version 4

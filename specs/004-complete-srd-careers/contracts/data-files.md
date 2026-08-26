@@ -104,6 +104,32 @@ tables award: `Low Passage`, `Mid Passage`, `High Passage`, `Weapon`, `Explorers
 `Ship Share`, `Courier Vessel`, `Research Vessel`. `Armor`, `Personal Vehicle`, and
 `Trade Goods` are removed; no source career awards them.
 
+### Which files reference a vocabulary (FR-014a)
+
+Recorded here so that a later vocabulary change re-runs this sweep rather than rediscovering the
+breakage through a failing test. As of this feature, a shipped file references the **skills**
+vocabulary if and only if it is:
+
+| File | How it references skills |
+|---|---|
+| `careers/*.toml` (24) | skill-table entries, rank-row `bonus` grants |
+| `chargen/background-skills.toml` | every entry of all three lists |
+
+And the **benefits** vocabulary:
+
+| File | How it references benefits |
+|---|---|
+| `careers/*.toml` (24) | `mustering-out.benefits` entries |
+
+Files that grant nothing from either vocabulary, and are therefore unaffected by a rebuild:
+`tasks.toml`, `registries/characteristics.toml`, `chargen/draft.toml` (career names),
+`chargen/aging.toml` and `chargen/mishaps.toml` (characteristic classes),
+`chargen/medical-tiers.toml`, `chargen/chargen-parameters.toml`, and `names/*`.
+
+The check is not "does the basename look like rules content" but "does a value in this file get
+resolved against a registry at load time". `background-skills.toml` is the file that answers yes
+without being career content, which is why FR-014 reaches it.
+
 ### Vocabulary rule: grammatical number (FR-015a)
 
 Applies to both registries. Where a source table cell prints a name in a different grammatical

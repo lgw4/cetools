@@ -222,7 +222,12 @@ real row.
       cover the shipped path
 - [ ] T035 [P] [US2] Failing test (FR-016a): a character holding both `Survival` and
       `Animals (Survival)` renders them as two distinct entries, the specialty form under its named
-      cascade, neither merged nor aliased, in `tests/unit/test_render_character.py`
+      cascade, neither merged nor aliased, in `tests/unit/test_render_character.py`. Cover the
+      `Sciences` pair in the same test — `Life Sciences-0` alongside `Sciences (Life Sciences)-1`.
+      It is the same rule, but it is the case that will actually be seen: the source's education
+      background-skill list grants all four `Sciences` specialties bare (R8), and every character
+      draws background skills, so this collision is routine output rather than the override-only
+      curiosity D6 describes
 - [ ] T036 [P] [US2] Contract test: `title` stays a present string carrying `""` for an untitled
       rank, and `benefits` stays an array of plain strings with three identical `"Ship Share"`
       entries for a rolled three, with no quantity field — in `tests/contract/test_npc_json.py`
@@ -610,7 +615,10 @@ the source's layout. Each re-read still reads the source's tables wherever they 
       rejected on its header with no migration; the three renamed composition keys named old and
       new (`aerospace-defense` → `aerospace-system-defense`, `maritime-defense` →
       `maritime-system-defense`, `surface-defense` → `surface-system-defense`); the corrected Scout
-      and Drifter data; and that reproducing the previous pool requires shipping it as an override
+      and Drifter data; and that reproducing the previous pool requires shipping it as an override.
+      Add a non-breaking note that a sheet may now show a skill twice under different cascades —
+      `Life Sciences-0` beside `Sciences (Life Sciences)-1` — which is what the source says and not
+      a duplicate-skill bug (FR-016a, research R8)
 - [ ] T091 [P] Add the cross-reference in `specs/003-npc-generator/spec.md` at the point where its
       reasoning for excluding Noble is superseded, leaving the rest of that spec intact (FR-032)
 - [ ] T092 [P] Confirm `README.md`'s licensing section and the Section 15 game-data notice still
