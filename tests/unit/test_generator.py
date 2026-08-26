@@ -368,6 +368,163 @@ class TestSkillRolls:
         assert found
 
 
+class TestRecursiveCascadeResolution:
+    """FR-011, FR-012, D5: resolving a bare grant continues through a chosen
+    specialty that is itself a cascade until it reaches one with none, and
+    the recorded reference is the innermost cascade paired with a terminal
+    specialty — never the outer name, and never a bare terminal.
+    """
+
+    def _registry(self):
+        from cetools.registries import SkillRegistry
+
+        return SkillRegistry(
+            skills={
+                "Vehicle": ("Aircraft", "Watercraft"),
+                "Aircraft": ("Winged Aircraft", "Grav Vehicle"),
+                "Watercraft": ("Ocean Ships",),
+                "Winged Aircraft": (),
+                "Grav Vehicle": (),
+                "Ocean Ships": (),
+            }
+        )
+
+    def test_a_bare_grant_resolves_to_the_innermost_cascade_and_a_terminal_specialty(self):
+        from cetools.generator import _resolve_specialty
+        from cetools.notation import SkillReference
+
+        registry = self._registry()
+        seen = set()
+        for seed in range(200):
+            resolved = _resolve_specialty(SkillReference(name="Vehicle"), registry, Roller(seed))
+            assert resolved.name in ("Aircraft", "Watercraft")
+            assert resolved.specialty in registry.skills[resolved.name]
+            seen.add((resolved.name, resolved.specialty))
+        # Both branches, and more than one terminal specialty under the
+        # branch that has more than one, are reachable.
+        assert ("Aircraft", "Winged Aircraft") in seen
+        assert ("Aircraft", "Grav Vehicle") in seen
+        assert ("Watercraft", "Ocean Ships") in seen
+
+    def test_each_nesting_level_costs_exactly_one_draw(self):
+        from cetools.generator import _resolve_specialty
+        from cetools.notation import SkillReference
+
+        registry = self._registry()
+        for seed in range(50):
+            roller = Roller(seed)
+            calls = []
+            original_die = roller.die
+            roller.die = lambda sides, _orig=original_die: (calls.append(sides), _orig(sides))[1]
+            _resolve_specialty(SkillReference(name="Vehicle"), registry, roller)
+            # Vehicle -> {Aircraft, Watercraft} is one draw; whichever is
+            # chosen, it is itself a cascade, so resolving its specialty is
+            # a second draw — and every one of those is terminal.
+            assert len(calls) == 2
+
+    def test_a_reference_that_already_names_a_specialty_draws_nothing(self):
+        from cetools.generator import _resolve_specialty
+        from cetools.notation import SkillReference
+
+        registry = self._registry()
+        reference = SkillReference(name="Vehicle", specialty="Aircraft")
+        assert _resolve_specialty(reference, registry, Roller(0)) is reference
+
+    def test_a_terminal_bare_grant_draws_nothing_and_stays_unspecialized(self):
+        from cetools.generator import _resolve_specialty
+        from cetools.notation import SkillReference
+
+        registry = self._registry()
+        reference = SkillReference(name="Winged Aircraft")
+        assert _resolve_specialty(reference, registry, Roller(0)) is reference
+
+
+class TestTitlePersistenceAcrossCareers:
+    """FR-047c (T171): an earlier title survives a later untitled service.
+    Unreachable from shipped data before Phase 6 ships an untitled ladder —
+    every rank of every shipped ladder currently declares a title — so this
+    exercises the branch against a fixture career built from Navy's, driving
+    the same `_Walk` methods `run()` calls rather than its random career
+    selection. T073's traversal cases cover the shipped path once it exists.
+    """
+
+    def test_a_later_untitled_service_does_not_erase_an_earlier_title(self):
+        import dataclasses
+
+        from cetools.generator import _Walk
+
+        navy = next(c for c in RULES.careers.values() if c.name == "Navy")
+        untitled_career = dataclasses.replace(
+            navy,
+            name="Untitled Navy",
+            ladders=tuple(
+                dataclasses.replace(
+                    ladder, ranks=tuple(dataclasses.replace(r, title="") for r in ladder.ranks)
+                )
+                for ladder in navy.ladders
+            ),
+        )
+
+        walk = _Walk(Roller(0), RULES)
+        walk.characteristics = {code: 7 for code in RULES.characteristics.names}
+
+        entry_ladder = walk._entry_ladder(navy)
+        walk._grant_rank_bonus(navy.name, 1, entry_ladder, 0)
+        _, ladder, rank, *_ = walk.run_term_loop(navy, "selected")
+        title = walk._current_title(navy, ladder, rank)
+        if title:
+            walk.title = title
+        assert walk.title, "the titled fixture career must actually grant a title"
+        title_after_first_career = walk.title
+
+        entry_ladder2 = walk._entry_ladder(untitled_career)
+        walk._grant_rank_bonus(untitled_career.name, 1, entry_ladder2, 0)
+        _, ladder2, rank2, *_ = walk.run_term_loop(untitled_career, "fallback")
+        title2 = walk._current_title(untitled_career, ladder2, rank2)
+        if title2:
+            walk.title = title2
+
+        assert title2 == ""
+        assert walk.title == title_after_first_career
+
+
+class TestQuantifiedBenefitDraw:
+    """FR-011: a `QuantifiedBenefit` mustering-out row appends the item name
+    once per point rolled, the quantity itself a seeded draw.
+    """
+
+    def _ship_share_count(self, seed):
+        import dataclasses
+
+        from cetools.generator import _Walk
+        from cetools.notation import QuantifiedBenefit
+
+        navy = next(c for c in RULES.careers.values() if c.name == "Navy")
+        mustering_out = dataclasses.replace(
+            navy.mustering_out,
+            benefits=(QuantifiedBenefit(dice="1d6", name="Ship Share"),)
+            * len(navy.mustering_out.benefits),
+        )
+        career = dataclasses.replace(navy, mustering_out=mustering_out)
+        walk = _Walk(Roller(seed), RULES)
+        walk.characteristics = {code: 7 for code in RULES.characteristics.names}
+        walk.muster_out_service(career, terms=1, ladder="enlisted", rank=0, benefit_rolls=1)
+        return walk.benefits.count("Ship Share")
+
+    def test_the_count_awarded_is_the_dice_total_and_varies_with_the_seed(self):
+        # `benefit_rolls=1` sometimes takes cash instead of material (the
+        # cash-choice roll is its own draw), so a count of 0 is a real
+        # outcome; what this pins is that a material roll never awards more
+        # than 1d6 and that the count is not the same every seed.
+        counts = [self._ship_share_count(seed) for seed in range(30)]
+        assert all(0 <= count <= 6 for count in counts)
+        assert len(set(counts)) > 1
+        assert any(count >= 1 for count in counts)
+
+    def test_the_same_seed_yields_the_same_count(self):
+        assert self._ship_share_count(7) == self._ship_share_count(7)
+
+
 class TestAlwaysLiving:
     def test_a_failed_survival_throw_resolves_on_the_mishap_table_without_death(self):
         for character in _characters():

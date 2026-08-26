@@ -197,19 +197,19 @@ real row.
 
 ### 3d. Generator: recursive cascade and the ship-share draw (FR-011, FR-012, IV)
 
-- [ ] T030 [P] [US2] Failing test: `_resolve_specialty` on a bare `Vehicle` grant continues into
+- [X] T030 [P] [US2] Failing test: `_resolve_specialty` on a bare `Vehicle` grant continues into
       `Aircraft` or `Watercraft` and returns the innermost cascade with a terminal specialty
       (`Aircraft (Winged Aircraft)`), never `Vehicle (Aircraft)` and never a bare terminal name,
       with each nesting level costing exactly one seeded draw, in `tests/unit/test_generator.py`
-- [ ] T031 [US2] Turn `_resolve_specialty` (`src/cetools/generator.py:76`) into the loop
+- [X] T031 [US2] Turn `_resolve_specialty` (`src/cetools/generator.py:76`) into the loop
       data-model.md specifies, drawing every step from the walk's `Roller`
-- [ ] T032 [P] [US2] Failing test: a `QuantifiedBenefit` row appends the item name once per point
+- [X] T032 [P] [US2] Failing test: a `QuantifiedBenefit` row appends the item name once per point
       rolled, the quantity comes from the seeded roller, and the same seed yields the same count,
       in `tests/unit/test_generator.py`
-- [ ] T033 [US2] Handle `QuantifiedBenefit` in the mustering-out material branch of
+- [X] T033 [US2] Handle `QuantifiedBenefit` in the mustering-out material branch of
       `src/cetools/generator.py` (near line 1454), rolling `dice` from `self.roller` and appending
       `item.name` that many times to `self.benefits`
-- [ ] T034 [US2] FR-009a is **already covered for the renderer** by
+- [X] T034 [US2] FR-009a is **already covered for the renderer** by
       `test_a_later_untitled_career_does_not_erase_an_earlier_title` and
       `test_the_fixture_actually_represents_a_later_career_left_untitled`
       (`tests/unit/test_render_character.py:366-379`), both passing today against
@@ -220,7 +220,7 @@ real row.
       ladder's title, in `tests/unit/test_generator.py`. It is unreachable until Phase 6 ships an
       untitled ladder, so write it here against a fixture career and let T073's traversal cases
       cover the shipped path
-- [ ] T035 [P] [US2] Failing test (FR-016a): a character holding both `Survival` and
+- [X] T035 [P] [US2] Failing test (FR-016a): a character holding both `Survival` and
       `Animals (Survival)` renders them as two distinct entries, the specialty form under its named
       cascade, neither merged nor aliased, in `tests/unit/test_render_character.py`. Cover the
       `Sciences` pair in the same test — `Life Sciences-0` alongside `Sciences (Life Sciences)-1`.
@@ -228,7 +228,7 @@ real row.
       background-skill list grants all four `Sciences` specialties bare (R8), and every character
       draws background skills, so this collision is routine output rather than the override-only
       curiosity D6 describes
-- [ ] T036 [P] [US2] Contract test: `title` stays a present string carrying `""` for an untitled
+- [X] T036 [P] [US2] Contract test: `title` stays a present string carrying `""` for an untitled
       rank, and `benefits` stays an array of plain strings with three identical `"Ship Share"`
       entries for a rolled three, with no quantity field — in `tests/contract/test_npc_json.py`
 

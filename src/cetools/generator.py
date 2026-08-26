@@ -26,6 +26,7 @@ from cetools.names import roll_name
 from cetools.notation import (
     BenefitItem,
     CharacteristicAdjustment,
+    QuantifiedBenefit,
     SkillGrant,
     SkillReference,
 )
@@ -76,17 +77,26 @@ def _table_row(file: str, rows: object, total: int):
 def _resolve_specialty(
     reference: SkillReference, skills: SkillRegistry, roller: Roller
 ) -> SkillReference:
-    """Cascade rule (FR-011): choose a permitted specialty uniformly at
-    random when the grant names none and the registry gives the skill any.
+    """Cascade rule (FR-011, FR-012, D5): choose a permitted specialty
+    uniformly at random when the grant names none and the registry gives the
+    skill any, continuing into a chosen specialty that is itself a cascade
+    until reaching one with no specialties of its own. Each nesting level
+    costs one draw; the recorded reference is the innermost cascade paired
+    with a terminal specialty, never the outer name and never a bare
+    terminal.
     """
     if reference.specialty is not None:
         return reference
-    specialties = skills.skills.get(reference.name, ())
+    name = reference.name
+    specialties = skills.skills.get(name, ())
     if not specialties:
         return reference
-    return SkillReference(
-        name=reference.name, specialty=specialties[roller.die(len(specialties)) - 1]
-    )
+    while True:
+        specialty = specialties[roller.die(len(specialties)) - 1]
+        nested = skills.skills.get(specialty, ())
+        if not nested:
+            return SkillReference(name=name, specialty=specialty)
+        name, specialties = specialty, nested
 
 
 def _skill_label(reference: SkillReference) -> str:
@@ -1455,6 +1465,20 @@ class _Walk:
                     self.benefits.append(item.name)
                     effects: tuple[StepEffect, ...] = (
                         StepEffect(kind="benefit", subject=item.name, amount=0),
+                    )
+                elif isinstance(item, QuantifiedBenefit):
+                    # The row's own dice decide *how many* (FR-011); the
+                    # roll that picked this row is a separate draw and
+                    # already spent. One `benefit` effect per unit awarded
+                    # keeps the count diagnosable from the step alone,
+                    # matching how a bare item's single effect already
+                    # records what it granted.
+                    quantity_faces, quantity_modifier = _dice(self.roller, item.dice)
+                    quantity = sum(quantity_faces) + quantity_modifier
+                    self.benefits.extend([item.name] * quantity)
+                    effects = tuple(
+                        StepEffect(kind="benefit", subject=item.name, amount=0)
+                        for _ in range(quantity)
                     )
                 else:
                     # `_apply_characteristic_delta` already returns

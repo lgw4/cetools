@@ -348,6 +348,29 @@ class TestUniversalCharacterFormat:
             lines = as_text(character).split("\n")
             assert len(lines) in (3, 4)
 
+    def test_a_top_level_skill_and_its_own_name_as_a_specialty_render_distinctly(self):
+        # FR-016a, D6, research R8: the skill book keys on (name, specialty),
+        # so `Survival` and `Animals (Survival)` are different keys and
+        # neither merges into nor aliases the other. The background-skills
+        # education list grants all four `Sciences` specialties bare, so the
+        # `Life Sciences` / `Sciences (Life Sciences)` pair is the case every
+        # character can actually draw, not an override-only curiosity.
+        character = _character(
+            skills=_skills(
+                ("Survival", None, 1),
+                ("Animals", "Survival", 0),
+                ("Life Sciences", None, 0),
+                ("Sciences", "Life Sciences", 1),
+            )
+        )
+        line3 = as_text(character).split("\n")[2]
+        assert "Survival-1" in line3
+        assert "Animals (Survival)-0" in line3
+        assert "Life Sciences-0" in line3
+        assert "Sciences (Life Sciences)-1" in line3
+        assert line3.count("Survival") == 2
+        assert line3.count("Sciences (Life Sciences)") == 1
+
     def test_profile_renders_the_characters_own_symbols_not_the_packaged_ones(self):
         # T159: `as_text`'s signature carries no rules parameter
         # (contracts/library-api.md), so the only seam that lets an
