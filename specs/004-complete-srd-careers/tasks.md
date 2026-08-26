@@ -161,38 +161,38 @@ real row.
 
 ### 3c. Career schema v4 (FR-007, FR-007a, FR-010, FR-013a, D1, D2)
 
-- [ ] T020 [P] [US2] Failing test: a rank table omitting `title` parses to `Rank(title="")`, in
+- [X] T020 [P] [US2] Failing test: a rank table omitting `title` parses to `Rank(title="")`, in
       `tests/unit/test_careers.py`
-- [ ] T021 [P] [US2] Failing test: an explicit `title = ""` is rejected, because absence is written
+- [X] T021 [P] [US2] Failing test: an explicit `title = ""` is rejected, because absence is written
       by omitting the key rather than by writing an empty value, in `tests/unit/test_careers.py`
-- [ ] T022 [P] [US2] Failing test: a rank carrying neither `title` nor `bonus` is valid, and an
+- [X] T022 [P] [US2] Failing test: a rank carrying neither `title` nor `bonus` is valid, and an
       entry ladder missing its rank 0 is still rejected (FR-007a), in `tests/unit/test_careers.py`
-- [ ] T023 [US2] Make `title` optional in `_parse_rank` (`src/cetools/careers.py:515-553`),
+- [X] T023 [US2] Make `title` optional in `_parse_rank` (`src/cetools/careers.py:515-553`),
       defaulting to `""` and rejecting an explicit empty value. **In the same commit**, retire
       `tests/unit/test_careers.py::test_a_rank_without_its_title_is_rejected` (`:558-566`), which
       asserts the opposite and cites 003's FR-016; T020 is its replacement.
       `test_an_empty_rank_title` (`:622-627`) stays as written — T021 is what pins it — because
       FR-007 keeps rejecting an explicit `title = ""`
-- [ ] T024 [P] [US2] Failing test: `throws.re-enlistment` declaring `characteristic` is rejected
+- [X] T024 [P] [US2] Failing test: `throws.re-enlistment` declaring `characteristic` is rejected
       naming `throws.re-enlistment.characteristic` and the keys the position admits, while the
       other four throw positions still admit it, in `tests/unit/test_careers.py`
-- [ ] T025 [US2] Restrict the `re-enlistment` throw position to `target` and `dice` in
+- [X] T025 [US2] Restrict the `re-enlistment` throw position to `target` and `dice` in
       `src/cetools/careers.py`. **In the same commit**, retire the case at
       `tests/unit/test_generator.py:1185-1204`, which builds a career declaring
       `characteristic = "SOC"` on `throws.re-enlistment` and asserts the parser admits it there;
       its fixture stops parsing the moment this lands. Its underlying point — that the walk never
       applies a characteristic to the re-enlistment throw — is now enforced by the parser instead
       of observed in a walk, which is what T024 asserts
-- [ ] T026 [P] [US2] Failing test: a `mustering-out.benefits` row holding `"1d6 Ship Share"` parses
+- [X] T026 [P] [US2] Failing test: a `mustering-out.benefits` row holding `"1d6 Ship Share"` parses
       to a `QuantifiedBenefit` whose name resolves against the benefits registry exactly as a bare
       item does, in `tests/unit/test_careers.py`
-- [ ] T027 [US2] Widen `mustering-out.benefits` parsing in `src/cetools/careers.py` to admit the
+- [X] T027 [US2] Widen `mustering-out.benefits` parsing in `src/cetools/careers.py` to admit the
       quantified form and resolve its name, and remove any fixed-length constraint from `cash` and
       `benefits` (both stay non-empty)
-- [ ] T028 [P] [US2] Failing test: a `career` file declaring `schema-version = 3` is rejected on
+- [X] T028 [P] [US2] Failing test: a `career` file declaring `schema-version = 3` is rejected on
       its header naming the version found and the version supported, and `4` is accepted, in
       `tests/unit/test_rules.py`
-- [ ] T029 [US2] Bump `career` to `4` in `rules._SUPPORTED_VERSION` and in the header of all eight
+- [X] T029 [US2] Bump `career` to `4` in `rules._SUPPORTED_VERSION` and in the header of all eight
       shipped files under `src/cetools/data/careers/`
 
 ### 3d. Generator: recursive cascade and the ship-share draw (FR-011, FR-012, IV)

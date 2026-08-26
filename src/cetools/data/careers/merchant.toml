@@ -5,7 +5,7 @@
 # and the lowest re-enlistment target in the shipped set.
 
 schema = "career"
-schema-version = 3
+schema-version = 4
 
 name = "Merchant"
 medical-tier = "professional"

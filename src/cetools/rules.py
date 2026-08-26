@@ -61,7 +61,7 @@ _SUPPORTED_VERSION = {
     "characteristics": 2,
     "skills": 2,
     "benefits": 1,
-    "career": 3,
+    "career": 4,
     "draft-table": 1,
     "aging-table": 1,
     "mishap-table": 1,

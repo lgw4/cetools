@@ -37,7 +37,7 @@ _COMMISSION_BLOCK = '[throws.commission]\ncharacteristic = "SOC"\ntarget = 7\ndi
 # packaged registries (FR-030, FR-031).
 _RAIDERS_CAREER = """\
 schema = "career"
-schema-version = 3
+schema-version = 4
 
 name = "Raiders"
 medical-tier = "fringe"

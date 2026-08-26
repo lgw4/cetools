@@ -7,7 +7,7 @@
 # (FR-018).
 
 schema = "career"
-schema-version = 3
+schema-version = 4
 
 name = "Navy"
 medical-tier = "service"

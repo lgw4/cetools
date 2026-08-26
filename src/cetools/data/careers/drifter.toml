@@ -5,7 +5,7 @@
 # all, which the source gives no other career.
 
 schema = "career"
-schema-version = 3
+schema-version = 4
 
 name = "Drifter"
 medical-tier = "fringe"

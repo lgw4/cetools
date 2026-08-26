@@ -3,7 +3,7 @@
 # Draft row 3.
 
 schema = "career"
-schema-version = 3
+schema-version = 4
 
 name = "Maritime Defense"
 medical-tier = "service"

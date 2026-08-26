@@ -357,6 +357,27 @@ def test_a_skills_file_declaring_the_new_version_is_accepted(tmp_path):
     assert not [p for p in report.problems if p.file == "skills.toml"]
 
 
+def test_a_career_file_declaring_the_old_version_is_rejected_naming_both_versions(tmp_path):
+    # D1: three changes the v3 shape cannot express or wrongly requires
+    # (optional rank title, the quantified benefit form, re-enlistment's
+    # narrowed keys), bundled into one bump.
+    (tmp_path / "navy.toml").write_text(
+        NAVY.replace("schema-version = 4", "schema-version = 3", 1), encoding="utf-8"
+    )
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    version_problems = [p for p in report.problems if p.file == "navy.toml"]
+    assert version_problems
+    assert version_problems[0].found == "version 3"
+    assert version_problems[0].expected == "version 4"
+
+
+def test_a_career_file_declaring_the_new_version_is_accepted(tmp_path):
+    (tmp_path / "navy.toml").write_text(NAVY, encoding="utf-8")
+    report = validate_rules(tmp_path)
+    assert not [p for p in report.problems if p.file == "navy.toml"]
+
+
 class TestBooleansAreNotIntegers:
     """Every integer-valued field in this module guards on the exact type,
     because `True == 1` in Python and nowhere in TOML. Weakening any of these

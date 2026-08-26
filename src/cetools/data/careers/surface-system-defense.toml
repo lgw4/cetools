@@ -3,7 +3,7 @@
 # Draft row 6.
 
 schema = "career"
-schema-version = 3
+schema-version = 4
 
 name = "Surface Defense"
 medical-tier = "service"

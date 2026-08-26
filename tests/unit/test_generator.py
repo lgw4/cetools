@@ -1180,22 +1180,13 @@ def test_qualification_penalty_grows_with_previous_careers_entered():
     assert found_penalty
 
 
-def test_re_enlistment_honors_a_declared_characteristic_dm(tmp_path):
-    # T195: `careers.py` accepts and registry-validates `characteristic` on
-    # a re-enlistment throw exactly as it does for the other four (`_ALL_THROWS`
-    # admits it there too), but `generator.py`'s re-enlistment throw never
-    # read it — a field parsed, validated, and then never honored, the T141 /
-    # T178 shape. No shipped career declares one, so this exercises an
-    # override the way T195's own reasoning requires: the loader promises
-    # the value is understood, so the walk must act on it.
-    navy = (_DATA / "careers" / "navy.toml").read_text(encoding="utf-8")
-    block = '[throws.re-enlistment]\ntarget = 5\ndice = "2d6"\n'
-    assert block in navy
-    overridden = navy.replace(
-        block, '[throws.re-enlistment]\ncharacteristic = "SOC"\ntarget = 5\ndice = "2d6"\n', 1
-    )
-    (tmp_path / "navy.toml").write_text(overridden, encoding="utf-8")
-    rules = load_rules(tmp_path)
+def test_re_enlistment_never_carries_a_characteristic_modifier(tmp_path):
+    # FR-013a, D1: `throws.re-enlistment` no longer admits `characteristic`
+    # at all (career schema v4) — the field parsed, validated, and never
+    # honored (T195's finding) is now refused at the parser instead, which is
+    # what T024 in tests/unit/test_careers.py pins. The walk's re-enlistment
+    # throw carries no characteristic modifier for any shipped career.
+    rules = load_rules()
 
     found = False
     for seed in range(300):
@@ -1203,11 +1194,11 @@ def test_re_enlistment_honors_a_declared_characteristic_dm(tmp_path):
         for step in character.history:
             if step.kind != "re-enlistment" or step.throw is None:
                 continue
+            found = True
             char_modifiers = [
                 m for m in step.throw.modifiers if m.label.startswith("Characteristic ")
             ]
-            if char_modifiers:
-                found = True
+            assert not char_modifiers
             assert step.throw.total == sum(step.throw.faces) + sum(
                 m.value for m in step.throw.modifiers
             )

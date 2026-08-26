@@ -5,7 +5,7 @@
 # single ladder names no distinct rank title, matching the source.
 
 schema = "career"
-schema-version = 3
+schema-version = 4
 
 name = "Scout"
 medical-tier = "service"
