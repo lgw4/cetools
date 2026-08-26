@@ -607,7 +607,7 @@ the source's layout. Each re-read still reads the source's tables wherever they 
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T090 Add the `CHANGELOG.md` breaking-changes entry (SC-008, FR-029, FR-033, FR-034, FR-035):
+- [X] T090 Add the `CHANGELOG.md` breaking-changes entry (SC-008, FR-029, FR-033, FR-034, FR-035):
       the seed-output change with no compatibility path, naming **all three** of its causes rather
       than the pool alone (FR-029) — the enlarged career pool, the corrected background-skills
       table (FR-014a), and the extra draw each cascade nesting level now costs (FR-012); the career
@@ -619,19 +619,19 @@ the source's layout. Each re-read still reads the source's tables wherever they 
       Add a non-breaking note that a sheet may now show a skill twice under different cascades —
       `Life Sciences-0` beside `Sciences (Life Sciences)-1` — which is what the source says and not
       a duplicate-skill bug (FR-016a, research R8)
-- [ ] T091 [P] Add the cross-reference in `specs/003-npc-generator/spec.md` at the point where its
+- [X] T091 [P] Add the cross-reference in `specs/003-npc-generator/spec.md` at the point where its
       reasoning for excluding Noble is superseded, leaving the rest of that spec intact (FR-032)
-- [ ] T092 [P] Confirm `README.md`'s licensing section and the Section 15 game-data notice still
+- [X] T092 [P] Confirm `README.md`'s licensing section and the Section 15 game-data notice still
       designate the directory all twenty-four career files live under, and that
       `tests/guards/test_no_outside_reads.py` and `tests/guards/test_no_locale.py` still pass
-- [ ] T093 Run every command in [quickstart.md](./quickstart.md) top to bottom and confirm each
+- [X] T093 Run every command in [quickstart.md](./quickstart.md) top to bottom and confirm each
       stated expectation: 24 careers listed, `Files: 42`, the three rejections, 70 skills and 8
       benefit items, the background-skills table's three lists with their repeats intact, the
       `cash=7`/`material=6|7`/`untitled` shape, an untitled sheet with no dangling separator,
       `Ship Share (x3)`, no bare `Vehicle (Aircraft)` on any sheet, twenty-seven files under
       `verification/`, and exactly two commits touching `README.md` and `tests/golden/` — one
       each, per T078's note
-- [ ] T094 Run `uv run pytest -q` and the project's lint commands
+- [X] T094 Run `uv run pytest -q` and the project's lint commands
       (`tests/guards/test_lint_commands.py` names them) and confirm both are clean before the final
       commit
 

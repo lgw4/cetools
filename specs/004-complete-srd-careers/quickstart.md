@@ -119,13 +119,16 @@ for stem, c in sorted(load_rules().careers.items()):
 ```
 
 Expect `cash=7` for all twenty-four; `material=6` for `athlete`, `barbarian`, `belter`,
-`drifter`, `entertainer`, `hunter`, and `scout`, and `material=7` for the other seventeen; and a
-non-empty `untitled` list for those same seven careers and no others.
+`drifter`, `entertainer`, `hunter`, and `scout`, and `material=7` for the other seventeen. Those
+same seven careers are the only ones whose ladder carries *no title at all* (FR-008); `navy` also
+prints a non-empty `untitled` list here (`[1, 2, 3, 4]`), but for a different reason — its
+enlisted ladder's interior contiguity gap-fill rows (FR-019, D2/FR-007), not an untitled career —
+so `navy` is not among the seven despite appearing in this raw listing too.
 
 ## Story 2: an untitled rank renders as no title, in both renderings
 
 ```sh
-uv run cetools npc --seed drifter-sheet --json | python -m json.tool | grep -n '"title"'
+uv run cetools npc --seed untitled-sheet-8 --json | python -m json.tool | grep -n '"title"'
 ```
 
 The `title` field is present and holds `""` for a character whose only rank is untitled; it is
@@ -133,16 +136,16 @@ neither removed nor null (FR-009). The human-readable sheet for the same seed sh
 with no title in front of it and no dangling separator:
 
 ```sh
-uv run cetools npc --seed drifter-sheet
+uv run cetools npc --seed untitled-sheet-8
 ```
 
 ## Story 2: a ship-share award records the rolled quantity
 
 ```sh
-uv run cetools npc --seed shares --count 20 | grep 'Ship Share'
+uv run cetools npc --seed shares-29 --count 20 | grep 'Ship Share'
 ```
 
-A sheet that drew the ship-share row shows `Ship Share (x3)` (or whatever the seed rolled), the
+A sheet that drew the ship-share row shows `Ship Share (x2)` (or whatever the seed rolled), the
 existing repeat display doing the work. The same character's `--json` `benefits` array holds
 that many identical `"Ship Share"` strings and carries no quantity field.
 
@@ -193,8 +196,11 @@ data file or recorded there with its reason (FR-023, FR-023a, FR-024).
 ## SC-008: the release notes flag the break
 
 ```sh
-sed -n '/^### Breaking changes/,/^###/p' CHANGELOG.md | head -60
+sed -n '/^### Breaking changes/,/^###/p' CHANGELOG.md | tail -50
 ```
+
+(This feature's entries are the newest, so they sit at the *end* of the Breaking changes list,
+right before the next `###` heading — `tail`, not `head`.)
 
 Expect an entry covering the enlarged pool changing what every seed produces with no
 compatibility path, the two schema bumps, the corrected Scout and Drifter data, the three

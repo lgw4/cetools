@@ -1149,6 +1149,14 @@ features must add.
 - **Noble titles**: excluded. Choosing between the source's printed forms requires a gender the
   source itself files as pure color, and emitting only the unparenthesized form would render
   every titled NPC a Baron and never a Baroness.
+
+  **Superseded in part by 004-complete-srd-careers.** That feature adds the Noble *career*, whose
+  own rank ladder carries titles (Knight, Baron, Marquis, Count, Duke, Archduke) the same way
+  every other career's rank ladder does — gender-neutral in this codebase because no career's
+  ladder is gendered, Noble's included. This exclusion's reasoning is about a different table: the
+  source's separate Social-Standing nobility track, for a character already noble by birth, whose
+  printed forms *are* gendered (Baron/Baroness and so on). That table remains excluded and
+  unimplemented; 004's own `noble.toml` records the same non-implementation (FR-031).
 - **Starting equipment and equipment purchase**: excluded. The consequence chain is cut at what
   moves a number on the sheet, and buying gear is a step past that line.
 - **Modeling material benefits**: excluded. A benefit is a named item; a ship share is not a
