@@ -1,0 +1,71 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# New career (research.md R1). Rank 5's title is corrected from the
+# source's misprinted "Assistant Directory" to "Assistant Director"
+# (FR-017, D9).
+
+schema = "career"
+schema-version = 4
+
+name = "Agent"
+medical-tier = "professional"
+
+[throws.qualification]
+characteristic = "SOC"
+target = 6
+dice = "2d6"
+
+[throws.survival]
+characteristic = "INT"
+target = 6
+dice = "2d6"
+
+[throws.commission]
+characteristic = "EDU"
+target = 7
+dice = "2d6"
+
+[throws.promotion]
+characteristic = "EDU"
+target = 6
+dice = "2d6"
+
+[throws.re-enlistment]
+target = 6
+dice = "2d6"
+
+[tables.personal]
+entries = ["DEX +1", "END +1", "INT +1", "EDU +1", "Athletics", "Carousing"]
+
+[tables.service]
+entries = ["Admin", "Computer", "Streetwise", "Bribery", "Leadership", "Vehicle"]
+
+[tables.specialist]
+entries = ["Gun Combat", "Melee Combat", "Bribery", "Leadership", "Recon", "Survival"]
+
+[tables.advanced-education]
+requires = "EDU 8+"
+entries = ["Advocate", "Computer", "Liaison", "Linguistics", "Medicine", "Leadership"]
+
+[[ladders]]
+name = "junior"
+role = "entry"
+ranks = [
+  { rank = 0, title = "Agent", bonus = "Streetwise 1" },
+]
+
+[[ladders]]
+name = "officer"
+role = "commissioned"
+ranks = [
+  { rank = 1, title = "Special Agent" },
+  { rank = 2, title = "Sp Agent in Charge" },
+  { rank = 3, title = "Unit Chief" },
+  { rank = 4, title = "Section Chief", bonus = "Admin 1" },
+  { rank = 5, title = "Assistant Director" },
+  { rank = 6, title = "Director" },
+]
+
+[mustering-out]
+cash = [1000, 5000, 10000, 10000, 20000, 50000, 50000]
+benefits = ["Low Passage", "INT +1", "Weapon", "Mid Passage", "SOC +1", "High Passage", "Explorers' Society"]

@@ -227,10 +227,12 @@ def test_a_careers_medical_tier_changes_what_the_generator_actually_charges(tmp_
     # rather than off what was actually charged. This one generates a
     # character and compares the bill itself.
     #
-    # Seed 138's Navy medical bill throws a total of 7: the "service" tier
-    # pays 75% at that total (target 4), the "fringe" tier pays 0% (target
-    # 8 is the first rung it clears), so the same throw must be billed
-    # differently under the two tiers.
+    # A Navy medical bill throwing a total of 7 makes the two tiers bill
+    # differently: the "service" tier pays 75% at that total (target 4),
+    # the "fringe" tier pays 0% (target 8 is the first rung it clears).
+    # The override only changes `medical-tier`, not any table or throw, so
+    # it consumes the same dice as the packaged file and a seed found
+    # under one reproduces the same throw under the other.
     override = tmp_path / "navy.toml"
     override.write_text(
         NAVY.replace('medical-tier = "service"', 'medical-tier = "fringe"', 1),
@@ -239,8 +241,14 @@ def test_a_careers_medical_tier_changes_what_the_generator_actually_charges(tmp_
     packaged = load_rules()
     overridden = load_rules(override)
 
-    baseline = generate_character(Roller(138), packaged)
-    changed = generate_character(Roller(138), overridden)
+    def _has_navy_medical_bill_of_seven(character):
+        return any(
+            s.kind == "medical-bills" and s.career == "Navy" and s.throw.total == 7
+            for s in character.history
+        )
+
+    seed, baseline = _first_seed_matching(packaged, _has_navy_medical_bill_of_seven, limit=20000)
+    changed = generate_character(Roller(seed), overridden)
 
     baseline_bill = next(s for s in baseline.history if s.kind == "medical-bills")
     changed_bill = next(s for s in changed.history if s.kind == "medical-bills")

@@ -446,12 +446,18 @@ class TestDefaultRenderingCoverage:
             # separately below: this sample's seeds are small sequential
             # ints, so `str(character.seed)` collides with an unrelated
             # digit — an age, a fund total — too often here to be sound.)
+            #
+            # The funds figure legitimately shares line 2 with the career
+            # summary, so a debt or pension total that happens to equal
+            # `character.funds` would falsely trip the checks below if left
+            # in place; strip that one legitimate occurrence first.
+            without_funds = text.replace(f"Cr{character.funds:,}", "", 1)
             for step in character.history:
                 assert step.kind not in text
             if character.debt:
-                assert f"Cr{character.debt:,}" not in text
+                assert f"Cr{character.debt:,}" not in without_funds
             if character.pension:
-                assert f"Cr{character.pension:,}" not in text
+                assert f"Cr{character.pension:,}" not in without_funds
 
     def test_the_seed_itself_does_not_leak_into_the_default_sheet(self):
         # Reusing `sample`'s small sequential seeds (0-999) for this check

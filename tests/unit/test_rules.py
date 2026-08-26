@@ -244,12 +244,12 @@ def test_validate_rules_reports_the_packaged_data_set_as_valid():
     report = validate_rules()
     assert report.valid
     assert report.problems == ()
-    assert report.file_count == 26
+    assert report.file_count == 42
 
 
 def test_validate_rules_file_count_counts_every_composed_toml():
     report = validate_rules()
-    assert report.file_count == 26
+    assert report.file_count == 42
 
 
 def test_file_count_counts_an_override_addition_not_only_the_packaged_set(tmp_path):
@@ -264,7 +264,7 @@ def test_file_count_counts_an_override_addition_not_only_the_packaged_set(tmp_pa
         'schema = "career"\nschema-version = 1\n', encoding="utf-8"
     )
     report = validate_rules(tmp_path)
-    assert report.file_count == 27
+    assert report.file_count == 43
 
 
 def test_load_rules_rejects_a_nonexistent_override_location_as_a_usage_error(tmp_path):

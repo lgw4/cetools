@@ -448,6 +448,22 @@ def test_a_problem_naming_two_files_still_carries_one_composition_key(tmp_path):
         "surface-system-defense.toml",
         "drifter.toml",
         "merchant.toml",
+        "agent.toml",
+        "athlete.toml",
+        "barbarian.toml",
+        "belter.toml",
+        "bureaucrat.toml",
+        "colonist.toml",
+        "diplomat.toml",
+        "entertainer.toml",
+        "hunter.toml",
+        "mercenary.toml",
+        "noble.toml",
+        "physician.toml",
+        "pirate.toml",
+        "rogue.toml",
+        "scientist.toml",
+        "technician.toml",
         # A sentinel for a whole-set problem naming no single file, the same
         # shape the surname-absence check already uses: every career fails
         # to resolve its characteristic references in this scenario, so

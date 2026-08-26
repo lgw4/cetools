@@ -1,0 +1,70 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# New career (research.md R1). Rank 2's title is corrected from the
+# source's misprinted "Pilot" to "Piloting" (FR-017, D9).
+
+schema = "career"
+schema-version = 4
+
+name = "Pirate"
+medical-tier = "professional"
+
+[throws.qualification]
+characteristic = "DEX"
+target = 5
+dice = "2d6"
+
+[throws.survival]
+characteristic = "DEX"
+target = 6
+dice = "2d6"
+
+[throws.commission]
+characteristic = "STR"
+target = 7
+dice = "2d6"
+
+[throws.promotion]
+characteristic = "INT"
+target = 6
+dice = "2d6"
+
+[throws.re-enlistment]
+target = 5
+dice = "2d6"
+
+[tables.personal]
+entries = ["STR +1", "DEX +1", "END +1", "Melee Combat", "Bribery", "Gambling"]
+
+[tables.service]
+entries = ["Streetwise", "Electronics", "Gun Combat", "Melee Combat", "Recon", "Vehicle"]
+
+[tables.specialist]
+entries = ["Zero-G", "Comms", "Engineering", "Gunnery", "Navigation", "Piloting"]
+
+[tables.advanced-education]
+requires = "EDU 8+"
+entries = ["Computer", "Gravitics", "Jack-of-All-Trades", "Medicine", "Advocate", "Tactics"]
+
+[[ladders]]
+name = "junior"
+role = "entry"
+ranks = [
+  { rank = 0, title = "Crewman", bonus = "Gunnery 1" },
+]
+
+[[ladders]]
+name = "officer"
+role = "commissioned"
+ranks = [
+  { rank = 1, title = "Corporal" },
+  { rank = 2, title = "Lieutenant", bonus = "Piloting 1" },
+  { rank = 3, title = "Lt Commander" },
+  { rank = 4, title = "Commander" },
+  { rank = 5, title = "Captain" },
+  { rank = 6, title = "Commodore" },
+]
+
+[mustering-out]
+cash = [1000, 5000, 10000, 20000, 20000, 50000, 100000]
+benefits = ["Low Passage", "INT +1", "Weapon", "High Passage", "SOC +1", "High Passage", "1d6 Ship Share"]

@@ -251,7 +251,7 @@ class TestTermLoop:
         # on a higher rank existing to move to. Every entry ladder in the
         # shipped data (other than Navy's, since T155) declares a single
         # rank 0, so an uncommissioned character in a career that offers
-        # promotion — Aerospace Defense, both throws — was denied the
+        # promotion — Aerospace System Defense, both throws — was denied the
         # throw entirely (T169). Seed 20's first term survives, fails its
         # commission throw, and stays in the game (does not mishap), which
         # is what reaches the promotion section at all.
@@ -268,7 +268,7 @@ class TestTermLoop:
     def test_advancement_leaves_the_rank_unchanged_with_nothing_above(self):
         # The other half of T169: attempting the throw must not move the
         # rank when the ladder has nothing above it, even on a success —
-        # seed 20's term 1 advancement throw succeeds (Aerospace Defense's
+        # seed 20's term 1 advancement throw succeeds (Aerospace System Defense's
         # "enlisted" ladder declares only rank 0).
         from cetools.generator import _Walk
 
@@ -790,34 +790,43 @@ class TestADebtsCreationStepPrecedesItsSettlement:
     (T164).
     """
 
-    def test_no_settlement_is_followed_by_the_debt_it_settled(self):
+    def test_every_settlement_has_a_prior_unsettled_creation(self):
+        # A single term can legitimately raise more than one debt (a
+        # mishap's medical bill, then a later aging-triggered
+        # medical-crisis, both before the term ends) with the earlier one
+        # opportunistically settled from funds on hand while the later one
+        # remains outstanding — so matching by (career, term) alone, as an
+        # earlier version of this test did, false-positives on that
+        # ordering. And a single debt can itself be settled across more
+        # than one `debt-settled` step (a partial payment now, the
+        # remainder whenever funds next allow), so a one-token-per-debt
+        # counter, decremented on every settlement, also false-positives —
+        # a debt only fully "consumed" once its cumulative payments reach
+        # its amount, not on its first partial one. A career-boundary reset
+        # is wrong for the same reason a per-debt token count is: a debt a
+        # career could not afford to clear at its own mustering-out stays
+        # outstanding into whatever career comes next.
+        #
+        # What T164 actually guards against is money settled that was never
+        # owed yet — a `debt-settled` amount landing before the
+        # `mishap`/`medical-crisis`/`medical-bills` step whose debt effect
+        # created it. That is a running conservation check on cumulative
+        # totals, not a per-event token count: cumulative money settled can
+        # never exceed cumulative money created up to that point.
         for character in _characters(2000):
+            created = 0
+            settled = 0
             for index, step in enumerate(character.history):
-                if step.kind != "debt-settled":
-                    continue
-                # Bounded at the next `career-entered`: a re-enterable
-                # career (Drifter) restarts its term count at a fresh
-                # service, so (career, term) alone can name the same pair
-                # twice across two unrelated services, and a debt this
-                # step settled has no bearing on one raised in the next
-                # service that happens to share its career and term.
-                later_creator = False
-                for other in character.history[index + 1 :]:
-                    if other.kind == "career-entered":
-                        break
-                    if (
-                        other.kind in _DEBT_CREATING_KINDS
-                        and other.career == step.career
-                        and other.term == step.term
-                        and any(e.kind == "debt" for e in other.effects)
-                    ):
-                        later_creator = True
-                        break
-                assert not later_creator, (
-                    f"seed {character.seed}: debt-settled at history index "
-                    f"{index} is followed by a debt creation in "
-                    f"{step.career} term {step.term}"
-                )
+                if step.kind in _DEBT_CREATING_KINDS:
+                    created += sum(e.amount for e in step.effects if e.kind == "debt")
+                elif step.kind == "debt-settled":
+                    settled += sum(e.amount for e in step.effects if e.kind == "debt")
+                    assert settled <= created, (
+                        f"seed {character.seed}: debt-settled at history "
+                        f"index {index} ({step.career} term {step.term}) "
+                        f"brings cumulative settlements to {settled}, "
+                        f"exceeding the {created} created so far"
+                    )
 
 
 class TestMedicalBillRestoration:

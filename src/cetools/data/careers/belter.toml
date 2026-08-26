@@ -1,0 +1,52 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# New career (research.md R1). No commission or advancement; two skill
+# rolls a term instead of one (FR-009). Rank 0 grants a bonus with no
+# title. Grants `Prospecting` on Service row 5 and Specialist row 4 —
+# defined nowhere in the source's skill chapter but carried in the
+# vocabulary for exactly this grant (FR-016). Material row 5 is a rolled
+# quantity (FR-011).
+
+schema = "career"
+schema-version = 4
+
+name = "Belter"
+medical-tier = "fringe"
+
+[throws.qualification]
+characteristic = "INT"
+target = 4
+dice = "2d6"
+
+[throws.survival]
+characteristic = "DEX"
+target = 7
+dice = "2d6"
+
+[throws.re-enlistment]
+target = 5
+dice = "2d6"
+
+[tables.personal]
+entries = ["STR +1", "DEX +1", "END +1", "Zero-G", "Melee Combat", "Gambling"]
+
+[tables.service]
+entries = ["Comms", "Demolitions", "Gun Combat", "Gunnery", "Prospecting", "Piloting"]
+
+[tables.specialist]
+entries = ["Zero-G", "Electronics", "Sciences", "Prospecting", "Vehicle", "Vehicle"]
+
+[tables.advanced-education]
+requires = "EDU 8+"
+entries = ["Advocate", "Engineering", "Medicine", "Navigation", "Comms", "Tactics"]
+
+[[ladders]]
+name = "belter"
+role = "entry"
+ranks = [
+  { rank = 0, bonus = "Zero-G 1" },
+]
+
+[mustering-out]
+cash = [1000, 5000, 5000, 5000, 10000, 20000, 50000]
+benefits = ["Low Passage", "INT +1", "INT +1", "Mid Passage", "1d6 Ship Share", "High Passage"]

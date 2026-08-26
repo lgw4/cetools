@@ -388,45 +388,45 @@ qualification / survival / commission / **advancement** / re-enlistment.
 
 ### 6b. The sixteen new careers (FR-001)
 
-- [ ] T049 [P] [US1] Create `src/cetools/data/careers/agent.toml` (Soc 6+/Int 6+/Edu 7+/Edu 6+/6+,
+- [X] T049 [P] [US1] Create `src/cetools/data/careers/agent.toml` (Soc 6+/Int 6+/Edu 7+/Edu 6+/6+,
       professional, 7 material rows; rank 5 title corrected from `Assistant Directory` to
       `Assistant Director` with the correction noted in the file, D9)
-- [ ] T050 [P] [US1] Create `src/cetools/data/careers/athlete.toml` (End 8+/Dex 5+/no commission,
+- [X] T050 [P] [US1] Create `src/cetools/data/careers/athlete.toml` (End 8+/Dex 5+/no commission,
       professional, 6 material rows, untitled rank 0 carrying a grant)
-- [ ] T051 [P] [US1] Create `src/cetools/data/careers/barbarian.toml` (End 5+/Str 6+/no commission,
+- [X] T051 [P] [US1] Create `src/cetools/data/careers/barbarian.toml` (End 5+/Str 6+/no commission,
       fringe, 6 material rows, cash row 1 is a real `0`)
-- [ ] T052 [P] [US1] Create `src/cetools/data/careers/belter.toml` (Int 4+/Dex 7+/no commission,
+- [X] T052 [P] [US1] Create `src/cetools/data/careers/belter.toml` (Int 4+/Dex 7+/no commission,
       fringe, 6 material rows; grants `Prospecting` on Service 5 and Specialist 4; material row 5
       is `1d6 Ship Share`)
-- [ ] T053 [P] [US1] Create `src/cetools/data/careers/bureaucrat.toml` (Soc 6+/Edu 4+/Soc 5+/Int
+- [X] T053 [P] [US1] Create `src/cetools/data/careers/bureaucrat.toml` (Soc 6+/Edu 4+/Soc 5+/Int
       8+/5+, professional, 7 material rows; grants `Perception` on Specialist 3)
-- [ ] T054 [P] [US1] Create `src/cetools/data/careers/colonist.toml` (End 5+/End 6+/Int 7+/Edu
+- [X] T054 [P] [US1] Create `src/cetools/data/careers/colonist.toml` (End 5+/End 6+/Int 7+/Edu
       6+/5+, fringe, 7 material rows; rank 3 title corrected from `Liaision` to `Liaison` with the
       correction noted in the file)
-- [ ] T055 [P] [US1] Create `src/cetools/data/careers/diplomat.toml` (Soc 6+/Edu 5+/Int 7+/Soc
+- [X] T055 [P] [US1] Create `src/cetools/data/careers/diplomat.toml` (Soc 6+/Edu 5+/Int 7+/Soc
       7+/5+, professional, 7 material rows)
-- [ ] T056 [P] [US1] Create `src/cetools/data/careers/entertainer.toml` (Soc 8+/Int 4+/no
+- [X] T056 [P] [US1] Create `src/cetools/data/careers/entertainer.toml` (Soc 8+/Int 4+/no
       commission, professional, 6 material rows)
-- [ ] T057 [P] [US1] Create `src/cetools/data/careers/hunter.toml` (End 5+/Str 8+/no commission,
+- [X] T057 [P] [US1] Create `src/cetools/data/careers/hunter.toml` (End 5+/Str 8+/no commission,
       professional, 6 material rows; material row 5 is `1d6 Ship Share`)
-- [ ] T058 [P] [US1] Create `src/cetools/data/careers/mercenary.toml` (Int 4+/End 6+/Int 7+/Int
+- [X] T058 [P] [US1] Create `src/cetools/data/careers/mercenary.toml` (Int 4+/End 6+/Int 7+/Int
       6+/5+, professional, 7 material rows; material row 7 is `1d6 Ship Share`)
-- [ ] T059 [P] [US1] Create `src/cetools/data/careers/noble.toml` (Soc 8+/Soc 4+/Edu 5+/Int 8+/6+,
+- [X] T059 [P] [US1] Create `src/cetools/data/careers/noble.toml` (Soc 8+/Soc 4+/Edu 5+/Int 8+/6+,
       professional, 7 material rows; commissioned ladder titles `Knight`, `Baron`, `Marquis`,
       `Count`, `Duke`, `Archduke`; material row 7 is `1d6 Ship Share`; header comment recording
       FR-031 — the source's separate Social-Standing nobility table is unimplemented and whatever
       implements it must reconcile with these titles rather than duplicate them)
-- [ ] T060 [P] [US1] Create `src/cetools/data/careers/physician.toml` (Edu 6+/Int 4+/Int 5+/Edu
+- [X] T060 [P] [US1] Create `src/cetools/data/careers/physician.toml` (Edu 6+/Int 4+/Int 5+/Edu
       8+/5+, professional, 7 material rows; ranks 4 and 6 carry `Attending Phys.` and
       `Hospital Admin.` verbatim, D9)
-- [ ] T061 [P] [US1] Create `src/cetools/data/careers/pirate.toml` (Dex 5+/Dex 6+/Str 7+/Int 6+/5+,
+- [X] T061 [P] [US1] Create `src/cetools/data/careers/pirate.toml` (Dex 5+/Dex 6+/Str 7+/Int 6+/5+,
       professional, 7 material rows; rank 2 grant corrected from `Pilot` to `Piloting` with the
       correction noted; material row 7 is `1d6 Ship Share`)
-- [ ] T062 [P] [US1] Create `src/cetools/data/careers/rogue.toml` (Dex 5+/Dex 4+/Str 6+/Int 7+/4+,
+- [X] T062 [P] [US1] Create `src/cetools/data/careers/rogue.toml` (Dex 5+/Dex 4+/Str 6+/Int 7+/4+,
       fringe, 7 material rows)
-- [ ] T063 [P] [US1] Create `src/cetools/data/careers/scientist.toml` (Edu 6+/Edu 5+/Int 7+/Int
+- [X] T063 [P] [US1] Create `src/cetools/data/careers/scientist.toml` (Edu 6+/Edu 5+/Int 7+/Int
       6+/5+, professional, 7 material rows; material row 7 is `Research Vessel`)
-- [ ] T064 [P] [US1] Create `src/cetools/data/careers/technician.toml` (Edu 6+/Dex 4+/Edu 5+/Int
+- [X] T064 [P] [US1] Create `src/cetools/data/careers/technician.toml` (Edu 6+/Dex 4+/Edu 5+/Int
       8+/5+, professional, 7 material rows)
 
 ### 6c. The eight shipped careers, reconciled field by field (FR-002, FR-003)

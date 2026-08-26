@@ -1,0 +1,69 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# New career (research.md R1).
+
+schema = "career"
+schema-version = 4
+
+name = "Technician"
+medical-tier = "professional"
+
+[throws.qualification]
+characteristic = "EDU"
+target = 6
+dice = "2d6"
+
+[throws.survival]
+characteristic = "DEX"
+target = 4
+dice = "2d6"
+
+[throws.commission]
+characteristic = "EDU"
+target = 5
+dice = "2d6"
+
+[throws.promotion]
+characteristic = "INT"
+target = 8
+dice = "2d6"
+
+[throws.re-enlistment]
+target = 5
+dice = "2d6"
+
+[tables.personal]
+entries = ["STR +1", "DEX +1", "END +1", "INT +1", "EDU +1", "Gun Combat"]
+
+[tables.service]
+entries = ["Admin", "Computer", "Mechanics", "Medicine", "Electronics", "Sciences"]
+
+[tables.specialist]
+entries = ["Computer", "Electronics", "Gravitics", "Linguistics", "Engineering", "Animals"]
+
+[tables.advanced-education]
+requires = "EDU 8+"
+entries = ["Advocate", "Computer", "Jack-of-All-Trades", "Linguistics", "Medicine", "Sciences"]
+
+[[ladders]]
+name = "junior"
+role = "entry"
+ranks = [
+  { rank = 0, title = "Technician", bonus = "Computer 1" },
+]
+
+[[ladders]]
+name = "officer"
+role = "commissioned"
+ranks = [
+  { rank = 1, title = "Team Lead" },
+  { rank = 2, title = "Supervisor" },
+  { rank = 3, title = "Manager" },
+  { rank = 4, title = "Director", bonus = "Admin 1" },
+  { rank = 5, title = "Vice-President" },
+  { rank = 6, title = "Executive Officer" },
+]
+
+[mustering-out]
+cash = [1000, 5000, 10000, 10000, 20000, 50000, 50000]
+benefits = ["Low Passage", "EDU +1", "INT +1", "Mid Passage", "Mid Passage", "High Passage", "SOC +1"]
