@@ -255,7 +255,7 @@ class TestTermLoop:
         # is what reaches the promotion section at all.
         from cetools.generator import _Walk
 
-        career = RULES.careers["aerospace-defense"]
+        career = RULES.careers["aerospace-system-defense"]
         walk = _Walk(Roller(20), RULES)
         walk.characteristics = {code: 7 for code in RULES.characteristics.names}
         walk.run_term_loop(career, "selected")
@@ -270,7 +270,7 @@ class TestTermLoop:
         # "enlisted" ladder declares only rank 0).
         from cetools.generator import _Walk
 
-        career = RULES.careers["aerospace-defense"]
+        career = RULES.careers["aerospace-system-defense"]
         walk = _Walk(Roller(20), RULES)
         walk.characteristics = {code: 7 for code in RULES.characteristics.names}
         terms, ladder, rank, commissioned, ended, benefit_rolls, forfeit_all = walk.run_term_loop(

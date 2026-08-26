@@ -87,11 +87,11 @@ here may change engine behavior.
 
 ### Commit 2 — `refactor(careers): rename the three planetary-defense career files`
 
-- [ ] T006 `git mv` `src/cetools/data/careers/aerospace-defense.toml` →
+- [X] T006 `git mv` `src/cetools/data/careers/aerospace-defense.toml` →
       `aerospace-system-defense.toml`, `maritime-defense.toml` → `maritime-system-defense.toml`,
       and `surface-defense.toml` → `surface-system-defense.toml`; the `name` field inside each
       file does **not** change in this commit
-- [ ] T007 Retarget the basename references the rename breaks:
+- [X] T007 Retarget the basename references the rename breaks:
       `tests/unit/test_generator.py:258` and `:273` (`RULES.careers["aerospace-defense"]`), and
       `tests/integration/test_validation_categories.py:444`, `:446`, `:448`, then run
       `uv run pytest -q` and confirm the count still matches T001. Six shipped career files also
