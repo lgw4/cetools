@@ -442,7 +442,16 @@ def test_the_mustering_out_per_term_rate_takes_effect_with_no_code_edit(tmp_path
     assert rules.chargen.mustering_out_per_term == 2
 
     seed, baseline = _first_seed_matching(
-        packaged, lambda c: any(service.benefit_rolls > 0 for service in c.careers)
+        packaged,
+        # `benefit_rolls` is `terms * per-term` (which doubles) *plus* a
+        # rank-derived bonus (which does not) — restricting to rank 0
+        # everywhere keeps that bonus at zero, so a clean doubling is what
+        # this scenario is actually demonstrating. A single career service
+        # keeps the extra rolls the doubled rate consumes from shifting any
+        # later career's own draws out from under it.
+        lambda c: len(c.careers) == 1
+        and any(service.benefit_rolls > 0 for service in c.careers)
+        and all(service.rank == 0 for service in c.careers),
     )
     overridden = generate_character(Roller(seed), rules)
     assert len(overridden.careers) == len(baseline.careers)

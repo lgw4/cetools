@@ -36,10 +36,10 @@ dice = "2d6"
 entries = ["STR +1", "DEX +1", "END +1", "INT +1", "EDU +1", "Gunnery"]
 
 [tables.service]
-entries = ["Flyer", "Gunnery", "Gun Combat", "Mechanic", "Vehicle", "Electronics"]
+entries = ["Piloting", "Gunnery", "Gun Combat", "Mechanics", "Vehicle", "Electronics"]
 
 [tables.specialist]
-entries = ["Vehicle", "Gunnery", "Tactics", "Electronics", "Mechanic", "Jack-of-All-Trades"]
+entries = ["Vehicle", "Gunnery", "Tactics", "Electronics", "Mechanics", "Jack-of-All-Trades"]
 
 [tables.advanced-education]
 requires = "EDU 8+"
@@ -49,7 +49,7 @@ entries = ["Admin", "Computer", "Engineering", "Navigation", "Tactics", "Electro
 name = "enlisted"
 role = "entry"
 ranks = [
-  { rank = 0, title = "Airman", bonus = "Flyer 1" },
+  { rank = 0, title = "Airman", bonus = "Piloting 1" },
 ]
 
 [[ladders]]
@@ -70,4 +70,4 @@ ranks = [
 # clamp when a rank or retirement modifier pushes the roll past a table
 # that would otherwise run one row short (T187).
 cash = [1000, 5000, 5000, 10000, 10000, 20000, 20000]
-benefits = ["Low Passage", "Personal Vehicle", "Weapon", "Mid Passage", "SOC +1", "Armor", "Armor"]
+benefits = ["Low Passage", "Low Passage", "Weapon", "Mid Passage", "SOC +1", "Weapon", "Weapon"]

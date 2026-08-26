@@ -148,17 +148,19 @@ class TestCareerEntry:
             break
         assert found
 
-    def test_basic_training_grants_the_service_table_on_first_career(self):
+    def test_basic_training_grants_the_service_table_on_first_career(
+        self, cascade_reachable_names
+    ):
         for character in _characters(100):
             first_step = next(s for s in character.history if s.kind == "basic-training")
-            granted_names = {effect.subject.split(" (")[0] for effect in first_step.effects}
             first_career = character.careers[0].career
             career = next(c for c in RULES.careers.values() if c.name == first_career)
-            expected_names = {
-                (entry.skill.name if hasattr(entry, "skill") else entry.name)
-                for entry in career.tables["service"].entries
-            }
-            assert granted_names == expected_names
+            entries = career.tables["service"].entries
+            assert len(first_step.effects) == len(entries)
+            for effect, entry in zip(first_step.effects, entries):
+                entry_name = entry.skill.name if hasattr(entry, "skill") else entry.name
+                granted_name = effect.subject.split(" (")[0]
+                assert granted_name in cascade_reachable_names(entry_name)
 
     def test_a_later_career_characteristic_adjustment_entry_is_applied(self, tmp_path):
         # T200: the later-career branch of `basic_training` filtered every
@@ -182,11 +184,11 @@ class TestCareerEntry:
                 return self._sequence.pop(0)
 
         drifter = (_DATA / "careers" / "drifter.toml").read_text(encoding="utf-8")
-        service_entries = '["Carouse", "Gambler", "Recon", "Stealth", "Streetwise", "Survival"]'
+        service_entries = '["Carousing", "Gambling", "Recon", "Broker", "Streetwise", "Survival"]'
         assert service_entries in drifter
         overridden = drifter.replace(
             service_entries,
-            service_entries.replace('"Carouse"', '"END +1"', 1),
+            service_entries.replace('"Carousing"', '"END +1"', 1),
             1,
         )
         (tmp_path / "drifter.toml").write_text(overridden, encoding="utf-8")

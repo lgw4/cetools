@@ -107,7 +107,7 @@ class TestAlwaysLivingAndConsistency:
             assert character.careers
             assert character.history
 
-    def test_sc004_every_character_is_internally_consistent(self, sample):
+    def test_sc004_every_character_is_internally_consistent(self, sample, cascade_reachable_names):
         cap = RULES.chargen.terms_cap
         params = RULES.chargen
         for character in sample:
@@ -245,9 +245,16 @@ class TestAlwaysLivingAndConsistency:
                         for entry in table.entries
                         if isinstance(entry, (SkillGrant, SkillReference))
                     }
+                    # A cascade entry's bare grant may resolve into a nested
+                    # cascade's own name rather than the entry's literal one
+                    # (FR-012, D5) — `Vehicle` drawing `Aircraft` reports
+                    # `Aircraft (...)`, not `Vehicle (...)`.
+                    reachable_names = set().union(
+                        *(cascade_reachable_names(name) for name in entry_names)
+                    )
                     for effect in step.effects:
                         if effect.kind == "skill":
-                            assert effect.subject.split(" (", 1)[0] in entry_names
+                            assert effect.subject.split(" (", 1)[0] in reachable_names
                 elif step.kind == "commission" and step.throw is not None and step.throw.success:
                     commissioned_ladder = next(
                         (lad for lad in current_career.ladders if lad.role == "commissioned"),

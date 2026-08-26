@@ -2,6 +2,19 @@
 #
 # Skills referenced by the shipped chargen data. Each entry declares its
 # permitted specialties explicitly, empty when it has none.
+#
+# Exactly the seventy names research.md R4 enumerates: the sixty-eight the
+# source's skill chapter defines, plus two it does not (see below). A
+# specialty may itself be an entry with specialties of its own — `Vehicle`
+# names `Aircraft` and `Watercraft`, each a cascade in its own right — and
+# resolving the outer skill continues through it (FR-012, schema v2).
+#
+# `Perception` and `Prospecting` are granted by career tables (Bureaucrat and
+# Belter respectively) and defined nowhere in the source's skill chapter
+# (FR-016). `Jack-of-All-Trades` is written in that canonical form; the
+# chapter's own heading also gives `Jack o' Trades` as its sanctioned short
+# form, which no career file writes but which a reader may encounter in the
+# source (FR-017a).
 
 schema = "skills"
 schema-version = 2
@@ -9,38 +22,71 @@ schema-version = 2
 [skills]
 "Admin" = []
 "Advocate" = []
-"Animals" = []
-"Art" = []
+"Aircraft" = ["Grav Vehicle", "Rotor Aircraft", "Winged Aircraft"]
+"Animals" = ["Farming", "Riding", "Survival", "Veterinary Medicine"]
+"Archery" = []
 "Athletics" = []
+"Battle Dress" = []
+"Bay Weapons" = []
+"Bludgeoning Weapons" = []
+"Bribery" = []
 "Broker" = []
-"Carouse" = []
+"Carousing" = []
 "Comms" = []
 "Computer" = []
-"Diplomat" = []
-"Drive" = []
+"Demolitions" = []
 "Electronics" = []
+"Energy Pistol" = []
+"Energy Rifle" = []
 "Engineering" = []
-"Flyer" = []
-"Gambler" = []
+"Farming" = []
+"Gambling" = []
+"Grav Vehicle" = []
 "Gravitics" = []
 "Gun Combat" = ["Archery", "Energy Pistol", "Energy Rifle", "Shotgun", "Slug Pistol", "Slug Rifle"]
 "Gunnery" = ["Bay Weapons", "Heavy Weapons", "Screens", "Spinal Mounts", "Turret Weapons"]
+"Heavy Weapons" = []
 "Jack-of-All-Trades" = []
-"Language" = []
 "Leadership" = []
-"Mechanic" = []
+"Liaison" = []
+"Life Sciences" = []
+"Linguistics" = []
+"Mechanics" = []
 "Medicine" = []
-"Melee Combat" = ["Bludgeoning Weapons", "Natural Weapons", "Piercing Weapons", "Slashing Weapons"]
+"Melee Combat" = ["Natural Weapons", "Bludgeoning Weapons", "Piercing Weapons", "Slashing Weapons"]
+"Mole" = []
+"Motorboats" = []
+"Natural Weapons" = []
 "Navigation" = []
-"Persuade" = []
+"Ocean Ships" = []
+"Perception" = []
+"Physical Sciences" = []
+"Piercing Weapons" = []
 "Piloting" = []
-"Profession" = []
+"Prospecting" = []
 "Recon" = []
-"Seafarer" = []
-"Stealth" = []
+"Riding" = []
+"Rotor Aircraft" = []
+"Sailing Ships" = []
+"Sciences" = ["Life Sciences", "Physical Sciences", "Social Sciences", "Space Sciences"]
+"Screens" = []
+"Shotgun" = []
+"Slashing Weapons" = []
+"Slug Pistol" = []
+"Slug Rifle" = []
+"Social Sciences" = []
+"Space Sciences" = []
+"Spinal Mounts" = []
 "Steward" = []
 "Streetwise" = []
+"Submarine" = []
 "Survival" = []
 "Tactics" = []
+"Tracked Vehicle" = []
+"Turret Weapons" = []
 "Vehicle" = ["Aircraft", "Mole", "Tracked Vehicle", "Watercraft", "Wheeled Vehicle"]
+"Veterinary Medicine" = []
+"Watercraft" = ["Motorboats", "Ocean Ships", "Sailing Ships", "Submarine"]
+"Wheeled Vehicle" = []
+"Winged Aircraft" = []
 "Zero-G" = []

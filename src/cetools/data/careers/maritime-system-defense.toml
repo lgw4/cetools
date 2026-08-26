@@ -33,13 +33,13 @@ target = 5
 dice = "2d6"
 
 [tables.personal]
-entries = ["STR +1", "DEX +1", "END +1", "INT +1", "SOC +1", "Seafarer"]
+entries = ["STR +1", "DEX +1", "END +1", "INT +1", "SOC +1", "Watercraft"]
 
 [tables.service]
-entries = ["Seafarer", "Gun Combat", "Gunnery", "Mechanic", "Melee Combat", "Vehicle"]
+entries = ["Watercraft", "Gun Combat", "Gunnery", "Mechanics", "Melee Combat", "Vehicle"]
 
 [tables.specialist]
-entries = ["Seafarer", "Gunnery", "Electronics", "Mechanic", "Navigation", "Vehicle"]
+entries = ["Watercraft", "Gunnery", "Electronics", "Mechanics", "Navigation", "Vehicle"]
 
 [tables.advanced-education]
 requires = "EDU 8+"
@@ -49,7 +49,7 @@ entries = ["Admin", "Computer", "Engineering", "Medicine", "Navigation", "Tactic
 name = "enlisted"
 role = "entry"
 ranks = [
-  { rank = 0, title = "Seaman", bonus = "Seafarer 1" },
+  { rank = 0, title = "Seaman", bonus = "Watercraft 1" },
 ]
 
 [[ladders]]

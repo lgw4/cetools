@@ -1,8 +1,18 @@
 # Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
 #
 # The homeworld draw is uniform over the concatenation of `law-level` and
-# `trade-code`; duplicates are preserved and meaningful (research R5). Not
-# named `skills.toml`, because the registry already holds that basename.
+# `trade-code`; the rows below are the source's own printed rows, in printed
+# order, and deduplicating any of them reweights the draw (FR-014a,
+# research R8). Not named `skills.toml`, because the registry already holds
+# that basename.
+#
+# `Watercraft`, `Animals`, `Gun Combat`, and `Melee Combat` are cascades
+# granted bare here; a bare grant resolves through to a terminal specialty
+# exactly as any other cascade grant does (FR-012). The `education` list
+# grants `Life Sciences`, `Physical Sciences`, `Social Sciences`, and `Space
+# Sciences` bare, each of which is also a specialty of the `Sciences`
+# cascade — so a character can hold both, e.g. `Life Sciences-0` alongside
+# `Sciences (Life Sciences)-1`, as two distinct entries (FR-016a, D6).
 
 schema = "background-skills"
 schema-version = 1
@@ -10,13 +20,14 @@ schema-version = 1
 law-level = ["Gun Combat 0", "Gun Combat 0", "Gun Combat 0", "Melee Combat 0"]
 
 trade-code = [
-  "Animals 0", "Athletics 0", "Carouse 0", "Drive 0", "Electronics 0",
-  "Gambler 0", "Mechanic 0", "Medicine 0", "Navigation 0", "Recon 0",
-  "Seafarer 0", "Stealth 0", "Streetwise 0", "Survival 0",
+  "Animals 0", "Zero-G 0", "Survival 0", "Watercraft 0", "Animals 0",
+  "Computer 0", "Streetwise 0", "Zero-G 0", "Broker 0", "Survival 0",
+  "Animals 0", "Carousing 0", "Watercraft 0", "Zero-G 0",
 ]
 
 education = [
-  "Admin 0", "Advocate 0", "Animals 0", "Art 0", "Athletics 0",
-  "Carouse 0", "Diplomat 0", "Electronics 0", "Flyer 0", "Gambler 0",
-  "Language 0", "Medicine 0", "Navigation 0", "Profession 0", "Vehicle 0",
+  "Admin 0", "Advocate 0", "Animals 0", "Carousing 0", "Comms 0",
+  "Computer 0", "Electronics 0", "Engineering 0", "Life Sciences 0",
+  "Linguistics 0", "Mechanics 0", "Medicine 0", "Physical Sciences 0",
+  "Social Sciences 0", "Space Sciences 0",
 ]

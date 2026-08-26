@@ -36,10 +36,10 @@ dice = "2d6"
 entries = ["STR +1", "DEX +1", "END +1", "INT +1", "SOC +1", "Melee Combat"]
 
 [tables.service]
-entries = ["Athletics", "Drive", "Gun Combat", "Melee Combat", "Recon", "Vehicle"]
+entries = ["Athletics", "Vehicle", "Gun Combat", "Melee Combat", "Recon", "Vehicle"]
 
 [tables.specialist]
-entries = ["Gun Combat", "Recon", "Tactics", "Drive", "Vehicle", "Jack-of-All-Trades"]
+entries = ["Gun Combat", "Recon", "Tactics", "Vehicle", "Vehicle", "Jack-of-All-Trades"]
 
 [tables.advanced-education]
 requires = "EDU 8+"
@@ -67,4 +67,4 @@ ranks = [
 [mustering-out]
 # Row 7 repeats row 6 (T187); see aerospace-defense.toml's comment.
 cash = [1000, 5000, 5000, 10000, 10000, 20000, 20000]
-benefits = ["Low Passage", "Weapon", "Armor", "Mid Passage", "STR +1", "Personal Vehicle", "Personal Vehicle"]
+benefits = ["Low Passage", "Weapon", "Weapon", "Mid Passage", "STR +1", "Low Passage", "Low Passage"]

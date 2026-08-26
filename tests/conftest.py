@@ -260,6 +260,30 @@ def seeded_roller():
 
 
 @pytest.fixture
+def cascade_reachable_names():
+    """Every outer skill name a bare grant naming ``name`` can resolve to
+    (FR-012, D5): ``name`` itself, plus, recursively, any specialty of
+    ``name`` that is itself a cascade. `_resolve_specialty` only ever
+    renames the outer reference when the drawn specialty has specialties of
+    its own, so a test asserting what a bare grant on a shipped table
+    *could* resolve to needs this closure rather than the entry's own
+    literal name alone.
+    """
+    from cetools.rules import load_rules
+
+    skills = load_rules().skills.skills
+
+    def _reachable(name: str) -> set[str]:
+        names = {name}
+        for specialty in skills.get(name, ()):
+            if skills.get(specialty):
+                names |= _reachable(specialty)
+        return names
+
+    return _reachable
+
+
+@pytest.fixture
 def read_golden():
     golden_dir = Path(__file__).resolve().parent / "golden"
 

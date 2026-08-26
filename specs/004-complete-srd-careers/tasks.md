@@ -257,18 +257,18 @@ things the rebuild breaks:
 | `tests/integration/test_overrides.py`'s override career | grants `Carouse`, `Gambler`, `Stealth` and asserts the override validates | T041b |
 | `tests/unit/test_rules_agreement.py::test_every_background_skill_the_packaged_table_grants_resolves` | pins that every background skill resolves | T038a, T041a |
 
-- [ ] T037 [P] [US3] Failing test: `load_rules().skills.skills` holds exactly the seventy names of
+- [X] T037 [P] [US3] Failing test: `load_rules().skills.skills` holds exactly the seventy names of
       research.md R4 — the sixty-eight the chapter defines plus `Perception` and `Prospecting` —
       compared in both directions, with the eight cascades carrying exactly R4's specialty lists,
       in `tests/unit/test_rules_agreement.py`
-- [ ] T038 [P] [US3] Failing test: `load_rules().benefits.items` holds exactly the eight items of
+- [X] T038 [P] [US3] Failing test: `load_rules().benefits.items` holds exactly the eight items of
       research.md R5, compared in both directions, in `tests/unit/test_rules_agreement.py`
-- [ ] T039 [US3] Rebuild `src/cetools/data/registries/skills.toml` to those seventy entries with
+- [X] T039 [US3] Rebuild `src/cetools/data/registries/skills.toml` to those seventy entries with
       `Vehicle` naming `Aircraft` and `Watercraft` as nested cascades; record in the file that
       `Perception` and `Prospecting` are granted by career tables and defined nowhere in the skill
       chapter (FR-016), and that `Jack o' Trades` is the source's own short form of
       `Jack-of-All-Trades` (FR-017a); keep the OGC header and neither Product Identity string
-- [ ] T040 [US3] Rebuild `src/cetools/data/registries/benefits.toml` to `Low Passage`,
+- [X] T040 [US3] Rebuild `src/cetools/data/registries/benefits.toml` to `Low Passage`,
       `Mid Passage`, `High Passage`, `Weapon`, `Explorers' Society`, `Ship Share`,
       `Courier Vessel`, `Research Vessel`, removing `Armor`, `Personal Vehicle`, and `Trade Goods`.
       Apply FR-015a where a table cell and the prose differ in grammatical number: the entry is
@@ -276,7 +276,7 @@ things the rebuild breaks:
       the "Material Benefits" prose calls it) plus a quantity, never a second plural entry and
       never an FR-017 misspelling. The same rule governs any such pair T039 meets in the skill
       chapter
-- [ ] T041 [US3] In the same commit, retarget every skill and benefit name in the eight shipped
+- [X] T041 [US3] In the same commit, retarget every skill and benefit name in the eight shipped
       files under `src/cetools/data/careers/` onto the rebuilt vocabularies (`Carouse` →
       `Carousing`, `Gambler` → `Gambling`, `Mechanic` → `Mechanics`, `Language` → `Linguistics`,
       `Pilot` → `Piloting`, and the rest of R4), noting each FR-017 correction in the file that
@@ -290,19 +290,19 @@ they resolve. It is **not** retargeted by substituting a nearest surviving name:
 to do the retarget showed two of its three lists are a different edition's table (R8), so it is
 transcribed like a career.
 
-- [ ] T038a [P] [US3] Failing test: `load_rules()`'s background-skills table holds exactly R8's
+- [X] T038a [P] [US3] Failing test: `load_rules()`'s background-skills table holds exactly R8's
       three lists — `law-level` 4 rows, `trade-code` 14 rows, `education` 15 rows — compared row by
       row **in printed order and with repeats intact**, so that `Animals` appears three times and
       `Zero-G` three times in `trade-code`; a set comparison MUST NOT be used, because it is
       precisely the repeats that carry the draw's weighting, in
       `tests/unit/test_rules_agreement.py`
-- [ ] T041a [US3] Rewrite `src/cetools/data/chargen/background-skills.toml`'s three arrays to R8's
+- [X] T041a [US3] Rewrite `src/cetools/data/chargen/background-skills.toml`'s three arrays to R8's
       rows in printed order (`law-level` already matches and is left alone; `trade-code` and
       `education` are replaced wholesale). Keep the OGC header and neither Product Identity string.
       Update the file's header comment: it already states the rule "duplicates are preserved and
       meaningful", which the shipped data broke — say that the rows are the source's printed rows
       and that deduplicating any of them reweights the draw
-- [ ] T041b [US3] In the same commit, retarget the override career fixture in
+- [X] T041b [US3] In the same commit, retarget the override career fixture in
       `tests/integration/test_overrides.py:59-64` off `Carouse`, `Gambler`, and `Stealth` onto
       source names; `test_validate_accepts_the_same_override_location` (`:121-127`) asserts that
       override validates, so it fails the moment the vocabulary shrinks. Sweep the remaining test

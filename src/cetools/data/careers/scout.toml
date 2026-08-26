@@ -28,7 +28,7 @@ dice = "2d6"
 entries = ["STR +1", "DEX +1", "END +1", "INT +1", "EDU +1", "Gun Combat"]
 
 [tables.service]
-entries = ["Piloting", "Navigation", "Mechanic", "Electronics", "Vehicle", "Gunnery"]
+entries = ["Piloting", "Navigation", "Mechanics", "Electronics", "Vehicle", "Gunnery"]
 
 [tables.specialist]
 entries = ["Piloting", "Navigation", "Electronics", "Survival", "Recon", "Jack-of-All-Trades"]
