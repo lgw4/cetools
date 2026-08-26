@@ -114,7 +114,7 @@ UNTITLED = _character(
     age=22,
     funds=20000,
     careers=(_service(career="Scout", terms=1, ladder="scout", rank=0, benefit_rolls=1),),
-    skills=_skills(("Pilot", None, 1), ("Survival", None, 1), ("Vehicle", "Grav", 0)),
+    skills=_skills(("Piloting", None, 1), ("Survival", None, 1), ("Aircraft", "Grav Vehicle", 0)),
     benefits=("Weapon",),
 )
 
@@ -146,7 +146,7 @@ MULTI_CAREER = _character(
         ),
     ),
     skills=_skills(("Gunnery", None, 1), ("Streetwise", None, 0), ("Vehicle", None, 1)),
-    benefits=("Weapon", "Trade Goods"),
+    benefits=("Weapon", "Mid Passage"),
 )
 
 TITLED_THEN_UNTITLED = _character(
@@ -179,7 +179,7 @@ TITLED_THEN_UNTITLED = _character(
             benefit_rolls=3,
         ),
     ),
-    skills=_skills(("Gambler", None, 0), ("Recon", None, 1)),
+    skills=_skills(("Gambling", None, 0), ("Recon", None, 1)),
     benefits=("Weapon",),
 )
 
@@ -189,7 +189,7 @@ CASCADE = _character(
     age=26,
     funds=30000,
     careers=(_service(career="Scout", terms=2, ladder="scout", rank=0, benefit_rolls=2),),
-    skills=_skills(("Vehicle", "Aircraft", 1), ("Piloting", None, 1)),
+    skills=_skills(("Aircraft", "Winged Aircraft", 1), ("Piloting", None, 1)),
     benefits=("Ship Share",),
 )
 
@@ -333,7 +333,7 @@ class TestUniversalCharacterFormat:
 
     def test_cascade_specialization_qualified_by_parent(self):
         line3 = as_text(CASCADE).split("\n")[2]
-        assert "Vehicle (Aircraft)-1" in line3
+        assert "Aircraft (Winged Aircraft)-1" in line3
 
     def test_benefit_items_collapsed_with_repeats_and_sorted(self):
         line4 = as_text(TITLED).split("\n")[3]

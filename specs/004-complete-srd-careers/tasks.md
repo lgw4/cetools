@@ -51,10 +51,10 @@ user sees. **The MVP is US1, and it is only reachable through the three phases b
 
 **Purpose**: Establish the baseline the two regenerations of FR-030 are measured against.
 
-- [ ] T001 Run `uv run pytest -q` from the repository root and record the passing count (1253 at
+- [X] T001 Run `uv run pytest -q` from the repository root and record the passing count (1253 at
       the branch point) in the branch's working notes; do not use `.venv/bin/python -m pytest`,
       which hides collection failures
-- [ ] T002 Run `uv run cetools validate` and record the `Files: 26` line. The count rises as the
+- [X] T002 Run `uv run cetools validate` and record the `Files: 26` line. The count rises as the
       sixteen new career files land (T049–T064) and is re-pinned at T077 and T079, reaching
       `Files: 42`
 
@@ -69,7 +69,7 @@ here may change engine behavior.
 
 ### Commit 1 — `refactor(golden): re-pin the render fixtures onto source-legal names`
 
-- [ ] T003 Re-pin the hand-built `Character` literals in `tests/unit/test_render_character.py`
+- [X] T003 Re-pin the hand-built `Character` literals in `tests/unit/test_render_character.py`
       onto names the source vocabulary defines: `Pilot` → `Piloting`, `Vehicle (Grav)` →
       `Aircraft (Grav Vehicle)`, `Gambler` → `Gambling`, `Mechanic` → `Mechanics`, `Flyer` and
       `Personal Vehicle` onto source names from research.md R4 and R5. Also re-pin the `CASCADE`
@@ -78,11 +78,11 @@ here may change engine behavior.
       registry, so nothing fails, but it is the exact shape FR-012 forbids a sheet from carrying
       and quickstart.md states never appears on one — leaving it in the golden would contradict
       the claim the golden exists to evidence
-- [ ] T004 Update the committed `tests/golden/npc_titled.txt`, `npc_untitled.txt`,
+- [X] T004 Update the committed `tests/golden/npc_titled.txt`, `npc_untitled.txt`,
       `npc_titled_then_untitled.txt`, `npc_full.txt`, `npc_cascade.txt`, `npc_multi_career.txt`,
       `npc_batch.txt`, and `npc_no_benefits.txt` to the bytes `as_text` emits for the re-pinned
       fixtures
-- [ ] T005 Run `uv run pytest -q` and confirm the count matches T001 exactly; a differing count
+- [X] T005 Run `uv run pytest -q` and confirm the count matches T001 exactly; a differing count
       means the re-pin became a regeneration (plan.md Known risks) and must be reverted and redone
 
 ### Commit 2 — `refactor(careers): rename the three planetary-defense career files`
