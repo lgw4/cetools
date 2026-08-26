@@ -376,7 +376,7 @@ qualification / survival / commission / **advancement** / re-enlistment.
 
 ### 6a. The three long display names (FR-005, R2)
 
-- [ ] T048 [US1] In **one commit**, change `name` to `Aerospace System Defense`,
+- [X] T048 [US1] In **one commit**, change `name` to `Aerospace System Defense`,
       `Maritime System Defense`, and `Surface System Defense` in the three renamed files under
       `src/cetools/data/careers/`, and rewrite the `careers` array in
       `src/cetools/data/chargen/draft.toml` to those long names in the source's printed row order;

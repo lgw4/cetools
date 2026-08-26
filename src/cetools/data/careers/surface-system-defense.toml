@@ -5,7 +5,7 @@
 schema = "career"
 schema-version = 4
 
-name = "Surface Defense"
+name = "Surface System Defense"
 medical-tier = "service"
 
 [throws.qualification]
