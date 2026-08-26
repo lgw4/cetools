@@ -1,11 +1,20 @@
 # Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
 #
-# The reference career, transcribed from the source material rather than
-# from the illustrative values in contracts/data-files.md. It exercises
-# every element of the career schema: a commission, a second rank ladder,
-# a bonus on a rank of each ladder, and a characteristic-gated table
-# (FR-018). Reconciled against the source (research.md R7): every field
-# already matched, so this file is unchanged.
+# The reference career: it exercises a commission, a second rank ladder, a
+# rank bonus, and a characteristic-gated table (002-rules-data-loading
+# FR-018). A source-first re-read (verification/navy.md, 004 T095) found
+# the source prints a single rank column, 0-6, not the two overlapping
+# columns this file previously carried: an earlier feature (T155) had
+# added rank 5 ("Petty Officer") to the enlisted ladder and specified a
+# specialty ("Melee Combat (Slashing Weapons)") on the officer ladder's
+# Midshipman grant, neither of which the source prints, to exercise engine
+# paths no shipped career otherwise reaches. FR-024 admits no deviation
+# ground for either — the source is neither internally inconsistent nor
+# silent here, it simply says something else — so both are corrected out.
+# As a consequence, no shipped career's uncommissioned rank exceeds 0 and
+# no shipped rank bonus specifies a specialty; both stay covered by unit
+# fixtures (test_careers.py, test_generator.py) rather than by shipped
+# content.
 
 schema = "career"
 schema-version = 4
@@ -51,32 +60,22 @@ requires = "EDU 8+"
 entries = ["Advocate", "Computer", "Engineering", "Medicine", "Navigation", "Tactics"]
 
 # A character is enlisted at rank 0 and joins the officer ladder on a
-# successful commission, which is why the two ladders do not overlap. Rank
-# 5 gives the entry ladder a promotion an uncommissioned character can
-# actually reach, which every shipped career shipped without one (FR-033,
-# Phase 8 T155). Ranks 1-4 name no distinct title (FR-019's contiguity rule
-# requires them declared; D2/FR-007 is what lets a row say nothing).
+# successful commission, matching the split every other two-ladder career
+# in the package uses (Merchant, Scout, and the rest): the entry ladder
+# carries only rank 0, and the source's single printed rank column becomes
+# the officer ladder's ranks 1-6.
 [[ladders]]
 name = "enlisted"
 role = "entry"
 ranks = [
   { rank = 0, title = "Starman", bonus = "Zero-G 1" },
-  { rank = 1 },
-  { rank = 2 },
-  { rank = 3 },
-  { rank = 4 },
-  { rank = 5, title = "Petty Officer", bonus = "Gunnery 1" },
 ]
 
-# The newly commissioned officer's blade grant is the one place the source
-# names a specialty rather than leaving the choice to the character, so it is
-# written fully specified. Every other skill here is bare, which is the
-# source's own way of saying a choice is owed.
 [[ladders]]
 name = "officer"
 role = "commissioned"
 ranks = [
-  { rank = 1, title = "Midshipman", bonus = "Melee Combat (Slashing Weapons) 1" },
+  { rank = 1, title = "Midshipman" },
   { rank = 2, title = "Lieutenant" },
   { rank = 3, title = "Lt Commander", bonus = "Tactics 1" },
   { rank = 4, title = "Commander" },

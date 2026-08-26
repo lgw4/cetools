@@ -447,8 +447,10 @@ class TestTitlePersistenceAcrossCareers:
     """FR-047c (T171): an earlier title survives a later untitled service.
     Driven against a fixture career built from Navy's rather than through
     `run()`'s random career selection, so the two services land in a chosen
-    order; T073's traversal cases exercise the branch from shipped data too
-    now that Navy's own enlisted ladder carries untitled ranks (FR-019).
+    order; T073's traversal cases exercise the branch from shipped data too,
+    via the seven commissionless careers whose one ladder carries an
+    untitled rank (004 T095 corrected Navy's own ladders to match the
+    source, which titles every rank).
     """
 
     def test_a_later_untitled_service_does_not_erase_an_earlier_title(self):
@@ -493,6 +495,59 @@ class TestTitlePersistenceAcrossCareers:
 
         assert title2 == ""
         assert walk.title == title_after_first_career
+
+
+class TestPromotionOffTheEntryLadder:
+    """FR-033, FR-007b (T155): a success on the promotion throw moves a
+    still-uncommissioned character up its entry ladder, via `ranks_above`
+    (`generator.py:820`). Navy's shipped ladder used to be the only career
+    that gave this path an entry-ladder rank above zero to reach; 004 T095
+    corrected Navy's ladders to match the source, which removes that rank
+    (verification/navy.md), so this path is no longer exercised by any
+    shipped career (`test_npc_sample.py`'s former SC-008 assertion for it
+    is gone with it). Driven against a fixture career built from Athlete's,
+    which otherwise has no promotion throw at all.
+    """
+
+    def test_a_promotion_success_grants_the_next_entry_ladder_rank(self):
+        import dataclasses
+
+        from cetools.careers import Throw
+        from cetools.generator import _Walk
+
+        athlete = next(c for c in RULES.careers.values() if c.name == "Athlete")
+        (base_ladder,) = athlete.ladders
+        promotable = dataclasses.replace(
+            athlete,
+            name="Promotable Athlete",
+            throws={
+                **athlete.throws,
+                "promotion": Throw(characteristic=None, target=3, dice="2d6"),
+            },
+            ladders=(
+                dataclasses.replace(
+                    base_ladder,
+                    ranks=(
+                        *base_ladder.ranks,
+                        dataclasses.replace(base_ladder.ranks[0], rank=1, title="Champion"),
+                    ),
+                ),
+            ),
+        )
+
+        reached_rank_above_zero = False
+        for seed in range(50):
+            walk = _Walk(Roller(seed), RULES)
+            walk.characteristics = {code: 7 for code in RULES.characteristics.names}
+            entry_ladder = walk._entry_ladder(promotable)
+            walk._grant_rank_bonus(promotable.name, 1, entry_ladder, 0)
+            _, _, rank, *_ = walk.run_term_loop(promotable, "selected")
+            if rank > 0:
+                reached_rank_above_zero = True
+                break
+        assert (
+            reached_rank_above_zero
+        ), "no seed under 50 reached a rank above the entry ladder's base"
 
 
 class TestQuantifiedBenefitDraw:

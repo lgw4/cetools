@@ -41,13 +41,11 @@ independent of this feature's transcription pass, per spec.md FR-023.
 | Advanced-education row 4 | Medicine | Medicine | match |
 | Advanced-education row 5 | Navigation | Navigation | match |
 | Advanced-education row 6 | Tactics | Tactics | match |
+| Rank table shape | one printed column, ranks 0-6 | entry ladder = rank 0, officer ladder = ranks 1-6 (the split every other two-ladder career uses) | corrected — see Notes |
 | Enlisted rank 0 title | Starman | Starman | match |
 | Enlisted rank 0 grant | Zero-G-1 | Zero-G 1 | match |
-| Enlisted ranks 1-4 | not separately titled in the enlisted column | untitled, no grant | match (see note) |
-| Enlisted rank 5 title | Petty Officer | Petty Officer | match (see note) |
-| Enlisted rank 5 grant | Gunnery-1 | Gunnery 1 | match (see note) |
-| Officer rank 1 title | Midshipman | Midshipman | match |
-| Officer rank 1 grant | Melee Combat (Slashing Weapons)-1 | Melee Combat (Slashing Weapons) 1 | match (see note) |
+| Officer rank 1 title | Midshipman | Midshipman | corrected |
+| Officer rank 1 grant | none | (was: Melee Combat (Slashing Weapons) 1) | corrected |
 | Officer rank 2 title | Lieutenant | Lieutenant | match |
 | Officer rank 2 grant | none | none | match |
 | Officer rank 3 title | Lt Commander | Lt Commander | match |
@@ -79,16 +77,31 @@ Every throw, skill table, and mustering-out row was confirmed by a fresh fetch a
 matches the committed file — consistent with research.md R7's original audit finding
 Navy already correct in full, and with this feature's own Phase 6c (T067) re-check.
 
-**A tool limitation, not a data finding.** The source prints Navy's ranks as two
-adjacent columns — an enlisted ladder (ranks 0-5) and a commissioned officer ladder
-(ranks 1-6) — and four separate attempts to have this session's fetch tool quote them
-as two distinct columns instead flattened them into one contradictory 0-6 sequence
-each time (at various points denying "Petty Officer" appears at all, or claiming
-Midshipman carries no bracketed grant, while other attempts in the same series
-reproduced both correctly). Given the fetch tool's answers on this one point were
-internally inconsistent across attempts, the rows marked "match (see note)" above rest
-on the already-established prior verification (the original 003-npc-generator
-transcription, reconfirmed by Phase 6c's T067 re-read) rather than a fresh
-confirmation from this pass. Whoever accepts this feature may want to manually check
-Navy's two-ladder rank table against the live page directly if certainty on this one
-point matters; nothing else about Navy is in question.
+**The rank table (004 T095, resolving the prior "match (see note)" rows).** Earlier
+passes over this career, including this artifact's first version, could not get a
+consistent read of Navy's rank table from this session's summarizing fetch tool — four
+attempts flattened what the tool described as two adjacent columns into one
+contradictory 0-6 sequence, at various points denying "Petty Officer" appears at all or
+claiming Midshipman carries no bracketed grant. Reading the page's raw HTML directly
+(bypassing the summarizing tool) settles it: the "Maritime Defense-Physician" tab's
+comparison table gives Navy exactly **one** rank column, 0 through 6 — Starman
+[Zero-G-1], Midshipman, Lieutenant, Lt Commander [Tactics-1], Commander, Captain,
+Commodore — the same shape every other career's rank column has. There is no second,
+adjacent column; the premise that one exists is what generated the earlier confusion.
+
+`navy.toml` predates this feature (it is 002-rules-data-loading's reference career) and
+carried two departures from that single column, both added deliberately by an earlier
+feature (CHANGELOG, T155) to exercise engine paths: an invented rank 5, "Petty Officer"
+[Gunnery 1], extending the *entry* ladder past rank 0; and a specified specialty,
+"Melee Combat (Slashing Weapons)", on the *officer* ladder's Midshipman grant, where the
+source prints the grant bare. Neither is a discrepancy FR-024 admits a deviation for —
+the source is neither internally inconsistent nor silent on either point, it simply
+prints something else — so both are corrected out. The officer ladder now reproduces
+the source's single column at ranks 1-6 exactly, matching the entry-rank-0-only /
+officer-ranks-1-N split every other two-ladder career in the package already uses
+(Merchant, Scout, and the rest); see `navy.toml`'s header comment for the full
+accounting, including the two engine paths (an uncommissioned promotion above rank 0; a
+rank bonus with a specified specialty) that no longer have shipped-data coverage as a
+result and are now covered by unit fixtures instead
+(`test_generator.py::TestPromotionOffTheEntryLadder`,
+`test_reference_career.py::test_no_shipped_career_specifies_a_specialty_on_a_rank_bonus`).

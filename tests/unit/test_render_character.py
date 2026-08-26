@@ -401,28 +401,13 @@ class TestTitlePersistence:
         # than merely getting overwritten by an identical later one (T171).
         assert TITLED_THEN_UNTITLED.careers[1].title == ""
 
-    def test_navys_enlisted_ladder_gap_rows_leave_a_character_untitled(self):
-        # FR-047c's "an earlier title survives" branch (`generator.py`'s
-        # `if title: self.title = title`) needed an override to reach at
-        # all before this feature: every rank of every shipped ladder
-        # declared a title. Navy's enlisted ladder is the first shipped
-        # ladder with an exception — ranks 1 through 4, between Starman
-        # and Petty Officer, are declared with nothing to say (D2, FR-007)
-        # because FR-019's contiguity rule requires those positions to be
-        # declared at all. T073's traversal cases exercise the branch from
-        # shipped data; this pins which ranks are the untitled ones.
-        rules = load_rules()
-        navy = rules.careers["navy"]
-        enlisted = next(ladder for ladder in navy.ladders if ladder.name == "enlisted")
-        untitled = {rank_row.rank for rank_row in enlisted.ranks if not rank_row.title}
-        assert untitled == {1, 2, 3, 4}
-
     def test_the_seven_commissionless_careers_and_no_others_carry_an_untitled_rank(self):
         # FR-008: a career whose source rank rows print no titles at all is
-        # recorded with no titles on any rank. Navy's own untitled rows
-        # (the test above) are a mixed ladder's interior contiguity
-        # gap-fill, not this shape, so it is excluded here even though one
-        # of its ranks carries no title. T073's traversal cases are what
+        # recorded with no titles on any rank. Navy's ladders carry a title
+        # on every rank once corrected to match the source (verification/
+        # navy.md, 004 T095), so it no longer supplies a mixed ladder's
+        # interior gap-fill example; the seven below are the only shipped
+        # source of an untitled rank. T073's traversal cases are what
         # exercise the "an earlier title survives" branch from shipped data
         # for these seven now, rather than only from an override.
         rules = load_rules()

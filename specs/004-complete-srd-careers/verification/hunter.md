@@ -39,8 +39,8 @@ independent of this feature's transcription pass, per spec.md FR-023.
 | Advanced-education row 2 | Linguistics | Linguistics | match |
 | Advanced-education row 3 | Medicine | Medicine | match |
 | Advanced-education row 4 | Liaison | Liaison | match |
-| Advanced-education row 5 | Animals | Animals | match |
-| Advanced-education row 6 | inconclusive — see Notes | Animals | match |
+| Advanced-education row 5 | Tactics | Animals | corrected |
+| Advanced-education row 6 | Animals | Animals | match |
 | Rank 0 title | (none) | (none) | match |
 | Rank 0 grant | Survival-1 | Survival 1 | match |
 | Ranks 1-6 | dashes, no ranks listed | one entry ladder, rank 0 only | match |
@@ -60,20 +60,16 @@ independent of this feature's transcription pass, per spec.md FR-023.
 
 ## Notes
 
-Every other field matches independently. Advanced Education row 6 is the one exception: three
-separate fetches of the source answered three different ways — "Animals" (repeating row 5),
-"Sciences", and a third pass that additionally reordered rows 2-4 and inserted "Computer" —
-internally inconsistent with itself across fetches, not merely with the committed file. None of
-the three reads is corroborated by a second independent fetch the way every other field in this
-artifact is (each of those was confirmed twice).
+Every other field matches independently.
 
-**T087 follow-up (two further independent fetches, differently phrased):** a single-field request
-answered "Animals"; a full-six-row verbatim request answered "Sciences". Across all five attempts
-across both passes, three answered "Animals" and two answered "Sciences", with one outlier. No
-reading is confirmed twice in a row by fresh, independently-phrased fetches the way every other
-field in this artifact is, so the evidence stays short of FR-024's bar for changing a committed
-value. `hunter.toml` is left unchanged (`Animals`, its committed value and the plurality answer)
-rather than changed on a 3-to-2 split; `match` stands, not `corrected`. Recorded here as an
-explicit limitation of this pass rather than settled fact: a human re-read of the source page
-itself, not through the fetch-and-summarize tool, would resolve this with certainty if it matters
-before release.
+**Advanced Education rows 5 and 6 (004 T096, resolving the prior open question).** Earlier
+passes over this career could not get a settled read of row 6 from this session's summarizing
+fetch tool — five attempts across two passes split three "Animals" to two "Sciences", with one
+outlier reordering other rows, so no reading was corroborated by a second independently-phrased
+fetch the way every other field in this artifact is. Reading the page's raw HTML directly
+(bypassing the summarizing tool) settles it: the "Colonist-Marine" tab's Adv Education table
+gives Hunter's column, top to bottom, as Advocate, Linguistics, Medicine, Liaison, **Tactics**,
+Animals. Row 6 is `Animals`, confirming the committed value and the prior plurality answer — the
+open question is resolved without changing `hunter.toml` on this row. Row 5, which no prior pass
+had flagged, turns out to differ: the source's fifth row is `Tactics`, not `Animals` as committed
+(`hunter.toml` had `Animals` twice, at rows 5 and 6). Corrected to `Tactics`.

@@ -406,15 +406,15 @@ class TestSpreadAndCoverage:
         }
         assert draft_rows_reached == set(RULES.draft.careers)
 
-        # FR-033, FR-007b (T155): promotion off the entry ladder is a shape
-        # the engine already handles, but until the shipped data gives at
-        # least one entry ladder a rank above zero, `ranks_above` is always
-        # empty for an uncommissioned character and the path goes
-        # unexercised by every shipped career.
-        uncommissioned_rank_above_zero = any(
-            not service.commissioned and service.rank > 0 for c in sample for service in c.careers
-        )
-        assert uncommissioned_rank_above_zero
+        # FR-033, FR-007b (T155): promotion off the entry ladder — moving an
+        # uncommissioned character to an entry-ladder rank above zero via
+        # `ranks_above` — used to be exercised here because Navy's shipped
+        # ladder gave it a rank above zero to reach. 004 T095 corrected
+        # Navy's ladders to match the source (verification/navy.md), which
+        # removes that rank, so no shipped career reaches this path any
+        # longer; it stays covered by
+        # test_generator.py::TestPromotionOffTheEntryLadder's fixture
+        # instead.
 
 
 class TestDefaultRenderingCoverage:

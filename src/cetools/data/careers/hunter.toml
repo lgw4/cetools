@@ -35,7 +35,7 @@ entries = ["Admin", "Comms", "Electronics", "Recon", "Animals", "Vehicle"]
 
 [tables.advanced-education]
 requires = "EDU 8+"
-entries = ["Advocate", "Linguistics", "Medicine", "Liaison", "Animals", "Animals"]
+entries = ["Advocate", "Linguistics", "Medicine", "Liaison", "Tactics", "Animals"]
 
 [[ladders]]
 name = "hunter"

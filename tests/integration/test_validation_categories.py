@@ -564,7 +564,7 @@ def test_a_career_with_a_commission_throw_and_no_commissioned_ladder_is_rejected
     # it, not careers.py's own ladder-role count.
     officer_ladder = (
         '[[ladders]]\nname = "officer"\nrole = "commissioned"\nranks = [\n  '
-        '{ rank = 1, title = "Midshipman", bonus = "Melee Combat (Slashing Weapons) 1" },\n  '
+        '{ rank = 1, title = "Midshipman" },\n  '
         '{ rank = 2, title = "Lieutenant" },\n  '
         '{ rank = 3, title = "Lt Commander", bonus = "Tactics 1" },\n  '
         '{ rank = 4, title = "Commander" },\n  { rank = 5, title = "Captain" },\n  '

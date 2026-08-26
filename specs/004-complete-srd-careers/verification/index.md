@@ -35,12 +35,12 @@ every artifact.
 | diplomat | [diplomat.md](diplomat.md) | yes | Match. |
 | drifter | [drifter.md](drifter.md) | yes | Match, including `always-available`/`re-enterable`. |
 | entertainer | [entertainer.md](entertainer.md) | yes | Match. |
-| hunter | [hunter.md](hunter.md) | yes (with a noted limitation) | Match, but advanced-education row 6 could not be settled with confident, repeatable evidence across five fetch attempts (3 "Animals", 2 "Sciences"); left unchanged pending a human re-read. |
+| hunter | [hunter.md](hunter.md) | yes | Corrected — advanced-education row 5 ("Tactics", was "Animals"); row 6 settled as "Animals" (matches, resolving the prior fetch-tool ambiguity). |
 | marine | [marine.md](marine.md) | yes | Corrected — a near-total rewrite: both non-matching throws, re-enlistment, one personal row, the entire service/specialist/most of the advanced-education tables, rank 0's title and grant, rank 1's grant, rank 3's title, the entire cash table, and two material rows. |
 | maritime-system-defense | [maritime-system-defense.md](maritime-system-defense.md) | yes | Match. |
 | mercenary | [mercenary.md](mercenary.md) | yes | Match. |
 | merchant | [merchant.md](merchant.md) | yes | Corrected — personal row 4. |
-| navy | [navy.md](navy.md) | yes (with a noted limitation) | Match in full, consistent with research.md R7 and this feature's own Phase 6c re-check; the two-ladder rank table rests on that prior verification rather than a fresh confirmation, since the fetch tool could not reproduce it as two columns across four attempts. |
+| navy | [navy.md](navy.md) | yes | Corrected — the rank table. The source prints one rank column, 0-6, not the two overlapping columns the file previously carried; removed the invented "Petty Officer" rank and the invented specified specialty on Midshipman's grant. |
 | noble | [noble.md](noble.md) | yes | Corrected — rank 0's title and bonus grant. |
 | physician | [physician.md](physician.md) | yes | Match. |
 | pirate | [pirate.md](pirate.md) | yes | Match, including cross-verification of the existing "Pilot" → "Piloting" correction against `skills.html`. |
@@ -52,10 +52,12 @@ every artifact.
 
 ## Summary
 
-Twenty-four of twenty-four careers re-read; none partial. Seven careers' data files received a
-correction (aerospace-system-defense, barbarian, belter, colonist, marine, merchant, noble),
-applied in the commit that follows this index (T087). No `deviation` verdict was recorded against
+Twenty-four of twenty-four careers re-read; none partial. Nine careers' data files received a
+correction: seven in the commit that follows this index (T087) — aerospace-system-defense,
+barbarian, belter, colonist, marine, merchant, noble — and two more in convergence (T095, T096),
+once the two open questions below were settled by reading the source's raw HTML directly instead
+of through this session's summarizing fetch tool: Navy's rank table (a single 0-6 column, not the
+two overlapping columns the file previously carried) and Hunter's advanced-education row 5
+("Tactics", not "Animals"; row 6 was already correct). No `deviation` verdict was recorded against
 any field in any artifact — every discrepancy found had a clear, evidence-backed correct value
-under FR-024, none met its three narrow grounds for recording a deviation instead. Two limitations
-are noted above (Hunter's one uncertain row, Navy's rank-table columns) rather than resolved by
-guessing; neither reflects a confirmed discrepancy with the committed data.
+under FR-024, none met its three narrow grounds for recording a deviation instead.

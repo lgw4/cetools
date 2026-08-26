@@ -409,6 +409,30 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   and as a specialty of a cascade skill, and the two are recorded as
   distinct entries rather than merged (FR-016a). The background-skills
   table's education list is what makes this routine rather than rare.
+- **Navy's rank ladders are corrected against the source; Hunter's
+  advanced-education row 5 is corrected too.** The convergence pass behind
+  `verification/navy.md` and `verification/hunter.md` (T095, T096) read the
+  source's raw HTML directly rather than through a summarizing fetch tool,
+  which resolved two prior open questions. Navy: the source prints one rank
+  column, 0-6, not the two overlapping columns `navy.toml` (002's reference
+  career) had carried since an earlier feature (T155) added them to
+  exercise engine paths — an invented rank 5, "Petty Officer", on the entry
+  ladder, and a specified specialty, "Melee Combat (Slashing Weapons)", on
+  the officer ladder's Midshipman grant. Both are removed; the officer
+  ladder now reproduces the source's single column at ranks 1-6 exactly,
+  the same entry-rank-0-only split every other two-ladder career in the
+  package uses. As a result, no shipped career's uncommissioned rank now
+  exceeds 0 and no shipped rank bonus specifies a specialty — both engine
+  paths move from shipped-data coverage to unit fixtures
+  (`test_generator.py::TestPromotionOffTheEntryLadder`,
+  `test_reference_career.py::test_no_shipped_career_specifies_a_specialty_on_a_rank_bonus`).
+  Hunter: advanced-education row 5 is `Tactics`, not `Animals` as committed
+  (`hunter.toml` had `Animals` at both rows 5 and 6); row 6 is confirmed
+  `Animals`, settling a previously-unresolved ambiguity without changing it.
+  Any character a seed produces that serves as an uncommissioned Navy
+  rating, is promoted into Navy's officer ladder, or draws Hunter's sixth
+  advanced-education row changes from this version forward (FR-024,
+  FR-056b).
 
 ### Added
 

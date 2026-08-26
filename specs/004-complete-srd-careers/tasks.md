@@ -752,3 +752,53 @@ Phase 7, stopping early also leaves `README.md` un-regenerated, which is visible
   this feature adds none, which T036 pins
 - Every user-visible change carries its `CHANGELOG.md` entry in the same commit
 - Structural and behavioral changes never share a commit
+
+---
+
+## Phase 9: Convergence
+
+**Purpose**: Close the two verification gaps the re-read left open. Both are recorded in the
+artifacts themselves, so neither is a discovery — but both leave SC-003's "all twenty-four
+complete, none partial" unmet, and FR-025 makes the re-read the only thing acceptance rests on.
+
+**⚠️ If either task changes a career data file**, the pinned `cetools npc --seed table-of-twelve
+--count 3` block in `README.md` moves a third time, which SC-006 pins at exactly twice. Do not
+silently regenerate it: raise the conflict, since SC-006 was written on the assumption that T087
+was the last content change. If neither task changes data, nothing regenerates and SC-006 holds
+as recorded.
+
+- [X] T095 Re-read Navy's two-ladder rank table from the source page itself per FR-023 (partial).
+      `specs/004-complete-srd-careers/verification/navy.md:46-50` carries four rank rows verdicted
+      `match (see note)`, and `:82-94` states those rows rest on the 003-npc-generator
+      transcription reconfirmed by T067 rather than on a fresh reading, because this session's
+      fetch tool flattened the source's two adjacent rank columns into one contradictory 0-6
+      sequence across four attempts. FR-023 forbids exactly that substitution: a re-read that
+      reconstructs the source from the transcription's own record can only confirm the
+      transcription. Read the enlisted ladder (ranks 0-5) and the commissioned officer ladder
+      (ranks 1-6) directly, replace all four `match (see note)` verdicts with settled `match` or
+      `corrected` verdicts, apply any `corrected` verdict to
+      `src/cetools/data/careers/navy.toml`, and remove the note. Then update
+      `verification/index.md:44` from "yes (with a noted limitation)" to plain `yes` and drop the
+      limitation from the Summary paragraph
+- [X] T096 Settle Hunter's advanced-education row 6 per FR-002 and FR-023a (partial).
+      `specs/004-complete-srd-careers/verification/hunter.md:74-79` records the row as `match` on
+      a 3-to-2 split across five fetch attempts (3 `Animals`, 2 `Sciences`) and states outright
+      that "the evidence stays short of FR-024's bar for changing a committed value", asking for a
+      human re-read of the source page. FR-002 requires the field carry a verdict against the
+      source's *printed* value, not against the plurality of a flaky retrieval. Establish what the
+      source prints, record a definite verdict, correct
+      `src/cetools/data/careers/hunter.toml` if it differs from `Animals`, and update
+      `verification/index.md:38` and its Summary paragraph to drop the limitation
+- [X] T097 After T095 and T096, run `uv run pytest -q` and `uv run cetools validate` and confirm
+      both clean; if either task changed a career file, add the `CHANGELOG.md` entry for the
+      corrected value in the same commit and resolve the SC-006 regeneration conflict named above
+      explicitly rather than by regenerating in passing
+
+      Both `navy.toml` and `hunter.toml` changed. `uv run pytest -q` passes 1336/1336 and
+      `uv run cetools validate` reports clean (`Files: 42`). The SC-006 conflict does not
+      arise: the README's pinned `cetools npc --seed table-of-twelve --count 3` block selects
+      Scientist, Diplomat/Bureaucrat, and Marine — neither Navy nor Hunter — so a fresh run of
+      that exact command is still byte-identical to the committed block (verified directly, and
+      by `tests/integration/test_golden.py`'s existing re-run-and-compare check, which passes
+      unchanged). `README.md` needs no third regeneration and SC-006's "exactly twice" count
+      still holds.
