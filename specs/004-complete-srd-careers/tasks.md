@@ -465,20 +465,20 @@ research.md R7 names known differences; it does not bound the work.
 
 ### 6d. Acceptance: traversal and the enlarged pool (FR-026, FR-027, FR-028)
 
-- [ ] T073 [US1] Add `tests/integration/test_traversal.py`: a parameterized deterministic walk per
+- [X] T073 [US1] Add `tests/integration/test_traversal.py`: a parameterized deterministic walk per
       career, twenty-four cases, each asserting the character qualifies into that career, completes
       at least one term, and musters out with cash and material benefits drawn from that career's
       own tables, exercising its skill tables, its rank ladder, and its benefit rows
-- [ ] T074 [US1] Test: `load_rules().careers` holds exactly twenty-four entries whose `name`
+- [X] T074 [US1] Test: `load_rules().careers` holds exactly twenty-four entries whose `name`
       values are the twenty-four of research.md R1, including the three long names, in
       `tests/integration/test_data_driven.py`
-- [ ] T075 [US1] Test (SC-007): a batch large enough to sample career selection produces characters
+- [X] T075 [US1] Test (SC-007): a batch large enough to sample career selection produces characters
       from careers outside the previously shipped eight, in `tests/integration/test_npc_sample.py`
-- [ ] T076 [US1] Test (SC-005): every cash table has seven rows; `athlete`, `barbarian`, `belter`,
+- [X] T076 [US1] Test (SC-005): every cash table has seven rows; `athlete`, `barbarian`, `belter`,
       `drifter`, `entertainer`, `hunter`, and `scout` have six material rows and the other
       seventeen have seven; and those same seven careers, and no others, carry an untitled rank —
       in `tests/integration/test_data_driven.py`
-- [ ] T076a [US1] **In the same commit as the career content that falsifies it**, invert
+- [X] T076a [US1] **In the same commit as the career content that falsifies it**, invert
       `tests/unit/test_render_character.py::test_no_shipped_ladder_rank_leaves_a_character_untitled`
       (`:381-395`), which asserts every rank of every shipped ladder declares a title and which
       FR-008 makes false for seven careers. Its premise — recorded in its own comment — was that
@@ -487,7 +487,7 @@ research.md R7 names known differences; it does not bound the work.
       the assertion with one naming the seven careers whose ladders carry untitled ranks, and note
       that the branch is now reachable from shipped data, which is what T073's traversal cases
       exercise
-- [ ] T077 [US1] Update the composed-file-count expectations from 26 to 42 at their actual sites:
+- [X] T077 [US1] Update the composed-file-count expectations from 26 to 42 at their actual sites:
       `tests/unit/test_rules.py:245` and `:250` (`report.file_count == 26`) and
       `tests/integration/test_validate_cli.py:93` (`payload["file_count"] == 26`); also
       `tests/unit/test_rules.py:265`, where the override-addition case expects 27 and becomes 43.

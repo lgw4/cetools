@@ -417,6 +417,30 @@ class TestTitlePersistence:
         untitled = {rank_row.rank for rank_row in enlisted.ranks if not rank_row.title}
         assert untitled == {1, 2, 3, 4}
 
+    def test_the_seven_commissionless_careers_and_no_others_carry_an_untitled_rank(self):
+        # FR-008: a career whose source rank rows print no titles at all is
+        # recorded with no titles on any rank. Navy's own untitled rows
+        # (the test above) are a mixed ladder's interior contiguity
+        # gap-fill, not this shape, so it is excluded here even though one
+        # of its ranks carries no title. T073's traversal cases are what
+        # exercise the "an earlier title survives" branch from shipped data
+        # for these seven now, rather than only from an override.
+        rules = load_rules()
+        wholly_untitled = set()
+        for career in rules.careers.values():
+            ranks = [rank_row for ladder in career.ladders for rank_row in ladder.ranks]
+            if ranks and all(not rank_row.title for rank_row in ranks):
+                wholly_untitled.add(career.name)
+        assert wholly_untitled == {
+            "Athlete",
+            "Barbarian",
+            "Belter",
+            "Drifter",
+            "Entertainer",
+            "Hunter",
+            "Scout",
+        }
+
     def test_no_rendering_may_write_anything_but_a_rank_title(self):
         # FR-048: the only title any rendering may write is a rank title
         # from a ladder. Character carries exactly one `title` field, and

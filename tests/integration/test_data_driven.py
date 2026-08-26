@@ -548,3 +548,75 @@ def test_an_injury_roll_outside_the_table_is_reported_not_an_indexerror(tmp_path
     (tmp_path / "chargen-parameters.toml").write_text(params_text, encoding="utf-8")
     rules = load_rules(tmp_path)
     _first_seed_reaching(rules, limit=200)
+
+
+# --- Phase 6d: the complete twenty-four-career roster (FR-026, FR-027, ---
+# FR-028).
+
+_TWENTY_FOUR_NAMES = {
+    "Aerospace System Defense",
+    "Agent",
+    "Athlete",
+    "Barbarian",
+    "Belter",
+    "Bureaucrat",
+    "Colonist",
+    "Diplomat",
+    "Drifter",
+    "Entertainer",
+    "Hunter",
+    "Marine",
+    "Maritime System Defense",
+    "Mercenary",
+    "Merchant",
+    "Navy",
+    "Noble",
+    "Physician",
+    "Pirate",
+    "Rogue",
+    "Scientist",
+    "Scout",
+    "Surface System Defense",
+    "Technician",
+}
+
+# research.md R1: the seven careers offering no commission, whose material
+# table runs six rows (a dash where the source prints nothing for row 7) and
+# whose one ladder carries an untitled rank.
+_SIX_ROW_CAREERS = {
+    "Athlete",
+    "Barbarian",
+    "Belter",
+    "Drifter",
+    "Entertainer",
+    "Hunter",
+    "Scout",
+}
+
+
+def test_the_packaged_set_holds_exactly_the_twenty_four_srd_careers():
+    rules = load_rules()
+    names = {career.name for career in rules.careers.values()}
+    assert names == _TWENTY_FOUR_NAMES
+    assert len(rules.careers) == 24
+
+
+def test_every_cash_table_has_seven_rows_and_only_the_seven_have_six_material_rows():
+    # FR-008's "no titles at all" is whole-ladder: Navy's enlisted ladder
+    # carries four untitled *interior* rows (T047's contiguity gap-fill,
+    # D2/FR-007) alongside titled ones, which is not the shape this checks.
+    # A career only belongs to `_SIX_ROW_CAREERS` if every rank it has is
+    # untitled, which is true of the seven commissionless careers' single
+    # rank 0 and false of Navy's mixed ladder.
+    rules = load_rules()
+    for career in rules.careers.values():
+        assert len(career.mustering_out.cash) == 7, career.name
+        material_rows = len(career.mustering_out.benefits)
+        ranks = [rank_row for ladder in career.ladders for rank_row in ladder.ranks]
+        all_untitled = bool(ranks) and all(not rank_row.title for rank_row in ranks)
+        if career.name in _SIX_ROW_CAREERS:
+            assert material_rows == 6, career.name
+            assert all_untitled, career.name
+        else:
+            assert material_rows == 7, career.name
+            assert not all_untitled, career.name

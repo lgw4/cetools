@@ -364,6 +364,20 @@ class TestSpreadAndCoverage:
         assert any(len(c.careers) == 2 for c in sample)
         assert any(len(c.careers) == 3 for c in sample)
 
+    def test_sc007_the_enlarged_pool_reaches_careers_outside_the_shipped_eight(self, sample):
+        _PREVIOUSLY_SHIPPED_EIGHT = {
+            "Aerospace System Defense",
+            "Drifter",
+            "Marine",
+            "Maritime System Defense",
+            "Merchant",
+            "Navy",
+            "Scout",
+            "Surface System Defense",
+        }
+        entered = {service.career for c in sample for service in c.careers}
+        assert entered - _PREVIOUSLY_SHIPPED_EIGHT
+
     def test_sc008_every_shape_the_engine_handles_is_exercised(self, sample):
         commissioned = any(service.commissioned for c in sample for service in c.careers)
         not_commissioned = any(not service.commissioned for c in sample for service in c.careers)
