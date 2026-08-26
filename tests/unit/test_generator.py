@@ -443,11 +443,10 @@ class TestRecursiveCascadeResolution:
 
 class TestTitlePersistenceAcrossCareers:
     """FR-047c (T171): an earlier title survives a later untitled service.
-    Unreachable from shipped data before Phase 6 ships an untitled ladder —
-    every rank of every shipped ladder currently declares a title — so this
-    exercises the branch against a fixture career built from Navy's, driving
-    the same `_Walk` methods `run()` calls rather than its random career
-    selection. T073's traversal cases cover the shipped path once it exists.
+    Driven against a fixture career built from Navy's rather than through
+    `run()`'s random career selection, so the two services land in a chosen
+    order; T073's traversal cases exercise the branch from shipped data too
+    now that Navy's own enlisted ladder carries untitled ranks (FR-019).
     """
 
     def test_a_later_untitled_service_does_not_erase_an_earlier_title(self):
@@ -467,17 +466,21 @@ class TestTitlePersistenceAcrossCareers:
             ),
         )
 
-        walk = _Walk(Roller(0), RULES)
-        walk.characteristics = {code: 7 for code in RULES.characteristics.names}
+        title_after_first_career = None
+        for seed in range(50):
+            walk = _Walk(Roller(seed), RULES)
+            walk.characteristics = {code: 7 for code in RULES.characteristics.names}
 
-        entry_ladder = walk._entry_ladder(navy)
-        walk._grant_rank_bonus(navy.name, 1, entry_ladder, 0)
-        _, ladder, rank, *_ = walk.run_term_loop(navy, "selected")
-        title = walk._current_title(navy, ladder, rank)
-        if title:
-            walk.title = title
-        assert walk.title, "the titled fixture career must actually grant a title"
-        title_after_first_career = walk.title
+            entry_ladder = walk._entry_ladder(navy)
+            walk._grant_rank_bonus(navy.name, 1, entry_ladder, 0)
+            _, ladder, rank, *_ = walk.run_term_loop(navy, "selected")
+            title = walk._current_title(navy, ladder, rank)
+            if title:
+                walk.title = title
+            if walk.title:
+                title_after_first_career = walk.title
+                break
+        assert title_after_first_career, "no seed under 50 reached a titled Navy rank"
 
         entry_ladder2 = walk._entry_ladder(untitled_career)
         walk._grant_rank_bonus(untitled_career.name, 1, entry_ladder2, 0)

@@ -566,6 +566,22 @@ def test_a_career_with_a_commission_throw_and_no_commissioned_ladder_is_rejected
     )
 
 
+def test_a_mustering_out_table_short_of_the_coverage_bound_is_rejected(tmp_path):
+    # FR-020, FR-021, D7: the mustering-out coverage rule, alongside the
+    # other cross-file rules this category exercises — a career whose cash
+    # table cannot cover every row a retired character can roll.
+    cash = "cash = [1000, 5000, 10000, 10000, 20000, 50000, 50000]"
+    assert cash in NAVY
+    text = NAVY.replace(cash, "cash = [1000, 5000, 10000, 10000, 20000, 50000]", 1)
+    assert text != NAVY
+    _write(tmp_path, "navy.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        p.file == "navy.toml" and p.location == "mustering-out.cash" for p in report.problems
+    )
+
+
 def test_a_characteristic_class_no_registry_declares_is_rejected(tmp_path):
     text = AGING.replace('class = "physical", count = 3', 'class = "cybernetic", count = 3', 1)
     assert text != AGING

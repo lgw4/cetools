@@ -401,22 +401,21 @@ class TestTitlePersistence:
         # than merely getting overwritten by an identical later one (T171).
         assert TITLED_THEN_UNTITLED.careers[1].title == ""
 
-    def test_no_shipped_ladder_rank_leaves_a_character_untitled(self):
-        # FR-047c's "an earlier title survives" branch
-        # (`generator.py`'s `if title: self.title = title`) is asserted
-        # only against TITLED_THEN_UNTITLED's hand-built literal, because
-        # every rank of every shipped ladder declares a title: ordinary
-        # generation can never reach it. An override could supply what the
-        # shipped data cannot, which is why the branch — and this golden —
-        # still earn their place (T171).
+    def test_navys_enlisted_ladder_gap_rows_leave_a_character_untitled(self):
+        # FR-047c's "an earlier title survives" branch (`generator.py`'s
+        # `if title: self.title = title`) needed an override to reach at
+        # all before this feature: every rank of every shipped ladder
+        # declared a title. Navy's enlisted ladder is the first shipped
+        # ladder with an exception — ranks 1 through 4, between Starman
+        # and Petty Officer, are declared with nothing to say (D2, FR-007)
+        # because FR-019's contiguity rule requires those positions to be
+        # declared at all. T073's traversal cases exercise the branch from
+        # shipped data; this pins which ranks are the untitled ones.
         rules = load_rules()
-        for career in rules.careers.values():
-            for ladder in career.ladders:
-                for rank_row in ladder.ranks:
-                    assert rank_row.title, (
-                        f"{career.name}'s {ladder.name!r} ladder rank {rank_row.rank} "
-                        "declares no title"
-                    )
+        navy = rules.careers["navy"]
+        enlisted = next(ladder for ladder in navy.ladders if ladder.name == "enlisted")
+        untitled = {rank_row.rank for rank_row in enlisted.ranks if not rank_row.title}
+        assert untitled == {1, 2, 3, 4}
 
     def test_no_rendering_may_write_anything_but_a_rank_title(self):
         # FR-048: the only title any rendering may write is a rank title

@@ -53,12 +53,17 @@ entries = ["Advocate", "Computer", "Engineering", "Medicine", "Navigation", "Tac
 # successful commission, which is why the two ladders do not overlap. Rank
 # 5 gives the entry ladder a promotion an uncommissioned character can
 # actually reach, which every shipped career shipped without one (FR-033,
-# Phase 8 T155).
+# Phase 8 T155). Ranks 1-4 name no distinct title (FR-019's contiguity rule
+# requires them declared; D2/FR-007 is what lets a row say nothing).
 [[ladders]]
 name = "enlisted"
 role = "entry"
 ranks = [
   { rank = 0, title = "Starman", bonus = "Zero-G 1" },
+  { rank = 1 },
+  { rank = 2 },
+  { rank = 3 },
+  { rank = 4 },
   { rank = 5, title = "Petty Officer", bonus = "Gunnery 1" },
 ]
 

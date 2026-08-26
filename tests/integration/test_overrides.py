@@ -77,7 +77,7 @@ ranks = [
 ]
 
 [mustering-out]
-cash = [1000, 1000, 2000, 2000, 5000, 5000]
+cash = [1000, 1000, 2000, 2000, 5000, 5000, 5000]
 benefits = ["Low Passage", "Weapon", "Ship Share", "Mid Passage", "SOC -1", "Low Passage"]
 """
 

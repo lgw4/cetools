@@ -325,27 +325,27 @@ assertion into `cetools validate`, so an override author is subject to it.
 confirm it names the file, the location, what was found, and what was expected; feed it every
 shipped career and confirm it reports none.
 
-- [ ] T042 [P] [US4] Failing test: a career whose `mustering-out.cash` is shorter than
+- [X] T042 [P] [US4] Failing test: a career whose `mustering-out.cash` is shorter than
       `roll.count * roll.sides + roll.modifier + retired-cash-dm` is rejected at
       `mustering-out.cash` naming the rows found and the rows required, in
       `tests/unit/test_rules.py`
-- [ ] T043 [P] [US4] Failing test: a career whose `mustering-out.benefits` is shorter than the
+- [X] T043 [P] [US4] Failing test: a career whose `mustering-out.benefits` is shorter than the
       roll maximum plus the highest `material-rank-dm` row at or below its highest reachable rank
       is rejected at `mustering-out.benefits`; and a career whose ladders stop at rank 0 is bounded
       by the roll alone, so six rows suffice — in `tests/unit/test_rules.py`
-- [ ] T044 [US4] Implement the coverage rule as a cross-file rule in `src/cetools/rules.py`,
+- [X] T044 [US4] Implement the coverage rule as a cross-file rule in `src/cetools/rules.py`,
       reading `roll`, `retired-cash-dm`, and `material-rank-dm` from `chargen-parameters.toml`
       rather than holding a constant, and reusing the existing "highest-ranked row at or below
       this rank, not cumulative" matching; state it over the careers **in force** so overrides are
       subject to it (FR-021)
-- [ ] T045 [US4] Replace the fixed `len(...) == 7` assertions at
+- [X] T045 [US4] Replace the fixed `len(...) == 7` assertions at
       `tests/integration/test_data_driven.py:401-402` with the computed coverage bound, which the
       seven short material tables of Phase 6 would otherwise fail
-- [ ] T046 [P] [US4] Integration test: `cetools validate <dir>` exits non-zero and names file,
+- [X] T046 [P] [US4] Integration test: `cetools validate <dir>` exits non-zero and names file,
       location, found, and expected for each of the quickstart.md rejections — an unresolvable
       skill name (FR-018), a rank ladder with a gap (FR-019), and a short cash table (FR-020) — in
       both human-readable and `--json` renderings, in `tests/integration/test_validate_cli.py`
-- [ ] T047 [P] [US4] Integration test: the coverage problem is reported under the right problem
+- [X] T047 [P] [US4] Integration test: the coverage problem is reported under the right problem
       category alongside the existing cross-file rules, in
       `tests/integration/test_validation_categories.py`
 

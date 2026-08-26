@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from cetools.dice import Roller
+from cetools.dice import Roller, parse_notation
 from cetools.errors import RulesDataError
 from cetools.generator import _Walk, generate_character
 from cetools.render import as_text
@@ -388,36 +388,62 @@ def test_a_gap_in_the_aging_table_is_reported_not_silently_misassigned(tmp_path)
     assert found
 
 
-def test_every_shipped_careers_mustering_out_tables_cover_the_full_dm_range():
-    # T187: seven of the eight careers shipped six-entry `cash` and
-    # `benefits` tables while navy.toml alone shipped seven, so
-    # `mustering_out_retired_cash_dm` (max 1) or `mustering_out_material_rank_dm`
-    # (max 1) pushed a natural 6 onto the same row a natural 5 already
-    # read — an engine-held clamp silently absorbing the collision. Every
-    # table now covers the full `1d6` (1-6) plus the maximum declared
-    # modifier (1) without needing one.
+def _highest_matching_rank_row(rows, rank):
+    best_rank = -1
+    amount = 0
+    for row in rows:
+        if row.rank <= rank and row.rank > best_rank:
+            best_rank = row.rank
+            amount = row.amount
+    return amount
+
+
+def test_every_in_force_careers_mustering_out_tables_cover_the_full_dm_range():
+    # T187 (originally): an engine-held clamp silently absorbed a roll that
+    # overflowed a padded six-row table. FR-020/FR-021/D7 turned "every
+    # table covers the full roll plus the maximum declared modifier" from a
+    # fixed `== 7` pinned against the shipped eight into the computed bound
+    # `cetools validate` itself now enforces over whatever careers are in
+    # force — a bound that a career whose ladders stop at rank 0 satisfies
+    # with fewer rows than one that reaches the rank-conditioned modifier
+    # (data-model.md's mustering-out coverage rule).
     rules = load_rules()
+    params = rules.chargen
+    roll_count, roll_sides, roll_modifier = parse_notation(params.mustering_out_roll)
+    max_total = roll_count * roll_sides + roll_modifier
     for stem, career in rules.careers.items():
-        assert len(career.mustering_out.cash) == 7, stem
-        assert len(career.mustering_out.benefits) == 7, stem
+        highest_rank = max(
+            (rank_row.rank for ladder in career.ladders for rank_row in ladder.ranks), default=0
+        )
+        cash_required = max_total + params.mustering_out_retired_cash_dm
+        material_required = max_total + _highest_matching_rank_row(
+            params.mustering_out_material_rank_dm, highest_rank
+        )
+        assert len(career.mustering_out.cash) >= cash_required, stem
+        assert len(career.mustering_out.benefits) >= material_required, stem
 
 
-def test_an_excessive_mustering_out_modifier_is_reported_not_silently_clamped(tmp_path):
+def test_an_excessive_mustering_out_modifier_is_reported_not_silently_clamped():
     # T187: `index = max(0, min(len(...) - 1, sum(faces) + dm - 1))` was an
     # engine-invented clamp stated in no requirement, contract, or data
     # file — the opposite of the treatment `contracts/data-files.md`
     # already gives every other positional table read (T181). The read is
-    # now `_table_row`'s, which reports an overflow rather than silently
+    # `_table_row`'s, which reports an overflow rather than silently
     # absorbing it into the table's last row.
-    cash_target_block = "cash-choice-target = 4"
-    dm_block = "retired-cash-dm = 1"
-    assert cash_target_block in CHARGEN_PARAMETERS
-    assert dm_block in CHARGEN_PARAMETERS
-    text = CHARGEN_PARAMETERS.replace(cash_target_block, "cash-choice-target = 1", 1)
-    text = text.replace(dm_block, "retired-cash-dm = 100", 1)
-    override = tmp_path / "chargen-parameters.toml"
-    override.write_text(text, encoding="utf-8")
-    rules = load_rules(override)
+    #
+    # The mustering-out coverage rule (FR-020, FR-021, D7) now catches an
+    # excessive `retired-cash-dm` at validation, before an override built
+    # this way could ever reach the walk — that is the point of the rule.
+    # Demonstrated here directly against a `ChargenParameters` no loader
+    # would hand back, to pin that `_table_row`'s own runtime guard still
+    # stands as defense in depth underneath the validation rule.
+    import dataclasses
+
+    rules = load_rules()
+    excessive_chargen = dataclasses.replace(
+        rules.chargen, mustering_out_cash_choice_target=1, mustering_out_retired_cash_dm=100
+    )
+    rules = dataclasses.replace(rules, chargen=excessive_chargen)
 
     career = rules.careers["navy"]
     walk = _Walk(Roller("t187"), rules)

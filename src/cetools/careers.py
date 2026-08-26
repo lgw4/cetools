@@ -625,6 +625,21 @@ def _parse_ranks(
 
     if not ok:
         return None
+
+    base = min(positions_seen)
+    contiguous = set(range(base, base + len(positions_seen)))
+    if positions_seen != contiguous:
+        missing = sorted(contiguous - positions_seen)
+        problems.append(
+            ValidationProblem(
+                file=file,
+                location=location,
+                found=f"positions {sorted(positions_seen)}",
+                expected=f"contiguous from {base}: missing {missing}",
+            )
+        )
+        return None
+
     return tuple(sorted(ranks, key=lambda rank: rank.rank))
 
 

@@ -112,7 +112,7 @@ def valid_data():
                 "role": "entry",
                 "ranks": [
                     {"rank": 1, "title": "Able Spacehand"},
-                    {"rank": 5, "title": "Petty Officer", "bonus": "Mechanical 1"},
+                    {"rank": 2, "title": "Petty Officer", "bonus": "Mechanical 1"},
                     {"rank": 0, "title": "Recruit"},
                 ],
             },
@@ -440,14 +440,59 @@ class TestRankPositions:
         # same thing.
         data = copy.deepcopy(valid_data)
         data["ladders"][0]["ranks"] = [
-            {"rank": 5, "title": "Petty Officer"},
+            {"rank": 2, "title": "Petty Officer"},
             {"rank": 1, "title": "Able Spacehand"},
             {"rank": 0, "title": "Recruit"},
         ]
         career, problems = parse_career(data, FILE, characteristics, skills, benefits)
         assert problems == ()
         enlisted = next(ladder for ladder in career.ladders if ladder.name == "enlisted")
-        assert [rank.rank for rank in enlisted.ranks] == [0, 1, 5]
+        assert [rank.rank for rank in enlisted.ranks] == [0, 1, 2]
+
+
+class TestRankPositionsAreContiguous:
+    """FR-019: a rank ladder's positions must be contiguous from its base
+    (lowest) position, so the generation walk's next-declared-rank
+    advancement (`ranks_above[0]`, generator.py) never has to skip past a
+    rank an author simply forgot, and the milestone shape the schema allows
+    an empty row to express (D2, FR-007) is what a gap is spelled with.
+    """
+
+    def test_a_gap_in_the_middle_of_a_ladder_is_rejected(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        data = copy.deepcopy(valid_data)
+        data["ladders"][1]["ranks"] = [
+            {"rank": 1, "title": "Ensign"},
+            {"rank": 3, "title": "Lieutenant"},
+        ]
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "ladders[1].ranks" in _problem_locations(problems)
+
+    def test_a_gap_above_the_entry_ladders_rank_0_is_rejected(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        data = copy.deepcopy(valid_data)
+        data["ladders"][0]["ranks"] = [
+            {"rank": 0, "title": "Recruit"},
+            {"rank": 5, "title": "Petty Officer"},
+        ]
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "ladders[0].ranks" in _problem_locations(problems)
+
+    def test_a_fully_contiguous_ladder_is_accepted(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        data = copy.deepcopy(valid_data)
+        data["ladders"][1]["ranks"] = [
+            {"rank": 1, "title": "Ensign"},
+            {"rank": 2, "title": "Lieutenant"},
+            {"rank": 3, "title": "Lt Commander"},
+        ]
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert problems == ()
 
 
 class TestDistinctLadderNames:
