@@ -3,7 +3,12 @@
 # New career (research.md R1). The source's separate Social-Standing
 # nobility table (a track for characters already noble by birth) is
 # unimplemented (FR-031); whatever eventually implements it must
-# reconcile with these ranks and titles, not duplicate them.
+# reconcile with these ranks and titles, not duplicate them. Phase 7
+# verification (verification/noble.md) found rank 0 wrongly carried
+# neither title nor bonus; the source prints "Courtier [Carousing-1]"
+# there. This does not put Noble among the seven wholly-untitled careers
+# (FR-008, T076/T076a): its other ranks are already titled, and that
+# invariant is about a ladder with no titles at all.
 
 schema = "career"
 schema-version = 4
@@ -52,7 +57,7 @@ entries = ["Advocate", "Computer", "Liaison", "Linguistics", "Medicine", "Scienc
 name = "junior"
 role = "entry"
 ranks = [
-  { rank = 0 },
+  { rank = 0, title = "Courtier", bonus = "Carousing 1" },
 ]
 
 [[ladders]]

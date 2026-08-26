@@ -1,7 +1,10 @@
 # Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
 #
 # New career (research.md R1). Rank 3's title is corrected from the
-# source's misprinted "Liaision" to "Liaison" (FR-017, D9).
+# source's misprinted "Liaision" to "Liaison" (FR-017, D9). Phase 7
+# verification (verification/colonist.md) found the advanced-education
+# table's row 2 was mistranscribed as "Computer"; the source prints
+# "Linguistics".
 
 schema = "career"
 schema-version = 4
@@ -44,7 +47,7 @@ entries = ["Athletics", "Carousing", "Jack-of-All-Trades", "Engineering", "Anima
 
 [tables.advanced-education]
 requires = "EDU 8+"
-entries = ["Advocate", "Computer", "Medicine", "Liaison", "Admin", "Animals"]
+entries = ["Advocate", "Linguistics", "Medicine", "Liaison", "Admin", "Animals"]
 
 [[ladders]]
 name = "junior"

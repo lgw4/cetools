@@ -3,7 +3,9 @@
 # Draft row 1. Reconciled against the source (research.md R7): the throws,
 # every skill table, the rank ladder's bonus grants, and both mustering-out
 # tables all differ from the earlier transcription; it grants `Aircraft`
-# directly, which v2 resolves as a nested cascade.
+# directly, which v2 resolves as a nested cascade. Phase 7 verification
+# (verification/aerospace-system-defense.md) found the advanced-education
+# table's rows 3-6 still wrong after that reconciliation.
 
 schema = "career"
 schema-version = 4
@@ -46,7 +48,7 @@ entries = ["Comms", "Gravitics", "Gun Combat", "Gunnery", "Recon", "Piloting"]
 
 [tables.advanced-education]
 requires = "EDU 8+"
-entries = ["Advocate", "Computer", "Medicine", "Leadership", "Tactics", "Sciences"]
+entries = ["Advocate", "Computer", "Jack-of-All-Trades", "Medicine", "Leadership", "Tactics"]
 
 [[ladders]]
 name = "enlisted"

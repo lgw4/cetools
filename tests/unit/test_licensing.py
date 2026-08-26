@@ -451,3 +451,22 @@ def test_a_file_carrying_neither_designation_fails(tmp_path):
     planted.write_text("# just a comment\n", encoding="utf-8")
     with pytest.raises(AssertionError):
         _assert_exactly_one_designation(planted.read_text(encoding="utf-8"), "neither.toml")
+
+
+# --- Phase 7 verification artifacts (T089, FR-023) -------------------------
+
+
+def test_the_verification_directory_holds_exactly_twenty_seven_ogc_headed_files():
+    # Twenty-four career artifacts plus index.md, roster.md, and
+    # background-skills.md — not part of the distributed package, but
+    # spec.md still requires the same Open Game Content header the shipped
+    # source-derived data files carry, since they reproduce values printed
+    # in the source.
+    verification_dir = _repo_root() / "specs" / "004-complete-srd-careers" / "verification"
+    files = sorted(verification_dir.glob("*.md"))
+    assert len(files) == 27
+    for path in files:
+        text = path.read_text(encoding="utf-8")
+        assert "Open Game Content" in text, path.name
+        assert "Cepheus Engine" not in text, path.name
+        assert "Samardan Press" not in text, path.name

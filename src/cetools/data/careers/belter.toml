@@ -5,7 +5,10 @@
 # title. Grants `Prospecting` on Service row 5 and Specialist row 4 —
 # defined nowhere in the source's skill chapter but carried in the
 # vocabulary for exactly this grant (FR-016). Material row 5 is a rolled
-# quantity (FR-011).
+# quantity (FR-011). Phase 7 verification (verification/belter.md) found
+# the specialist table's rows 3 and 5 swapped: the source prints
+# `Gun Combat` at row 3 and `Sciences` at row 5, not `Sciences` at row 3
+# and a repeated `Vehicle` at row 5.
 
 schema = "career"
 schema-version = 4
@@ -34,7 +37,7 @@ entries = ["STR +1", "DEX +1", "END +1", "Zero-G", "Melee Combat", "Gambling"]
 entries = ["Comms", "Demolitions", "Gun Combat", "Gunnery", "Prospecting", "Piloting"]
 
 [tables.specialist]
-entries = ["Zero-G", "Electronics", "Sciences", "Prospecting", "Vehicle", "Vehicle"]
+entries = ["Zero-G", "Electronics", "Gun Combat", "Prospecting", "Sciences", "Vehicle"]
 
 [tables.advanced-education]
 requires = "EDU 8+"

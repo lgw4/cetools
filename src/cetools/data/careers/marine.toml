@@ -1,8 +1,10 @@
 # Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
 #
-# Draft row 2. Reconciled against the source (research.md R7): the material
-# table's seventh row was a comment-acknowledged repeat of the sixth; the
-# source prints "Explorers' Society" there.
+# Draft row 2. Re-verified against the source in Phase 7 (FR-023): nearly
+# every field diverged from the earlier transcription, well beyond
+# research.md R7's own audit, which flagged only the material table's
+# padded seventh row (see verification/marine.md for the full field-by-
+# field re-read this rewrite is drawn from).
 
 schema = "career"
 schema-version = 4
@@ -11,13 +13,13 @@ name = "Marine"
 medical-tier = "service"
 
 [throws.qualification]
-characteristic = "END"
+characteristic = "INT"
 target = 6
 dice = "2d6"
 
 [throws.survival]
 characteristic = "END"
-target = 5
+target = 6
 dice = "2d6"
 
 [throws.commission]
@@ -31,41 +33,41 @@ target = 7
 dice = "2d6"
 
 [throws.re-enlistment]
-target = 5
+target = 6
 dice = "2d6"
 
 [tables.personal]
-entries = ["STR +1", "DEX +1", "END +1", "SOC +1", "EDU +1", "Melee Combat"]
+entries = ["STR +1", "DEX +1", "END +1", "INT +1", "EDU +1", "Melee Combat"]
 
 [tables.service]
-entries = ["Athletics", "Gun Combat", "Melee Combat", "Recon", "Vehicle", "Zero-G"]
+entries = ["Comms", "Demolitions", "Gun Combat", "Gunnery", "Melee Combat", "Battle Dress"]
 
 [tables.specialist]
-entries = ["Gun Combat", "Recon", "Tactics", "Melee Combat", "Athletics", "Zero-G"]
+entries = ["Electronics", "Gun Combat", "Melee Combat", "Survival", "Recon", "Vehicle"]
 
 [tables.advanced-education]
 requires = "EDU 8+"
-entries = ["Admin", "Electronics", "Engineering", "Medicine", "Navigation", "Tactics"]
+entries = ["Advocate", "Computer", "Gravitics", "Medicine", "Navigation", "Tactics"]
 
 [[ladders]]
 name = "enlisted"
 role = "entry"
 ranks = [
-  { rank = 0, title = "Marine", bonus = "Gun Combat 1" },
+  { rank = 0, title = "Trooper", bonus = "Zero-G 1" },
 ]
 
 [[ladders]]
 name = "officer"
 role = "commissioned"
 ranks = [
-  { rank = 1, title = "Lieutenant", bonus = "Melee Combat (Piercing Weapons) 1" },
+  { rank = 1, title = "Lieutenant" },
   { rank = 2, title = "Captain" },
-  { rank = 3, title = "Force Commander", bonus = "Tactics 1" },
+  { rank = 3, title = "Major", bonus = "Tactics 1" },
   { rank = 4, title = "Lt Colonel" },
   { rank = 5, title = "Colonel" },
   { rank = 6, title = "Brigadier" },
 ]
 
 [mustering-out]
-cash = [2000, 5000, 5000, 10000, 10000, 20000, 20000]
-benefits = ["Low Passage", "Weapon", "Weapon", "Mid Passage", "STR +1", "SOC +1", "Explorers' Society"]
+cash = [1000, 5000, 10000, 10000, 20000, 50000, 50000]
+benefits = ["Low Passage", "EDU +1", "Weapon", "Mid Passage", "SOC +1", "High Passage", "Explorers' Society"]

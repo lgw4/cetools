@@ -2,7 +2,10 @@
 #
 # New career (research.md R1). No commission or advancement; two skill
 # rolls a term instead of one (FR-009). Rank 0 grants a bonus with no
-# title. Cash row 1 is a real zero, not a placeholder (FR-010).
+# title. Cash row 1 is a real zero, not a placeholder (FR-010). Phase 7
+# verification (verification/barbarian.md) found the service table
+# wrongly repeated "Gun Combat" and dropped "Vehicle", and material row 4
+# was mistranscribed as "Mid Passage" where the source prints "Weapon".
 
 schema = "career"
 schema-version = 4
@@ -28,7 +31,7 @@ dice = "2d6"
 entries = ["STR +1", "DEX +1", "END +1", "INT +1", "Athletics", "Gun Combat"]
 
 [tables.service]
-entries = ["Gun Combat", "Gun Combat", "Melee Combat", "Recon", "Survival", "Animals"]
+entries = ["Gun Combat", "Melee Combat", "Recon", "Survival", "Animals", "Vehicle"]
 
 [tables.specialist]
 entries = ["Gun Combat", "Jack-of-All-Trades", "Melee Combat", "Recon", "Animals", "Tactics"]
@@ -46,4 +49,4 @@ ranks = [
 
 [mustering-out]
 cash = [0, 1000, 2000, 5000, 5000, 10000, 10000]
-benefits = ["Low Passage", "INT +1", "Weapon", "Mid Passage", "END +1", "Mid Passage"]
+benefits = ["Low Passage", "INT +1", "Weapon", "Weapon", "END +1", "Mid Passage"]

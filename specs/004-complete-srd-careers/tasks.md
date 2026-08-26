@@ -556,7 +556,7 @@ artifact and the index carries the same OGC header the shipped career files carr
 changing the career file (the default, needing no justification) or, on FR-024's three named
 grounds only, recorded as a deviation **in the career data file itself** as well as the artifact.
 
-- [ ] T082 [US5] Write `specs/004-complete-srd-careers/verification/roster.md` (FR-023b):
+- [X] T082 [US5] Write `specs/004-complete-srd-careers/verification/roster.md` (FR-023b):
       enumerate the set of careers from the source's career-descriptions list and tabs, compare
       against the set the package ships, and establish both that none the source publishes is
       missing and that none it does not publish has been invented; this record governs the count in
@@ -567,7 +567,7 @@ research.md R1 is alphabetical — so a tab-keyed batch could not be acted on wi
 re-deriving the tabs, and the batching is only a way to parallelize the work, not a claim about
 the source's layout. Each re-read still reads the source's tables wherever they sit.
 
-- [ ] T083 [P] [US5] Re-read `aerospace-system-defense`, `agent`, `athlete`, `barbarian`, `belter`,
+- [X] T083 [P] [US5] Re-read `aerospace-system-defense`, `agent`, `athlete`, `barbarian`, `belter`,
       and `bureaucrat` against the source and write one artifact each under
       `specs/004-complete-srd-careers/verification/`, enumerating display name; qualification,
       survival, commission, promotion, and re-enlistment throws; the advanced-education gate;
@@ -575,28 +575,28 @@ the source's layout. Each re-read still reads the source's tables wherever they 
       rank row's title and grant **separately**; and every row of both mustering-out tables —
       including fields where the source prints nothing, each getting its own enumerated field and
       verdict
-- [ ] T084 [P] [US5] Same for `colonist`, `diplomat`, `drifter`, `entertainer`, `hunter`, and
+- [X] T084 [P] [US5] Same for `colonist`, `diplomat`, `drifter`, `entertainer`, `hunter`, and
       `marine`
-- [ ] T085 [P] [US5] Same for `maritime-system-defense`, `mercenary`, `merchant`, `navy`, `noble`,
+- [X] T085 [P] [US5] Same for `maritime-system-defense`, `mercenary`, `merchant`, `navy`, `noble`,
       and `physician`
-- [ ] T086 [P] [US5] Same for `pirate`, `rogue`, `scientist`, `scout`, `surface-system-defense`,
+- [X] T086 [P] [US5] Same for `pirate`, `rogue`, `scientist`, `scout`, `surface-system-defense`,
       and `technician`
-- [ ] T086a [P] [US5] Write
+- [X] T086a [P] [US5] Write
       `specs/004-complete-srd-careers/verification/background-skills.md` (FR-014a, FR-023a): the
       same source-first treatment for the retargeted background-skills table, enumerating each row
       of all three lists with a verdict per row. Row-by-row, not set-wise — the repeated rows are
       the weighting, and a set comparison would record a match where rows went missing
-- [ ] T087 [US5] Apply every `corrected` verdict to the data file it names — a career file, or
+- [X] T087 [US5] Apply every `corrected` verdict to the data file it names — a career file, or
       `background-skills.toml` for T086a's verdicts — and re-run `uv run pytest -q` plus
       `uv run cetools validate`; record each `deviation` in that data file with the reason as well
       as in the artifact (FR-024); confirm no deviation stands against a career that fails
       validation (FR-022 admits no exception)
-- [ ] T088 [US5] Write `specs/004-complete-srd-careers/verification/index.md` naming each of the
+- [X] T088 [US5] Write `specs/004-complete-srd-careers/verification/index.md` naming each of the
       twenty-four and whether its re-read is complete, so "all twenty-four, none partial" is
       checkable without reading every artifact; also name `roster.md` (FR-023b) and
       `background-skills.md` (FR-014a), so the index covers the whole verification set rather
       than the careers alone
-- [ ] T089 [US5] Test: `specs/004-complete-srd-careers/verification/` holds twenty-four career
+- [X] T089 [US5] Test: `specs/004-complete-srd-careers/verification/` holds twenty-four career
       artifacts plus `index.md`, `roster.md`, and `background-skills.md` — twenty-seven files —
       each carrying the OGC header, in `tests/unit/test_licensing.py`
 
