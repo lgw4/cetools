@@ -100,6 +100,13 @@ A material-benefit row awarding a rolled number of one item. Admissible only in
 `EntryContext.BENEFIT_TABLE`. `dice` is checked by `_check_dice`, which rejects `d66`; `name` is
 resolved against the benefits registry exactly as a `BenefitItem` is.
 
+**Validation rules**:
+
+- `dice` passes `_check_dice` (unchanged from every other dice field; `d66` rejected).
+- `dice` has a minimum total of at least one, so an award always awards something (FR-011). A
+  notation whose minimum is zero or negative is rejected naming the entry and the minimum found.
+- `name` carries no specialty group, and resolves in the benefits registry.
+
 Six instances in the packaged data, all `1d6 Ship Share` (R6).
 
 ### SkillRegistry (`src/cetools/registries.py`)
@@ -146,6 +153,22 @@ registry file records that discrepancy against those two names (FR-016).
 
 Type unchanged. Eight entries (R5): `Low Passage`, `Mid Passage`, `High Passage`, `Weapon`,
 `Explorers' Society`, `Ship Share`, `Courier Vessel`, `Research Vessel`.
+
+### BackgroundSkills (`chargen/background-skills.toml`)
+
+Type, schema, and version all unchanged. Contents are retargeted onto the rebuilt skill
+vocabulary and, in the course of that, brought into agreement with the source's own three lists
+(FR-014a, R8) — the `law-level` array already matches; `trade-code` and `education` do not.
+
+Its rows are a weighted draw: the homeworld selection is uniform over the concatenation of
+`law-level` and `trade-code`, so a name printed in more than one source row is recorded once per
+row. Four names repeat in `trade-code` (`Animals` ×3, `Zero-G` ×3, `Survival` ×2, `Watercraft`
+×2) and `Gun Combat` repeats three times in `law-level`. Deduplicating any of them silently
+reweights the draw.
+
+This is the only file outside `careers/` and `registries/` whose *contents* this feature changes
+for a reason other than a career name, and it is here only because FR-014 removes eleven of the
+names it grants.
 
 ### Character-facing types
 
@@ -211,9 +234,11 @@ shape moved.
 ## Verification artifacts (FR-023a)
 
 `specs/004-complete-srd-careers/verification/<basename>.md`, one per career, twenty-four in all,
-plus `index.md` recording which are complete and `roster.md` carrying the roster-level
-verification FR-023b requires — the set of careers enumerated from the source compared against
-the set the package ships, establishing that none is omitted and none invented.
+plus `index.md` recording which are complete, `roster.md` carrying the roster-level verification
+FR-023b requires — the set of careers enumerated from the source compared against the set the
+package ships, establishing that none is omitted and none invented — and
+`background-skills.md`, the row-by-row source-first record FR-014a requires for the retargeted
+background-skills table. Twenty-seven files in all.
 
 Each file is written source-first: for every field, the source's printed value, then the
 committed file's value, then a verdict of `match`, `corrected` (the file was changed to match),

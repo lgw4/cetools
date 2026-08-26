@@ -17,7 +17,7 @@ src/cetools/data/
 │   ├── draft.toml                        # contents: the three long career names
 │   ├── aging.toml
 │   ├── mishaps.toml
-│   ├── background-skills.toml
+│   ├── background-skills.toml           # contents: retargeted onto the rebuilt vocabulary
 │   ├── medical-tiers.toml
 │   └── chargen-parameters.toml
 ├── names/
@@ -103,6 +103,47 @@ Schema unchanged. Contents become exactly the eight items the twenty-four career
 tables award: `Low Passage`, `Mid Passage`, `High Passage`, `Weapon`, `Explorers' Society`,
 `Ship Share`, `Courier Vessel`, `Research Vessel`. `Armor`, `Personal Vehicle`, and
 `Trade Goods` are removed; no source career awards them.
+
+### Vocabulary rule: grammatical number (FR-015a)
+
+Applies to both registries. Where a source table cell prints a name in a different grammatical
+number from the name the source's own prose uses, the vocabulary carries the **prose's** form and
+career data references that form. A difference of number never produces a second entry and is
+never treated as a misspelling under FR-017. Where a plural in a cell accompanies a printed
+quantity, the quantity is carried as a quantity and the name in the prose's singular: the source's
+`1D6 Ship Shares` becomes `"1d6 Ship Share"` against the vocabulary entry `Ship Share`, which is
+what the "Material Benefits" prose calls it.
+
+## `background-skills` v1 (`chargen/background-skills.toml`)
+
+Schema and version unchanged; contents rebuilt. This file is in scope only because it references
+the skills vocabulary and eleven of the names it currently grants are names the rebuild removes
+(FR-014a). Its three arrays become the source's printed rows, in printed order:
+
+```toml
+law-level = ["Gun Combat 0", "Gun Combat 0", "Gun Combat 0", "Melee Combat 0"]
+
+trade-code = [
+  "Animals 0", "Zero-G 0", "Survival 0", "Watercraft 0", "Animals 0",
+  "Computer 0", "Streetwise 0", "Zero-G 0", "Broker 0", "Survival 0",
+  "Animals 0", "Carousing 0", "Watercraft 0", "Zero-G 0",
+]
+
+education = [
+  "Admin 0", "Advocate 0", "Animals 0", "Carousing 0", "Comms 0",
+  "Computer 0", "Electronics 0", "Engineering 0", "Life Sciences 0",
+  "Linguistics 0", "Mechanics 0", "Medicine 0", "Physical Sciences 0",
+  "Social Sciences 0", "Space Sciences 0",
+]
+```
+
+**Repeated rows are data, not redundancy.** The homeworld draw is uniform over the concatenation
+of `law-level` and `trade-code`, so `Animals` appearing three times among fourteen trade-code rows
+is a weight. Deduplicating any of these arrays changes the distribution and is rejected by the
+same reasoning FR-010 applies to a padded mustering-out row: the data says what the source says.
+
+`Watercraft` is a cascade in the v2 skills registry, so a bare `Watercraft 0` grant resolves
+through to a terminal specialty exactly as any other cascade grant does (FR-012).
 
 ## `career` v4 (`careers/*.toml`)
 

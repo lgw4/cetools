@@ -13,8 +13,11 @@ changes the current schema cannot express (an untitled rank, a short mustering-o
 rolled ship-share quantity, a cascade specialty that is itself a cascade), one dead field
 removed (a characteristic on the re-enlistment throw), and one new invariant moved out of
 documentation into `cetools validate` (mustering-out tables must cover every row a character in
-that career can roll). Career selection draws from the whole pool, so tripling it changes what
-every seed produces; that ships as a flagged breaking change with no compatibility path.
+that career can roll). Rebuilding the skill vocabulary also breaks `background-skills.toml`,
+which grants eleven of the removed names, so that table is retargeted and reconciled against the
+source in the same pass (FR-014a). Career selection draws from the whole pool, so tripling it
+changes what every seed produces; that, the corrected background skills, and the extra draw each
+cascade level costs ship together as one flagged breaking change with no compatibility path.
 
 Technical approach: career schema rises to version 4, the skills registry to version 2, both as
 minimal changes to shapes that already exist. Sixteen new career files and three renames land in
@@ -56,8 +59,9 @@ which touches only in-memory dict sizes and a load-time validation loop.
 - Structural and behavioral changes never share a commit.
 
 **Scale/Scope**: 24 career files (8 reconciled, 16 added, 3 renamed), 2 registry files rebuilt,
-1 draft table updated, 1 new validation rule, 2 schema-version bumps, 1 notation form added,
-24 committed verification artifacts plus a completeness index and a roster-level record
+1 draft table updated, 1 background-skills table retargeted and reconciled (FR-014a), 1 new
+validation rule, 2 schema-version bumps, 1 notation form added, 24 committed verification
+artifacts plus a completeness index, a roster-level record, and a background-skills record
 (FR-023a, FR-023b).
 
 ## Constitution Check
@@ -120,7 +124,8 @@ src/cetools/
 └── data/
     ├── careers/         # 8 reconciled, 16 added, 3 renamed to long-form basenames
     ├── chargen/
-    │   └── draft.toml   # The three long career names
+    │   ├── draft.toml   # The three long career names
+    │   └── background-skills.toml  # Retargeted onto the rebuilt vocabulary (FR-014a)
     └── registries/
         ├── skills.toml  # Rebuilt to the source vocabulary, schema-version 2
         └── benefits.toml# Rebuilt to the source vocabulary
@@ -153,8 +158,8 @@ Structural first, each its own commit, each with the full suite green before and
    `RulesData.careers` mapping key. Display names do not change here.
 
 Behavioral after, in dependency order: notation form, registry semantics, career schema,
-coverage rule, vocabularies, career content, draft table, README regeneration, changelog. The
-detailed ordering is `/speckit-tasks`'s output.
+coverage rule, vocabularies and the background-skills table they break, career content, draft
+table, README regeneration, changelog. The detailed ordering is `/speckit-tasks`'s output.
 
 ## Known risks
 
@@ -168,3 +173,21 @@ detailed ordering is `/speckit-tasks`'s output.
   skill.** A character can therefore hold both `Survival-1` and `Animals (Survival)-1` as
   distinct entries. That is what the source says; see research.md D6 for why it is transcribed
   rather than normalized.
+- **Four committed tests assert the opposite of what this feature makes true**, and each one
+  turns the commit that lands its change red unless it is retired in the same commit. They are
+  not incidental fixtures: each was written deliberately against the old rule, so each needs its
+  premise inverted rather than its assertion deleted. `tasks.md` names all four in the task that
+  breaks them.
+  - `tests/unit/test_careers.py::test_a_rank_without_its_title_is_rejected` — `title` becomes
+    optional (FR-007).
+  - `tests/unit/test_render_character.py::test_no_shipped_ladder_rank_leaves_a_character_untitled`
+    — seven shipped careers gain untitled ranks (FR-008).
+  - `tests/unit/test_generator.py`'s re-enlistment-characteristic case — the field is removed
+    from that throw position (FR-013a).
+  - `tests/integration/test_overrides.py`'s override career fixture, which grants `Carouse`,
+    `Gambler`, and `Stealth` and asserts the override validates (FR-014).
+- **The skills-vocabulary rebuild reaches outside `careers/`.** `background-skills.toml` grants
+  eleven of the removed names, and `tests/unit/test_rules_agreement.py` pins that every
+  background skill resolves. Retargeting it is FR-014a; reading the source to do so showed two of
+  its three lists are a different edition's table (research.md R8), so it is transcribed rather
+  than renamed.

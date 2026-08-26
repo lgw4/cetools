@@ -57,6 +57,11 @@ matching runs unchanged, so no entry that parsed before parses differently now.
 
 - `dice` is checked by the same `_check_dice` every other dice field uses. `d66` is rejected
   there for the reason it is rejected everywhere: a two-digit table value is not a count.
+- `dice` must have a **minimum total of at least one** (FR-011), so that an award always awards
+  something. `"0d6 Ship Share"` and `"1d6-6 Ship Share"` are rejected naming the entry, the
+  minimum total the notation yields, and that a quantity must be able to award at least one item.
+  This is a rule about the *quantity*, not about dice generally: `_check_dice` alone does not
+  supply it, because a minimum of zero is legitimate for a modifier elsewhere.
 - `name` is taken from the text after the dice token and its whitespace, and is carried as
   written, exactly as a bare `BenefitItem`'s name is. It is matched against the benefits
   registry exactly, with no folding of case or whitespace.

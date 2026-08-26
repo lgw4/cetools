@@ -89,6 +89,24 @@ comparison against the source is a test (`tests/unit`), not a command: the sourc
 committed as the expected value there, and the re-read artifacts are what tie that set back to
 the printed pages.
 
+Every shipped file that references those vocabularies must still resolve against them, which is
+what `cetools validate` above already proves. The background-skills table is the one that would
+otherwise have stopped resolving (FR-014a), and its repeated rows are load-bearing:
+
+```sh
+uv run python -c "
+import collections, tomllib, pathlib
+d = tomllib.loads(pathlib.Path('src/cetools/data/chargen/background-skills.toml').read_text())
+for key in ('law-level', 'trade-code', 'education'):
+    rows = d[key]
+    print(f'{key:11} {len(rows):2} rows', dict(collections.Counter(rows).most_common(3)))
+"
+```
+
+Expect 4, 14, and 15 rows, and repeats in the first two: `Gun Combat 0` three times in
+`law-level`, and `Animals 0` and `Zero-G 0` three times each in `trade-code`. The homeworld draw
+is uniform over those rows, so a deduplicated list is a silently reweighted one (research R8).
+
 ## SC-005: no invented rank title, no padded row
 
 ```sh
@@ -144,9 +162,15 @@ sheet, because resolution continues until it reaches a name a rule gives a level
 git log --oneline --stat -- README.md tests/golden/
 ```
 
-Expect exactly two commits touching the pinned outputs: the structural re-pin of the render
-fixtures, which changes no engine behavior, and one regeneration after the career content
-landed. `cetools validate`'s `Files:` line moves from 26 to 42 in the second.
+Expect exactly two commits touching the pinned outputs, one file each: the structural re-pin of
+`tests/golden/npc_*.txt`, which changes no engine behavior, and one regeneration of `README.md`
+after every content change landed — including the corrections Phase 7's re-read found, which is
+why the regeneration is the last behavioral step. `cetools validate`'s `Files:` line moves from 26
+to 42 in the second.
+
+The two do not overlap: the `npc_*.txt` goldens are rendered from hand-built `Character` literals
+in `tests/unit/test_render_character.py`, not from a generation walk, so career content never
+moves them. `README.md`'s pinned `npc` block is generated, so it does.
 
 ```sh
 uv run cetools npc --seed table-of-twelve --count 12 | grep -E '^\S.*\(' | cut -f1
@@ -160,10 +184,11 @@ Expect careers outside the previously shipped eight to appear (FR-028, SC-007).
 ls specs/004-complete-srd-careers/verification/
 ```
 
-Expect twenty-four career files plus `index.md`. Open any one and confirm it enumerates the
-source's printed values first and the committed file's values against them, field by field, with
-a verdict per field, and that every discrepancy it raised is either fixed in the career file or
-recorded there with its reason (FR-023, FR-023a, FR-024).
+Expect twenty-seven files: twenty-four career artifacts, `index.md`, `roster.md` (the roster-level
+verification of FR-023b), and `background-skills.md` (FR-014a). Open any one and confirm it
+enumerates the source's printed values first and the committed file's values against them, field
+by field, with a verdict per field, and that every discrepancy it raised is either fixed in the
+data file or recorded there with its reason (FR-023, FR-023a, FR-024).
 
 ## SC-008: the release notes flag the break
 

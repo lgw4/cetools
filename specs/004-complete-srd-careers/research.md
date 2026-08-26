@@ -14,7 +14,13 @@ repository disagrees, the source wins (spec Assumptions).
 The careers narrative names twenty-four and the four tabs carry six columns each. The eight the
 package already ships are marked *shipped*; the sixteen to add are marked **new**.
 
-| Career (display name) | Basename | Qual. | Surv. | Comm. | Adv. | Re-enl. | Ranks 1-6 | Material rows | Medical tier |
+**Column note.** `Promo.` is the **advancement (promotion) throw**, which varies by career. It is
+*not* the advanced-education gate, which FR-004 fixes at `Edu 8+` for every career without
+exception and which every career file carries as `[tables.advanced-education] requires`. The two
+are easy to confuse because both are commonly written `Edu N+`; nothing in this table records the
+advanced-education gate, because it is the same in all twenty-four.
+
+| Career (display name) | Basename | Qual. | Surv. | Comm. | Promo. | Re-enl. | Ranks 1-6 | Material rows | Medical tier |
 |---|---|---|---|---|---|---|---|---|---|
 | Aerospace System Defense *shipped* | `aerospace-system-defense` | End 5+ | Dex 5+ | Edu 6+ | Edu 7+ | 5+ | yes | 7 | service |
 | Agent **new** | `agent` | Soc 6+ | Int 6+ | Edu 7+ | Edu 6+ | 6+ | yes | 7 | professional |
@@ -133,6 +139,10 @@ Names presently in `skills.toml` that the source never uses, and which are remov
 `Language` (source: `Linguistics`), `Mechanic` (source: `Mechanics`), `Persuade`, `Profession`,
 `Seafarer`, `Stealth`. These are the other edition's spellings the audit found.
 
+Career files are not the only shipped data that references this vocabulary.
+`chargen/background-skills.toml` grants skill names too, and eleven of the twelve removed above
+appear in it. R8 covers what that file becomes; FR-014a is why it is in scope at all.
+
 ## R5. The benefit vocabulary (FR-015)
 
 Every distinct item the twenty-four material-benefit tables award:
@@ -186,6 +196,43 @@ Navy matches the source across every field checked. The other seven differ as fo
 
 The uniform `Edu 8+` advanced-education gate is stated once, for every career: "You may only
 roll on the Advanced Education table if your character has Education 8+."
+
+## R8. The background-skills table (FR-014a)
+
+`background-skills.toml` is not career content, and this feature would not have touched it if
+rebuilding the skill vocabulary had not broken it. Eleven of the names it grants — `Art`,
+`Carouse`, `Diplomat`, `Drive`, `Flyer`, `Gambler`, `Language`, `Mechanic`, `Profession`,
+`Seafarer`, `Stealth` — are names R4 removes, so after the rebuild the file stops resolving and
+`tests/unit/test_rules_agreement.py::test_every_background_skill_the_packaged_table_grants_resolves`
+fails. Reading the source to retarget it showed the file is not merely misspelled: two of its
+three lists are a different table altogether.
+
+The source's three lists, read from `character-creation.html`'s Background Skills section:
+
+| List | Source rows, in printed order |
+|---|---|
+| law-level (4) | Gun Combat, Gun Combat, Gun Combat, Melee Combat |
+| trade-code (14) | Animals, Zero-G, Survival, Watercraft, Animals, Computer, Streetwise, Zero-G, Broker, Survival, Animals, Carousing, Watercraft, Zero-G |
+| education (15) | Admin, Advocate, Animals, Carousing, Comms, Computer, Electronics, Engineering, Life Sciences, Linguistics, Mechanics, Medicine, Physical Sciences, Social Sciences, Space Sciences |
+
+Every one of those names is among R4's seventy, so the retarget needs no vocabulary addition.
+
+Three things to note:
+
+- **law-level already matches**, including its `Gun Combat` triple.
+- **trade-code does not match at all.** The shipped list is fourteen alphabetized names with no
+  repeats; the source prints fourteen rows keyed to trade codes, with `Animals` three times,
+  `Zero-G` three times, and `Survival` and `Watercraft` twice each. The shipped file's own header
+  comment claims "duplicates are preserved and meaningful", which is the rule — and the shipped
+  data breaks it, flattening a weighted draw into a uniform one over the wrong names.
+- **education does not match either**, though it is the same length by coincidence.
+
+The count rule is unchanged and already correct: "3 + your Education DM", which
+`chargen-parameters.toml` carries as `base = 3`, `characteristic = "EDU"`.
+
+**Consequence**: this changes which skills a character starts with, so it contributes to the
+seed-output break alongside the enlarged pool (FR-029). It is transcribed and verified on the
+same terms as a career (FR-014a, FR-023a), not patched name by name.
 
 ## Decisions
 

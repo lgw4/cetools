@@ -296,8 +296,9 @@ and that any discrepancy it found was resolved in the file rather than explained
   character. There is no compatibility path; the old pool can be reproduced only by shipping it as
   an override.
 - What happens when the pinned human-readable outputs change? They are re-pinned once in a
-  behavior-preserving step before any career content changes, and regenerated once afterward, so
-  the second change is attributable entirely to the career pool growing.
+  behavior-preserving step before any career content changes, and regenerated once after every
+  content change has landed, so the second change is attributable to this feature's content rather
+  than concealing a regression. Several causes contribute to it, and FR-030 says which.
 
 ## Requirements *(mandatory)*
 
@@ -424,6 +425,16 @@ and that any discrepancy it found was resolved in the file rather than explained
 - **FR-014**: The skills vocabulary MUST contain exactly the skill names the source's skill chapter
   defines together with any name a source career table grants, and MUST NOT contain names drawn from
   another edition or names the source never uses.
+- **FR-014a**: Rebuilding the skills vocabulary MUST leave every other shipped data file that
+  references it resolving. The background-skills table is such a file: it grants skill names, and
+  eleven of the names it currently grants are names FR-014 removes. It MUST therefore be brought
+  into agreement with the source's own background-skills tables — the law-level, trade-code, and
+  education lists on the page Assumptions pins — by the same field-by-field comparison FR-002
+  applies to a career, and MUST NOT be retargeted by guessing a nearest surviving name for each
+  removed one. Where the source's list prints the same skill in more than one row, every row MUST
+  be recorded, because the draw is uniform over the rows and a collapsed duplicate silently
+  reweights it. This file is not career content and is in scope only as a consequence of FR-014;
+  no other part of the generation walk is reopened by it.
 - **FR-015**: The mustering-out benefits vocabulary MUST contain exactly the items the source's
   career tables award, and MUST NOT contain items the source never awards.
 - **FR-015a**: Where a source table cell prints a name in a different grammatical number from the
@@ -517,9 +528,15 @@ and that any discrepancy it found was resolved in the file rather than explained
   (FR-013) is precisely what an unenumerated field would hide, so a field may not be omitted from
   an artifact on the grounds that there was nothing to compare.
 
+  The background-skills table FR-014a brings into agreement MUST likewise leave a source-first
+  artifact enumerating each of its three lists row by row with a verdict per row, since it is
+  transcribed from the same source under the same rule and its repeated rows are exactly what an
+  unenumerated comparison would lose.
+
   Completeness of the set MUST be recorded in an inspectable index committed alongside the
   artifacts, naming each of the twenty-four and whether its re-read is complete, so that "all
   twenty-four were re-read, and none only partially" is checkable without reading every artifact.
+  The index MUST also name the background-skills artifact and the roster record of FR-023b.
 
   The artifacts MUST be inspectable after the fact, so that "the re-read was done" is a checkable
   claim rather than a recollection. Because they reproduce values printed in the source, each
@@ -564,10 +581,17 @@ and that any discrepancy it found was resolved in the file rather than explained
 - **FR-029**: The change in generated output for a given seed MUST be released as a breaking change
   with no compatibility path, flagged prominently in the changelog. FR-029 covers the seed-output
   change; the career-file renames are a separate breaking change flagged under FR-035, and the
-  schema bumps under FR-033 and FR-034.
+  schema bumps under FR-033 and FR-034. The enlarged career pool is not the only cause of the
+  seed-output change, and the changelog MUST NOT present it as though it were: the corrected
+  background-skills table (FR-014a) changes which skills a character starts with, and the extra
+  draw each cascade nesting level costs (FR-012) shifts every subsequent draw in the walk. Both
+  belong in the same entry.
 - **FR-030**: The pinned human-readable outputs MUST be re-pinned once in a behavior-preserving step
   before any career content changes, and regenerated once after those changes, so that the second
-  regeneration is attributable entirely to the enlarged career pool.
+  regeneration is attributable entirely to this feature's content changes rather than concealing a
+  regression inside a large diff. "Attributable entirely" bounds *when* the outputs may move, not
+  *how many causes* moved them: the enlarged pool, the corrected background-skills table, and the
+  extra cascade draw all land before the single regeneration, and the changelog names all three.
 - **FR-031**: The fact that career data now contains noble titles MUST be recorded explicitly, so
   that a later implementation of the source's Social-Standing nobility table reconciles with the
   existing data rather than duplicating or contradicting it.
@@ -630,18 +654,21 @@ and that any discrepancy it found was resolved in the file rather than explained
   naming the file and location.
 - **SC-003**: The independent source-first re-read is complete for 24 of 24 careers, each evidenced
   by a committed verification artifact in the feature directory, and the committed index records
-  all twenty-four complete with none partial. The roster-level verification of FR-023b is likewise
-  recorded. Every discrepancy raised is either fixed in the file or recorded there with a reason
+  all twenty-four complete with none partial. The roster-level verification of FR-023b and the
+  background-skills artifact of FR-014a are likewise recorded. Every discrepancy raised is either fixed in the file or recorded there with a reason
   meeting FR-024's criteria, and no deviation stands against a career that fails validation.
 - **SC-004**: The skill and benefit vocabularies match the source exactly in both directions: zero
-  entries absent from the source, zero source names absent from the vocabulary.
+  entries absent from the source, zero source names absent from the vocabulary. Every shipped data
+  file that references either vocabulary still resolves against it, the background-skills table
+  included, and that table's three lists match the source's printed rows including repeated rows
+  (FR-014a).
 - **SC-005**: No shipped career contains an invented rank title or a padded mustering-out row; every
   rank title and every table row traces to a printed row in the source. The trace is not an
   unaudited claim: FR-023a's artifacts enumerate every rank row and every mustering-out row of every
   career against the source's printed value with a per-field verdict, so any title or row without a
   source counterpart appears there as a deviation rather than passing unnoticed.
 - **SC-006**: Pinned human-readable outputs change exactly twice: once in a step that changes no
-  behavior, and once attributable entirely to the enlarged career pool.
+  behavior, and once after every content change this feature makes has landed.
 - **SC-007**: A generated batch large enough to sample the pool produces characters from careers
   outside the previously shipped eight, confirming the enlarged pool reaches new content.
 - **SC-008**: The release notes flag three breaking changes — the seed-output change, the two schema
@@ -654,8 +681,9 @@ and that any discrepancy it found was resolved in the file rather than explained
   https://evolvedexperiment.github.io/cepheus-srd/, **as retrieved on 2026-08-25** — the date of
   the source reading this feature's research records. Two pages carry everything in scope:
   `character-creation.html` (the careers narrative, the draft table, the medical-care table, the
-  mustering-out rules, and the four in-page tabs of the "Career Tables" section) and `skills.html`
-  (the available-skills list, the skill descriptions, and each cascade skill's specialty list).
+  background-skills tables, the mustering-out rules, and the four in-page tabs of the "Career
+  Tables" section) and `skills.html` (the available-skills list, the skill descriptions, and each
+  cascade skill's specialty list).
   Where an earlier transcription, another edition, or this project's own design documents disagree
   with it, it wins.
 - **The transcription is frozen at that retrieval.** The source is a living page with no published
