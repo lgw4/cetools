@@ -420,13 +420,15 @@ def test_every_in_force_careers_mustering_out_tables_cover_the_full_dm_range():
     roll_count, roll_sides, roll_modifier = parse_notation(params.mustering_out_roll)
     max_total = roll_count * roll_sides + roll_modifier
     for stem, career in rules.careers.items():
-        highest_rank = max(
-            (rank_row.rank for ladder in career.ladders for rank_row in ladder.ranks), default=0
-        )
-        cash_required = max_total + params.mustering_out_retired_cash_dm
-        material_required = max_total + _highest_matching_rank_row(
-            params.mustering_out_material_rank_dm, highest_rank
-        )
+        held_ranks = {0} | {
+            rank_row.rank for ladder in career.ladders for rank_row in ladder.ranks
+        }
+        cash_required = max_total + max(0, params.mustering_out_retired_cash_dm)
+        material_dms = [
+            _highest_matching_rank_row(params.mustering_out_material_rank_dm, rank)
+            for rank in held_ranks
+        ]
+        material_required = max_total + max(0, max(material_dms))
         assert len(career.mustering_out.cash) >= cash_required, stem
         assert len(career.mustering_out.benefits) >= material_required, stem
 

@@ -936,3 +936,15 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   which `_parse_mustering_out` has placed there and `muster_out_service`
   has handled since FR-011 landed. No behavior changes; the annotation now
   matches what the field actually holds (T106).
+- **The mustering-out coverage rule (FR-020, FR-021, D7) checked only the
+  `dm` at a career's highest rank, and never bounded the low end.** Neither
+  `material-rank-dm` nor `retired-cash-dm` is required to be monotonic, so
+  a career whose highest rank's row carries a smaller `dm` than a row at a
+  lower, still-reachable rank validated clean and then overflowed a table
+  mid-batch; a negative `retired-cash-dm` (`retired-cash-dm` has no
+  declared minimum) could likewise drive a throw below row 1 without
+  either table being short enough to catch it. The rule now covers every
+  rank a career's ladders can reach, bounds each table's ceiling by the
+  DM's maximum clamped to zero, and adds a floor check for the DM's
+  minimum. The packaged `chargen-parameters.toml` already satisfies both,
+  so no packaged seed's output changes.

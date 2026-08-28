@@ -852,21 +852,28 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
     # the rule is skipped rather than reported against a file it is not
     # about.
     mustering_out_max_total: int | None = None
+    mustering_out_min_total: int | None = None
     if chargen is not None:
         parsed_mustering_out_roll = parse_notation(chargen.mustering_out_roll)
         if parsed_mustering_out_roll is not None:
             roll_count, roll_sides, roll_modifier = parsed_mustering_out_roll
             mustering_out_max_total = roll_count * roll_sides + roll_modifier
+            mustering_out_min_total = roll_count + roll_modifier
 
     tier_names = frozenset(medical_tiers.tiers) if medical_tiers is not None else frozenset()
     for stem, career in careers.items():
         career_basename = f"{stem}.toml"
         if mustering_out_max_total is not None:
-            highest_rank = max(
-                (rank_row.rank for ladder in career.ladders for rank_row in ladder.ranks),
-                default=0,
-            )
-            cash_required = mustering_out_max_total + chargen.mustering_out_retired_cash_dm
+            # Neither table's `dm` is monotonic in rank (research R10 item
+            # 7), so the bound has to cover the highest and lowest `dm` over
+            # every rank the career's ladders can actually reach — rank 0
+            # always included, for a character who never advances — not
+            # just the `dm` at the highest rank (T187 follow-up review).
+            held_ranks = {0} | {
+                rank_row.rank for ladder in career.ladders for rank_row in ladder.ranks
+            }
+            cash_dm = chargen.mustering_out_retired_cash_dm
+            cash_required = mustering_out_max_total + max(0, cash_dm)
             if len(career.mustering_out.cash) < cash_required:
                 problems.append(
                     ValidationProblem(
@@ -876,10 +883,21 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
                         expected=f"at least {cash_required} row(s)",
                     )
                 )
-            material_dm = _highest_matching_rank_row(
-                chargen.mustering_out_material_rank_dm, highest_rank
-            )
-            material_required = mustering_out_max_total + material_dm
+            cash_floor = mustering_out_min_total + min(0, cash_dm)
+            if cash_floor < 1:
+                problems.append(
+                    ValidationProblem(
+                        file=career_basename,
+                        location="mustering-out.cash",
+                        found=f"a lowest possible throw of {cash_floor}",
+                        expected="a lowest possible throw of at least 1",
+                    )
+                )
+            material_dms = [
+                _highest_matching_rank_row(chargen.mustering_out_material_rank_dm, rank)
+                for rank in held_ranks
+            ]
+            material_required = mustering_out_max_total + max(0, max(material_dms))
             if len(career.mustering_out.benefits) < material_required:
                 problems.append(
                     ValidationProblem(
@@ -887,6 +905,16 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
                         location="mustering-out.benefits",
                         found=f"{len(career.mustering_out.benefits)} row(s)",
                         expected=f"at least {material_required} row(s)",
+                    )
+                )
+            material_floor = mustering_out_min_total + min(0, min(material_dms))
+            if material_floor < 1:
+                problems.append(
+                    ValidationProblem(
+                        file=career_basename,
+                        location="mustering-out.benefits",
+                        found=f"a lowest possible throw of {material_floor}",
+                        expected="a lowest possible throw of at least 1",
                     )
                 )
         if career.medical_tier not in tier_names:

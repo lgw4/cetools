@@ -13,6 +13,7 @@ BENEFITS = (_DATA / "registries" / "benefits.toml").read_text(encoding="utf-8")
 TASKS = (_DATA / "tasks.toml").read_text(encoding="utf-8")
 NAVY = (_DATA / "careers" / "navy.toml").read_text(encoding="utf-8")
 SCOUT = (_DATA / "careers" / "scout.toml").read_text(encoding="utf-8")
+CHARGEN = (_DATA / "chargen" / "chargen-parameters.toml").read_text(encoding="utf-8")
 
 VALID_TOML = """
 schema = "task-parameters"
@@ -739,6 +740,50 @@ class TestMusteringOutCoverage:
         assert any(
             p.file == "navy.toml" and p.location == "mustering-out.cash" for p in report.problems
         )
+
+    def test_a_non_monotonic_material_rank_dm_is_bounded_by_every_reachable_rank(self, tmp_path):
+        # `material-rank-dm` is not cumulative (research R10 item 7): the
+        # highest matching row wins, not the row at the highest rank a
+        # career's ladders reach. A rank-1 row can carry a higher `dm` than
+        # a rank-5 row, so the bound has to cover every rank the career can
+        # actually hold, not just the highest one — Navy's officer ladder
+        # holds rank 1 on the way to rank 6.
+        text = CHARGEN.replace(
+            "material-rank-dm = [{ rank = 5, dm = 1 }]",
+            "material-rank-dm = [{ rank = 1, dm = 2 }, { rank = 5, dm = 0 }]",
+            1,
+        )
+        assert text != CHARGEN
+        (tmp_path / "chargen-parameters.toml").write_text(text, encoding="utf-8")
+        report = validate_rules(tmp_path)
+        assert not report.valid
+        matching = [
+            p
+            for p in report.problems
+            if p.file == "navy.toml" and p.location == "mustering-out.benefits"
+        ]
+        assert len(matching) == 1
+        assert "7" in matching[0].found
+        assert "8" in matching[0].expected
+
+    def test_a_negative_retired_cash_dm_that_underflows_row_one_is_rejected(self, tmp_path):
+        # `retired-cash-dm` has no declared minimum (`chargen.py`'s
+        # `_require_int` for it takes no floor), so a negative value can
+        # drive a throw below the table's first row rather than only ever
+        # extending it, which only the ceiling check catches.
+        text = CHARGEN.replace("retired-cash-dm = 1", "retired-cash-dm = -2", 1)
+        assert text != CHARGEN
+        (tmp_path / "chargen-parameters.toml").write_text(text, encoding="utf-8")
+        report = validate_rules(tmp_path)
+        assert not report.valid
+        matching = [
+            p
+            for p in report.problems
+            if p.file == "navy.toml" and p.location == "mustering-out.cash"
+        ]
+        assert len(matching) == 1
+        assert "-1" in matching[0].found
+        assert "1" in matching[0].expected
 
 
 def test_supported_schema_version_is_a_literal_not_derived_from_package_version():
