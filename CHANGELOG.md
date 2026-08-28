@@ -59,6 +59,13 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   reorders the draw sequence: every character a seed produces that serves
   in Navy without commissioning changes from this version forward
   (FR-033, FR-007b, FR-056b, T155).
+
+  **Superseded, in this same unreleased entry**: 004-complete-srd-careers's
+  convergence pass (T095) found the source prints no such rank — "Petty
+  Officer" was invented to exercise this engine path, not transcribed. It
+  is removed; see "Navy's rank ladders are corrected against the source"
+  below. The path it was added to exercise now runs off a unit fixture
+  instead of shipped data.
 - **All eight name tables' entries are replaced.** Every `source` line
   named what kind of names a table held rather than a source a reviewer
   could find and check the terms of, which FR-043e requires. Each file's
@@ -433,6 +440,18 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   rating, is promoted into Navy's officer ladder, or draws Hunter's sixth
   advanced-education row changes from this version forward (FR-024,
   FR-056b).
+- **Belter's material row 3 is corrected against the source.** A second
+  convergence pass (T098) found `belter.toml` carried a repeated `INT +1`
+  at material row 3 where `verification/belter.md` itself already recorded
+  the source's printed value, `Weapon` — the artifact's "committed file"
+  column had drifted from the file it was meant to describe. Read from the
+  source's raw HTML directly, the same treatment T095/T096 used. Any
+  character a seed produces that draws Belter's third material-benefit row
+  changes from this version forward (FR-002, FR-024, FR-056b). The same
+  pass (T099) found a Pirate artifact discrepancy in the other direction —
+  `verification/pirate.md` had recorded rank 0's title as unprinted when
+  the source prints "Crewman" and `pirate.toml` already carried it; only
+  the artifact was corrected, so no Pirate seed's output changes.
 
 ### Added
 
@@ -803,6 +822,15 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   no packaged seed's output changes; an override whose modifier pushes a
   total past even the seventh row now fails cleanly instead of silently
   misreading (FR-016, FR-017, T181, T187).
+
+  **Superseded, in this same unreleased entry**: 004-complete-srd-careers
+  replaces the padded-seventh-row rule with a computed coverage bound
+  (FR-020, FR-021) once transcribing the source literally meant some
+  material tables really do stop at six rows. Seven shipped careers
+  (`athlete`, `barbarian`, `belter`, `drifter`, `entertainer`, `hunter`,
+  `scout`) now carry a six-row `benefits` table rather than a padded
+  seventh; `cash` stays seven rows everywhere, and the out-of-range check
+  still runs, now against the computed bound instead of a fixed length.
 - **The licensing documents a redistributor reads first named every name
   table "this project's own content."** Most of them draw part of their
   entries from CC BY-SA 4.0 Wikipedia or Wiktionary material, or from
@@ -893,3 +921,18 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   `aging.toml` already satisfies both rules, so no packaged seed's output
   changes (FR-013, FR-037, US4 acceptance scenario 4, Constitution V,
   T210).
+- **A skill grant written with an explicit but non-terminal specialty
+  resolved to a name no rule gives a level to.** `Vehicle (Aircraft)` is
+  syntactically valid — `Aircraft` is one of `Vehicle`'s declared
+  specialties — but `Aircraft` is itself a cascade with specialties of its
+  own, so the sheet recorded a compound FR-012 exists to prevent. Resolving
+  a written specialty now continues drawing through it the same way a bare
+  grant already does, landing on the innermost cascade paired with a
+  terminal specialty (e.g. `Aircraft (Winged Aircraft)`) instead of
+  stopping one level early. No shipped career writes an explicit
+  non-terminal specialty, so no packaged seed's output changes; an override
+  that does now draws one more time than it used to (FR-012, T100).
+- **`MusteringOut.benefits`'s declared type omitted `QuantifiedBenefit`,**
+  which `_parse_mustering_out` has placed there and `muster_out_service`
+  has handled since FR-011 landed. No behavior changes; the annotation now
+  matches what the field actually holds (T106).

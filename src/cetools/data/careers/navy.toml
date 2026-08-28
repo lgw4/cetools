@@ -13,8 +13,9 @@
 # silent here, it simply says something else — so both are corrected out.
 # As a consequence, no shipped career's uncommissioned rank exceeds 0 and
 # no shipped rank bonus specifies a specialty; both stay covered by unit
-# fixtures (test_careers.py, test_generator.py) rather than by shipped
-# content.
+# fixtures rather than by shipped content — the specialty-on-a-rank-bonus
+# guard is tests/integration/test_reference_career.py::
+# test_no_shipped_career_specifies_a_specialty_on_a_rank_bonus.
 
 schema = "career"
 schema-version = 4

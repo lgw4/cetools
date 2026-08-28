@@ -2,7 +2,7 @@
 #
 # New career (research.md R1). No commission or advancement; two skill
 # rolls a term instead of one (FR-009). Rank 0 grants a bonus with no
-# title. Material row 6 is a rolled quantity (FR-011).
+# title. Material row 5 is a rolled quantity (FR-011).
 
 schema = "career"
 schema-version = 4

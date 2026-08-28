@@ -19,7 +19,7 @@ source on nearly every field.
 | Advancement (promotion) | Soc 7+ | SOC 7+ | match |
 | Re-enlistment | 6+ | 5+ | **corrected** |
 | Advanced-education gate | Education 8+ | EDU 8+ | match |
-| Medical tier | (service career, per R6) | service | match |
+| Medical tier | 75%/100%/100% bracket ("service"), per the "Table: Medical Bills" row listing Aerospace System Defense, Marine, Maritime System Defense, Navy, Scout, Surface System Defense | service | match |
 | Always-available | not stated | absent (false) | match |
 | Re-enterable | not stated | absent (false) | match |
 | Personal row 1 | +1 Str | STR +1 | match |

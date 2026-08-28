@@ -14,7 +14,7 @@ independent of this feature's transcription pass, per spec.md FR-023.
 | Advancement (promotion) | none | absent | match |
 | Re-enlistment | 5+ | 5+ | match |
 | Advanced-education gate | Education 8+ | EDU 8+ | match |
-| Medical tier | (fringe career, per R6) | fringe | match |
+| Medical tier | 0%/50%/75% bracket ("fringe"), per the "Table: Medical Bills" row listing Barbarian, Belter, Colonist, Drifter, Rogue | fringe | match |
 | Always-available | "the Drifter career is always open" | `always-available = true` | match |
 | Re-enterable | "you can be Drafted into a career you were previously in but got ejected from" is the Draft's own exception; the Drifter career itself is the other named exception to "once you leave a career you cannot return to it" | `re-enterable = true` | match |
 | Personal row 1 | +1 Str | STR +1 | match |

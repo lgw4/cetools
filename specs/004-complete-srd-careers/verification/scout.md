@@ -44,7 +44,13 @@ transcription pass, per spec.md FR-023.
 | Adv. Education 6 | Tactics | Tactics | match |
 | Rank 0 title | (blank — no title printed) | (absent) | match |
 | Rank 0 grant | Pilot-1 (misspelling; skills.html defines "Piloting", never "Pilot") | Piloting 1 | match (FR-017 correction, already applied and confirmed) |
-| Cash 1-7 | 1000, 5000, 10000, 10000, 20000, 50000, 50000 | same | match |
+| Cash row 1 | 1000 | 1000 | match |
+| Cash row 2 | 5000 | 5000 | match |
+| Cash row 3 | 10000 | 10000 | match |
+| Cash row 4 | 10000 | 10000 | match |
+| Cash row 5 | 20000 | 20000 | match |
+| Cash row 6 | 50000 | 50000 | match |
+| Cash row 7 | 50000 | 50000 | match |
 | Material 1 | Low Passage | Low Passage | match |
 | Material 2 | +1 Edu | EDU +1 | match |
 | Material 3 | Weapon | Weapon | match |

@@ -426,13 +426,45 @@ class TestRecursiveCascadeResolution:
             # a second draw — and every one of those is terminal.
             assert len(calls) == 2
 
-    def test_a_reference_that_already_names_a_specialty_draws_nothing(self):
+    def test_a_reference_naming_a_terminal_specialty_draws_nothing(self):
+        from cetools.generator import _resolve_specialty
+        from cetools.notation import SkillReference
+
+        registry = self._registry()
+        reference = SkillReference(name="Aircraft", specialty="Winged Aircraft")
+        assert _resolve_specialty(reference, registry, Roller(0)) is reference
+
+    def test_a_reference_naming_a_non_terminal_specialty_continues_resolution(self):
+        # T100: a grant written as `Vehicle (Aircraft)` names a specialty
+        # that is itself a cascade. FR-012 forbids a sheet from ever
+        # carrying that compound, so resolution continues through it rather
+        # than stopping at the written-but-non-terminal pair.
         from cetools.generator import _resolve_specialty
         from cetools.notation import SkillReference
 
         registry = self._registry()
         reference = SkillReference(name="Vehicle", specialty="Aircraft")
-        assert _resolve_specialty(reference, registry, Roller(0)) is reference
+        seen = set()
+        for seed in range(50):
+            resolved = _resolve_specialty(reference, registry, Roller(seed))
+            assert resolved.name == "Aircraft"
+            assert resolved.specialty in registry.skills["Aircraft"]
+            seen.add(resolved.specialty)
+        assert seen == {"Winged Aircraft", "Grav Vehicle"}
+
+    def test_continuing_past_a_non_terminal_specialty_costs_exactly_one_draw(self):
+        from cetools.generator import _resolve_specialty
+        from cetools.notation import SkillReference
+
+        registry = self._registry()
+        reference = SkillReference(name="Vehicle", specialty="Aircraft")
+        for seed in range(50):
+            roller = Roller(seed)
+            calls = []
+            original_die = roller.die
+            roller.die = lambda sides, _orig=original_die: (calls.append(sides), _orig(sides))[1]
+            _resolve_specialty(reference, registry, roller)
+            assert len(calls) == 1
 
     def test_a_terminal_bare_grant_draws_nothing_and_stays_unspecialized(self):
         from cetools.generator import _resolve_specialty

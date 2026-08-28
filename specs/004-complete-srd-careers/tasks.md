@@ -802,3 +802,115 @@ as recorded.
       by `tests/integration/test_golden.py`'s existing re-run-and-compare check, which passes
       unchanged). `README.md` needs no third regeneration and SC-006's "exactly twice" count
       still holds.
+
+---
+
+## Phase 10: Convergence
+
+**Purpose**: Two shipped career files disagree with their own verification artifacts, which is
+the one thing FR-025 leaves nothing else to catch: acceptance rests on the artifacts, and an
+artifact recording a value the file does not hold verifies nothing. The rest are smaller gaps of
+the same kind — a re-read that read a working note instead of the source, release notes made
+false by this feature's own corrections, and one override-visible hole in cascade resolution.
+The suite is green (1336 passed) and `uv run cetools validate` is clean (`Files: 42`); none of
+these findings is a failing check, which is why they survived Phase 9.
+
+**⚠️ T098 and T099 will change career data files.** The `cetools npc --seed table-of-twelve
+--count 3` block pinned in `README.md` moves a third time if either changed career appears in it,
+which SC-006 pins at exactly twice. Check the pinned block before regenerating; if it does move,
+raise the SC-006 conflict explicitly rather than regenerating in passing, exactly as T097 did.
+
+- [X] T098 Settle Belter's material row 3 per FR-002, FR-023a, and SC-005 (contradicts).
+      `src/cetools/data/careers/belter.toml:55` holds
+      `["Low Passage", "INT +1", "INT +1", "Mid Passage", "1d6 Ship Share", "High Passage"]` —
+      row 3 repeats row 2 — while
+      `specs/004-complete-srd-careers/verification/belter.md:55` records
+      `| Material row 3 | Weapon | Weapon | match |`, and `verification/index.md:32` reports
+      Belter's only corrections as specialist rows 3 and 5. One of the two is wrong and the
+      artifact cannot settle it, because its "committed file" column does not describe the
+      committed file. Read Belter's mustering-out material table from the source page's raw HTML
+      (the summarizing fetch tool is what produced the T095/T096 ambiguities), correct
+      `belter.toml` or the artifact row to what the source prints, and update `index.md:32` if the
+      correction set changes
+- [X] T099 Settle Pirate's rank 0 title per FR-007, FR-023a, and SC-005 (contradicts).
+      `src/cetools/data/careers/pirate.toml:53` carries
+      `{ rank = 0, title = "Crewman", bonus = "Gunnery 1" }` while
+      `verification/pirate.md:45` records `| Rank 0 title | (none printed) | (absent) | match |`
+      and `index.md:46` reports Pirate a clean match. Read the source's Pirate rank row from raw
+      HTML: if it prints no title, the file carries an invented title, which SC-005 forbids
+      outright and FR-007 requires written by omitting the key; if it prints "Crewman", the
+      artifact's source *and* committed columns are both wrong and the verdict is unearned. Fix
+      whichever is wrong and update `index.md:46`
+- [X] T100 Close the cascade-resolution hole for a specialty written explicitly in data per
+      FR-012 (partial). `_resolve_specialty` returns the reference unchanged when
+      `reference.specialty is not None` (`src/cetools/generator.py:88-89`), and
+      `SkillRegistry.resolve` accepts any declared specialty without asking whether that specialty
+      is itself a cascade (`src/cetools/registries.py:112-118`). A grant of `Vehicle (Aircraft)`
+      therefore records `Vehicle (Aircraft)` on the sheet — a name no rule gives a level to, which
+      is the outcome FR-012 exists to prevent. No shipped file reaches it, so this is an override
+      author's hole and US4's audience is exactly override authors: either continue resolution
+      through a written-but-non-terminal specialty, or reject one at validation naming the file,
+      the location, and the name. Test first, per Constitution III
+- [X] T101 Re-read the medical-care tier from the source for the six careers whose artifacts cite
+      a working note instead per FR-023 and FR-006a (partial).
+      `verification/colonist.md:17`, `diplomat.md:17`, `drifter.md:17`, `entertainer.md:17`,
+      `hunter.md:17`, and `marine.md:22` record the Source column as `(<tier> career, per R6)` — a
+      reference to this feature's own `research.md`. FR-023 forbids exactly that substitution, and
+      `verification/index.md:8` asserts flatly that no artifact in the directory reconstructs from
+      `research.md` or any other working note. The other eighteen record the source's printed
+      bracket (compare `navy.md:17`, "Tier 1 (75% at 4+, 100% at 8+)"). Read the source's
+      medical-care table, record its printed value in each of the six, and either the claim at
+      `index.md:8` becomes true or it is narrowed to what is true
+- [X] T102 Reconcile the two `CHANGELOG.md` statements this feature made false, within the same
+      unreleased entry, per FR-029 (contradicts). The whole file is one `## 2026.08.1
+      (unreleased)` section, so both ship as this release's notes. `CHANGELOG.md:52-61` announces
+      that "`navy.toml`'s enlisted ladder gains a rank above zero" and that adding rank 5 ("Petty
+      Officer") reorders the draw for every uncommissioned Navy term — T095 removed that rank as
+      an invented value the source does not print. `CHANGELOG.md:796-805` states "Every career's
+      `cash` and `benefits` tables now carry a seventh row, repeating the sixth" — FR-010 forbids
+      the padded row and seven shipped careers now carry six-row material tables. Correct both
+      without rewriting the released history around them
+- [X] T103 Give every mustering-out cash row its own enumerated verdict per FR-002 and FR-023a
+      (partial). `verification/pirate.md:59`, `rogue.md:58`, `scientist.md:58`, `scout.md:47`,
+      `surface-system-defense.md:58`, and `technician.md:58` collapse all seven rows into one
+      `| Cash 1-7 | … | same | match |` line, which is the whole-block assertion FR-002 rules out
+      in as many words ("MUST NOT be asserted for a file as a whole"). The values themselves check
+      out against the committed files, so this is a record-form gap: expand each to seven rows
+      with seven verdicts. In the same pass add the blank seventh material row `hunter.md` omits
+      after `Material row 6` (line 59) — the five other short-table careers all carry it
+      (`athlete.md:59`, `barbarian.md:59`, `belter.md:59`, `scout.md:54`, and `entertainer.md`),
+      and FR-023a requires a row the source leaves blank to get a field and a verdict of its own
+- [X] T104 Correct two in-file notes that point at the wrong place per FR-017 and FR-024 (partial).
+      `src/cetools/data/careers/navy.toml:16` says the two engine paths T095 removed from shipped
+      content "stay covered by unit fixtures (test_careers.py, test_generator.py)"; the
+      specialty-on-a-rank-bonus guard is
+      `tests/integration/test_reference_career.py:159`, which `verification/navy.md:107` names
+      correctly. `src/cetools/data/careers/hunter.toml:5` says "Material row 6 is a rolled
+      quantity (FR-011)"; the `1d6 Ship Share` is row 5 (`hunter.toml:49`). A note that sends a
+      reader to a file with no such test is worse than no note
+- [X] T105 Add the FR-032 cross-reference at the two remaining points in
+      `specs/003-npc-generator/spec.md` where its rule now reads false of shipped behavior
+      (partial). The cross-reference at `:1153` is correct and complete, but `:836` FR-048
+      ("Noble titles MUST NOT be rendered, on either the name or elsewhere") and the edge case at
+      `:399` ("What happens when a character's career grants a noble title? It is not rendered.")
+      stand unqualified, and Noble's ladder titles now render as ordinary rank titles. Leave both
+      texts intact as the record of what was decided then, per FR-032, and point each at the
+      superseding passage
+- [X] T106 Add `QuantifiedBenefit` to the `MusteringOut.benefits` annotation per FR-011 (partial).
+      `src/cetools/careers.py:100` declares `tuple[BenefitItem | CharacteristicAdjustment, ...]`,
+      but `_parse_mustering_out` places `QuantifiedBenefit` values in it and `muster_out_service`
+      handles them. No type checker runs here (`tests/guards/test_lint_commands.py` pins black,
+      isort, and flake8 only), so the declared shape is simply wrong with nothing to catch it
+- [X] T107 After T098–T106, run `uv run pytest -q` and `uv run cetools validate` and confirm both
+      clean. If T098 or T099 changed a career file, add the `CHANGELOG.md` entry for the corrected
+      value in the same commit and settle the SC-006 regeneration question explicitly — check the
+      pinned `--seed table-of-twelve --count 3` block against a fresh run rather than regenerating
+      it in passing
+
+      Only `belter.toml` changed (T098; T099 corrected the artifact, not `pirate.toml`).
+      `uv run pytest -q` passes 1338/1338 and `uv run cetools validate` reports clean
+      (`Files: 42`). The SC-006 conflict does not arise: Belter does not appear in the README's
+      pinned `cetools npc --seed table-of-twelve --count 3` block (Scientist, Diplomat/Bureaucrat,
+      Marine), and a fresh run of that exact command is byte-identical to the committed block —
+      confirmed directly and by `tests/integration/test_golden.py`'s re-run-and-compare check,
+      which passes unchanged. `README.md` needs no third regeneration.

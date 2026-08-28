@@ -8,7 +8,8 @@
 # quantity (FR-011). Phase 7 verification (verification/belter.md) found
 # the specialist table's rows 3 and 5 swapped: the source prints
 # `Gun Combat` at row 3 and `Sciences` at row 5, not `Sciences` at row 3
-# and a repeated `Vehicle` at row 5.
+# and a repeated `Vehicle` at row 5. Phase 10 (T098) found material row 3
+# had been left as a repeated `INT +1`; the source prints `Weapon` there.
 
 schema = "career"
 schema-version = 4
@@ -52,4 +53,4 @@ ranks = [
 
 [mustering-out]
 cash = [1000, 5000, 5000, 5000, 10000, 20000, 50000]
-benefits = ["Low Passage", "INT +1", "INT +1", "Mid Passage", "1d6 Ship Share", "High Passage"]
+benefits = ["Low Passage", "INT +1", "Weapon", "Mid Passage", "1d6 Ship Share", "High Passage"]

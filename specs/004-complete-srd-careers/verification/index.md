@@ -29,7 +29,7 @@ every artifact.
 | agent | [agent.md](agent.md) | yes | Match. |
 | athlete | [athlete.md](athlete.md) | yes | Match. |
 | barbarian | [barbarian.md](barbarian.md) | yes | Corrected — service table (rows 1-6) and material row 4. |
-| belter | [belter.md](belter.md) | yes | Corrected — specialist rows 3 and 5. |
+| belter | [belter.md](belter.md) | yes | Corrected — specialist rows 3 and 5; material row 3 (T098). |
 | bureaucrat | [bureaucrat.md](bureaucrat.md) | yes | Match. |
 | colonist | [colonist.md](colonist.md) | yes | Corrected — advanced-education row 2. |
 | diplomat | [diplomat.md](diplomat.md) | yes | Match. |
@@ -43,7 +43,7 @@ every artifact.
 | navy | [navy.md](navy.md) | yes | Corrected — the rank table. The source prints one rank column, 0-6, not the two overlapping columns the file previously carried; removed the invented "Petty Officer" rank and the invented specified specialty on Midshipman's grant. |
 | noble | [noble.md](noble.md) | yes | Corrected — rank 0's title and bonus grant. |
 | physician | [physician.md](physician.md) | yes | Match. |
-| pirate | [pirate.md](pirate.md) | yes | Match, including cross-verification of the existing "Pilot" → "Piloting" correction against `skills.html`. |
+| pirate | [pirate.md](pirate.md) | yes | Match (T099 corrected the artifact's rank 0 title row, not the file — `pirate.toml` already carried `Crewman`), including cross-verification of the existing "Pilot" → "Piloting" correction against `skills.html`. |
 | rogue | [rogue.md](rogue.md) | yes | Match. |
 | scientist | [scientist.md](scientist.md) | yes | Match. |
 | scout | [scout.md](scout.md) | yes | Match, including cross-verification of the existing "Pilot" → "Piloting" correction against `skills.html`. |

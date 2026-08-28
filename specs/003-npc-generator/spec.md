@@ -399,6 +399,11 @@ value on its own as the house-rule path for all character generation.
 - What happens when a character's career grants a noble title? It is not rendered. Choosing
   between the source's printed forms requires a gender the source itself files as pure color,
   and emitting only one form would render every titled NPC a Baron and never a Baroness.
+
+  **Superseded in part by 004-complete-srd-careers** (see the "Noble titles" exclusion below for
+  the full note): a career's rank-ladder title, Noble's included, is not the gendered
+  Social-Standing form this edge case is about, and is rendered like any other career's rank
+  title.
 - What happens when the same seed is used on a machine with a different locale? The same
   bytes are produced, because the skill ordering the format requires is sorted
   locale-independently.
@@ -834,6 +839,12 @@ value on its own as the house-rule path for all character generation.
   unconditionally per FR-050, the three name parts present and empty for a supplied name and
   the title present and empty for a character no career titled.
 - **FR-048**: Noble titles MUST NOT be rendered, on either the name or elsewhere.
+
+  **Superseded in part by 004-complete-srd-careers** (see the "Noble titles" exclusion below for
+  the full note): that feature's Noble *career* carries an ordinary rank-ladder title (Knight,
+  Baron, Marquis, ...), rendered the same way every other career's rank title is. This requirement
+  is about the source's separate Social-Standing nobility track, which stays unimplemented and
+  therefore unrendered.
 - **FR-048a**: In either text rendering, consecutive character sheets in a batch MUST be
   separated by exactly one blank line and by nothing else. No index, count, seed, or other header
   may be written between or above sheets, because every byte on standard output in text mode

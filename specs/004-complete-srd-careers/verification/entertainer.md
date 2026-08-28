@@ -14,7 +14,7 @@ independent of this feature's transcription pass, per spec.md FR-023.
 | Advancement (promotion) | none | absent | match |
 | Re-enlistment | 6+ | 6+ | match |
 | Advanced-education gate | Education 8+ | EDU 8+ | match |
-| Medical tier | (professional career, per R6) | professional | match |
+| Medical tier | 50%/75%/100% bracket ("professional"), per the "Table: Medical Bills" row listing Agent, Athlete, Bureaucrat, Diplomat, Entertainer, Hunter, Mercenary, Merchant, Noble, Physician, Pirate, Scientist, Technician | professional | match |
 | Always-available | not stated | absent (false) | match |
 | Re-enterable | not stated | absent (false) | match |
 | Personal row 1 | +1 Dex | DEX +1 | match |

@@ -52,7 +52,7 @@ independent of this feature's transcription pass, per spec.md FR-023.
 | Cash row 7 | 50000 | 50000 | match |
 | Material row 1 | Low Passage | Low Passage | match |
 | Material row 2 | +1 Int | INT +1 | match |
-| Material row 3 | Weapon | Weapon | match |
+| Material row 3 | Weapon | INT +1 | **corrected**: `Weapon` |
 | Material row 4 | Mid Passage | Mid Passage | match |
 | Material row 5 | 1D6 Ship Shares (→ `1d6 Ship Share`, FR-011/FR-015a) | 1d6 Ship Share | match |
 | Material row 6 | High Passage | High Passage | match |
@@ -71,3 +71,11 @@ request and a table-only single-fact request) both return
 committed file carries `Zero-G, Electronics, Sciences, Prospecting, Vehicle, Vehicle` — `Sciences`
 one row early and `Vehicle` repeated at the end instead of `Gun Combat` appearing at all. Corrected
 to the source's order.
+
+**Phase 10 (T098)**: a re-read of the Material Benefits table from the source's raw HTML (the
+"Athlete-Bureaucrat" tab's Belter column at `character-creation.html`) found the committed file
+carried a repeated `INT +1` at row 3 rather than the source's `Weapon`; this table's row 3 line
+above previously recorded `Weapon` against both columns, which did not describe the committed
+file. Corrected `belter.toml` to `Weapon`; this row was not part of the correction set this
+artifact's Notes originally described, so `index.md` now names material row 3 alongside the
+specialist-table correction.

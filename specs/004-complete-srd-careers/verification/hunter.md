@@ -14,7 +14,7 @@ independent of this feature's transcription pass, per spec.md FR-023.
 | Advancement (promotion) | none | absent | match |
 | Re-enlistment | 6+ | 6+ | match |
 | Advanced-education gate | Education 8+ | EDU 8+ | match |
-| Medical tier | (professional career, per R6) | professional | match |
+| Medical tier | 50%/75%/100% bracket ("professional"), per the "Table: Medical Bills" row listing Agent, Athlete, Bureaucrat, Diplomat, Entertainer, Hunter, Mercenary, Merchant, Noble, Physician, Pirate, Scientist, Technician | professional | match |
 | Always-available | not stated | absent (false) | match |
 | Re-enterable | not stated | absent (false) | match |
 | Personal row 1 | +1 Str | STR +1 | match |
@@ -57,6 +57,7 @@ independent of this feature's transcription pass, per spec.md FR-023.
 | Material row 4 | High Passage | High Passage | match |
 | Material row 5 | 1D6 Ship Shares | 1d6 Ship Share | match (FR-011/FR-015a: quantified notation, prose's singular form) |
 | Material row 6 | High Passage | High Passage | match |
+| Material row 7 | — (dash, no item) | (row omitted; file carries 6 rows) | match |
 
 ## Notes
 

@@ -14,7 +14,7 @@ independent of this feature's transcription pass, per spec.md FR-023.
 | Advancement (promotion) | Edu 6+ | EDU 6+ | match |
 | Re-enlistment | 5+ | 5+ | match |
 | Advanced-education gate | Education 8+ | EDU 8+ | match |
-| Medical tier | (fringe career, per R6) | fringe | match |
+| Medical tier | 0%/50%/75% bracket ("fringe"), per the "Table: Medical Bills" row listing Barbarian, Belter, Colonist, Drifter, Rogue | fringe | match |
 | Always-available | not stated | absent (false) | match |
 | Re-enterable | not stated | absent (false) | match |
 | Personal row 1 | +1 Str | STR +1 | match |

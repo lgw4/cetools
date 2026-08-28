@@ -55,7 +55,13 @@ independent of this feature's transcription pass, per spec.md FR-023.
 | Rank 5 grant | (none) | (absent) | match |
 | Rank 6 title | General | General | match |
 | Rank 6 grant | (none) | (absent) | match |
-| Cash 1-7 | 1000, 5000, 10000, 10000, 20000, 50000, 50000 | same | match |
+| Cash row 1 | 1000 | 1000 | match |
+| Cash row 2 | 5000 | 5000 | match |
+| Cash row 3 | 10000 | 10000 | match |
+| Cash row 4 | 10000 | 10000 | match |
+| Cash row 5 | 20000 | 20000 | match |
+| Cash row 6 | 50000 | 50000 | match |
+| Cash row 7 | 50000 | 50000 | match |
 | Material 1 | Low Passage | Low Passage | match |
 | Material 2 | +1 Int | INT +1 | match |
 | Material 3 | Weapon | Weapon | match |

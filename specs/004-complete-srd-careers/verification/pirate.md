@@ -42,7 +42,7 @@ transcription pass, per spec.md FR-023.
 | Adv. Education 4 | Medicine | Medicine | match |
 | Adv. Education 5 | Advocate | Advocate | match |
 | Adv. Education 6 | Tactics | Tactics | match |
-| Rank 0 title | (none printed) | (absent) | match |
+| Rank 0 title | Crewman | Crewman | match |
 | Rank 0 grant | Gunnery-1 | Gunnery 1 | match |
 | Rank 1 title | Corporal | Corporal | match |
 | Rank 1 grant | (none) | (absent) | match |
@@ -56,7 +56,13 @@ transcription pass, per spec.md FR-023.
 | Rank 5 grant | (none) | (absent) | match |
 | Rank 6 title | Commodore | Commodore | match |
 | Rank 6 grant | (none) | (absent) | match |
-| Cash 1-7 | 1000, 5000, 10000, 20000, 20000, 50000, 100000 | same | match |
+| Cash row 1 | 1000 | 1000 | match |
+| Cash row 2 | 5000 | 5000 | match |
+| Cash row 3 | 10000 | 10000 | match |
+| Cash row 4 | 20000 | 20000 | match |
+| Cash row 5 | 20000 | 20000 | match |
+| Cash row 6 | 50000 | 50000 | match |
+| Cash row 7 | 100000 | 100000 | match |
 | Material 1 | Low Passage | Low Passage | match |
 | Material 2 | +1 Int | INT +1 | match |
 | Material 3 | Weapon | Weapon | match |
@@ -76,4 +82,12 @@ Rank 2's grant was independently re-verified against skills.html, which defines 
 "Piloting" and no skill named "Pilot" — confirming the file's existing FR-017 correction note is
 itself correct, not merely asserted.
 
-No corrections or deviations found for this career.
+**Phase 10 (T099)**: a re-read of the "Pirate-Technician" tab's rank table at
+`character-creation.html` found the source prints rank 0 as `Crewman [Gunnery-1]` — a title is
+printed. The Rank 0 title row above previously recorded `(none printed)` / `(absent)` / `match`,
+which described neither the source nor the committed file (`pirate.toml` has always carried
+`title = "Crewman"`). Corrected the row to what both the source and the file actually say; no
+data file change was needed.
+
+No corrections to `pirate.toml` were found for this career; the row above was a record-keeping
+error in this artifact, not a value the file had wrong.

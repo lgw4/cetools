@@ -97,7 +97,7 @@ class RankLadder:
 @dataclass(frozen=True, slots=True)
 class MusteringOut:
     cash: tuple[int, ...]
-    benefits: tuple[BenefitItem | CharacteristicAdjustment, ...]
+    benefits: tuple[BenefitItem | CharacteristicAdjustment | QuantifiedBenefit, ...]
 
 
 @dataclass(frozen=True, slots=True)

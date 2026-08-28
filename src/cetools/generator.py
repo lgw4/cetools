@@ -80,17 +80,25 @@ def _resolve_specialty(
     """Cascade rule (FR-011, FR-012, D5): choose a permitted specialty
     uniformly at random when the grant names none and the registry gives the
     skill any, continuing into a chosen specialty that is itself a cascade
-    until reaching one with no specialties of its own. Each nesting level
-    costs one draw; the recorded reference is the innermost cascade paired
-    with a terminal specialty, never the outer name and never a bare
+    until reaching one with no specialties of its own. The same continuation
+    applies when the grant already names a specialty that is itself a
+    cascade (T100): a written `Vehicle (Aircraft)` is not terminal, so
+    resolution keeps drawing from `Aircraft`'s specialties rather than
+    stopping on a pair FR-012 forbids a sheet from carrying. Each nesting
+    level costs one draw; the recorded reference is the innermost cascade
+    paired with a terminal specialty, never an outer name and never a bare
     terminal.
     """
     if reference.specialty is not None:
-        return reference
-    name = reference.name
-    specialties = skills.skills.get(name, ())
-    if not specialties:
-        return reference
+        name = reference.specialty
+        specialties = skills.skills.get(name, ())
+        if not specialties:
+            return reference
+    else:
+        name = reference.name
+        specialties = skills.skills.get(name, ())
+        if not specialties:
+            return reference
     while True:
         specialty = specialties[roller.die(len(specialties)) - 1]
         nested = skills.skills.get(specialty, ())
