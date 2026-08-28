@@ -77,7 +77,7 @@ def _table_row(file: str, rows: object, total: int):
 def _resolve_specialty(
     reference: SkillReference, skills: SkillRegistry, roller: Roller
 ) -> SkillReference:
-    """Cascade rule (FR-011, FR-012, D5): choose a permitted specialty
+    """Cascade rule (FR-012, D5): choose a permitted specialty
     uniformly at random when the grant names none and the registry gives the
     skill any, continuing into a chosen specialty that is itself a cascade
     until reaching one with no specialties of its own. The same continuation

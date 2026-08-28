@@ -1,7 +1,7 @@
 # Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
 #
-# New career (research.md R1). Rank 2's title is corrected from the
-# source's misprinted "Pilot" to "Piloting" (FR-017, D9).
+# New career (research.md R1). Rank 2's bonus/grant skill is corrected
+# from the source's misprinted "Pilot" to "Piloting" (FR-017, D9).
 
 schema = "career"
 schema-version = 4
