@@ -1,0 +1,48 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# New career (research.md R1). No commission or advancement; two skill
+# rolls a term instead of one (FR-009). Rank 0 grants a bonus with no title.
+
+schema = "career"
+schema-version = 4
+
+name = "Athlete"
+medical-tier = "professional"
+
+[throws.qualification]
+characteristic = "END"
+target = 8
+dice = "2d6"
+
+[throws.survival]
+characteristic = "DEX"
+target = 5
+dice = "2d6"
+
+[throws.re-enlistment]
+target = 6
+dice = "2d6"
+
+[tables.personal]
+entries = ["DEX +1", "INT +1", "EDU +1", "SOC +1", "Carousing", "Melee Combat"]
+
+[tables.service]
+entries = ["Athletics", "Admin", "Carousing", "Computer", "Gambling", "Vehicle"]
+
+[tables.specialist]
+entries = ["Zero-G", "Athletics", "Athletics", "Computer", "Leadership", "Gambling"]
+
+[tables.advanced-education]
+requires = "EDU 8+"
+entries = ["Advocate", "Computer", "Liaison", "Linguistics", "Medicine", "Sciences"]
+
+[[ladders]]
+name = "athlete"
+role = "entry"
+ranks = [
+  { rank = 0, bonus = "Athletics 1" },
+]
+
+[mustering-out]
+cash = [2000, 10000, 20000, 20000, 50000, 100000, 100000]
+benefits = ["Low Passage", "INT +1", "Weapon", "High Passage", "Explorers' Society", "High Passage"]

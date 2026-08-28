@@ -226,6 +226,25 @@ def test_every_key_present_unconditionally_for_a_supplied_name_and_empty_benefit
     assert payload["pension"] == 0
 
 
+def test_an_untitled_rank_keeps_title_a_present_string():
+    # FR-009, D2: absence of a title stays `""`, never null and never
+    # dropped from the document.
+    untitled = dataclasses.replace(_CHARACTER, title="")
+    payload = as_dict(untitled)
+    assert payload["title"] == ""
+    assert "title" in payload
+
+
+def test_a_rolled_ship_share_quantity_carries_no_quantity_field():
+    # FR-011: the walk rolls the quantity and appends the item name that
+    # many times; the contract stays untouched — `benefits` is still a flat
+    # array of plain strings, with no quantity field anywhere in the shape.
+    tripled = dataclasses.replace(_CHARACTER, benefits=("Ship Share", "Ship Share", "Ship Share"))
+    payload = as_dict(tripled)
+    assert payload["benefits"] == ["Ship Share", "Ship Share", "Ship Share"]
+    assert all(isinstance(item, str) for item in payload["benefits"])
+
+
 def test_json_is_indent_two_with_a_trailing_newline():
     text = as_json(_BATCH)
     assert text.endswith("}\n")

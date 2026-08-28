@@ -1,0 +1,77 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# New career (research.md R1). The source's separate Social-Standing
+# nobility table (a track for characters already noble by birth) is
+# unimplemented (FR-031); whatever eventually implements it must
+# reconcile with these ranks and titles, not duplicate them. Phase 7
+# verification (verification/noble.md) found rank 0 wrongly carried
+# neither title nor bonus; the source prints "Courtier [Carousing-1]"
+# there. This does not put Noble among the seven wholly-untitled careers
+# (FR-008, T076/T076a): its other ranks are already titled, and that
+# invariant is about a ladder with no titles at all.
+
+schema = "career"
+schema-version = 4
+
+name = "Noble"
+medical-tier = "professional"
+
+[throws.qualification]
+characteristic = "SOC"
+target = 8
+dice = "2d6"
+
+[throws.survival]
+characteristic = "SOC"
+target = 4
+dice = "2d6"
+
+[throws.commission]
+characteristic = "EDU"
+target = 5
+dice = "2d6"
+
+[throws.promotion]
+characteristic = "INT"
+target = 8
+dice = "2d6"
+
+[throws.re-enlistment]
+target = 6
+dice = "2d6"
+
+[tables.personal]
+entries = ["DEX +1", "INT +1", "EDU +1", "SOC +1", "Carousing", "Melee Combat"]
+
+[tables.service]
+entries = ["Athletics", "Admin", "Carousing", "Leadership", "Gambling", "Vehicle"]
+
+[tables.specialist]
+entries = ["Computer", "Carousing", "Gun Combat", "Melee Combat", "Liaison", "Animals"]
+
+[tables.advanced-education]
+requires = "EDU 8+"
+entries = ["Advocate", "Computer", "Liaison", "Linguistics", "Medicine", "Sciences"]
+
+[[ladders]]
+name = "junior"
+role = "entry"
+ranks = [
+  { rank = 0, title = "Courtier", bonus = "Carousing 1" },
+]
+
+[[ladders]]
+name = "officer"
+role = "commissioned"
+ranks = [
+  { rank = 1, title = "Knight" },
+  { rank = 2, title = "Baron" },
+  { rank = 3, title = "Marquis" },
+  { rank = 4, title = "Count", bonus = "Advocate 1" },
+  { rank = 5, title = "Duke" },
+  { rank = 6, title = "Archduke" },
+]
+
+[mustering-out]
+cash = [2000, 10000, 20000, 20000, 50000, 100000, 100000]
+benefits = ["High Passage", "EDU +1", "INT +1", "High Passage", "Explorers' Society", "High Passage", "1d6 Ship Share"]

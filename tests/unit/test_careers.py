@@ -112,7 +112,7 @@ def valid_data():
                 "role": "entry",
                 "ranks": [
                     {"rank": 1, "title": "Able Spacehand"},
-                    {"rank": 5, "title": "Petty Officer", "bonus": "Mechanical 1"},
+                    {"rank": 2, "title": "Petty Officer", "bonus": "Mechanical 1"},
                     {"rank": 0, "title": "Recruit"},
                 ],
             },
@@ -299,6 +299,47 @@ class TestOptionalElements:
         assert problems == ()
         assert career.tables["advanced-education"].requires is None
 
+    def test_rank_title_may_be_absent_and_defaults_to_the_empty_string(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        # FR-007, FR-013, D2: absence is written by omitting the key, not by
+        # writing an empty value, and the rank the source prints nothing for
+        # (Drifter's rank 0) has neither title nor bonus.
+        data = copy.deepcopy(valid_data)
+        del data["ladders"][0]["ranks"][2]["title"]
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert problems == ()
+        rank_zero = next(r for r in career.ladders[0].ranks if r.rank == 0)
+        assert rank_zero.title == ""
+        assert rank_zero.bonus is None
+
+
+class TestQuantifiedMusteringOutBenefit:
+    """FR-011: `mustering-out.benefits` admits the dice-quantity notation
+    form, resolving its name against the benefits registry exactly as a
+    bare item does.
+    """
+
+    def test_a_quantified_row_parses_and_resolves(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        from cetools.notation import QuantifiedBenefit
+
+        data = copy.deepcopy(valid_data)
+        data["mustering-out"]["benefits"][0] = "1d6 Ship Share"
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert problems == ()
+        assert career.mustering_out.benefits[0] == QuantifiedBenefit(dice="1d6", name="Ship Share")
+
+    def test_an_unresolvable_quantified_name_is_reported(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        data = copy.deepcopy(valid_data)
+        data["mustering-out"]["benefits"][0] = "1d6 Not A Real Benefit"
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "mustering-out.benefits[0]" in _problem_locations(problems)
+
 
 class TestClosedNameSets:
     def test_unrecognized_throw_key_is_rejected(
@@ -318,6 +359,30 @@ class TestClosedNameSets:
         career, problems = parse_career(data, FILE, characteristics, skills, benefits)
         assert career is None
         assert "tables.sevice" in _problem_locations(problems)
+
+    def test_re_enlistment_declaring_a_characteristic_is_rejected(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        # FR-013a, D1: no source career modifies re-enlistment by a
+        # characteristic, and the walk never reads the field for that throw,
+        # so admitting it let an override declare a modifier the engine
+        # silently drops.
+        data = copy.deepcopy(valid_data)
+        data["throws"]["re-enlistment"]["characteristic"] = "SOC"
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "throws.re-enlistment.characteristic" in _problem_locations(problems)
+        matching = next(p for p in problems if p.location == "throws.re-enlistment.characteristic")
+        assert "target" in matching.expected
+        assert "dice" in matching.expected
+
+    def test_the_other_four_throw_positions_still_admit_a_characteristic(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        career, problems = parse_career(valid_data, FILE, characteristics, skills, benefits)
+        assert problems == ()
+        for position in ("qualification", "survival", "commission", "promotion"):
+            assert career.throws[position].characteristic is not None
 
 
 class TestThrowTargets:
@@ -375,14 +440,59 @@ class TestRankPositions:
         # same thing.
         data = copy.deepcopy(valid_data)
         data["ladders"][0]["ranks"] = [
-            {"rank": 5, "title": "Petty Officer"},
+            {"rank": 2, "title": "Petty Officer"},
             {"rank": 1, "title": "Able Spacehand"},
             {"rank": 0, "title": "Recruit"},
         ]
         career, problems = parse_career(data, FILE, characteristics, skills, benefits)
         assert problems == ()
         enlisted = next(ladder for ladder in career.ladders if ladder.name == "enlisted")
-        assert [rank.rank for rank in enlisted.ranks] == [0, 1, 5]
+        assert [rank.rank for rank in enlisted.ranks] == [0, 1, 2]
+
+
+class TestRankPositionsAreContiguous:
+    """FR-019: a rank ladder's positions must be contiguous from its base
+    (lowest) position, so the generation walk's next-declared-rank
+    advancement (`ranks_above[0]`, generator.py) never has to skip past a
+    rank an author simply forgot, and the milestone shape the schema allows
+    an empty row to express (D2, FR-007) is what a gap is spelled with.
+    """
+
+    def test_a_gap_in_the_middle_of_a_ladder_is_rejected(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        data = copy.deepcopy(valid_data)
+        data["ladders"][1]["ranks"] = [
+            {"rank": 1, "title": "Ensign"},
+            {"rank": 3, "title": "Lieutenant"},
+        ]
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "ladders[1].ranks" in _problem_locations(problems)
+
+    def test_a_gap_above_the_entry_ladders_rank_0_is_rejected(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        data = copy.deepcopy(valid_data)
+        data["ladders"][0]["ranks"] = [
+            {"rank": 0, "title": "Recruit"},
+            {"rank": 5, "title": "Petty Officer"},
+        ]
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        assert "ladders[0].ranks" in _problem_locations(problems)
+
+    def test_a_fully_contiguous_ladder_is_accepted(
+        self, valid_data, characteristics, skills, benefits
+    ):
+        data = copy.deepcopy(valid_data)
+        data["ladders"][1]["ranks"] = [
+            {"rank": 1, "title": "Ensign"},
+            {"rank": 2, "title": "Lieutenant"},
+            {"rank": 3, "title": "Lt Commander"},
+        ]
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert problems == ()
 
 
 class TestDistinctLadderNames:
@@ -554,16 +664,6 @@ class TestRequiredSubKeys:
         career, problems = parse_career(data, FILE, characteristics, skills, benefits)
         assert career is None
         assert "ladders[0].ranks[0].rank" in _problem_locations(problems)
-
-    def test_a_rank_without_its_title_is_rejected(
-        self, valid_data, characteristics, skills, benefits
-    ):
-        # FR-016: each rank carries "its title".
-        data = copy.deepcopy(valid_data)
-        del data["ladders"][0]["ranks"][0]["title"]
-        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
-        assert career is None
-        assert "ladders[0].ranks[0].title" in _problem_locations(problems)
 
     def test_a_ladder_without_a_name_is_rejected(
         self, valid_data, characteristics, skills, benefits

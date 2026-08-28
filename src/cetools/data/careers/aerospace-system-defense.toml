@@ -1,0 +1,74 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# Draft row 1. Reconciled against the source (research.md R7): the throws,
+# every skill table, the rank ladder's bonus grants, and both mustering-out
+# tables all differ from the earlier transcription; it grants `Aircraft`
+# directly, which v2 resolves as a nested cascade. Phase 7 verification
+# (verification/aerospace-system-defense.md) found the advanced-education
+# table's rows 3-6 still wrong after that reconciliation.
+
+schema = "career"
+schema-version = 4
+
+name = "Aerospace System Defense"
+medical-tier = "service"
+
+[throws.qualification]
+characteristic = "END"
+target = 5
+dice = "2d6"
+
+[throws.survival]
+characteristic = "DEX"
+target = 5
+dice = "2d6"
+
+[throws.commission]
+characteristic = "EDU"
+target = 6
+dice = "2d6"
+
+[throws.promotion]
+characteristic = "EDU"
+target = 7
+dice = "2d6"
+
+[throws.re-enlistment]
+target = 5
+dice = "2d6"
+
+[tables.personal]
+entries = ["STR +1", "DEX +1", "END +1", "Athletics", "Melee Combat", "Vehicle"]
+
+[tables.service]
+entries = ["Electronics", "Gun Combat", "Gunnery", "Melee Combat", "Survival", "Aircraft"]
+
+[tables.specialist]
+entries = ["Comms", "Gravitics", "Gun Combat", "Gunnery", "Recon", "Piloting"]
+
+[tables.advanced-education]
+requires = "EDU 8+"
+entries = ["Advocate", "Computer", "Jack-of-All-Trades", "Medicine", "Leadership", "Tactics"]
+
+[[ladders]]
+name = "enlisted"
+role = "entry"
+ranks = [
+  { rank = 0, title = "Airman", bonus = "Aircraft 1" },
+]
+
+[[ladders]]
+name = "officer"
+role = "commissioned"
+ranks = [
+  { rank = 1, title = "Flight Officer" },
+  { rank = 2, title = "Flight Lieutenant" },
+  { rank = 3, title = "Squadron Leader", bonus = "Leadership 1" },
+  { rank = 4, title = "Wing Commander" },
+  { rank = 5, title = "Group Captain" },
+  { rank = 6, title = "Air Commodore" },
+]
+
+[mustering-out]
+cash = [1000, 5000, 10000, 10000, 20000, 50000, 50000]
+benefits = ["Low Passage", "EDU +1", "Weapon", "Mid Passage", "Weapon", "High Passage", "SOC +1"]

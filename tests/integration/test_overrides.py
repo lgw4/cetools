@@ -37,7 +37,7 @@ _COMMISSION_BLOCK = '[throws.commission]\ncharacteristic = "SOC"\ntarget = 7\ndi
 # packaged registries (FR-030, FR-031).
 _RAIDERS_CAREER = """\
 schema = "career"
-schema-version = 3
+schema-version = 4
 
 name = "Raiders"
 medical-tier = "fringe"
@@ -57,13 +57,13 @@ target = 5
 dice = "2d6"
 
 [tables.personal]
-entries = ["STR +1", "DEX +1", "END +1", "SOC -1", "Streetwise", "Carouse"]
+entries = ["STR +1", "DEX +1", "END +1", "SOC -1", "Streetwise", "Carousing"]
 
 [tables.service]
-entries = ["Carouse", "Gambler", "Recon", "Stealth", "Streetwise", "Survival"]
+entries = ["Carousing", "Gambling", "Recon", "Broker", "Streetwise", "Survival"]
 
 [tables.specialist]
-entries = ["Gambler", "Jack-of-All-Trades", "Melee Combat", "Recon", "Stealth", "Streetwise"]
+entries = ["Gambling", "Jack-of-All-Trades", "Melee Combat", "Recon", "Broker", "Streetwise"]
 
 [tables.advanced-education]
 requires = "EDU 6+"
@@ -77,8 +77,8 @@ ranks = [
 ]
 
 [mustering-out]
-cash = [1000, 1000, 2000, 2000, 5000, 5000]
-benefits = ["Low Passage", "Weapon", "Trade Goods", "Mid Passage", "SOC -1", "Personal Vehicle"]
+cash = [1000, 1000, 2000, 2000, 5000, 5000, 5000]
+benefits = ["Low Passage", "Weapon", "Ship Share", "Mid Passage", "SOC -1", "Low Passage"]
 """
 
 

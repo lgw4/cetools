@@ -59,10 +59,10 @@ error so a redirected sheet is exactly a sheet and nothing else:
 
 ```sh
 $ cetools npc --seed session-alpha
-Flight Lieutenant Darrell Soyinka	689869	Age 30
-Aerospace Defense (3 terms)	Cr1,000
-Animals-0, Electronics-0, Flyer-1, Gun Combat (Energy Pistol)-0, Gunnery (Screens)-0, Gunnery (Spinal Mounts)-0, Gunnery (Turret Weapons)-1, Jack-of-All-Trades-0, Mechanic-1, Navigation-0, Vehicle (Aircraft)-0, Vehicle (Wheeled Vehicle)-0
-Personal Vehicle
+Seaman Darrell Soyinka	687868	Age 22
+Maritime System Defense (1 term)	Cr0
+Animals (Riding)-0, Broker-0, Gun Combat (Energy Pistol)-0, Gunnery (Bay Weapons)-0, Mechanics-0, Melee Combat (Piercing Weapons)-1, Recon-0, Streetwise-0, Survival-0, Watercraft (Submarine)-1
+Low Passage
 ```
 
 The character is always alive, always named, and always internally
@@ -78,18 +78,18 @@ sheets:
 
 ```sh
 $ cetools npc --seed table-of-twelve --count 3
-Scout Bennette Kalama	5887BA	Age 22
-Scout (1 term)	Cr20,000
-Advocate-0, Electronics-1, Gambler-0, Gun Combat (Archery)-0, Gunnery (Turret Weapons)-0, Mechanic-0, Medicine-0, Navigation-0, Piloting-0, Survival-1, Vehicle (Tracked Vehicle)-0
+Instructor Bennette Kalama	5787BA	Age 22
+Scientist (1 term)	Cr5,000
+Admin-0, Advocate-0, Bribery-0, Computer-0, Electronics-0, Gun Combat (Archery)-0, Medicine-2, Sciences (Social Sciences)-1
 
-Flight Lieutenant Quinn Yoon	68A868	Age 22
-Aerospace Defense (1 term)	Cr0
-Admin-0, Electronics-0, Flyer-1, Gun Combat (Energy Rifle)-0, Gunnery (Spinal Mounts)-0, Gunnery (Turret Weapons)-1, Mechanic-0, Vehicle (Tracked Vehicle)-0, Vehicle (Wheeled Vehicle)-0
-Personal Vehicle
+Manager Quinn Yoon	58A978	Age 30
+Diplomat (1 term), Bureaucrat (2 terms)	Cr50,000
+Admin-1, Aircraft (Grav Vehicle)-0, Animals (Riding)-0, Bribery-0, Carousing-2, Computer-1, Gun Combat (Archery)-0, Liaison-2, Mechanics-0, Steward-0, Vehicle (Tracked Vehicle)-0
+Mid Passage
 
-Captain Kim Davis	9A6636	Age 26
-Marine (2 terms)	Cr15,000
-Athletics-0, Gun Combat (Energy Rifle)-0, Gun Combat (Slug Pistol)-0, Gun Combat (Slug Rifle)-1, Melee Combat (Piercing Weapons)-1, Melee Combat (Slashing Weapons)-0, Recon-1, Vehicle (Tracked Vehicle)-0, Zero-G-0
+Major Kim Davis	A97638	Age 30
+Marine (3 terms)	Cr10,000
+Battle Dress-0, Comms-0, Demolitions-0, Gun Combat (Energy Rifle)-0, Gun Combat (Slug Rifle)-0, Gunnery (Heavy Weapons)-0, Gunnery (Screens)-0, Melee Combat (Bludgeoning Weapons)-0, Melee Combat (Slashing Weapons)-0, Survival-0, Tactics-1, Zero-G-1
 ```
 
 A batch of one is byte-identical to the single character of that seed, and
@@ -101,7 +101,7 @@ combined with `--count` above 1, since a personal name names one
 character.
 
 `check` resolves against the rules data packaged with `cetools`: a task
-definition, three registries of names, the universal chargen tables, eight
+definition, three registries of names, the universal chargen tables, twenty-four
 careers, and the name tables the NPC generator draws from. `cetools
 validate` checks that data set, or a house rule composed over it, and
 reports every problem it finds in one run:
@@ -109,7 +109,7 @@ reports every problem it finds in one run:
 ```sh
 $ cetools validate
 Rules data is valid.
-  Files: 26
+  Files: 42
   Rules: packaged (cetools 2026.8.1)
 ```
 

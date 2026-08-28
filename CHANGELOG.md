@@ -59,6 +59,13 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   reorders the draw sequence: every character a seed produces that serves
   in Navy without commissioning changes from this version forward
   (FR-033, FR-007b, FR-056b, T155).
+
+  **Superseded, in this same unreleased entry**: 004-complete-srd-careers's
+  convergence pass (T095) found the source prints no such rank — "Petty
+  Officer" was invented to exercise this engine path, not transcribed. It
+  is removed; see "Navy's rank ladders are corrected against the source"
+  below. The path it was added to exercise now runs off a unit fixture
+  instead of shipped data.
 - **All eight name tables' entries are replaced.** Every `source` line
   named what kind of names a table held rather than a source a reviewer
   could find and check the terms of, which FR-043e requires. Each file's
@@ -363,6 +370,88 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   granular set of steps than before, so every character whose walk
   reaches such a reduction changes from this version forward (FR-030,
   FR-030a, `contracts/json-output.md:187`, T208).
+- **The package now ships all twenty-four SRD careers, not eight, and a seed
+  from an earlier version is not reproducible against this one.** Three
+  independent causes each reorder or resize the draws a walk makes, and all
+  three land together: the career pool a random selection or a draft throw
+  can land on grows from eight entries to twenty-four (FR-001, FR-026); the
+  background-skills table's three lists are corrected to the source's actual
+  rows, including repeats a uniform draw had flattened away (FR-014a); and a
+  bare skill grant that resolves through more than one cascade level now
+  costs one die per level instead of one die total (FR-012). No seed's
+  output from a prior release is preserved — reproducing the previous
+  eight-career pool requires shipping it explicitly as a `--rules-data`
+  override, the same mechanism any other house rule uses.
+- **The career schema rises to `schema-version = 4`, and the skills registry
+  schema rises to `schema-version = 2`.** A career file declaring the old
+  version is rejected on its header with no migration path: `ranks[].title`
+  is now optional (a rank whose source row prints no title omits the key
+  rather than inventing one, FR-007/FR-008); `mustering-out.benefits`
+  entries admit a dice-quantity form (`"1d6 Ship Share"`, FR-011); and
+  `throws.re-enlistment` no longer admits a `characteristic`, since no
+  source career's re-enlistment throw ever used one. The skills registry
+  admits a specialty that is itself a cascade with specialties of its own
+  (`Vehicle` naming `Aircraft` and `Watercraft`, each resolving further,
+  FR-012).
+- **Three careers are renamed to their long source-published forms.** The
+  working names `aerospace-defense`, `maritime-defense`, and
+  `surface-defense` become `aerospace-system-defense`,
+  `maritime-system-defense`, and `surface-system-defense` (composition keys
+  and file basenames both), matching the source's own career-descriptions
+  list rather than an abbreviated in-house label (FR-005). A house rule that
+  overrides one of these three files by its old basename now composes as an
+  addition, not a replacement, until it is renamed to match.
+- **Scout's and Drifter's data is corrected against the source.** Scout's
+  qualification and re-enlistment targets, its rank 0 title and grant, its
+  cash table, and its service skills were wrong; Drifter's qualification
+  target, its advanced-education gate, its cash table, its rank titles
+  (the source prints none, on any rank), and several skill names were
+  wrong. Both careers' mustering-out material tables drop a padded seventh
+  row the source never prints, in favor of the coverage rule added
+  alongside them (FR-020, FR-021) rather than a fixed seven-row table.
+
+  **Not a bug, if you see it**: a sheet may now show a skill twice under
+  different names — `Life Sciences-0` beside `Sciences (Life Sciences)-1`,
+  for instance — because the source lists some names both as a bare skill
+  and as a specialty of a cascade skill, and the two are recorded as
+  distinct entries rather than merged (FR-016a). The background-skills
+  table's education list is what makes this routine rather than rare.
+- **Navy's rank ladders are corrected against the source; Hunter's
+  advanced-education row 5 is corrected too.** The convergence pass behind
+  `verification/navy.md` and `verification/hunter.md` (T095, T096) read the
+  source's raw HTML directly rather than through a summarizing fetch tool,
+  which resolved two prior open questions. Navy: the source prints one rank
+  column, 0-6, not the two overlapping columns `navy.toml` (002's reference
+  career) had carried since an earlier feature (T155) added them to
+  exercise engine paths — an invented rank 5, "Petty Officer", on the entry
+  ladder, and a specified specialty, "Melee Combat (Slashing Weapons)", on
+  the officer ladder's Midshipman grant. Both are removed; the officer
+  ladder now reproduces the source's single column at ranks 1-6 exactly,
+  the same entry-rank-0-only split every other two-ladder career in the
+  package uses. As a result, no shipped career's uncommissioned rank now
+  exceeds 0 and no shipped rank bonus specifies a specialty — both engine
+  paths move from shipped-data coverage to unit fixtures
+  (`test_generator.py::TestPromotionOffTheEntryLadder`,
+  `test_reference_career.py::test_no_shipped_career_specifies_a_specialty_on_a_rank_bonus`).
+  Hunter: advanced-education row 5 is `Tactics`, not `Animals` as committed
+  (`hunter.toml` had `Animals` at both rows 5 and 6); row 6 is confirmed
+  `Animals`, settling a previously-unresolved ambiguity without changing it.
+  Any character a seed produces that serves as an uncommissioned Navy
+  rating, is promoted into Navy's officer ladder, or draws Hunter's sixth
+  advanced-education row changes from this version forward (FR-024,
+  FR-056b).
+- **Belter's material row 3 is corrected against the source.** A second
+  convergence pass (T098) found `belter.toml` carried a repeated `INT +1`
+  at material row 3 where `verification/belter.md` itself already recorded
+  the source's printed value, `Weapon` — the artifact's "committed file"
+  column had drifted from the file it was meant to describe. Read from the
+  source's raw HTML directly, the same treatment T095/T096 used. Any
+  character a seed produces that draws Belter's third material-benefit row
+  changes from this version forward (FR-002, FR-024, FR-056b). The same
+  pass (T099) found a Pirate artifact discrepancy in the other direction —
+  `verification/pirate.md` had recorded rank 0's title as unprinted when
+  the source prints "Crewman" and `pirate.toml` already carried it; only
+  the artifact was corrected, so no Pirate seed's output changes.
 
 ### Added
 
@@ -733,6 +822,15 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   no packaged seed's output changes; an override whose modifier pushes a
   total past even the seventh row now fails cleanly instead of silently
   misreading (FR-016, FR-017, T181, T187).
+
+  **Superseded, in this same unreleased entry**: 004-complete-srd-careers
+  replaces the padded-seventh-row rule with a computed coverage bound
+  (FR-020, FR-021) once transcribing the source literally meant some
+  material tables really do stop at six rows. Seven shipped careers
+  (`athlete`, `barbarian`, `belter`, `drifter`, `entertainer`, `hunter`,
+  `scout`) now carry a six-row `benefits` table rather than a padded
+  seventh; `cash` stays seven rows everywhere, and the out-of-range check
+  still runs, now against the computed bound instead of a fixed length.
 - **The licensing documents a redistributor reads first named every name
   table "this project's own content."** Most of them draw part of their
   entries from CC BY-SA 4.0 Wikipedia or Wiktionary material, or from
@@ -823,3 +921,30 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   `aging.toml` already satisfies both rules, so no packaged seed's output
   changes (FR-013, FR-037, US4 acceptance scenario 4, Constitution V,
   T210).
+- **A skill grant written with an explicit but non-terminal specialty
+  resolved to a name no rule gives a level to.** `Vehicle (Aircraft)` is
+  syntactically valid — `Aircraft` is one of `Vehicle`'s declared
+  specialties — but `Aircraft` is itself a cascade with specialties of its
+  own, so the sheet recorded a compound FR-012 exists to prevent. Resolving
+  a written specialty now continues drawing through it the same way a bare
+  grant already does, landing on the innermost cascade paired with a
+  terminal specialty (e.g. `Aircraft (Winged Aircraft)`) instead of
+  stopping one level early. No shipped career writes an explicit
+  non-terminal specialty, so no packaged seed's output changes; an override
+  that does now draws one more time than it used to (FR-012, T100).
+- **`MusteringOut.benefits`'s declared type omitted `QuantifiedBenefit`,**
+  which `_parse_mustering_out` has placed there and `muster_out_service`
+  has handled since FR-011 landed. No behavior changes; the annotation now
+  matches what the field actually holds (T106).
+- **The mustering-out coverage rule (FR-020, FR-021, D7) checked only the
+  `dm` at a career's highest rank, and never bounded the low end.** Neither
+  `material-rank-dm` nor `retired-cash-dm` is required to be monotonic, so
+  a career whose highest rank's row carries a smaller `dm` than a row at a
+  lower, still-reachable rank validated clean and then overflowed a table
+  mid-batch; a negative `retired-cash-dm` (`retired-cash-dm` has no
+  declared minimum) could likewise drive a throw below row 1 without
+  either table being short enough to catch it. The rule now covers every
+  rank a career's ladders can reach, bounds each table's ceiling by the
+  DM's maximum clamped to zero, and adds a floor check for the DM's
+  minimum. The packaged `chargen-parameters.toml` already satisfies both,
+  so no packaged seed's output changes.

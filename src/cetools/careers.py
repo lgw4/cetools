@@ -20,6 +20,7 @@ from cetools.notation import (
     CharacteristicCheck,
     EntryContext,
     NotationProblem,
+    QuantifiedBenefit,
     SkillGrant,
     SkillReference,
     parse_entry,
@@ -67,11 +68,16 @@ class SkillTable:
 
 @dataclass(frozen=True, slots=True)
 class Rank:
-    """`bonus` admits the same forms as a skill table entry (FR-016)."""
+    """`bonus` admits the same forms as a skill table entry (FR-016).
+
+    `title` defaults to `""` for a rank the source prints no title for
+    (FR-007, FR-013, D2): absence is written by omitting the key, not by
+    writing an empty value.
+    """
 
     rank: int
-    title: str
-    bonus: SkillTableEntry | None
+    title: str = ""
+    bonus: SkillTableEntry | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,7 +97,7 @@ class RankLadder:
 @dataclass(frozen=True, slots=True)
 class MusteringOut:
     cash: tuple[int, ...]
-    benefits: tuple[BenefitItem | CharacteristicAdjustment, ...]
+    benefits: tuple[BenefitItem | CharacteristicAdjustment | QuantifiedBenefit, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -265,7 +271,7 @@ def _notation_field(
             problem = _skill_problem(skills.resolve(reference), reference, file, location)
             if problem is not None:
                 return problem
-        case BenefitItem(name=name):
+        case BenefitItem(name=name) | QuantifiedBenefit(name=name):
             if name not in benefits:
                 return ValidationProblem(
                     file=file,
@@ -317,19 +323,18 @@ def _parse_throw(
     location: str,
     characteristics: CharacteristicRegistry,
     problems: list[ValidationProblem],
+    *,
+    admits_characteristic: bool = True,
 ) -> Throw | None:
     table = _require_dict(value, file, location, "a throw table", problems)
     if table is None:
         return None
 
-    problems.extend(
-        _unrecognized_key_problems(
-            table, {"characteristic", "target", "dice"}, file, f"{location}."
-        )
-    )
+    allowed_keys = {"target", "dice"} | ({"characteristic"} if admits_characteristic else set())
+    problems.extend(_unrecognized_key_problems(table, allowed_keys, file, f"{location}."))
 
     characteristic = None
-    if "characteristic" in table:
+    if "characteristic" in table and admits_characteristic:
         code = table["characteristic"]
         if not isinstance(code, str):
             problems.append(
@@ -386,7 +391,14 @@ def _parse_throws(
     for key, value in raw.items():
         if key not in _ALL_THROWS:
             continue
-        throw = _parse_throw(value, file, f"throws.{key}", characteristics, problems)
+        throw = _parse_throw(
+            value,
+            file,
+            f"throws.{key}",
+            characteristics,
+            problems,
+            admits_characteristic=key != "re-enlistment",
+        )
         if throw is not None:
             throws[key] = throw
     return throws
@@ -530,7 +542,23 @@ def _parse_rank(
     )
 
     rank_position = _require_int(table, "rank", file, f"{location}.rank", problems, minimum=0)
-    title = _require_string(table, "title", file, f"{location}.title", problems)
+
+    title = ""
+    if "title" in table:
+        raw_title = table["title"]
+        if not isinstance(raw_title, str) or not raw_title:
+            found = "an empty string" if raw_title == "" else type_name(raw_title)
+            problems.append(
+                ValidationProblem(
+                    file=file,
+                    location=f"{location}.title",
+                    found=found,
+                    expected="a non-empty string",
+                )
+            )
+            title = None
+        else:
+            title = raw_title
 
     bonus = None
     if "bonus" in table:
@@ -597,6 +625,21 @@ def _parse_ranks(
 
     if not ok:
         return None
+
+    base = min(positions_seen)
+    contiguous = set(range(base, base + len(positions_seen)))
+    if positions_seen != contiguous:
+        missing = sorted(contiguous - positions_seen)
+        problems.append(
+            ValidationProblem(
+                file=file,
+                location=location,
+                found=f"positions {sorted(positions_seen)}",
+                expected=f"contiguous from {base}: missing {missing}",
+            )
+        )
+        return None
+
     return tuple(sorted(ranks, key=lambda rank: rank.rank))
 
 
@@ -817,7 +860,9 @@ def _parse_mustering_out(
             if ok:
                 cash = tuple(amounts)
 
-    mustering_benefits: tuple[BenefitItem | CharacteristicAdjustment, ...] | None = None
+    mustering_benefits: (
+        tuple[BenefitItem | CharacteristicAdjustment | QuantifiedBenefit, ...] | None
+    ) = None
     if "benefits" not in table:
         problems.append(
             ValidationProblem(

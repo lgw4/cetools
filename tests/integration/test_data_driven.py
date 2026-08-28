@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from cetools.dice import Roller
+from cetools.dice import Roller, parse_notation
 from cetools.errors import RulesDataError
 from cetools.generator import _Walk, generate_character
 from cetools.render import as_text
@@ -227,10 +227,12 @@ def test_a_careers_medical_tier_changes_what_the_generator_actually_charges(tmp_
     # rather than off what was actually charged. This one generates a
     # character and compares the bill itself.
     #
-    # Seed 138's Navy medical bill throws a total of 7: the "service" tier
-    # pays 75% at that total (target 4), the "fringe" tier pays 0% (target
-    # 8 is the first rung it clears), so the same throw must be billed
-    # differently under the two tiers.
+    # A Navy medical bill throwing a total of 7 makes the two tiers bill
+    # differently: the "service" tier pays 75% at that total (target 4),
+    # the "fringe" tier pays 0% (target 8 is the first rung it clears).
+    # The override only changes `medical-tier`, not any table or throw, so
+    # it consumes the same dice as the packaged file and a seed found
+    # under one reproduces the same throw under the other.
     override = tmp_path / "navy.toml"
     override.write_text(
         NAVY.replace('medical-tier = "service"', 'medical-tier = "fringe"', 1),
@@ -239,8 +241,14 @@ def test_a_careers_medical_tier_changes_what_the_generator_actually_charges(tmp_
     packaged = load_rules()
     overridden = load_rules(override)
 
-    baseline = generate_character(Roller(138), packaged)
-    changed = generate_character(Roller(138), overridden)
+    def _has_navy_medical_bill_of_seven(character):
+        return any(
+            s.kind == "medical-bills" and s.career == "Navy" and s.throw.total == 7
+            for s in character.history
+        )
+
+    seed, baseline = _first_seed_matching(packaged, _has_navy_medical_bill_of_seven, limit=20000)
+    changed = generate_character(Roller(seed), overridden)
 
     baseline_bill = next(s for s in baseline.history if s.kind == "medical-bills")
     changed_bill = next(s for s in changed.history if s.kind == "medical-bills")
@@ -388,36 +396,64 @@ def test_a_gap_in_the_aging_table_is_reported_not_silently_misassigned(tmp_path)
     assert found
 
 
-def test_every_shipped_careers_mustering_out_tables_cover_the_full_dm_range():
-    # T187: seven of the eight careers shipped six-entry `cash` and
-    # `benefits` tables while navy.toml alone shipped seven, so
-    # `mustering_out_retired_cash_dm` (max 1) or `mustering_out_material_rank_dm`
-    # (max 1) pushed a natural 6 onto the same row a natural 5 already
-    # read — an engine-held clamp silently absorbing the collision. Every
-    # table now covers the full `1d6` (1-6) plus the maximum declared
-    # modifier (1) without needing one.
+def _highest_matching_rank_row(rows, rank):
+    best_rank = -1
+    amount = 0
+    for row in rows:
+        if row.rank <= rank and row.rank > best_rank:
+            best_rank = row.rank
+            amount = row.amount
+    return amount
+
+
+def test_every_in_force_careers_mustering_out_tables_cover_the_full_dm_range():
+    # T187 (originally): an engine-held clamp silently absorbed a roll that
+    # overflowed a padded six-row table. FR-020/FR-021/D7 turned "every
+    # table covers the full roll plus the maximum declared modifier" from a
+    # fixed `== 7` pinned against the shipped eight into the computed bound
+    # `cetools validate` itself now enforces over whatever careers are in
+    # force — a bound that a career whose ladders stop at rank 0 satisfies
+    # with fewer rows than one that reaches the rank-conditioned modifier
+    # (data-model.md's mustering-out coverage rule).
     rules = load_rules()
+    params = rules.chargen
+    roll_count, roll_sides, roll_modifier = parse_notation(params.mustering_out_roll)
+    max_total = roll_count * roll_sides + roll_modifier
     for stem, career in rules.careers.items():
-        assert len(career.mustering_out.cash) == 7, stem
-        assert len(career.mustering_out.benefits) == 7, stem
+        held_ranks = {0} | {
+            rank_row.rank for ladder in career.ladders for rank_row in ladder.ranks
+        }
+        cash_required = max_total + max(0, params.mustering_out_retired_cash_dm)
+        material_dms = [
+            _highest_matching_rank_row(params.mustering_out_material_rank_dm, rank)
+            for rank in held_ranks
+        ]
+        material_required = max_total + max(0, max(material_dms))
+        assert len(career.mustering_out.cash) >= cash_required, stem
+        assert len(career.mustering_out.benefits) >= material_required, stem
 
 
-def test_an_excessive_mustering_out_modifier_is_reported_not_silently_clamped(tmp_path):
+def test_an_excessive_mustering_out_modifier_is_reported_not_silently_clamped():
     # T187: `index = max(0, min(len(...) - 1, sum(faces) + dm - 1))` was an
     # engine-invented clamp stated in no requirement, contract, or data
     # file — the opposite of the treatment `contracts/data-files.md`
     # already gives every other positional table read (T181). The read is
-    # now `_table_row`'s, which reports an overflow rather than silently
+    # `_table_row`'s, which reports an overflow rather than silently
     # absorbing it into the table's last row.
-    cash_target_block = "cash-choice-target = 4"
-    dm_block = "retired-cash-dm = 1"
-    assert cash_target_block in CHARGEN_PARAMETERS
-    assert dm_block in CHARGEN_PARAMETERS
-    text = CHARGEN_PARAMETERS.replace(cash_target_block, "cash-choice-target = 1", 1)
-    text = text.replace(dm_block, "retired-cash-dm = 100", 1)
-    override = tmp_path / "chargen-parameters.toml"
-    override.write_text(text, encoding="utf-8")
-    rules = load_rules(override)
+    #
+    # The mustering-out coverage rule (FR-020, FR-021, D7) now catches an
+    # excessive `retired-cash-dm` at validation, before an override built
+    # this way could ever reach the walk — that is the point of the rule.
+    # Demonstrated here directly against a `ChargenParameters` no loader
+    # would hand back, to pin that `_table_row`'s own runtime guard still
+    # stands as defense in depth underneath the validation rule.
+    import dataclasses
+
+    rules = load_rules()
+    excessive_chargen = dataclasses.replace(
+        rules.chargen, mustering_out_cash_choice_target=1, mustering_out_retired_cash_dm=100
+    )
+    rules = dataclasses.replace(rules, chargen=excessive_chargen)
 
     career = rules.careers["navy"]
     walk = _Walk(Roller("t187"), rules)
@@ -442,7 +478,16 @@ def test_the_mustering_out_per_term_rate_takes_effect_with_no_code_edit(tmp_path
     assert rules.chargen.mustering_out_per_term == 2
 
     seed, baseline = _first_seed_matching(
-        packaged, lambda c: any(service.benefit_rolls > 0 for service in c.careers)
+        packaged,
+        # `benefit_rolls` is `terms * per-term` (which doubles) *plus* a
+        # rank-derived bonus (which does not) — restricting to rank 0
+        # everywhere keeps that bonus at zero, so a clean doubling is what
+        # this scenario is actually demonstrating. A single career service
+        # keeps the extra rolls the doubled rate consumes from shifting any
+        # later career's own draws out from under it.
+        lambda c: len(c.careers) == 1
+        and any(service.benefit_rolls > 0 for service in c.careers)
+        and all(service.rank == 0 for service in c.careers),
     )
     overridden = generate_character(Roller(seed), rules)
     assert len(overridden.careers) == len(baseline.careers)
@@ -505,3 +550,75 @@ def test_an_injury_roll_outside_the_table_is_reported_not_an_indexerror(tmp_path
     (tmp_path / "chargen-parameters.toml").write_text(params_text, encoding="utf-8")
     rules = load_rules(tmp_path)
     _first_seed_reaching(rules, limit=200)
+
+
+# --- Phase 6d: the complete twenty-four-career roster (FR-026, FR-027, ---
+# FR-028).
+
+_TWENTY_FOUR_NAMES = {
+    "Aerospace System Defense",
+    "Agent",
+    "Athlete",
+    "Barbarian",
+    "Belter",
+    "Bureaucrat",
+    "Colonist",
+    "Diplomat",
+    "Drifter",
+    "Entertainer",
+    "Hunter",
+    "Marine",
+    "Maritime System Defense",
+    "Mercenary",
+    "Merchant",
+    "Navy",
+    "Noble",
+    "Physician",
+    "Pirate",
+    "Rogue",
+    "Scientist",
+    "Scout",
+    "Surface System Defense",
+    "Technician",
+}
+
+# research.md R1: the seven careers offering no commission, whose material
+# table runs six rows (a dash where the source prints nothing for row 7) and
+# whose one ladder carries an untitled rank.
+_SIX_ROW_CAREERS = {
+    "Athlete",
+    "Barbarian",
+    "Belter",
+    "Drifter",
+    "Entertainer",
+    "Hunter",
+    "Scout",
+}
+
+
+def test_the_packaged_set_holds_exactly_the_twenty_four_srd_careers():
+    rules = load_rules()
+    names = {career.name for career in rules.careers.values()}
+    assert names == _TWENTY_FOUR_NAMES
+    assert len(rules.careers) == 24
+
+
+def test_every_cash_table_has_seven_rows_and_only_the_seven_have_six_material_rows():
+    # FR-008's "no titles at all" is whole-ladder: Navy's enlisted ladder
+    # carries four untitled *interior* rows (T047's contiguity gap-fill,
+    # D2/FR-007) alongside titled ones, which is not the shape this checks.
+    # A career only belongs to `_SIX_ROW_CAREERS` if every rank it has is
+    # untitled, which is true of the seven commissionless careers' single
+    # rank 0 and false of Navy's mixed ladder.
+    rules = load_rules()
+    for career in rules.careers.values():
+        assert len(career.mustering_out.cash) == 7, career.name
+        material_rows = len(career.mustering_out.benefits)
+        ranks = [rank_row for ladder in career.ladders for rank_row in ladder.ranks]
+        all_untitled = bool(ranks) and all(not rank_row.title for rank_row in ranks)
+        if career.name in _SIX_ROW_CAREERS:
+            assert material_rows == 6, career.name
+            assert all_untitled, career.name
+        else:
+            assert material_rows == 7, career.name
+            assert not all_untitled, career.name

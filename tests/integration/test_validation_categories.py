@@ -135,7 +135,7 @@ def test_a_schema_version_of_the_wrong_type_is_a_type_problem(tmp_path, literal,
     # other integer-valued field in the module carries let a career declaring
     # `schema-version = true` pass the version gate and validate clean
     # (FR-002, FR-020b).
-    text = NAVY.replace("schema-version = 3", f"schema-version = {literal}", 1)
+    text = NAVY.replace("schema-version = 4", f"schema-version = {literal}", 1)
     assert text != NAVY
     _write(tmp_path, "navy.toml", text)
     report = validate_rules(tmp_path)
@@ -154,7 +154,7 @@ def test_a_missing_schema_version_is_rejected_like_a_mismatched_one(tmp_path):
     # with `declared_version is not None and ...` and still pass every one of
     # them, silently accepting an undeclared version — exactly the upgrade
     # story FR-001 exists to close off.
-    text = NAVY.replace("schema-version = 3\n", "", 1)
+    text = NAVY.replace("schema-version = 4\n", "", 1)
     assert "schema-version" not in text
     _write(tmp_path, "navy.toml", text)
     report = validate_rules(tmp_path)
@@ -162,18 +162,18 @@ def test_a_missing_schema_version_is_rejected_like_a_mismatched_one(tmp_path):
     from_navy = [p for p in report.problems if p.file == "navy.toml"]
     assert len(from_navy) == 1
     assert from_navy[0].found == "missing"
-    assert from_navy[0].expected == "version 3"
+    assert from_navy[0].expected == "version 4"
     assert from_navy[0].location == ""
 
 
 def test_unsupported_schema_version_reports_nothing_else_from_that_file(tmp_path):
-    text = NAVY.replace("schema-version = 3", "schema-version = 4", 1)
+    text = NAVY.replace("schema-version = 4", "schema-version = 5", 1)
     _write(tmp_path, "navy.toml", text)
     report = validate_rules(tmp_path)
     assert not report.valid
     from_navy = [p for p in report.problems if p.file == "navy.toml"]
     assert len(from_navy) == 1
-    assert "4" in from_navy[0].found
+    assert "5" in from_navy[0].found
     assert from_navy[0].location == ""
 
 
@@ -188,7 +188,7 @@ def test_a_version_mismatched_file_is_not_interpreted_even_when_it_is_full_of_mi
     # report exactly the version mismatch and nothing else (FR-021,
     # contracts/data-files.md rule 2, quickstart Scenario 2).
     text = (
-        NAVY.replace("schema-version = 3", "schema-version = 4", 1)
+        NAVY.replace("schema-version = 4", "schema-version = 5", 1)
         .replace('"Comms"', '"Coms"', 1)
         .replace("[mustering-out]\n", "[mustering-out]\nchash = 5\n")
     )
@@ -198,8 +198,8 @@ def test_a_version_mismatched_file_is_not_interpreted_even_when_it_is_full_of_mi
     assert not report.valid
     from_navy = [p for p in report.problems if p.file == "navy.toml"]
     assert len(from_navy) == 1, from_navy
-    assert from_navy[0].found == "version 4"
-    assert from_navy[0].expected == "version 3"
+    assert from_navy[0].found == "version 5"
+    assert from_navy[0].expected == "version 4"
     assert from_navy[0].location == ""
 
 
@@ -260,11 +260,11 @@ def test_unrecognized_kind_declaration(tmp_path):
 
 def test_replacement_declared_kind_does_not_match_the_kind_it_replaces(tmp_path):
     # schema-version dropped to 1 alongside the kind swap: "benefits" is
-    # supported at version 1, and leaving the career file's version 3 in
+    # supported at version 1, and leaving the career file's version 4 in
     # place would trip the version-mismatch check first, before the
     # kind-mismatch check this test means to exercise ever runs.
     text = NAVY.replace('schema = "career"', 'schema = "benefits"', 1).replace(
-        "schema-version = 3", "schema-version = 1", 1
+        "schema-version = 4", "schema-version = 1", 1
     )
     _write(tmp_path, "navy.toml", text)
     report = validate_rules(tmp_path)
@@ -441,13 +441,29 @@ def test_a_problem_naming_two_files_still_carries_one_composition_key(tmp_path):
         "chargen-parameters.toml",
         "navy.toml",
         "scouts.toml",
-        "aerospace-defense.toml",
+        "aerospace-system-defense.toml",
         "marine.toml",
-        "maritime-defense.toml",
+        "maritime-system-defense.toml",
         "scout.toml",
-        "surface-defense.toml",
+        "surface-system-defense.toml",
         "drifter.toml",
         "merchant.toml",
+        "agent.toml",
+        "athlete.toml",
+        "barbarian.toml",
+        "belter.toml",
+        "bureaucrat.toml",
+        "colonist.toml",
+        "diplomat.toml",
+        "entertainer.toml",
+        "hunter.toml",
+        "mercenary.toml",
+        "noble.toml",
+        "physician.toml",
+        "pirate.toml",
+        "rogue.toml",
+        "scientist.toml",
+        "technician.toml",
         # A sentinel for a whole-set problem naming no single file, the same
         # shape the surname-absence check already uses: every career fails
         # to resolve its characteristic references in this scenario, so
@@ -548,7 +564,7 @@ def test_a_career_with_a_commission_throw_and_no_commissioned_ladder_is_rejected
     # it, not careers.py's own ladder-role count.
     officer_ladder = (
         '[[ladders]]\nname = "officer"\nrole = "commissioned"\nranks = [\n  '
-        '{ rank = 1, title = "Midshipman", bonus = "Melee Combat (Slashing Weapons) 1" },\n  '
+        '{ rank = 1, title = "Midshipman" },\n  '
         '{ rank = 2, title = "Lieutenant" },\n  '
         '{ rank = 3, title = "Lt Commander", bonus = "Tactics 1" },\n  '
         '{ rank = 4, title = "Commander" },\n  { rank = 5, title = "Captain" },\n  '
@@ -563,6 +579,22 @@ def test_a_career_with_a_commission_throw_and_no_commissioned_ladder_is_rejected
     assert any(
         p.file == "navy.toml" and p.location == "ladders" and "commissioned" in p.found
         for p in report.problems
+    )
+
+
+def test_a_mustering_out_table_short_of_the_coverage_bound_is_rejected(tmp_path):
+    # FR-020, FR-021, D7: the mustering-out coverage rule, alongside the
+    # other cross-file rules this category exercises — a career whose cash
+    # table cannot cover every row a retired character can roll.
+    cash = "cash = [1000, 5000, 10000, 10000, 20000, 50000, 50000]"
+    assert cash in NAVY
+    text = NAVY.replace(cash, "cash = [1000, 5000, 10000, 10000, 20000, 50000]", 1)
+    assert text != NAVY
+    _write(tmp_path, "navy.toml", text)
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    assert any(
+        p.file == "navy.toml" and p.location == "mustering-out.cash" for p in report.problems
     )
 
 
@@ -683,8 +715,8 @@ def test_an_entry_ladder_with_no_rank_0_is_rejected(tmp_path):
     # starting at rank 1 validates clean and then raises `StopIteration`
     # mid-walk.
     text = SCOUT.replace(
-        '{ rank = 0, title = "Scout", bonus = "Survival 1" }',
-        '{ rank = 1, title = "Scout", bonus = "Survival 1" }',
+        '{ rank = 0, bonus = "Piloting 1" }',
+        '{ rank = 1, bonus = "Piloting 1" }',
         1,
     )
     assert text != SCOUT

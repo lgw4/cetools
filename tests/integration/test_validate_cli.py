@@ -85,12 +85,13 @@ def test_validate_packaged_set_reports_valid_in_json():
     assert payload["problems"] == []
 
 
-def test_validate_packaged_set_reports_twenty_six_files():
-    # Four singleton files, six universal chargen tables, eight careers, and
-    # eight name tables (003-npc-generator, research R6).
+def test_validate_packaged_set_reports_forty_two_files():
+    # Four singleton files, six universal chargen tables, twenty-four
+    # careers (004-complete-srd-careers), and eight name tables
+    # (003-npc-generator, research R6).
     result = runner.invoke(app, ["validate", "--json"])
     payload = json.loads(result.stdout)
-    assert payload["file_count"] == 26
+    assert payload["file_count"] == 42
 
 
 @BOTH_OUTPUT_MODES
@@ -169,6 +170,87 @@ def test_the_fixture_wording_is_the_wording_the_loader_emits(tmp_path):
         key = (expected.file, expected.location)
         assert key in emitted, sorted(emitted)
         assert emitted[key] == expected
+
+
+def _navy_text():
+    from pathlib import Path
+
+    return (
+        Path(__file__).resolve().parents[2] / "src" / "cetools" / "data" / "careers" / "navy.toml"
+    ).read_text(encoding="utf-8")
+
+
+@BOTH_OUTPUT_MODES
+def test_validate_rejects_an_unresolvable_skill_name(tmp_path, mode):
+    # quickstart.md SC-002, case 1 (FR-018).
+    navy = _navy_text()
+    text = navy.replace('"Comms"', '"Coms"', 1)
+    assert text != navy
+    (tmp_path / "navy.toml").write_text(text, encoding="utf-8")
+
+    result = runner.invoke(app, ["validate", str(tmp_path)] + mode)
+    assert result.exit_code == 1
+    if mode:
+        payload = json.loads(result.stdout)
+        assert any(
+            p["file"] == "navy.toml" and "skills registry" in p["expected"]
+            for p in payload["problems"]
+        )
+    else:
+        assert "navy.toml" in result.stdout
+        assert "Coms" in result.stdout
+        assert "skills registry" in result.stdout
+
+
+@BOTH_OUTPUT_MODES
+def test_validate_rejects_a_rank_ladder_with_a_gap(tmp_path, mode):
+    # quickstart.md SC-002, case 2 (FR-019): removing rank 2 leaves the
+    # officer ladder's rank 1 followed by rank 3, a gap no promotion throw
+    # can cross.
+    navy = _navy_text()
+    text = "\n".join(
+        line for line in navy.splitlines() if 'rank = 2, title = "Lieutenant"' not in line
+    )
+    assert text != navy
+    (tmp_path / "navy.toml").write_text(text, encoding="utf-8")
+
+    result = runner.invoke(app, ["validate", str(tmp_path)] + mode)
+    assert result.exit_code == 1
+    if mode:
+        payload = json.loads(result.stdout)
+        assert any(p["file"] == "navy.toml" for p in payload["problems"])
+    else:
+        assert "navy.toml" in result.stdout
+
+
+@BOTH_OUTPUT_MODES
+def test_validate_rejects_a_cash_table_too_short_for_its_own_ladders(tmp_path, mode):
+    # quickstart.md SC-002, case 3 (FR-020): one row short of the coverage
+    # rule's computed bound (data-model.md's mustering-out coverage rule).
+    navy = _navy_text()
+    text = navy.replace(
+        "cash = [1000, 5000, 10000, 10000, 20000, 50000, 50000]",
+        "cash = [1000, 5000, 10000, 10000, 20000, 50000]",
+        1,
+    )
+    assert text != navy
+    (tmp_path / "navy.toml").write_text(text, encoding="utf-8")
+
+    result = runner.invoke(app, ["validate", str(tmp_path)] + mode)
+    assert result.exit_code == 1
+    if mode:
+        payload = json.loads(result.stdout)
+        matching = [
+            p
+            for p in payload["problems"]
+            if p["file"] == "navy.toml" and p["location"] == "mustering-out.cash"
+        ]
+        assert len(matching) == 1
+        assert "6" in matching[0]["found"]
+        assert "7" in matching[0]["expected"]
+    else:
+        assert "navy.toml" in result.stdout
+        assert "mustering-out.cash" in result.stdout
 
 
 def test_validate_help_lists_exactly_its_own_options(help_text, options_in_help):

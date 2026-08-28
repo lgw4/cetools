@@ -59,9 +59,9 @@ _HEADER_KEYS = frozenset({"schema", "schema-version"})
 _SUPPORTED_VERSION = {
     "task-parameters": 2,
     "characteristics": 2,
-    "skills": 1,
+    "skills": 2,
     "benefits": 1,
-    "career": 3,
+    "career": 4,
     "draft-table": 1,
     "aging-table": 1,
     "mishap-table": 1,
@@ -578,6 +578,21 @@ def _singleton_slots(basename: str, declared: object) -> set[str]:
     return slots
 
 
+def _highest_matching_rank_row(rows, rank: int) -> int:
+    """The highest-ranked row at or below `rank`; neither table is
+    cumulative (research R10 item 7). Mirrors `_Walk._highest_matching_rank_row`
+    (generator.py) — duplicated rather than imported, because this module
+    validates before any `_Walk` exists to import from.
+    """
+    best_rank = -1
+    amount = 0
+    for row in rows:
+        if row.rank <= rank and row.rank > best_rank:
+            best_rank = row.rank
+            amount = row.amount
+    return amount
+
+
 def _validate(override: Path | str | None) -> tuple[RulesData | None, ValidationReport]:
     packaged, read_problems = _discover_packaged()
     composed, provenance, compose_problems = _compose(override, packaged)
@@ -831,9 +846,77 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
     # A missing or invalid medical-tiers file leaves no tier name to match,
     # so every career's reference cascades into its own problem here too
     # (research R13), rather than this rule being silently skipped.
+    # The mustering-out coverage rule (FR-020, FR-021, D7) needs the roll and
+    # the two rank-modifier tables `chargen-parameters.toml` declares; a
+    # missing or invalid `chargen` leaves nothing to compute a bound from, so
+    # the rule is skipped rather than reported against a file it is not
+    # about.
+    mustering_out_max_total: int | None = None
+    mustering_out_min_total: int | None = None
+    if chargen is not None:
+        parsed_mustering_out_roll = parse_notation(chargen.mustering_out_roll)
+        if parsed_mustering_out_roll is not None:
+            roll_count, roll_sides, roll_modifier = parsed_mustering_out_roll
+            mustering_out_max_total = roll_count * roll_sides + roll_modifier
+            mustering_out_min_total = roll_count + roll_modifier
+
     tier_names = frozenset(medical_tiers.tiers) if medical_tiers is not None else frozenset()
     for stem, career in careers.items():
         career_basename = f"{stem}.toml"
+        if mustering_out_max_total is not None:
+            # Neither table's `dm` is monotonic in rank (research R10 item
+            # 7), so the bound has to cover the highest and lowest `dm` over
+            # every rank the career's ladders can actually reach — rank 0
+            # always included, for a character who never advances — not
+            # just the `dm` at the highest rank (T187 follow-up review).
+            held_ranks = {0} | {
+                rank_row.rank for ladder in career.ladders for rank_row in ladder.ranks
+            }
+            cash_dm = chargen.mustering_out_retired_cash_dm
+            cash_required = mustering_out_max_total + max(0, cash_dm)
+            if len(career.mustering_out.cash) < cash_required:
+                problems.append(
+                    ValidationProblem(
+                        file=career_basename,
+                        location="mustering-out.cash",
+                        found=f"{len(career.mustering_out.cash)} row(s)",
+                        expected=f"at least {cash_required} row(s)",
+                    )
+                )
+            cash_floor = mustering_out_min_total + min(0, cash_dm)
+            if cash_floor < 1:
+                problems.append(
+                    ValidationProblem(
+                        file=career_basename,
+                        location="mustering-out.cash",
+                        found=f"a lowest possible throw of {cash_floor}",
+                        expected="a lowest possible throw of at least 1",
+                    )
+                )
+            material_dms = [
+                _highest_matching_rank_row(chargen.mustering_out_material_rank_dm, rank)
+                for rank in held_ranks
+            ]
+            material_required = mustering_out_max_total + max(0, max(material_dms))
+            if len(career.mustering_out.benefits) < material_required:
+                problems.append(
+                    ValidationProblem(
+                        file=career_basename,
+                        location="mustering-out.benefits",
+                        found=f"{len(career.mustering_out.benefits)} row(s)",
+                        expected=f"at least {material_required} row(s)",
+                    )
+                )
+            material_floor = mustering_out_min_total + min(0, min(material_dms))
+            if material_floor < 1:
+                problems.append(
+                    ValidationProblem(
+                        file=career_basename,
+                        location="mustering-out.benefits",
+                        found=f"a lowest possible throw of {material_floor}",
+                        expected="a lowest possible throw of at least 1",
+                    )
+                )
         if career.medical_tier not in tier_names:
             problems.append(
                 ValidationProblem(

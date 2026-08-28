@@ -118,10 +118,9 @@ def test_removing_every_rank_ladder_is_rejected(tmp_path):
     _validate_missing(
         tmp_path,
         '[[ladders]]\nname = "enlisted"\nrole = "entry"\nranks = [\n  '
-        '{ rank = 0, title = "Starman", bonus = "Zero-G 1" },\n  '
-        '{ rank = 5, title = "Petty Officer", bonus = "Gunnery 1" },\n]\n\n',
+        '{ rank = 0, title = "Starman", bonus = "Zero-G 1" },\n]',
         '[[ladders]]\nname = "officer"\nrole = "commissioned"\nranks = [\n  '
-        '{ rank = 1, title = "Midshipman", bonus = "Melee Combat (Slashing Weapons) 1" },\n  '
+        '{ rank = 1, title = "Midshipman" },\n  '
         '{ rank = 2, title = "Lieutenant" },\n  '
         '{ rank = 3, title = "Lt Commander", bonus = "Tactics 1" },\n  '
         '{ rank = 4, title = "Commander" },\n  { rank = 5, title = "Captain" },\n  '
@@ -157,22 +156,29 @@ def test_the_reference_career_carries_a_characteristic_gate():
     assert gate == CharacteristicCheck(characteristic="EDU", target=8)
 
 
-def test_the_reference_career_writes_both_a_specified_specialty_and_an_owed_choice():
-    # FR-018 requires the shipped career to exercise every element of the
-    # schema, and the four skills that have specialties all appeared bare, so
-    # the career exercised FR-008's owed-choice case and never FR-006's
-    # base-and-specialty split. The split was proved by unit fixtures alone,
-    # which is the gap FR-018 exists to close: a fixture's author can
-    # unconsciously avoid the hard parts, and real content cannot.
+def test_no_shipped_career_specifies_a_specialty_on_a_rank_bonus():
+    # 002-rules-data-loading's FR-018 requires the shipped reference career
+    # to exercise every element of the schema, and a prior version of this
+    # file exercised FR-008's base-and-specialty split by specifying
+    # "Melee Combat (Slashing Weapons)" on the officer ladder's Midshipman
+    # grant. A source-first re-read (verification/navy.md, 004 T095) found
+    # the source prints that grant bare; FR-024 admits no deviation ground
+    # for keeping the invented specialty, so it was removed (see navy.toml's
+    # header comment). The source never specifies a specialty on any rank
+    # bonus of any of the twenty-four careers, so this element of FR-018 is
+    # not — and, on the current source, cannot be — exercised by shipped
+    # data; the split itself stays covered by unit fixtures alone
+    # (test_notation.py's parsing of a specified-specialty grant,
+    # test_careers.py's rank-bonus parsing).
+    for career in load_rules().careers.values():
+        for ladder in career.ladders:
+            for rank in ladder.ranks:
+                if isinstance(rank.bonus, SkillGrant):
+                    assert rank.bonus.skill.specialty is None, (career.name, ladder.name, rank)
+
     navy = load_rules().careers["navy"]
     officer = next(ladder for ladder in navy.ladders if ladder.name == "officer")
-    specified = officer.ranks[0].bonus
-    assert specified == SkillGrant(
-        skill=SkillReference(name="Melee Combat", specialty="Slashing Weapons"), level=1
-    )
-
-    # The same skill, bare, elsewhere in the same file: both halves of FR-008's
-    # distinction are in the shipped content rather than only in fixtures.
+    assert officer.ranks[0].bonus is None
     assert SkillReference(name="Melee Combat", specialty=None) in navy.tables["service"].entries
 
 

@@ -9,8 +9,11 @@ from cetools.rules import load_rules, parse_task_parameters, validate_rules
 _DATA = Path(__file__).resolve().parents[2] / "src" / "cetools" / "data"
 CHARACTERISTICS = (_DATA / "registries" / "characteristics.toml").read_text(encoding="utf-8")
 SKILLS = (_DATA / "registries" / "skills.toml").read_text(encoding="utf-8")
+BENEFITS = (_DATA / "registries" / "benefits.toml").read_text(encoding="utf-8")
 TASKS = (_DATA / "tasks.toml").read_text(encoding="utf-8")
 NAVY = (_DATA / "careers" / "navy.toml").read_text(encoding="utf-8")
+SCOUT = (_DATA / "careers" / "scout.toml").read_text(encoding="utf-8")
+CHARGEN = (_DATA / "chargen" / "chargen-parameters.toml").read_text(encoding="utf-8")
 
 VALID_TOML = """
 schema = "task-parameters"
@@ -242,12 +245,12 @@ def test_validate_rules_reports_the_packaged_data_set_as_valid():
     report = validate_rules()
     assert report.valid
     assert report.problems == ()
-    assert report.file_count == 26
+    assert report.file_count == 42
 
 
 def test_validate_rules_file_count_counts_every_composed_toml():
     report = validate_rules()
-    assert report.file_count == 26
+    assert report.file_count == 42
 
 
 def test_file_count_counts_an_override_addition_not_only_the_packaged_set(tmp_path):
@@ -262,7 +265,7 @@ def test_file_count_counts_an_override_addition_not_only_the_packaged_set(tmp_pa
         'schema = "career"\nschema-version = 1\n', encoding="utf-8"
     )
     report = validate_rules(tmp_path)
-    assert report.file_count == 27
+    assert report.file_count == 43
 
 
 def test_load_rules_rejects_a_nonexistent_override_location_as_a_usage_error(tmp_path):
@@ -303,36 +306,78 @@ def test_a_supported_schema_version_is_counted_per_kind(tmp_path, monkeypatch):
     # FR-002a states the claim: "a change to one kind's shape MUST NOT
     # invalidate a user-supplied file of a kind whose shape did not change".
     # It is the sole justification the spec's Assumptions give for the version
-    # field existing at all. `skills` is used here rather than
-    # `characteristics`, which is genuinely at version 2 in this feature: the
-    # claim needs a kind whose packaged file still declares version 1.
+    # field existing at all. `benefits` is used here rather than
+    # `characteristics` or `skills`, both genuinely bumped in this feature:
+    # the claim needs a kind whose packaged file still declares version 1.
     from cetools import rules as rules_module
 
-    monkeypatch.setitem(rules_module._SUPPORTED_VERSION, "skills", 2)
-    (tmp_path / "skills.toml").write_text(
-        SKILLS.replace("schema-version = 1", "schema-version = 2", 1), encoding="utf-8"
+    monkeypatch.setitem(rules_module._SUPPORTED_VERSION, "benefits", 2)
+    (tmp_path / "benefits.toml").write_text(
+        BENEFITS.replace("schema-version = 1", "schema-version = 2", 1), encoding="utf-8"
     )
     report = validate_rules(tmp_path)
     assert report.valid, report.problems
 
 
 def test_raising_one_kinds_version_rejects_that_kinds_file_and_no_others(tmp_path, monkeypatch):
-    # The same claim from the other side: with skills at 2 and every packaged
-    # file still declaring 1, the skills registry is the only file whose
-    # version is refused, and the files of the untouched kinds validate as
-    # they did. navy.toml is not among those, because a rejected skills
-    # registry cascades into every name it would have resolved — which is
-    # research R13's deliberate choice, not a version judgement about the
-    # career.
+    # The same claim from the other side: with benefits at 2 and every
+    # packaged file still declaring 1, the benefits registry is the only
+    # file whose version is refused, and the files of the untouched kinds
+    # validate as they did. navy.toml is not among those, because a rejected
+    # benefits registry cascades into every name it would have resolved —
+    # which is research R13's deliberate choice, not a version judgement
+    # about the career.
     from cetools import rules as rules_module
 
-    monkeypatch.setitem(rules_module._SUPPORTED_VERSION, "skills", 2)
+    monkeypatch.setitem(rules_module._SUPPORTED_VERSION, "benefits", 2)
     report = validate_rules(tmp_path)
     assert not report.valid
     version_problems = [p for p in report.problems if p.expected.startswith("version ")]
-    assert [p.file for p in version_problems] == ["skills.toml"]
-    for untouched in ("tasks.toml", "characteristics.toml", "benefits.toml"):
+    assert [p.file for p in version_problems] == ["benefits.toml"]
+    for untouched in ("tasks.toml", "characteristics.toml", "skills.toml"):
         assert not [p for p in report.problems if p.file == untouched]
+
+
+def test_a_skills_file_declaring_the_old_version_is_rejected_naming_both_versions(tmp_path):
+    # FR-012, D4: a specialty may now name another cascade, which a
+    # version-1 reader stops at, so the bump is not optional even though the
+    # file shape is unchanged.
+    (tmp_path / "skills.toml").write_text(
+        SKILLS.replace("schema-version = 2", "schema-version = 1", 1), encoding="utf-8"
+    )
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    version_problems = [p for p in report.problems if p.file == "skills.toml"]
+    assert version_problems
+    assert version_problems[0].found == "version 1"
+    assert version_problems[0].expected == "version 2"
+
+
+def test_a_skills_file_declaring_the_new_version_is_accepted(tmp_path):
+    (tmp_path / "skills.toml").write_text(SKILLS, encoding="utf-8")
+    report = validate_rules(tmp_path)
+    assert not [p for p in report.problems if p.file == "skills.toml"]
+
+
+def test_a_career_file_declaring_the_old_version_is_rejected_naming_both_versions(tmp_path):
+    # D1: three changes the v3 shape cannot express or wrongly requires
+    # (optional rank title, the quantified benefit form, re-enlistment's
+    # narrowed keys), bundled into one bump.
+    (tmp_path / "navy.toml").write_text(
+        NAVY.replace("schema-version = 4", "schema-version = 3", 1), encoding="utf-8"
+    )
+    report = validate_rules(tmp_path)
+    assert not report.valid
+    version_problems = [p for p in report.problems if p.file == "navy.toml"]
+    assert version_problems
+    assert version_problems[0].found == "version 3"
+    assert version_problems[0].expected == "version 4"
+
+
+def test_a_career_file_declaring_the_new_version_is_accepted(tmp_path):
+    (tmp_path / "navy.toml").write_text(NAVY, encoding="utf-8")
+    report = validate_rules(tmp_path)
+    assert not [p for p in report.problems if p.file == "navy.toml"]
 
 
 class TestBooleansAreNotIntegers:
@@ -480,11 +525,11 @@ class TestCollectedRatherThanRaisedOrDropped:
 
         monkeypatch.setattr(rules_module, "_discover_packaged", without_skills)
         (tmp_path / "house-skills.toml").write_text(
-            'schema = "skills"\nschema-version = 2\n\n[skills]\n"Comms" = []\n', encoding="utf-8"
+            'schema = "skills"\nschema-version = 1\n\n[skills]\n"Comms" = []\n', encoding="utf-8"
         )
         report = validate_rules(tmp_path)
         assert not report.valid
-        version_problems = [p for p in report.problems if p.expected == "version 1"]
+        version_problems = [p for p in report.problems if p.expected == "version 2"]
         assert [p.file for p in version_problems] == ["house-skills.toml"]
         assert not [p for p in report.problems if "declaring kind 'skills'" in p.expected]
 
@@ -512,7 +557,7 @@ class TestRegistrySubProblemsAllReachTheReport:
 
     def test_two_bad_skill_specialty_arrays(self, tmp_path):
         (tmp_path / "skills.toml").write_text(
-            'schema = "skills"\nschema-version = 1\n\n[skills]\nFoo = 5\nBar = 7\n',
+            'schema = "skills"\nschema-version = 2\n\n[skills]\nFoo = 5\nBar = 7\n',
             encoding="utf-8",
         )
         report = validate_rules(tmp_path)
@@ -587,6 +632,158 @@ def test_problems_arrive_sorted_by_file_then_location(tmp_path):
         ("navy.toml", "throws.survival.target"),
         ("tasks.toml", "task.target"),
     ]
+
+
+class TestMusteringOutCoverage:
+    """FR-020, FR-021, D7: a mustering-out table shorter than the rows a
+    character in that career can roll is a validation problem rather than a
+    runtime failure some seed finds mid-batch. Under the packaged
+    `chargen-parameters.toml`, `max_total` (the `1d6` roll) is 6,
+    `retired-cash-dm` is 1, and `material-rank-dm` is 1 at rank 5.
+    """
+
+    def test_a_cash_table_shorter_than_max_total_plus_retired_cash_dm_is_rejected(self, tmp_path):
+        text = NAVY.replace(
+            "cash = [1000, 5000, 10000, 10000, 20000, 50000, 50000]",
+            "cash = [1000, 5000, 10000, 10000, 20000, 50000]",
+            1,
+        )
+        assert text != NAVY
+        (tmp_path / "navy.toml").write_text(text, encoding="utf-8")
+        report = validate_rules(tmp_path)
+        assert not report.valid
+        matching = [
+            p
+            for p in report.problems
+            if p.file == "navy.toml" and p.location == "mustering-out.cash"
+        ]
+        assert len(matching) == 1
+        assert "6" in matching[0].found
+        assert "7" in matching[0].expected
+
+    def test_a_material_table_shorter_than_max_total_plus_the_rank_dm_is_rejected(self, tmp_path):
+        # Navy's officer ladder reaches rank 6, at or above the rank-5
+        # `material-rank-dm` row, so its material table needs 6 + 1 = 7 rows.
+        text = NAVY.replace(
+            'benefits = ["Low Passage", "EDU +1", "Weapon", "Mid Passage", "SOC +1", '
+            '"High Passage", "Explorers\' Society"]',
+            'benefits = ["Low Passage", "EDU +1", "Weapon", "Mid Passage", "SOC +1", '
+            '"High Passage"]',
+            1,
+        )
+        assert text != NAVY
+        (tmp_path / "navy.toml").write_text(text, encoding="utf-8")
+        report = validate_rules(tmp_path)
+        assert not report.valid
+        matching = [
+            p
+            for p in report.problems
+            if p.file == "navy.toml" and p.location == "mustering-out.benefits"
+        ]
+        assert len(matching) == 1
+        assert "6" in matching[0].found
+        assert "7" in matching[0].expected
+
+    def test_a_career_whose_ladders_stop_at_rank_0_needs_only_max_total_material_rows(
+        self, tmp_path
+    ):
+        # Scout's one ladder never reaches rank 5, so no `material-rank-dm`
+        # row applies and six rows (the `1d6` roll alone) suffice — which is
+        # exactly what the packaged file already carries.
+        assert (
+            'benefits = ["Low Passage", "EDU +1", "Weapon", "Mid Passage", '
+            '"Explorers\' Society", "Courier Vessel"]'
+        ) in SCOUT
+        (tmp_path / "scout.toml").write_text(SCOUT, encoding="utf-8")
+        report = validate_rules(tmp_path)
+        assert not [
+            p
+            for p in report.problems
+            if p.file == "scout.toml" and p.location == "mustering-out.benefits"
+        ]
+
+    def test_a_material_table_one_row_short_of_that_same_six_is_rejected(self, tmp_path):
+        text = SCOUT.replace(
+            'benefits = ["Low Passage", "EDU +1", "Weapon", "Mid Passage", '
+            '"Explorers\' Society", "Courier Vessel"]',
+            'benefits = ["Low Passage", "EDU +1", "Weapon", "Mid Passage", '
+            '"Explorers\' Society"]',
+            1,
+        )
+        assert text != SCOUT
+        (tmp_path / "scout.toml").write_text(text, encoding="utf-8")
+        report = validate_rules(tmp_path)
+        matching = [
+            p
+            for p in report.problems
+            if p.file == "scout.toml" and p.location == "mustering-out.benefits"
+        ]
+        assert len(matching) == 1
+        assert "5" in matching[0].found
+        assert "6" in matching[0].expected
+
+    def test_the_packaged_data_set_satisfies_its_own_coverage_rule(self):
+        report = validate_rules()
+        assert not [p for p in report.problems if "mustering-out" in p.location]
+
+    def test_an_override_careers_own_ladders_are_subject_to_the_rule(self, tmp_path):
+        # FR-021: the rule is stated over the careers *in force*, computed
+        # from that file's own ladders, so an override is subject to it too.
+        text = NAVY.replace('name = "Navy"', 'name = "Navy House Rule"', 1).replace(
+            "cash = [1000, 5000, 10000, 10000, 20000, 50000, 50000]",
+            "cash = [1000, 5000, 10000, 10000, 20000, 50000]",
+            1,
+        )
+        (tmp_path / "navy.toml").write_text(text, encoding="utf-8")
+        report = validate_rules(tmp_path)
+        assert not report.valid
+        assert any(
+            p.file == "navy.toml" and p.location == "mustering-out.cash" for p in report.problems
+        )
+
+    def test_a_non_monotonic_material_rank_dm_is_bounded_by_every_reachable_rank(self, tmp_path):
+        # `material-rank-dm` is not cumulative (research R10 item 7): the
+        # highest matching row wins, not the row at the highest rank a
+        # career's ladders reach. A rank-1 row can carry a higher `dm` than
+        # a rank-5 row, so the bound has to cover every rank the career can
+        # actually hold, not just the highest one — Navy's officer ladder
+        # holds rank 1 on the way to rank 6.
+        text = CHARGEN.replace(
+            "material-rank-dm = [{ rank = 5, dm = 1 }]",
+            "material-rank-dm = [{ rank = 1, dm = 2 }, { rank = 5, dm = 0 }]",
+            1,
+        )
+        assert text != CHARGEN
+        (tmp_path / "chargen-parameters.toml").write_text(text, encoding="utf-8")
+        report = validate_rules(tmp_path)
+        assert not report.valid
+        matching = [
+            p
+            for p in report.problems
+            if p.file == "navy.toml" and p.location == "mustering-out.benefits"
+        ]
+        assert len(matching) == 1
+        assert "7" in matching[0].found
+        assert "8" in matching[0].expected
+
+    def test_a_negative_retired_cash_dm_that_underflows_row_one_is_rejected(self, tmp_path):
+        # `retired-cash-dm` has no declared minimum (`chargen.py`'s
+        # `_require_int` for it takes no floor), so a negative value can
+        # drive a throw below the table's first row rather than only ever
+        # extending it, which only the ceiling check catches.
+        text = CHARGEN.replace("retired-cash-dm = 1", "retired-cash-dm = -2", 1)
+        assert text != CHARGEN
+        (tmp_path / "chargen-parameters.toml").write_text(text, encoding="utf-8")
+        report = validate_rules(tmp_path)
+        assert not report.valid
+        matching = [
+            p
+            for p in report.problems
+            if p.file == "navy.toml" and p.location == "mustering-out.cash"
+        ]
+        assert len(matching) == 1
+        assert "-1" in matching[0].found
+        assert "1" in matching[0].expected
 
 
 def test_supported_schema_version_is_a_literal_not_derived_from_package_version():

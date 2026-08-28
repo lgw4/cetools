@@ -114,7 +114,7 @@ UNTITLED = _character(
     age=22,
     funds=20000,
     careers=(_service(career="Scout", terms=1, ladder="scout", rank=0, benefit_rolls=1),),
-    skills=_skills(("Pilot", None, 1), ("Survival", None, 1), ("Vehicle", "Grav", 0)),
+    skills=_skills(("Piloting", None, 1), ("Survival", None, 1), ("Aircraft", "Grav Vehicle", 0)),
     benefits=("Weapon",),
 )
 
@@ -146,7 +146,7 @@ MULTI_CAREER = _character(
         ),
     ),
     skills=_skills(("Gunnery", None, 1), ("Streetwise", None, 0), ("Vehicle", None, 1)),
-    benefits=("Weapon", "Trade Goods"),
+    benefits=("Weapon", "Mid Passage"),
 )
 
 TITLED_THEN_UNTITLED = _character(
@@ -179,7 +179,7 @@ TITLED_THEN_UNTITLED = _character(
             benefit_rolls=3,
         ),
     ),
-    skills=_skills(("Gambler", None, 0), ("Recon", None, 1)),
+    skills=_skills(("Gambling", None, 0), ("Recon", None, 1)),
     benefits=("Weapon",),
 )
 
@@ -189,7 +189,7 @@ CASCADE = _character(
     age=26,
     funds=30000,
     careers=(_service(career="Scout", terms=2, ladder="scout", rank=0, benefit_rolls=2),),
-    skills=_skills(("Vehicle", "Aircraft", 1), ("Piloting", None, 1)),
+    skills=_skills(("Aircraft", "Winged Aircraft", 1), ("Piloting", None, 1)),
     benefits=("Ship Share",),
 )
 
@@ -333,7 +333,7 @@ class TestUniversalCharacterFormat:
 
     def test_cascade_specialization_qualified_by_parent(self):
         line3 = as_text(CASCADE).split("\n")[2]
-        assert "Vehicle (Aircraft)-1" in line3
+        assert "Aircraft (Winged Aircraft)-1" in line3
 
     def test_benefit_items_collapsed_with_repeats_and_sorted(self):
         line4 = as_text(TITLED).split("\n")[3]
@@ -347,6 +347,29 @@ class TestUniversalCharacterFormat:
         for character in (TITLED, UNTITLED, NO_BENEFITS, MULTI_CAREER, CASCADE):
             lines = as_text(character).split("\n")
             assert len(lines) in (3, 4)
+
+    def test_a_top_level_skill_and_its_own_name_as_a_specialty_render_distinctly(self):
+        # FR-016a, D6, research R8: the skill book keys on (name, specialty),
+        # so `Survival` and `Animals (Survival)` are different keys and
+        # neither merges into nor aliases the other. The background-skills
+        # education list grants all four `Sciences` specialties bare, so the
+        # `Life Sciences` / `Sciences (Life Sciences)` pair is the case every
+        # character can actually draw, not an override-only curiosity.
+        character = _character(
+            skills=_skills(
+                ("Survival", None, 1),
+                ("Animals", "Survival", 0),
+                ("Life Sciences", None, 0),
+                ("Sciences", "Life Sciences", 1),
+            )
+        )
+        line3 = as_text(character).split("\n")[2]
+        assert "Survival-1" in line3
+        assert "Animals (Survival)-0" in line3
+        assert "Life Sciences-0" in line3
+        assert "Sciences (Life Sciences)-1" in line3
+        assert line3.count("Survival") == 2
+        assert line3.count("Sciences (Life Sciences)") == 1
 
     def test_profile_renders_the_characters_own_symbols_not_the_packaged_ones(self):
         # T159: `as_text`'s signature carries no rules parameter
@@ -378,22 +401,30 @@ class TestTitlePersistence:
         # than merely getting overwritten by an identical later one (T171).
         assert TITLED_THEN_UNTITLED.careers[1].title == ""
 
-    def test_no_shipped_ladder_rank_leaves_a_character_untitled(self):
-        # FR-047c's "an earlier title survives" branch
-        # (`generator.py`'s `if title: self.title = title`) is asserted
-        # only against TITLED_THEN_UNTITLED's hand-built literal, because
-        # every rank of every shipped ladder declares a title: ordinary
-        # generation can never reach it. An override could supply what the
-        # shipped data cannot, which is why the branch — and this golden —
-        # still earn their place (T171).
+    def test_the_seven_commissionless_careers_and_no_others_carry_an_untitled_rank(self):
+        # FR-008: a career whose source rank rows print no titles at all is
+        # recorded with no titles on any rank. Navy's ladders carry a title
+        # on every rank once corrected to match the source (verification/
+        # navy.md, 004 T095), so it no longer supplies a mixed ladder's
+        # interior gap-fill example; the seven below are the only shipped
+        # source of an untitled rank. T073's traversal cases are what
+        # exercise the "an earlier title survives" branch from shipped data
+        # for these seven now, rather than only from an override.
         rules = load_rules()
+        wholly_untitled = set()
         for career in rules.careers.values():
-            for ladder in career.ladders:
-                for rank_row in ladder.ranks:
-                    assert rank_row.title, (
-                        f"{career.name}'s {ladder.name!r} ladder rank {rank_row.rank} "
-                        "declares no title"
-                    )
+            ranks = [rank_row for ladder in career.ladders for rank_row in ladder.ranks]
+            if ranks and all(not rank_row.title for rank_row in ranks):
+                wholly_untitled.add(career.name)
+        assert wholly_untitled == {
+            "Athlete",
+            "Barbarian",
+            "Belter",
+            "Drifter",
+            "Entertainer",
+            "Hunter",
+            "Scout",
+        }
 
     def test_no_rendering_may_write_anything_but_a_rank_title(self):
         # FR-048: the only title any rendering may write is a rank title

@@ -401,6 +401,44 @@ def parse_characteristics(
     )
 
 
+def _acyclic_problems(skills: Mapping[str, tuple[str, ...]], file: str) -> list[ValidationProblem]:
+    """The specialty graph must be acyclic (FR-012a): generation-time
+    resolution (`_resolve_specialty`, `src/cetools/generator.py`) follows a
+    specialty into another entry and continues until it finds one with none,
+    and a cycle would make that loop never terminate.
+
+    A specialty that names no entry in `skills` is terminal and outside this
+    graph (D5): every specialty in the packaged registry happens to also be
+    an entry, but nothing requires it.
+    """
+    problems: list[ValidationProblem] = []
+    state: dict[str, int] = {}  # 1: on the current path, 2: fully explored
+
+    def visit(name: str, path: list[str]) -> None:
+        state[name] = 1
+        for specialty in skills.get(name, ()):
+            if specialty not in skills:
+                continue
+            if state.get(specialty) == 1:
+                cycle = path[path.index(specialty) :] + [specialty]
+                problems.append(
+                    ValidationProblem(
+                        file=file,
+                        location=f"skills.{name}",
+                        found=specialty,
+                        expected=f"an acyclic specialty graph: {' -> '.join(cycle)} is a cycle",
+                    )
+                )
+            elif specialty not in state:
+                visit(specialty, path + [specialty])
+        state[name] = 2
+
+    for name in sorted(skills):
+        if name not in state:
+            visit(name, [name])
+    return problems
+
+
 def parse_skills(
     data: Mapping[str, object], file: str
 ) -> tuple[SkillRegistry | None, tuple[ValidationProblem, ...]]:
@@ -479,6 +517,10 @@ def parse_skills(
             continue
         skills[name] = tuple(specialties)
 
+    if problems:
+        return None, tuple(problems)
+
+    problems.extend(_acyclic_problems(skills, file))
     if problems:
         return None, tuple(problems)
     return SkillRegistry(skills=MappingProxyType(skills)), ()

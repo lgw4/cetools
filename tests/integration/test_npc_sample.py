@@ -107,7 +107,7 @@ class TestAlwaysLivingAndConsistency:
             assert character.careers
             assert character.history
 
-    def test_sc004_every_character_is_internally_consistent(self, sample):
+    def test_sc004_every_character_is_internally_consistent(self, sample, cascade_reachable_names):
         cap = RULES.chargen.terms_cap
         params = RULES.chargen
         for character in sample:
@@ -245,9 +245,16 @@ class TestAlwaysLivingAndConsistency:
                         for entry in table.entries
                         if isinstance(entry, (SkillGrant, SkillReference))
                     }
+                    # A cascade entry's bare grant may resolve into a nested
+                    # cascade's own name rather than the entry's literal one
+                    # (FR-012, D5) — `Vehicle` drawing `Aircraft` reports
+                    # `Aircraft (...)`, not `Vehicle (...)`.
+                    reachable_names = set().union(
+                        *(cascade_reachable_names(name) for name in entry_names)
+                    )
                     for effect in step.effects:
                         if effect.kind == "skill":
-                            assert effect.subject.split(" (", 1)[0] in entry_names
+                            assert effect.subject.split(" (", 1)[0] in reachable_names
                 elif step.kind == "commission" and step.throw is not None and step.throw.success:
                     commissioned_ladder = next(
                         (lad for lad in current_career.ladders if lad.role == "commissioned"),
@@ -357,6 +364,20 @@ class TestSpreadAndCoverage:
         assert any(len(c.careers) == 2 for c in sample)
         assert any(len(c.careers) == 3 for c in sample)
 
+    def test_sc007_the_enlarged_pool_reaches_careers_outside_the_shipped_eight(self, sample):
+        _PREVIOUSLY_SHIPPED_EIGHT = {
+            "Aerospace System Defense",
+            "Drifter",
+            "Marine",
+            "Maritime System Defense",
+            "Merchant",
+            "Navy",
+            "Scout",
+            "Surface System Defense",
+        }
+        entered = {service.career for c in sample for service in c.careers}
+        assert entered - _PREVIOUSLY_SHIPPED_EIGHT
+
     def test_sc008_every_shape_the_engine_handles_is_exercised(self, sample):
         commissioned = any(service.commissioned for c in sample for service in c.careers)
         not_commissioned = any(not service.commissioned for c in sample for service in c.careers)
@@ -385,15 +406,15 @@ class TestSpreadAndCoverage:
         }
         assert draft_rows_reached == set(RULES.draft.careers)
 
-        # FR-033, FR-007b (T155): promotion off the entry ladder is a shape
-        # the engine already handles, but until the shipped data gives at
-        # least one entry ladder a rank above zero, `ranks_above` is always
-        # empty for an uncommissioned character and the path goes
-        # unexercised by every shipped career.
-        uncommissioned_rank_above_zero = any(
-            not service.commissioned and service.rank > 0 for c in sample for service in c.careers
-        )
-        assert uncommissioned_rank_above_zero
+        # FR-033, FR-007b (T155): promotion off the entry ladder — moving an
+        # uncommissioned character to an entry-ladder rank above zero via
+        # `ranks_above` — used to be exercised here because Navy's shipped
+        # ladder gave it a rank above zero to reach. 004 T095 corrected
+        # Navy's ladders to match the source (verification/navy.md), which
+        # removes that rank, so no shipped career reaches this path any
+        # longer; it stays covered by
+        # test_generator.py::TestPromotionOffTheEntryLadder's fixture
+        # instead.
 
 
 class TestDefaultRenderingCoverage:
@@ -439,12 +460,18 @@ class TestDefaultRenderingCoverage:
             # separately below: this sample's seeds are small sequential
             # ints, so `str(character.seed)` collides with an unrelated
             # digit — an age, a fund total — too often here to be sound.)
+            #
+            # The funds figure legitimately shares line 2 with the career
+            # summary, so a debt or pension total that happens to equal
+            # `character.funds` would falsely trip the checks below if left
+            # in place; strip that one legitimate occurrence first.
+            without_funds = text.replace(f"Cr{character.funds:,}", "", 1)
             for step in character.history:
                 assert step.kind not in text
             if character.debt:
-                assert f"Cr{character.debt:,}" not in text
+                assert f"Cr{character.debt:,}" not in without_funds
             if character.pension:
-                assert f"Cr{character.pension:,}" not in text
+                assert f"Cr{character.pension:,}" not in without_funds
 
     def test_the_seed_itself_does_not_leak_into_the_default_sheet(self):
         # Reusing `sample`'s small sequential seeds (0-999) for this check

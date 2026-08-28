@@ -148,17 +148,19 @@ class TestCareerEntry:
             break
         assert found
 
-    def test_basic_training_grants_the_service_table_on_first_career(self):
+    def test_basic_training_grants_the_service_table_on_first_career(
+        self, cascade_reachable_names
+    ):
         for character in _characters(100):
             first_step = next(s for s in character.history if s.kind == "basic-training")
-            granted_names = {effect.subject.split(" (")[0] for effect in first_step.effects}
             first_career = character.careers[0].career
             career = next(c for c in RULES.careers.values() if c.name == first_career)
-            expected_names = {
-                (entry.skill.name if hasattr(entry, "skill") else entry.name)
-                for entry in career.tables["service"].entries
-            }
-            assert granted_names == expected_names
+            entries = career.tables["service"].entries
+            assert len(first_step.effects) == len(entries)
+            for effect, entry in zip(first_step.effects, entries):
+                entry_name = entry.skill.name if hasattr(entry, "skill") else entry.name
+                granted_name = effect.subject.split(" (")[0]
+                assert granted_name in cascade_reachable_names(entry_name)
 
     def test_a_later_career_characteristic_adjustment_entry_is_applied(self, tmp_path):
         # T200: the later-career branch of `basic_training` filtered every
@@ -182,11 +184,13 @@ class TestCareerEntry:
                 return self._sequence.pop(0)
 
         drifter = (_DATA / "careers" / "drifter.toml").read_text(encoding="utf-8")
-        service_entries = '["Carouse", "Gambler", "Recon", "Stealth", "Streetwise", "Survival"]'
+        service_entries = (
+            '["Streetwise", "Mechanics", "Gun Combat", "Melee Combat", "Recon", "Vehicle"]'
+        )
         assert service_entries in drifter
         overridden = drifter.replace(
             service_entries,
-            service_entries.replace('"Carouse"', '"END +1"', 1),
+            service_entries.replace('"Streetwise"', '"END +1"', 1),
             1,
         )
         (tmp_path / "drifter.toml").write_text(overridden, encoding="utf-8")
@@ -249,13 +253,13 @@ class TestTermLoop:
         # on a higher rank existing to move to. Every entry ladder in the
         # shipped data (other than Navy's, since T155) declares a single
         # rank 0, so an uncommissioned character in a career that offers
-        # promotion — Aerospace Defense, both throws — was denied the
+        # promotion — Aerospace System Defense, both throws — was denied the
         # throw entirely (T169). Seed 20's first term survives, fails its
         # commission throw, and stays in the game (does not mishap), which
         # is what reaches the promotion section at all.
         from cetools.generator import _Walk
 
-        career = RULES.careers["aerospace-defense"]
+        career = RULES.careers["aerospace-system-defense"]
         walk = _Walk(Roller(20), RULES)
         walk.characteristics = {code: 7 for code in RULES.characteristics.names}
         walk.run_term_loop(career, "selected")
@@ -266,11 +270,11 @@ class TestTermLoop:
     def test_advancement_leaves_the_rank_unchanged_with_nothing_above(self):
         # The other half of T169: attempting the throw must not move the
         # rank when the ladder has nothing above it, even on a success —
-        # seed 20's term 1 advancement throw succeeds (Aerospace Defense's
+        # seed 20's term 1 advancement throw succeeds (Aerospace System Defense's
         # "enlisted" ladder declares only rank 0).
         from cetools.generator import _Walk
 
-        career = RULES.careers["aerospace-defense"]
+        career = RULES.careers["aerospace-system-defense"]
         walk = _Walk(Roller(20), RULES)
         walk.characteristics = {code: 7 for code in RULES.characteristics.names}
         terms, ladder, rank, commissioned, ended, benefit_rolls, forfeit_all = walk.run_term_loop(
@@ -366,6 +370,253 @@ class TestSkillRolls:
                     assert skill.specialty in RULES.skills.skills[skill.name]
                     found = True
         assert found
+
+
+class TestRecursiveCascadeResolution:
+    """FR-011, FR-012, D5: resolving a bare grant continues through a chosen
+    specialty that is itself a cascade until it reaches one with none, and
+    the recorded reference is the innermost cascade paired with a terminal
+    specialty — never the outer name, and never a bare terminal.
+    """
+
+    def _registry(self):
+        from cetools.registries import SkillRegistry
+
+        return SkillRegistry(
+            skills={
+                "Vehicle": ("Aircraft", "Watercraft"),
+                "Aircraft": ("Winged Aircraft", "Grav Vehicle"),
+                "Watercraft": ("Ocean Ships",),
+                "Winged Aircraft": (),
+                "Grav Vehicle": (),
+                "Ocean Ships": (),
+            }
+        )
+
+    def test_a_bare_grant_resolves_to_the_innermost_cascade_and_a_terminal_specialty(self):
+        from cetools.generator import _resolve_specialty
+        from cetools.notation import SkillReference
+
+        registry = self._registry()
+        seen = set()
+        for seed in range(200):
+            resolved = _resolve_specialty(SkillReference(name="Vehicle"), registry, Roller(seed))
+            assert resolved.name in ("Aircraft", "Watercraft")
+            assert resolved.specialty in registry.skills[resolved.name]
+            seen.add((resolved.name, resolved.specialty))
+        # Both branches, and more than one terminal specialty under the
+        # branch that has more than one, are reachable.
+        assert ("Aircraft", "Winged Aircraft") in seen
+        assert ("Aircraft", "Grav Vehicle") in seen
+        assert ("Watercraft", "Ocean Ships") in seen
+
+    def test_each_nesting_level_costs_exactly_one_draw(self):
+        from cetools.generator import _resolve_specialty
+        from cetools.notation import SkillReference
+
+        registry = self._registry()
+        for seed in range(50):
+            roller = Roller(seed)
+            calls = []
+            original_die = roller.die
+            roller.die = lambda sides, _orig=original_die: (calls.append(sides), _orig(sides))[1]
+            _resolve_specialty(SkillReference(name="Vehicle"), registry, roller)
+            # Vehicle -> {Aircraft, Watercraft} is one draw; whichever is
+            # chosen, it is itself a cascade, so resolving its specialty is
+            # a second draw — and every one of those is terminal.
+            assert len(calls) == 2
+
+    def test_a_reference_naming_a_terminal_specialty_draws_nothing(self):
+        from cetools.generator import _resolve_specialty
+        from cetools.notation import SkillReference
+
+        registry = self._registry()
+        reference = SkillReference(name="Aircraft", specialty="Winged Aircraft")
+        assert _resolve_specialty(reference, registry, Roller(0)) is reference
+
+    def test_a_reference_naming_a_non_terminal_specialty_continues_resolution(self):
+        # T100: a grant written as `Vehicle (Aircraft)` names a specialty
+        # that is itself a cascade. FR-012 forbids a sheet from ever
+        # carrying that compound, so resolution continues through it rather
+        # than stopping at the written-but-non-terminal pair.
+        from cetools.generator import _resolve_specialty
+        from cetools.notation import SkillReference
+
+        registry = self._registry()
+        reference = SkillReference(name="Vehicle", specialty="Aircraft")
+        seen = set()
+        for seed in range(50):
+            resolved = _resolve_specialty(reference, registry, Roller(seed))
+            assert resolved.name == "Aircraft"
+            assert resolved.specialty in registry.skills["Aircraft"]
+            seen.add(resolved.specialty)
+        assert seen == {"Winged Aircraft", "Grav Vehicle"}
+
+    def test_continuing_past_a_non_terminal_specialty_costs_exactly_one_draw(self):
+        from cetools.generator import _resolve_specialty
+        from cetools.notation import SkillReference
+
+        registry = self._registry()
+        reference = SkillReference(name="Vehicle", specialty="Aircraft")
+        for seed in range(50):
+            roller = Roller(seed)
+            calls = []
+            original_die = roller.die
+            roller.die = lambda sides, _orig=original_die: (calls.append(sides), _orig(sides))[1]
+            _resolve_specialty(reference, registry, roller)
+            assert len(calls) == 1
+
+    def test_a_terminal_bare_grant_draws_nothing_and_stays_unspecialized(self):
+        from cetools.generator import _resolve_specialty
+        from cetools.notation import SkillReference
+
+        registry = self._registry()
+        reference = SkillReference(name="Winged Aircraft")
+        assert _resolve_specialty(reference, registry, Roller(0)) is reference
+
+
+class TestTitlePersistenceAcrossCareers:
+    """FR-047c (T171): an earlier title survives a later untitled service.
+    Driven against a fixture career built from Navy's rather than through
+    `run()`'s random career selection, so the two services land in a chosen
+    order; T073's traversal cases exercise the branch from shipped data too,
+    via the seven commissionless careers whose one ladder carries an
+    untitled rank (004 T095 corrected Navy's own ladders to match the
+    source, which titles every rank).
+    """
+
+    def test_a_later_untitled_service_does_not_erase_an_earlier_title(self):
+        import dataclasses
+
+        from cetools.generator import _Walk
+
+        navy = next(c for c in RULES.careers.values() if c.name == "Navy")
+        untitled_career = dataclasses.replace(
+            navy,
+            name="Untitled Navy",
+            ladders=tuple(
+                dataclasses.replace(
+                    ladder, ranks=tuple(dataclasses.replace(r, title="") for r in ladder.ranks)
+                )
+                for ladder in navy.ladders
+            ),
+        )
+
+        title_after_first_career = None
+        for seed in range(50):
+            walk = _Walk(Roller(seed), RULES)
+            walk.characteristics = {code: 7 for code in RULES.characteristics.names}
+
+            entry_ladder = walk._entry_ladder(navy)
+            walk._grant_rank_bonus(navy.name, 1, entry_ladder, 0)
+            _, ladder, rank, *_ = walk.run_term_loop(navy, "selected")
+            title = walk._current_title(navy, ladder, rank)
+            if title:
+                walk.title = title
+            if walk.title:
+                title_after_first_career = walk.title
+                break
+        assert title_after_first_career, "no seed under 50 reached a titled Navy rank"
+
+        entry_ladder2 = walk._entry_ladder(untitled_career)
+        walk._grant_rank_bonus(untitled_career.name, 1, entry_ladder2, 0)
+        _, ladder2, rank2, *_ = walk.run_term_loop(untitled_career, "fallback")
+        title2 = walk._current_title(untitled_career, ladder2, rank2)
+        if title2:
+            walk.title = title2
+
+        assert title2 == ""
+        assert walk.title == title_after_first_career
+
+
+class TestPromotionOffTheEntryLadder:
+    """FR-033, FR-007b (T155): a success on the promotion throw moves a
+    still-uncommissioned character up its entry ladder, via `ranks_above`
+    (`generator.py:820`). Navy's shipped ladder used to be the only career
+    that gave this path an entry-ladder rank above zero to reach; 004 T095
+    corrected Navy's ladders to match the source, which removes that rank
+    (verification/navy.md), so this path is no longer exercised by any
+    shipped career (`test_npc_sample.py`'s former SC-008 assertion for it
+    is gone with it). Driven against a fixture career built from Athlete's,
+    which otherwise has no promotion throw at all.
+    """
+
+    def test_a_promotion_success_grants_the_next_entry_ladder_rank(self):
+        import dataclasses
+
+        from cetools.careers import Throw
+        from cetools.generator import _Walk
+
+        athlete = next(c for c in RULES.careers.values() if c.name == "Athlete")
+        (base_ladder,) = athlete.ladders
+        promotable = dataclasses.replace(
+            athlete,
+            name="Promotable Athlete",
+            throws={
+                **athlete.throws,
+                "promotion": Throw(characteristic=None, target=3, dice="2d6"),
+            },
+            ladders=(
+                dataclasses.replace(
+                    base_ladder,
+                    ranks=(
+                        *base_ladder.ranks,
+                        dataclasses.replace(base_ladder.ranks[0], rank=1, title="Champion"),
+                    ),
+                ),
+            ),
+        )
+
+        reached_rank_above_zero = False
+        for seed in range(50):
+            walk = _Walk(Roller(seed), RULES)
+            walk.characteristics = {code: 7 for code in RULES.characteristics.names}
+            entry_ladder = walk._entry_ladder(promotable)
+            walk._grant_rank_bonus(promotable.name, 1, entry_ladder, 0)
+            _, _, rank, *_ = walk.run_term_loop(promotable, "selected")
+            if rank > 0:
+                reached_rank_above_zero = True
+                break
+        assert (
+            reached_rank_above_zero
+        ), "no seed under 50 reached a rank above the entry ladder's base"
+
+
+class TestQuantifiedBenefitDraw:
+    """FR-011: a `QuantifiedBenefit` mustering-out row appends the item name
+    once per point rolled, the quantity itself a seeded draw.
+    """
+
+    def _ship_share_count(self, seed):
+        import dataclasses
+
+        from cetools.generator import _Walk
+        from cetools.notation import QuantifiedBenefit
+
+        navy = next(c for c in RULES.careers.values() if c.name == "Navy")
+        mustering_out = dataclasses.replace(
+            navy.mustering_out,
+            benefits=(QuantifiedBenefit(dice="1d6", name="Ship Share"),)
+            * len(navy.mustering_out.benefits),
+        )
+        career = dataclasses.replace(navy, mustering_out=mustering_out)
+        walk = _Walk(Roller(seed), RULES)
+        walk.characteristics = {code: 7 for code in RULES.characteristics.names}
+        walk.muster_out_service(career, terms=1, ladder="enlisted", rank=0, benefit_rolls=1)
+        return walk.benefits.count("Ship Share")
+
+    def test_the_count_awarded_is_the_dice_total_and_varies_with_the_seed(self):
+        # `benefit_rolls=1` sometimes takes cash instead of material (the
+        # cash-choice roll is its own draw), so a count of 0 is a real
+        # outcome; what this pins is that a material roll never awards more
+        # than 1d6 and that the count is not the same every seed.
+        counts = [self._ship_share_count(seed) for seed in range(30)]
+        assert all(0 <= count <= 6 for count in counts)
+        assert len(set(counts)) > 1
+        assert any(count >= 1 for count in counts)
+
+    def test_the_same_seed_yields_the_same_count(self):
+        assert self._ship_share_count(7) == self._ship_share_count(7)
 
 
 class TestAlwaysLiving:
@@ -628,34 +879,43 @@ class TestADebtsCreationStepPrecedesItsSettlement:
     (T164).
     """
 
-    def test_no_settlement_is_followed_by_the_debt_it_settled(self):
+    def test_every_settlement_has_a_prior_unsettled_creation(self):
+        # A single term can legitimately raise more than one debt (a
+        # mishap's medical bill, then a later aging-triggered
+        # medical-crisis, both before the term ends) with the earlier one
+        # opportunistically settled from funds on hand while the later one
+        # remains outstanding — so matching by (career, term) alone, as an
+        # earlier version of this test did, false-positives on that
+        # ordering. And a single debt can itself be settled across more
+        # than one `debt-settled` step (a partial payment now, the
+        # remainder whenever funds next allow), so a one-token-per-debt
+        # counter, decremented on every settlement, also false-positives —
+        # a debt only fully "consumed" once its cumulative payments reach
+        # its amount, not on its first partial one. A career-boundary reset
+        # is wrong for the same reason a per-debt token count is: a debt a
+        # career could not afford to clear at its own mustering-out stays
+        # outstanding into whatever career comes next.
+        #
+        # What T164 actually guards against is money settled that was never
+        # owed yet — a `debt-settled` amount landing before the
+        # `mishap`/`medical-crisis`/`medical-bills` step whose debt effect
+        # created it. That is a running conservation check on cumulative
+        # totals, not a per-event token count: cumulative money settled can
+        # never exceed cumulative money created up to that point.
         for character in _characters(2000):
+            created = 0
+            settled = 0
             for index, step in enumerate(character.history):
-                if step.kind != "debt-settled":
-                    continue
-                # Bounded at the next `career-entered`: a re-enterable
-                # career (Drifter) restarts its term count at a fresh
-                # service, so (career, term) alone can name the same pair
-                # twice across two unrelated services, and a debt this
-                # step settled has no bearing on one raised in the next
-                # service that happens to share its career and term.
-                later_creator = False
-                for other in character.history[index + 1 :]:
-                    if other.kind == "career-entered":
-                        break
-                    if (
-                        other.kind in _DEBT_CREATING_KINDS
-                        and other.career == step.career
-                        and other.term == step.term
-                        and any(e.kind == "debt" for e in other.effects)
-                    ):
-                        later_creator = True
-                        break
-                assert not later_creator, (
-                    f"seed {character.seed}: debt-settled at history index "
-                    f"{index} is followed by a debt creation in "
-                    f"{step.career} term {step.term}"
-                )
+                if step.kind in _DEBT_CREATING_KINDS:
+                    created += sum(e.amount for e in step.effects if e.kind == "debt")
+                elif step.kind == "debt-settled":
+                    settled += sum(e.amount for e in step.effects if e.kind == "debt")
+                    assert settled <= created, (
+                        f"seed {character.seed}: debt-settled at history "
+                        f"index {index} ({step.career} term {step.term}) "
+                        f"brings cumulative settlements to {settled}, "
+                        f"exceeding the {created} created so far"
+                    )
 
 
 class TestMedicalBillRestoration:
@@ -1180,22 +1440,13 @@ def test_qualification_penalty_grows_with_previous_careers_entered():
     assert found_penalty
 
 
-def test_re_enlistment_honors_a_declared_characteristic_dm(tmp_path):
-    # T195: `careers.py` accepts and registry-validates `characteristic` on
-    # a re-enlistment throw exactly as it does for the other four (`_ALL_THROWS`
-    # admits it there too), but `generator.py`'s re-enlistment throw never
-    # read it — a field parsed, validated, and then never honored, the T141 /
-    # T178 shape. No shipped career declares one, so this exercises an
-    # override the way T195's own reasoning requires: the loader promises
-    # the value is understood, so the walk must act on it.
-    navy = (_DATA / "careers" / "navy.toml").read_text(encoding="utf-8")
-    block = '[throws.re-enlistment]\ntarget = 5\ndice = "2d6"\n'
-    assert block in navy
-    overridden = navy.replace(
-        block, '[throws.re-enlistment]\ncharacteristic = "SOC"\ntarget = 5\ndice = "2d6"\n', 1
-    )
-    (tmp_path / "navy.toml").write_text(overridden, encoding="utf-8")
-    rules = load_rules(tmp_path)
+def test_re_enlistment_never_carries_a_characteristic_modifier(tmp_path):
+    # FR-013a, D1: `throws.re-enlistment` no longer admits `characteristic`
+    # at all (career schema v4) — the field parsed, validated, and never
+    # honored (T195's finding) is now refused at the parser instead, which is
+    # what T024 in tests/unit/test_careers.py pins. The walk's re-enlistment
+    # throw carries no characteristic modifier for any shipped career.
+    rules = load_rules()
 
     found = False
     for seed in range(300):
@@ -1203,11 +1454,11 @@ def test_re_enlistment_honors_a_declared_characteristic_dm(tmp_path):
         for step in character.history:
             if step.kind != "re-enlistment" or step.throw is None:
                 continue
+            found = True
             char_modifiers = [
                 m for m in step.throw.modifiers if m.label.startswith("Characteristic ")
             ]
-            if char_modifiers:
-                found = True
+            assert not char_modifiers
             assert step.throw.total == sum(step.throw.faces) + sum(
                 m.value for m in step.throw.modifiers
             )

@@ -1,7 +1,7 @@
 """The compact table notation: one entry that mixes kinds of thing in one cell.
 
 `parse_entry` does no registry lookup (see `registries.py` and `careers.py`
-for that); it only decides which of the four grammar forms an entry text is,
+for that); it only decides which of the five grammar forms an entry text is,
 and whether that form is admissible in the caller's `EntryContext`. See
 contracts/notation.md for the grammar and the malformed-entry table this
 module's behavior is pinned to.
@@ -10,6 +10,9 @@ module's behavior is pinned to.
 import re
 from dataclasses import dataclass
 from enum import Enum, auto
+
+from cetools.errors import RulesDataError
+from cetools.tasks import _check_dice
 
 
 class EntryContext(Enum):
@@ -66,8 +69,24 @@ class BenefitItem:
     name: str
 
 
+@dataclass(frozen=True, slots=True)
+class QuantifiedBenefit:
+    """A material-benefit row awarding a rolled number of one item:
+    `1d6 Ship Share`. Admissible only in `EntryContext.BENEFIT_TABLE`
+    (FR-011, contracts/notation.md).
+    """
+
+    dice: str
+    name: str
+
+
 type Entry = (
-    SkillReference | CharacteristicCheck | CharacteristicAdjustment | SkillGrant | BenefitItem
+    SkillReference
+    | CharacteristicCheck
+    | CharacteristicAdjustment
+    | SkillGrant
+    | BenefitItem
+    | QuantifiedBenefit
 )
 
 
@@ -84,7 +103,7 @@ class NotationProblem:
 
 _ADMISSIBLE_KINDS: dict[EntryContext, frozenset[str]] = {
     EntryContext.SKILL_TABLE: frozenset({"adjustment", "grant", "bare"}),
-    EntryContext.BENEFIT_TABLE: frozenset({"adjustment", "bare"}),
+    EntryContext.BENEFIT_TABLE: frozenset({"adjustment", "bare", "quantified"}),
     EntryContext.GATE: frozenset({"check"}),
 }
 
@@ -92,7 +111,9 @@ _ADMISSIBLE_FORMS: dict[EntryContext, str] = {
     EntryContext.SKILL_TABLE: (
         "a characteristic adjustment, a skill grant, or a bare skill reference"
     ),
-    EntryContext.BENEFIT_TABLE: "a characteristic adjustment or a bare benefit item",
+    EntryContext.BENEFIT_TABLE: (
+        "a characteristic adjustment, a bare benefit item, or a quantified benefit"
+    ),
     EntryContext.GATE: "a characteristic check",
 }
 
@@ -102,6 +123,7 @@ _ADJUSTMENT_TOKEN = re.compile(r"^([+-])(\d+)$")
 _GRANT_TOKEN = re.compile(r"^(\d+)$")
 _BARE_SIGN_TOKEN = re.compile(r"^[+-]$")
 _SPECIALTY = re.compile(r"^(?P<base>[^()]*)\((?P<inner>[^()]*)\)$")
+_LEADING_DICE_TOKEN = re.compile(r"^(\d*[dD]\d+(?:[+-]\d+)?)(?:\s+(.*))?$", re.DOTALL)
 
 
 def _malformed(text: str, context: EntryContext, detail: str) -> NotationProblem:
@@ -109,9 +131,9 @@ def _malformed(text: str, context: EntryContext, detail: str) -> NotationProblem
     written, and the forms acceptable in the position it sits in.
 
     The forms come first because they are what FR-009 promises and FR-009a
-    exists to supply; a context-free "one of the four notation forms" was not
+    exists to supply; a context-free "one of the five notation forms" was not
     merely incomplete but false, since a gate admits exactly one form and a
-    mustering-out benefits entry exactly two. `detail` says which rule the
+    mustering-out benefits entry exactly three. `detail` says which rule the
     entry broke, which the admissible forms alone do not tell an author who
     wrote `Pilot -`.
 
@@ -167,12 +189,14 @@ def _parse_name(name: str) -> tuple[str, str | None] | str:
 def parse_entry(text: str, context: EntryContext) -> Entry | NotationProblem:
     """Parse one table cell's text into the entry it names, or a problem.
 
-    Matches by anchoring on the trailing whitespace-delimited token, in the
-    fixed order check, adjustment, grant, bare (contracts/notation.md,
-    research R9). A token that contains a digit but matches none of the
-    three suffixed forms is reported as malformed rather than folded into
-    the name, distinguishing a mistaken suffix from a name that merely ends
-    in ordinary text.
+    The quantified form is tried first, on a leading dice token, ahead of
+    the trailing-token anchoring the other forms use. Past that, matches
+    anchor on the trailing whitespace-delimited token, in the fixed order
+    check, adjustment, grant, bare (contracts/notation.md, research R9). A
+    token that contains a digit but matches none of the three suffixed
+    forms is reported as malformed rather than folded into the name,
+    distinguishing a mistaken suffix from a name that merely ends in
+    ordinary text.
 
     The tail is looked for after a specialty's closing parenthesis, because
     the grammar reserves the suffix position to text outside the specialty
@@ -186,6 +210,35 @@ def parse_entry(text: str, context: EntryContext) -> Entry | NotationProblem:
     stripped = text.strip()
     if not stripped:
         return _malformed(text, context, "a non-empty entry")
+
+    quantified_match = _LEADING_DICE_TOKEN.match(stripped)
+    if quantified_match is not None:
+        if "quantified" not in _ADMISSIBLE_KINDS[context]:
+            return NotationProblem(found=text, expected=_ADMISSIBLE_FORMS[context])
+        dice_token, name_part = quantified_match.group(1), quantified_match.group(2)
+        if name_part is None:
+            return _malformed(text, context, "a name after the quantity")
+        try:
+            count, _sides, modifier = _check_dice(dice_token)
+        except RulesDataError:
+            return _malformed(text, context, f"{dice_token!r} to be valid dice notation")
+        minimum_total = count + modifier
+        if minimum_total < 1:
+            return _malformed(
+                text,
+                context,
+                "a quantity able to award at least one item; "
+                f"{dice_token!r} yields a minimum of {minimum_total}",
+            )
+        parsed_name = _parse_name(name_part)
+        if isinstance(parsed_name, str):
+            return _malformed(text, context, parsed_name)
+        base, specialty = parsed_name
+        if not base:
+            return _malformed(text, context, "a non-empty name")
+        if specialty is not None:
+            return _malformed(text, context, "a quantified benefit carries no specialty")
+        return QuantifiedBenefit(dice=dice_token, name=base)
 
     after_specialty = stripped.rfind(")") + 1
     trailing = _TRAILING_TOKEN.search(stripped, after_specialty)

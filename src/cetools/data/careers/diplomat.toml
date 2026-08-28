@@ -1,0 +1,69 @@
+# Open Game Content per OGL 1.0a; see LICENSE-OGL.txt
+#
+# New career (research.md R1).
+
+schema = "career"
+schema-version = 4
+
+name = "Diplomat"
+medical-tier = "professional"
+
+[throws.qualification]
+characteristic = "SOC"
+target = 6
+dice = "2d6"
+
+[throws.survival]
+characteristic = "EDU"
+target = 5
+dice = "2d6"
+
+[throws.commission]
+characteristic = "INT"
+target = 7
+dice = "2d6"
+
+[throws.promotion]
+characteristic = "SOC"
+target = 7
+dice = "2d6"
+
+[throws.re-enlistment]
+target = 5
+dice = "2d6"
+
+[tables.personal]
+entries = ["DEX +1", "END +1", "INT +1", "EDU +1", "Athletics", "Carousing"]
+
+[tables.service]
+entries = ["Admin", "Computer", "Carousing", "Bribery", "Liaison", "Vehicle"]
+
+[tables.specialist]
+entries = ["Carousing", "Linguistics", "Bribery", "Liaison", "Steward", "Vehicle"]
+
+[tables.advanced-education]
+requires = "EDU 8+"
+entries = ["Advocate", "Computer", "Liaison", "Linguistics", "Medicine", "Leadership"]
+
+[[ladders]]
+name = "junior"
+role = "entry"
+ranks = [
+  { rank = 0, title = "Attaché", bonus = "Liaison 1" },
+]
+
+[[ladders]]
+name = "officer"
+role = "commissioned"
+ranks = [
+  { rank = 1, title = "Third Secretary" },
+  { rank = 2, title = "Second Secretary" },
+  { rank = 3, title = "First Secretary", bonus = "Admin 1" },
+  { rank = 4, title = "Counselor" },
+  { rank = 5, title = "Minister" },
+  { rank = 6, title = "Ambassador" },
+]
+
+[mustering-out]
+cash = [1000, 5000, 10000, 20000, 20000, 50000, 100000]
+benefits = ["Low Passage", "EDU +1", "Mid Passage", "High Passage", "SOC +1", "High Passage", "Explorers' Society"]

@@ -542,6 +542,80 @@ class TestSkillRegistryResolution:
         assert result is SkillResolution.UNRECOGNIZED_SPECIALTY
 
 
+class TestNestedCascadeResolution:
+    """FR-012, D4, D5: a specialty may itself name another entry with
+    specialties of its own. `resolve` stays single-level (data-model.md);
+    what changes is that the registry may hold such a chain at all.
+    """
+
+    def _registry(self):
+        return SkillRegistry(
+            skills={
+                "Vehicle": ("Aircraft", "Watercraft"),
+                "Aircraft": ("Winged Aircraft", "Grav Vehicle"),
+                "Winged Aircraft": (),
+                "Grav Vehicle": (),
+                "Watercraft": (),
+            }
+        )
+
+    def test_the_outer_cascade_resolves_to_its_declared_specialty(self):
+        registry = self._registry()
+        result = registry.resolve(SkillReference(name="Vehicle", specialty="Aircraft"))
+        assert result is SkillResolution.VALID
+
+    def test_the_inner_cascade_resolves_to_its_own_declared_specialty(self):
+        registry = self._registry()
+        result = registry.resolve(SkillReference(name="Aircraft", specialty="Winged Aircraft"))
+        assert result is SkillResolution.VALID
+
+
+class TestSkillRegistryAcyclicGraph:
+    """FR-012a: a specialty chain that revisits a name is a data error,
+    reported at validation rather than discovered as a hang during
+    generation-time resolution.
+    """
+
+    def test_a_specialty_naming_its_own_skill_is_a_cycle(self):
+        data = {
+            "schema": "skills",
+            "schema-version": 2,
+            "skills": {"Vehicle": ["Vehicle"]},
+        }
+        registry, problems = parse_skills(data, "skills.toml")
+        assert registry is None
+        assert problems[0].location == "skills.Vehicle"
+        assert "cycle" in problems[0].expected
+
+    def test_a_longer_chain_that_returns_to_its_start_is_a_cycle(self):
+        data = {
+            "schema": "skills",
+            "schema-version": 2,
+            "skills": {
+                "Vehicle": ["Aircraft"],
+                "Aircraft": ["Vehicle"],
+            },
+        }
+        registry, problems = parse_skills(data, "skills.toml")
+        assert registry is None
+        assert any("cycle" in p.expected for p in problems)
+
+    def test_a_non_cyclic_two_level_cascade_is_valid(self):
+        data = {
+            "schema": "skills",
+            "schema-version": 2,
+            "skills": {
+                "Vehicle": ["Aircraft", "Watercraft"],
+                "Aircraft": ["Winged Aircraft"],
+                "Watercraft": [],
+                "Winged Aircraft": [],
+            },
+        }
+        registry, problems = parse_skills(data, "skills.toml")
+        assert problems == ()
+        assert registry.skills["Aircraft"] == ("Winged Aircraft",)
+
+
 class TestBenefitRegistry:
     def test_parses_valid_file(self):
         data = {
