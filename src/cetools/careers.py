@@ -860,7 +860,9 @@ def _parse_mustering_out(
             if ok:
                 cash = tuple(amounts)
 
-    mustering_benefits: tuple[BenefitItem | CharacteristicAdjustment, ...] | None = None
+    mustering_benefits: (
+        tuple[BenefitItem | CharacteristicAdjustment | QuantifiedBenefit, ...] | None
+    ) = None
     if "benefits" not in table:
         problems.append(
             ValidationProblem(

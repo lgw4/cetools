@@ -1,7 +1,7 @@
 """The compact table notation: one entry that mixes kinds of thing in one cell.
 
 `parse_entry` does no registry lookup (see `registries.py` and `careers.py`
-for that); it only decides which of the four grammar forms an entry text is,
+for that); it only decides which of the five grammar forms an entry text is,
 and whether that form is admissible in the caller's `EntryContext`. See
 contracts/notation.md for the grammar and the malformed-entry table this
 module's behavior is pinned to.
@@ -131,9 +131,9 @@ def _malformed(text: str, context: EntryContext, detail: str) -> NotationProblem
     written, and the forms acceptable in the position it sits in.
 
     The forms come first because they are what FR-009 promises and FR-009a
-    exists to supply; a context-free "one of the four notation forms" was not
+    exists to supply; a context-free "one of the five notation forms" was not
     merely incomplete but false, since a gate admits exactly one form and a
-    mustering-out benefits entry exactly two. `detail` says which rule the
+    mustering-out benefits entry exactly three. `detail` says which rule the
     entry broke, which the admissible forms alone do not tell an author who
     wrote `Pilot -`.
 
@@ -189,12 +189,14 @@ def _parse_name(name: str) -> tuple[str, str | None] | str:
 def parse_entry(text: str, context: EntryContext) -> Entry | NotationProblem:
     """Parse one table cell's text into the entry it names, or a problem.
 
-    Matches by anchoring on the trailing whitespace-delimited token, in the
-    fixed order check, adjustment, grant, bare (contracts/notation.md,
-    research R9). A token that contains a digit but matches none of the
-    three suffixed forms is reported as malformed rather than folded into
-    the name, distinguishing a mistaken suffix from a name that merely ends
-    in ordinary text.
+    The quantified form is tried first, on a leading dice token, ahead of
+    the trailing-token anchoring the other forms use. Past that, matches
+    anchor on the trailing whitespace-delimited token, in the fixed order
+    check, adjustment, grant, bare (contracts/notation.md, research R9). A
+    token that contains a digit but matches none of the three suffixed
+    forms is reported as malformed rather than folded into the name,
+    distinguishing a mistaken suffix from a name that merely ends in
+    ordinary text.
 
     The tail is looked for after a specialty's closing parenthesis, because
     the grammar reserves the suffix position to text outside the specialty
