@@ -249,9 +249,20 @@ the test suite or any merge gate.
 - **A release fails partway.** Nothing is published unless the whole
   sequence succeeds, so a failed attempt leaves the version number available
   for a retry. This is the single exception to the never-reuse rule: a build
-  that failed before publishing anything published nothing.
+  that failed before publishing anything published nothing. Retrying means
+  correcting the commit and moving the tag onto it, then pushing the tag
+  again; a tag that already exists is not itself evidence that the version is
+  spent, because only a published release spends it.
 - **The changelog has no section for the declared version at all.** There is
   no announcement text to publish, and the release aborts.
+- **The changelog section is dated but empty.** Dating alone does not make an
+  announcement. The release aborts rather than publishing notes that are the
+  attribution footer and nothing else.
+- **A version heading is a prefix of a longer one.** `## 2026.08.1` and
+  `## 2026.08.10` are different versions, and selecting the section for one
+  must never match the other. Getting this wrong ships the wrong
+  announcement text under a correct version number, which the never-reuse
+  rule makes unfixable in place.
 - **A tag that does not parse as a version.** It does not trigger a release,
   or it aborts; either way it publishes nothing.
 - **The declared and reported version strings differ in form.** The declared
@@ -271,25 +282,35 @@ the test suite or any merge gate.
   project's public source repository, carrying both a source distribution
   and a built distribution.
 - **FR-002**: A release MUST be announced with the changelog text for that
-  version, reproduced verbatim as the body of the release notes. The release
-  automation MUST append a fixed attribution and non-affiliation footer
-  (FR-021) below that body; nothing else may be added, and the
-  changelog-derived body itself MUST NOT be edited or summarized.
+  version, reproduced verbatim as the body of the release notes. That
+  changelog text is the section's *body* — every line below the version
+  heading, up to the next version heading or the end of the file — and not the
+  heading line itself, which the release title already carries. "Verbatim"
+  means reproduced byte for byte, with leading and trailing blank lines
+  trimmed and nothing else altered: no reflowing, reformatting, summarizing,
+  or re-ordering. The release automation MUST append a fixed attribution and
+  non-affiliation footer (FR-021) below that body; nothing else may be added,
+  and the changelog-derived body itself MUST NOT be edited or summarized.
 - **FR-003**: Pushing a version tag MUST be the only trigger that publishes
   a release, and every step after the tag MUST be automatic, requiring no
   further maintainer action.
 - **FR-004**: The build and the test run MUST happen on a clean machine
-  provisioned for the release, checked out at the tagged commit, never on a
-  maintainer's working tree.
+  provisioned fresh for that release run and discarded after it, checked out
+  at the tagged commit, never on a maintainer's working tree and never on a
+  machine carrying state from a previous run.
 - **FR-005**: The full test suite MUST run against the tagged commit and
   MUST pass before anything is published; a failure MUST abort the release
-  with nothing published.
+  with nothing published. "Full" excludes nothing: the marker-based and
+  path-based filters the contributor documentation recommends for the inner
+  loop MUST NOT be applied here.
 - **FR-006**: Every published artifact MUST be covered by a plain checksum a
   user can verify with no special tooling, and MUST carry a signed
   provenance record binding the artifact to the exact source commit and
   build that produced it. The checksums MUST be published as a single
   combined file carrying one line per artifact, verifiable in one command
-  with a stock checksum utility.
+  with a stock checksum utility. A "published artifact" here means a
+  distribution artifact. The combined checksum file is not one: it does not
+  list itself, and it carries no provenance record of its own.
 
 #### What blocks a release
 
@@ -297,9 +318,12 @@ the test suite or any merge gate.
   single authority for what version is being released; the pushed tag MUST
   agree with it, and a disagreement MUST abort the release before anything
   is published.
-- **FR-008**: A release MUST be blocked while the changelog heading for the
-  declared version still marks itself unreleased, because that section is
-  the announcement text.
+- **FR-008**: A release MUST be blocked unless the changelog heading for the
+  declared version carries a release date. A heading that still marks itself
+  unreleased, and a heading carrying no date at all, MUST each abort the
+  release, because that section is the announcement text. A dated heading
+  whose section body is empty MUST abort for the same reason: there is
+  nothing to announce.
 - **FR-009**: A version number MUST never be reused. Once a version is
   published it is spent; a defect in it ships as the next increment,
   accompanied by a changelog entry stating what was wrong. The sole
@@ -310,7 +334,10 @@ the test suite or any merge gate.
 - **FR-025**: The release MUST check whether a release for the declared
   version has already been published and, if one has, MUST abort before
   publishing anything and report that the version is already published. It
-  MUST NOT overwrite, replace, or add artifacts to the existing release.
+  MUST NOT overwrite, replace, or add artifacts to the existing release. The
+  check MUST fail closed: an answer it cannot obtain — no network, no
+  credential, or any other inconclusive result — MUST abort the release
+  rather than be read as "no release exists".
 
 #### Mechanical enforcement of the recurring failure modes
 
@@ -339,7 +366,7 @@ the test suite or any merge gate.
   the published release artifact.
 - **FR-017**: The README MUST offer installation from the tagged source as
   an alternative.
-- **FR-018**: No project documentation MUST direct a reader to install from
+- **FR-018**: Project documentation MUST NOT direct a reader to install from
   a package index that does not carry this package.
 
 #### Package metadata
@@ -358,13 +385,19 @@ the test suite or any merge gate.
   statement of non-affiliation. On the release page this MUST arrive as a
   fixed footer appended by the release automation rather than as text
   maintained per version in the changelog, so no release can be published
-  without it.
+  without it. The attribution is the exact Compatibility-Statement License
+  string the constitution's Licensing & Distribution Constraints fixes, and
+  the non-affiliation statement is one the project's existing licensing guard
+  already recognizes; neither is reworded for the release page.
 
 #### Development tooling
 
-- **FR-022**: A type checker MUST be available as a development tool and
-  documented in the contributor documentation's tooling section, and it MUST
-  NOT gate the test suite, the merge check, or the release.
+- **FR-022**: A type checker MUST be declared in the project's development
+  dependency group, so a contributor gets it from the standard environment
+  setup, and MUST be documented in the contributor documentation's tooling
+  section with the command that invokes it. It MUST NOT gate the test suite,
+  the merge check, or the release, and a clean run MUST NOT be a deliverable
+  of this feature.
 
 #### Governing-document prerequisite
 
@@ -373,9 +406,14 @@ the test suite or any merge gate.
   public release rather than a package index. The amendment MUST record
   index publication as the intended future path and MUST name the reserved
   package name in its rationale.
-- **FR-024**: Every project document that repeats the superseded
-  "published to a package index" clause MUST be updated to match the
-  amendment.
+- **FR-024**: Every project document that describes how the project ships
+  *today* and repeats the superseded "published to a package index" clause
+  MUST be updated to match the amendment. That is the README and the
+  contributor documentation. Completed feature artifacts under `specs/` and
+  the pre-Spec-Kit planning notes under `wayfinder/` are historical records of
+  what was decided when they were written, and are explicitly out of scope:
+  amending them retroactively would falsify the record rather than correct
+  it.
 
 ### Key Entities
 
@@ -426,15 +464,29 @@ the test suite or any merge gate.
   already present on a stock system, without installing anything.
 - **SC-009**: No version number is ever published twice; every published
   version maps to exactly one artifact set and one source commit.
-- **SC-013**: A release attempt for a version that is already published
-  aborts and leaves the existing release's artifacts, checksums, provenance
-  records, and notes byte-identical, in 100% of such attempts.
 - **SC-010**: A build whose rules-data files sit at paths other than the
   source tree's fails the packaging guard, for both distribution formats.
 - **SC-011**: A type checker consuming the installed package resolves the
-  package's annotations rather than reporting it as untyped.
-- **SC-012**: Version `2026.08.1` is published as a release meeting every
-  criterion above — the first release the project has ever cut.
+  package's annotations rather than reporting it as untyped. This is
+  satisfied by the marker being honored, not by the type checker reporting
+  zero errors, which FR-022 forbids anyone from requiring.
+- **SC-012**: The project's first release is published, meeting every
+  criterion above — the first release cetools has ever cut. It carries
+  whatever version the project declares at the moment it is tagged, which
+  FR-010 requires to name the month it is cut in.
+- **SC-013**: A release attempt for a version that is already published
+  aborts and leaves the existing release's artifacts, checksums, provenance
+  records, and notes byte-identical, in 100% of such attempts.
+- **SC-014**: Both distribution formats of a published release carry the
+  type-annotation marker and the descriptive fields and repository links
+  FR-019 names, and a packaging guard establishes this rather than a
+  maintainer inspecting the build by hand.
+- **SC-015**: A user verifies a downloaded artifact's provenance record and
+  it names the source commit and the build that produced it.
+- **SC-016**: The contributor documentation's release procedure states the
+  tagging sequence, the changelog-dating step, the version-update step, and
+  the month-rollover rule, so a maintainer cuts a release without consulting
+  anything outside it.
 
 ## Assumptions
 

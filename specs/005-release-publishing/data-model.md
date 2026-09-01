@@ -68,6 +68,10 @@ announcement text.
   check 2).
 - The heading is dated rather than marked unreleased (preflight check 3, and
   only there; a suite guard would fail every working branch).
+- The section body is non-empty (preflight check 4; a dated heading over
+  nothing is not an announcement).
+- The heading matches that version and not a longer one whose prefix it is:
+  `## 2026.08.1` never selects `## 2026.08.10`.
 - No section other than `### Breaking changes` cites FR-056b (existing guard).
 
 **Note for the first release**: `CHANGELOG.md` currently holds exactly one

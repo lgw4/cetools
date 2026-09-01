@@ -95,13 +95,16 @@ be cut from an untagged commit).
 
 ## R5. Preflight ordering
 
-**Decision**: the four abort checks run first, in this order, before the test
+**Decision**: the abort checks run first, in this order, before the test
 suite:
 
 1. The tag with `v` stripped equals `project.version` (FR-007).
 2. `CHANGELOG.md` has a `## <version>` heading at all (spec, Edge Cases).
 3. That heading is dated rather than marked unreleased (FR-008).
-4. No release for that version already exists (FR-025).
+4. That section has a non-empty body (FR-008, as amended: a dated but empty
+   section has nothing to announce).
+5. No release for that version already exists, and the question was actually
+   answered (FR-025, as amended).
 
 Only then `uv sync`, `uv run pytest` (FR-005), `uv build`, attest, publish.
 
@@ -438,7 +441,15 @@ the last day of a month, aborting a correct release for a clock).
 
 **Decision**: `gh release view "$TAG"` in the preflight. If it exits zero, a
 release exists; abort with a message naming the version as already published.
-If it exits non-zero, proceed.
+Proceed only on a non-zero exit that specifically means *no such release*.
+
+**Amended after the requirements review**: FR-025 now says the check fails
+closed, so "exits non-zero → proceed" is too coarse. `gh release view` also
+exits non-zero on a missing token, a network failure, and a rate limit, and
+reading any of those as "no release exists" is exactly the reading that would
+let a second release be published over a first. The check distinguishes the
+not-found answer from an unobtainable one and aborts on the second; see
+contracts/release-scripts.md, check 6.
 
 **Rationale**: FR-025 and SC-013. `gh release view` is the cheapest question
 that answers exactly what FR-025 asks, and because the workflow never passes

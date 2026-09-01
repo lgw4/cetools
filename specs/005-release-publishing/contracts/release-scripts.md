@@ -38,9 +38,9 @@ separately, so repeating the version in the body would duplicate it.
 | 1 | No `## <version>` heading in the file | names the version and the file |
 | 2 | Wrong argument count, or the changelog path does not exist | usage |
 
-An empty section body is **not** an error here. It is a legitimate, if odd,
-changelog state, and FR-008's dating check is what actually stops a release
-with nothing to announce.
+An empty section body is **not** an error *here*. Extraction reports what the
+changelog says; the preflight's check 5 is what refuses to release it (FR-008,
+as amended).
 
 ### Cases the tests must cover
 
@@ -82,7 +82,8 @@ sh scripts/release-preflight.sh <tag> <pyproject-path> <changelog-path>
 | 2 | Tag agrees with the declared version | the tag with one leading `v` stripped differs from `project.version` |
 | 3 | The changelog has a section | no `## <version>` heading exists |
 | 4 | The section is dated | the heading carries `(unreleased)`, or carries no ISO date |
-| 5 | The version is not already published | `gh release view <tag>` exits zero |
+| 5 | The section has a body | the body is empty after blank-line trimming |
+| 6 | The version is not already published | `gh release view <tag>` reports a release, **or cannot answer** |
 
 Each failure exits non-zero and writes one line to stderr naming the check and
 both values involved. The message is the whole diagnostic a maintainer gets, so
@@ -105,13 +106,21 @@ the release job must be able to run this before `uv sync`. Anchor on a
 `version =` in the file, or `[tool.*]` tables will eventually shadow it. An
 `awk` state machine over the table headers is the intended shape.
 
-### Check 5 needs the network; the others do not
+### Check 6 needs the network; the others do not
 
-Checks 1 through 4 are pure text and are what the pytest coverage exercises.
-Check 5 calls `gh`, which needs a token and a network, so the tests must be
-able to run the first four without it. Either take the check-5 command as an
+Checks 1 through 5 are pure text and are what the pytest coverage exercises.
+Check 6 calls `gh`, which needs a token and a network, so the tests must be
+able to run the first five without it. Either take the check-6 command as an
 overridable variable, or split it behind a flag; decide at task time and say
 which in the script's own header comment.
+
+**Check 6 fails closed** (FR-025, as amended). `gh release view` exiting
+non-zero is not by itself an answer: it is also what a missing token, a
+network failure, or a rate limit produces. The check must distinguish "no such
+release" from "could not ask", and treat the second as an abort. `gh release
+view --json` with a non-zero exit whose stderr does not name the release as
+not found is the shape to key on; confirm the exact spelling against `gh` at
+task time rather than guessing it here.
 
 ### Cases the tests must cover
 
@@ -125,6 +134,9 @@ which in the script's own header comment.
 7. Missing `pyproject.toml` or `CHANGELOG.md`: exit 2.
 8. `project.version` read correctly from a fixture whose `[tool.x]` table also
    carries a `version =` line.
+9. Changelog section is dated but its body is empty (heading immediately
+   followed by the next `## ` heading, or by blank lines to end of file):
+   exit 1, message naming the empty section.
 
 Case 3's `v2026.8.1` entry matters: the unpadded form is a real spelling of
 this version, and it must still be refused in tag position, because the tag is

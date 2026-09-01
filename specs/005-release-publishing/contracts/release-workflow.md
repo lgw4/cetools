@@ -37,7 +37,7 @@ read-only token cannot create a release. No other permission is granted.
 | --- | --- | --- |
 | 1 | `actions/checkout` at the pushed tag | The build and test run happen at the tagged commit, on a clean machine (FR-004) |
 | 2 | `astral-sh/setup-uv` with Python 3.13 | A pinned, reproducible toolchain |
-| 3 | `sh scripts/release-preflight.sh "$GITHUB_REF_NAME" pyproject.toml CHANGELOG.md` | The four abort conditions, all before anything is published (FR-007, FR-008, FR-025, and the missing-section edge case) |
+| 3 | `sh scripts/release-preflight.sh "$GITHUB_REF_NAME" pyproject.toml CHANGELOG.md` | Every abort condition, all before anything is published (FR-007, FR-008 including the dated-but-empty section, FR-025 including its fail-closed clause, and the missing-section edge case) |
 | 4 | `uv sync` | Dev group installed, package installed editable |
 | 5 | `uv run pytest` | The **full** suite, no `-m` filter (FR-005) |
 | 6 | `uv build` | Both distribution formats into `dist/` |
