@@ -8,6 +8,26 @@
 
 **Input**: User description: "cetools needs a defined way to cut a release, which it has never done: version 2026.08.1 sits declared but unreleased, no tag exists, and the only automation runs tests. This feature establishes what a release is for this project, produces the first one, and fixes the packaging metadata that a publicly distributed artifact is expected to carry."
 
+## Clarifications
+
+### Session 2026-08-31
+
+- Q: When a release is published, should the trademark attribution and
+  non-affiliation statement be added to the release page alongside the
+  changelog text, or must the changelog text alone stand as the release
+  notes? (FR-002 vs FR-021) → A: The release notes are the changelog section
+  verbatim, followed by a fixed attribution/non-affiliation footer that the
+  release automation appends; "verbatim" is scoped to the changelog-derived
+  body.
+- Q: When a version tag is pushed for a version that has already been
+  published, what must the release attempt do? (FR-009) → A: Check for an
+  existing published release of that version, abort before publishing
+  anything, and report that the version is already published.
+- Q: Should each published artifact get its own checksum file, or should one
+  combined checksum file cover all artifacts in the release? (FR-006,
+  SC-002) → A: One combined checksum file listing every artifact, one line
+  per artifact, verifiable in a single stock-tool command.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Cut a release by pushing a tag (Priority: P1)
@@ -38,17 +58,19 @@ release.
    changelog carries a dated `## 2026.08.1` heading, **When** the matching
    version tag is pushed, **Then** a public release for that version is
    published carrying a source distribution, a built distribution, a
-   checksum file, a signed provenance record, and release notes taken
-   verbatim from that changelog section.
+   checksum file, a signed provenance record, and release notes whose body
+   is that changelog section verbatim, followed by the fixed attribution and
+   non-affiliation footer.
 2. **Given** the same commit, **When** the release runs, **Then** the build
    and the test run both happen on a clean machine checked out at the tagged
    commit, not on any maintainer's working tree.
 3. **Given** a tagged commit whose test suite fails, **When** the release
    runs, **Then** nothing is published and the failure is reported.
 4. **Given** a release has been published for a version, **When** anyone
-   downloads an artifact, **Then** its checksum can be verified with tools
-   present on a stock system, and its provenance record identifies the exact
-   source commit and build that produced it.
+   downloads an artifact, **Then** its checksum can be verified against the
+   release's combined checksum file with tools present on a stock system,
+   and its provenance record identifies the exact source commit and build
+   that produced it.
 
 ---
 
@@ -221,7 +243,9 @@ the test suite or any merge gate.
   procedure requires bumping the version before tagging rather than shipping
   a version stamped with a month that has passed.
 - **A tag is pushed for a version already published.** The version number is
-  spent. The attempt must not overwrite or replace the existing release.
+  spent. The attempt detects the existing release, aborts before publishing
+  anything, and reports that the version is already published; it never
+  overwrites, replaces, or adds to the existing release.
 - **A release fails partway.** Nothing is published unless the whole
   sequence succeeds, so a failed attempt leaves the version number available
   for a retry. This is the single exception to the never-reuse rule: a build
@@ -247,7 +271,10 @@ the test suite or any merge gate.
   project's public source repository, carrying both a source distribution
   and a built distribution.
 - **FR-002**: A release MUST be announced with the changelog text for that
-  version, reproduced verbatim as the release notes.
+  version, reproduced verbatim as the body of the release notes. The release
+  automation MUST append a fixed attribution and non-affiliation footer
+  (FR-021) below that body; nothing else may be added, and the
+  changelog-derived body itself MUST NOT be edited or summarized.
 - **FR-003**: Pushing a version tag MUST be the only trigger that publishes
   a release, and every step after the tag MUST be automatic, requiring no
   further maintainer action.
@@ -257,10 +284,12 @@ the test suite or any merge gate.
 - **FR-005**: The full test suite MUST run against the tagged commit and
   MUST pass before anything is published; a failure MUST abort the release
   with nothing published.
-- **FR-006**: Every published artifact MUST be accompanied by a plain
-  checksum a user can verify with no special tooling, and by a signed
+- **FR-006**: Every published artifact MUST be covered by a plain checksum a
+  user can verify with no special tooling, and MUST carry a signed
   provenance record binding the artifact to the exact source commit and
-  build that produced it.
+  build that produced it. The checksums MUST be published as a single
+  combined file carrying one line per artifact, verifiable in one command
+  with a stock checksum utility.
 
 #### What blocks a release
 
@@ -278,6 +307,10 @@ the test suite or any merge gate.
 - **FR-010**: The release procedure MUST require bumping the version before
   tagging when the current month no longer matches the month the declared
   version names.
+- **FR-025**: The release MUST check whether a release for the declared
+  version has already been published and, if one has, MUST abort before
+  publishing anything and report that the version is already published. It
+  MUST NOT overwrite, replace, or add artifacts to the existing release.
 
 #### Mechanical enforcement of the recurring failure modes
 
@@ -322,7 +355,10 @@ the test suite or any merge gate.
 - **FR-021**: Wherever the project's public-facing text claims compatibility
   with the rules system it implements — which now includes the published
   release page — it MUST carry the required trademark attribution and a
-  statement of non-affiliation.
+  statement of non-affiliation. On the release page this MUST arrive as a
+  fixed footer appended by the release automation rather than as text
+  maintained per version in the changelog, so no release can be published
+  without it.
 
 #### Development tooling
 
@@ -344,8 +380,9 @@ the test suite or any merge gate.
 ### Key Entities
 
 - **Release**: A published, immutable bundle identified by a version. Holds
-  two distribution artifacts, their checksums, their provenance records, and
-  the announcement text. Bound to exactly one source commit.
+  two distribution artifacts, one combined checksum file covering both,
+  their provenance records, and the announcement text. Bound to exactly one
+  source commit, and never republished once it exists.
 - **Version**: The project's single declared identifier for a release, in
   the project's `YYYY.0M.INC1` calendar form. Exists in a padded declared
   form and an unpadded reported form that name the same release. Never
@@ -369,9 +406,10 @@ the test suite or any merge gate.
   action — pushing the version tag — and takes no manual step between that
   push and the published release.
 - **SC-002**: 100% of published releases carry both distribution formats,
-  a checksum for each artifact, a signed provenance record for each
-  artifact, and release notes matching that version's changelog section
-  verbatim.
+  one combined checksum file with a line for each artifact, a signed
+  provenance record for each artifact, and release notes whose body matches that version's changelog
+  section verbatim and which end with the attribution and non-affiliation
+  footer.
 - **SC-003**: A release attempt whose tag disagrees with the declared
   version publishes nothing, in 100% of such attempts.
 - **SC-004**: A release attempt whose changelog heading for that version
@@ -388,6 +426,9 @@ the test suite or any merge gate.
   already present on a stock system, without installing anything.
 - **SC-009**: No version number is ever published twice; every published
   version maps to exactly one artifact set and one source commit.
+- **SC-013**: A release attempt for a version that is already published
+  aborts and leaves the existing release's artifacts, checksums, provenance
+  records, and notes byte-identical, in 100% of such attempts.
 - **SC-010**: A build whose rules-data files sit at paths other than the
   source tree's fails the packaging guard, for both distribution formats.
 - **SC-011**: A type checker consuming the installed package resolves the
@@ -422,9 +463,11 @@ the test suite or any merge gate.
 - **Type checker.** The choice of type checker is left to implementation
   planning; the requirement is that one exists, is documented as optional,
   and gates nothing.
-- **Release notes source.** The announcement text is the changelog section
-  for the version, taken verbatim. No separate release-notes document is
-  written or maintained.
+- **Release notes source.** The announcement body is the changelog section
+  for the version, taken verbatim, with the attribution and non-affiliation
+  footer appended by the automation. No separate release-notes document is
+  written or maintained, and the footer text lives with the release
+  automation rather than being repeated in every changelog entry.
 
 ## Dependencies
 
