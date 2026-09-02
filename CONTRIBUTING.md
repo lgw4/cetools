@@ -149,6 +149,12 @@ slow"` as the inner loop after each step so the suite stays fast enough to
 run that often; run the full `uv run pytest` before every commit and rely on
 CI to run it unconditionally.
 
+The `dev` dependency group also installs [mypy](https://mypy-lang.org/),
+configured under `[tool.mypy]` in `pyproject.toml`. Run it with
+`uv run mypy src/cetools`. Like `rumdl` below, it gates nothing: not the
+suite, not CI, not a release — Principle III forbids mandating a clean
+type-check run, and none is required here.
+
 `pyproject.toml` also carries a `[tool.rumdl]` section, configuring the
 [rumdl](https://github.com/rvben/rumdl) markdown linter for this repository:
 GitHub-flavored markdown, line length off, and the vendored `.claude` and

@@ -53,3 +53,15 @@ def test_a_documented_lint_command_reports_clean(command):
     args = ["uv", "run", tool, *([flag] if flag else []), *scope]
     result = subprocess.run(args, cwd=_ROOT, capture_output=True, text=True)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_mypy_is_documented_but_not_inside_the_gated_lint_fence():
+    """mypy is documented in CONTRIBUTING.md's Style and tooling section, but
+    outside the ```sh``` fence `_FENCE` captures, so it can never become a
+    gated command: FR-022 and Principle III both forbid mandating a clean
+    type-check run, and a mypy line inside the gated fence would make one.
+    """
+    text = (_ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+    assert "uv run mypy" in text, "mypy is not documented in CONTRIBUTING.md"
+    gated = " ".join(_documented_lint_commands())
+    assert "mypy" not in gated, "mypy must not appear inside the gated lint-commands fence"

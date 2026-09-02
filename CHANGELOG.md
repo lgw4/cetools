@@ -678,6 +678,13 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   and the value, and a value normalized before comparing — the padded form
   in the filename position or the unpadded form in the tag position — fails
   too, rather than passing on a coincidental match (FR-011, FR-012).
+- **`mypy` is available as an optional type checker.** It installs with the
+  `dev` dependency group and is configured under `[tool.mypy]`, documented
+  in `CONTRIBUTING.md`'s "Style and tooling" section outside the fence a
+  guard holds to a clean run — it gates nothing: not the suite, not `ci.yaml`,
+  not a release. Baseline `uv run mypy src/cetools` reports 69 pre-existing
+  errors, none cheap to fix without risking behavior changes; a clean run is
+  deliberately not a deliverable of this change (FR-022).
 - **The packaging guard compares full relative paths, not basenames.**
   `test_wheel_contains_every_packaged_data_file` and
   `test_sdist_contains_every_packaged_data_file` used to compare only
