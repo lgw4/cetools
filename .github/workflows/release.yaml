@@ -24,6 +24,8 @@ jobs:
           python-version: "3.13"
 
       - name: Preflight
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: sh scripts/release-preflight.sh "$GITHUB_REF_NAME" pyproject.toml CHANGELOG.md
 
       - run: uv sync
