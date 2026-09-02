@@ -23,8 +23,11 @@ from cetools.provenance import package_version
 _ROOT = Path(__file__).resolve().parents[2]
 
 # `Rules: packaged (cetools X)` in a text block, and `"version": "X"` in a
-# JSON block, are the two places a version reaches documented output.
-_PATTERNS = (re.compile(r"\(cetools ([^)]+)\)"), re.compile(r'"version": "([^"]+)"'))
+# JSON block, are the two places the *reported* (normalized) version reaches
+# documented output. The declared (padded) group is extended in
+# 005-release-publishing to cover the install command's tag segment.
+_REPORTED_PATTERNS = (re.compile(r"\(cetools ([^)]+)\)"), re.compile(r'"version": "([^"]+)"'))
+_DECLARED_PATTERNS: tuple[re.Pattern[str], ...] = ()
 
 
 def _documented_outputs() -> list[Path]:
@@ -34,10 +37,14 @@ def _documented_outputs() -> list[Path]:
     return [path for path in paths if path.is_file()]
 
 
+def _matches(text: str, patterns: tuple[re.Pattern[str], ...]) -> set[str]:
+    return {match for pattern in patterns for match in pattern.findall(text)}
+
+
 @pytest.mark.parametrize("path", _documented_outputs(), ids=lambda path: path.name)
 def test_documented_versions_match_the_reported_version(path):
     text = path.read_text(encoding="utf-8")
-    found = {match for pattern in _PATTERNS for match in pattern.findall(text)}
+    found = _matches(text, _REPORTED_PATTERNS)
     stale = sorted(version for version in found if version != package_version())
     assert not stale, (
         f"{path.relative_to(_ROOT)} documents {stale}, "
@@ -50,8 +57,7 @@ def test_the_guard_has_something_to_check():
     documented = {
         match
         for path in _documented_outputs()
-        for pattern in _PATTERNS
-        for match in pattern.findall(path.read_text(encoding="utf-8"))
+        for match in _matches(path.read_text(encoding="utf-8"), _REPORTED_PATTERNS)
     }
     assert documented == {package_version()}
 
