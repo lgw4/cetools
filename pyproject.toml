@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cetools"
-version = "2026.08.1"
+version = "2026.09.1"
 description = "Dice and task check engine for SRD-derived 2D6 roleplaying rules"
 readme = "README.md"
 requires-python = ">=3.13"

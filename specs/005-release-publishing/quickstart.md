@@ -150,13 +150,13 @@ Validates FR-015, SC-010, and User Story 5.
 
 ```sh
 uv build
-python -c "import zipfile,sys; z=zipfile.ZipFile(sys.argv[1]); print('\n'.join(n for n in z.namelist() if 'py.typed' in n or n.endswith('METADATA')))" dist/cetools-2026.8.1-py3-none-any.whl
+python -c "import zipfile,sys; z=zipfile.ZipFile(sys.argv[1]); print('\n'.join(n for n in z.namelist() if 'py.typed' in n or n.endswith('METADATA')))" dist/cetools-2026.9.1-py3-none-any.whl
 ```
 
 Expected: `cetools/py.typed` listed, and a `METADATA` path.
 
 ```sh
-uv run python -m zipfile -e dist/cetools-2026.8.1-py3-none-any.whl /tmp/whl
+uv run python -m zipfile -e dist/cetools-2026.9.1-py3-none-any.whl /tmp/whl
 grep -E '^(Keywords|Classifier|Project-URL|License-Expression):' /tmp/whl/cetools-*.dist-info/METADATA
 ```
 
@@ -228,7 +228,7 @@ Expected: `OK` for each of the two artifacts, from a stock utility, with
 nothing installed. On macOS use `shasum -a 256 -c SHA256SUMS.txt`.
 
 ```sh
-gh attestation verify /tmp/rel/cetools-2026.8.1-py3-none-any.whl --repo lgw4/cetools
+gh attestation verify /tmp/rel/cetools-2026.9.1-py3-none-any.whl --repo lgw4/cetools
 ```
 
 Expected: verification succeeds and reports the source commit and the workflow
