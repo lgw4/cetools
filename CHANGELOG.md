@@ -634,6 +634,21 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   already read from data. Shipped at `1`, matching the prior behavior, so
   no packaged seed's output changes; an override written against
   `schema-version = 1` must add the key to keep validating (FR-038, T179).
+- **Tag-triggered release publishing.** Pushing `v<declared version>`
+  publishes a release on the project's public source repository: a
+  preflight (`scripts/release-preflight.sh`) refuses a tag that disagrees
+  with `project.version`, a changelog section that is missing, marked
+  `(unreleased)`, or empty, and a version that is already published (failing
+  closed if the answer cannot be determined); only then does the full test
+  suite run at the tagged commit, both distribution formats build, a
+  combined `SHA256SUMS.txt` and a signed provenance attestation are produced
+  for each artifact, and the release is published with the changelog
+  section verbatim followed by a fixed attribution footer
+  (`.github/release-footer.md`) as its notes. Nothing is published unless
+  every check and the full suite pass. `scripts/changelog-section.sh`
+  extracts a version's changelog body for reuse by both the preflight and
+  the workflow. Neither script ships; `scripts/` is release tooling, not
+  part of a distribution (FR-001 through FR-010, FR-021, FR-025).
 
 ### Fixed
 

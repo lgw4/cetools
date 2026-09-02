@@ -35,6 +35,14 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def test_the_release_footer_carries_the_attribution_and_non_affiliation():
+    footer = (_repo_root() / ".github" / "release-footer.md").read_text(encoding="utf-8")
+    assert ATTRIBUTION in footer, "the release footer is missing the attribution"
+    assert any(
+        phrase in footer.lower() for phrase in NON_AFFILIATION_PHRASES
+    ), "the release footer is missing a non-affiliation statement"
+
+
 def _normalized(text: str) -> str:
     return " ".join(_BOX_DRAWING.sub(" ", text).split())
 
