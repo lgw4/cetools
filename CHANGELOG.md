@@ -13,7 +13,7 @@ metadata reports — and therefore the version `cetools` prints in its
 provenance block — drops it: `2026.08.1` here is `2026.8.1` there. The two
 name the same release.
 
-## 2026.09.1 (unreleased)
+## 2026.09.1 2026-09-01
 
 First release: the dice and 2D6 task-check engine, as a library and a CLI.
 
