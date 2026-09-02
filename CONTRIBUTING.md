@@ -98,9 +98,9 @@ forbids.
 If your change alters human-readable CLI output, the golden files in
 `tests/golden/` change with it in the same commit, and the diff should show
 the new output plainly enough to be reviewed on sight. The worked examples
-in `README.md` are reference output too — the README is the description PyPI
-renders — and `tests/integration/test_golden.py` runs each of them and
-compares.
+in `README.md` are reference output too — the README is also the built
+package's description — and `tests/integration/test_golden.py` runs each of
+them and compares.
 
 **Anything new is reachable from both sides.** A new library function needs
 a CLI path to it (Principle II), and a new CLI flag needs to be a thin call
@@ -208,7 +208,8 @@ line it sits on.
   Open Game Content data file.
 - **Compatibility claims carry attribution.** The README currently makes no
   compatibility claim and therefore owes no trademark attribution. If a
-  change adds one, anywhere (README, PyPI description, CLI help), it adds
+  change adds one, anywhere (README, the public release page, the built
+  package's description, CLI help), it adds
   the Compatibility-Statement License attribution ("Cepheus Engine and
   Samardan Press are the trademarks of Jason 'Flynn' Kemp") and a statement
   of non-affiliation in the same change.

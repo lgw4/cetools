@@ -9,7 +9,20 @@ library and as the `cetools` command-line tool.
 Requires Python 3.13 or newer.
 
 ```sh
-uv add cetools
+uv tool install https://github.com/lgw4/cetools/releases/download/v2026.08.1/cetools-2026.8.1-py3-none-any.whl
+```
+
+Or, from the tagged source:
+
+```sh
+uv tool install git+https://github.com/lgw4/cetools@v2026.08.1
+```
+
+To depend on `cetools` as a library rather than installing the `cetools`
+command:
+
+```sh
+uv add https://github.com/lgw4/cetools/releases/download/v2026.08.1/cetools-2026.8.1-py3-none-any.whl
 ```
 
 Or, from a source checkout:
