@@ -88,10 +88,23 @@ def _wheel_data_files(wheel: zipfile.ZipFile) -> list[str]:
     )
 
 
+def _path_set_difference(expected: set[str], actual: set[str]) -> str | None:
+    """None if the two sets are equal; otherwise a message naming exactly
+    which paths differ, in both directions, rather than a bare set
+    inequality.
+    """
+    missing = expected - actual
+    extra = actual - expected
+    if not missing and not extra:
+        return None
+    return f"missing: {sorted(missing)}, unexpected: {sorted(extra)}"
+
+
 def test_wheel_contains_every_packaged_data_file(wheel, repo_root):
     source_basenames = {p.name for p in (repo_root / "src" / "cetools" / "data").rglob("*.toml")}
     wheel_basenames = {name.rsplit("/", 1)[-1] for name in _wheel_data_files(wheel)}
-    assert wheel_basenames == source_basenames
+    diff = _path_set_difference(source_basenames, wheel_basenames)
+    assert diff is None, diff
 
 
 def test_every_data_file_in_the_wheel_carries_its_ogc_designation(wheel):
@@ -190,7 +203,8 @@ def _sdist_data_files(sdist: tarfile.TarFile) -> list[str]:
 def test_sdist_contains_every_packaged_data_file(sdist, repo_root):
     source_basenames = {p.name for p in (repo_root / "src" / "cetools" / "data").rglob("*.toml")}
     sdist_basenames = {name.rsplit("/", 1)[-1] for name in _sdist_data_files(sdist)}
-    assert sdist_basenames == source_basenames
+    diff = _path_set_difference(source_basenames, sdist_basenames)
+    assert diff is None, diff
 
 
 def test_every_data_file_in_the_sdist_carries_its_ogc_designation(sdist):
