@@ -103,6 +103,9 @@ instruction from the tagged source and confirm the same.
 3. **Given** the README, **When** a reader looks for how to install,
    **Then** no instruction directs them to a package index that does not
    carry this package.
+4. **Given** a reader who wants the library rather than the command, **When**
+   they follow the README's dependency instruction, **Then** the released
+   version is added to their project and `import cetools` resolves to it.
 
 ---
 
@@ -368,6 +371,13 @@ the test suite or any merge gate.
   an alternative.
 - **FR-018**: Project documentation MUST NOT direct a reader to install from
   a package index that does not carry this package.
+- **FR-026**: The README MUST also carry an instruction for adding the
+  released artifact as a project dependency, distinct from the two that
+  install the command-line tool. Principle I makes the importable library the
+  primary artifact and the CLI a thin consumer of it; an installation section
+  documenting only the tool leaves the library's own consumer with nothing to
+  follow. The declared and reported spellings are subject to FR-012 here as
+  they are in the primary instruction.
 
 #### Package metadata
 
@@ -454,9 +464,16 @@ the test suite or any merge gate.
   still marks itself unreleased publishes nothing, in 100% of such attempts.
 - **SC-005**: A release attempt whose test suite fails on the tagged commit
   publishes nothing, in 100% of such attempts.
-- **SC-006**: A stale version string in any documented output, including the
-  installation command, fails the test suite and names both the stale value
-  and the file containing it.
+- **SC-006**: A stale version string in a documented output, in a position the
+  drift guard scans — which after this feature includes both spellings inside
+  the README's installation command — fails the test suite and names both the
+  stale value and the file containing it. "A position the guard scans" is a
+  real limit, not a hedge: this feature's own `quickstart.md` and `contracts/`
+  carry version strings that are deliberately *wrong* (`v2026.8.1` and
+  `v2026.13.1` as tags the preflight must refuse, `## 2026.08.10` as the
+  heading a prefix match must not select), and a guard broad enough to sweep
+  every version-shaped string in those files would fail on the counter-examples
+  the specification needs them to contain.
 - **SC-007**: A new user with no prior installation and no package-index
   account installs the released version by following the README's primary
   instruction, with no additional steps.

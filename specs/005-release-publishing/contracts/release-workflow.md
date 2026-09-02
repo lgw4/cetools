@@ -82,6 +82,30 @@ gh release create "$GITHUB_REF_NAME" \
   absence is what makes FR-025's "MUST NOT overwrite, replace, or add
   artifacts" structural rather than dependent on the preflight alone.
 
+## Guarded invariants
+
+`tests/guards/test_release_workflow.py` holds this contract against the file,
+in two halves. The prohibitions are the obvious half; the requirements are the
+half worth stating, because every guarantee in the step table above is carried
+by a step being *present*, and a file that omitted one would satisfy every
+prohibition.
+
+| Half | Asserted |
+| --- | --- |
+| Prohibitions | triggers only on `push:` `tags: ['v*']`; grants exactly the three permissions above; no `continue-on-error`; none of `gh release edit`, `gh release upload`, `--clobber`, `--draft`, `--generate-notes` |
+| Requirements | checkout resolves the pushed tag, not a branch tip (step 1); `release-preflight.sh` is invoked (step 3); `pytest` runs with no `-m`, `-k`, `--deselect`, or narrowing path argument (step 5); the notes file is assembled from `changelog-section.sh` *and then* `.github/release-footer.md` (step 9) |
+
+The footer assertion is the one that matters most, and it is ordered: the
+constitution's compatibility-claim clause reaches the release page, FR-021
+discharges it with a fixed footer specifically "so no release can be published
+without it", and a workflow that dropped step 9's second half would publish an
+unattributed claim with nothing but a maintainer's eye at T062 between it and
+the public.
+
+The guard reads the file as text and matches with anchored regexes, following
+`tests/guards/test_python_support.py`'s reading of `ci.yaml`. No YAML parser is
+installed and none is added for this (Principle VI).
+
 ## The published release
 
 | Property | Value |

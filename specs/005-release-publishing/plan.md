@@ -158,13 +158,15 @@ tests/
 ├── guards/
 │   ├── test_documented_version.py   # EXTENDED: install-command coverage, both spellings
 │   ├── test_packaging.py            # EXTENDED: full-path comparison, py.typed, metadata
-│   └── test_release_scripts.py      # NEW: the two shell scripts, against fixture changelogs
+│   ├── test_python_support.py       # EXTENDED: Python trove classifiers track ci.yaml's matrix
+│   ├── test_release_scripts.py      # NEW: the two shell scripts, against fixture changelogs
+│   └── test_release_workflow.py     # NEW: release.yaml's required steps and its prohibitions
 └── unit/
     └── test_licensing.py            # EXTENDED: the release footer carries the attribution
 
 pyproject.toml                # EDITED: classifiers, keywords, authors, [project.urls],
                               #         mypy in the dev group, [tool.mypy]
-README.md                     # EDITED: installation section (FR-016, FR-017, FR-018)
+README.md                     # EDITED: installation section (FR-016, FR-017, FR-018, FR-026)
 CONTRIBUTING.md               # EDITED: release procedure, mypy, the superseded PyPI clauses
 CHANGELOG.md                  # EDITED: entries for this feature; dated at release time
 ```

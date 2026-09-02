@@ -164,6 +164,17 @@ Expected: a `Keywords` line, several `Classifier` lines including
 `Typing :: Typed`, four `Project-URL` lines, and the existing
 `License-Expression: GPL-3.0-only`. No `Classifier: License ::` line.
 
+The same fields in the sdist, which SC-014 binds equally:
+
+```sh
+tar -xzf dist/cetools-*.tar.gz -C /tmp
+grep -E '^(Keywords|Classifier|Project-URL|License-Expression):' /tmp/cetools-*/PKG-INFO
+tar -tzf dist/cetools-*.tar.gz | grep 'src/cetools/py.typed'
+```
+
+Expected: the same field set as the wheel, and the marker at
+`src/cetools/py.typed`.
+
 Then the type checker actually resolving the annotations:
 
 ```sh
@@ -240,7 +251,18 @@ Expected: the version reported is `2026.8.1`, and the roll matches the README's
 worked example. Then the alternative instruction, `uv tool install` against the
 tagged source, and confirm the same version.
 
-Validates FR-016, FR-017, SC-007, and User Story 2.
+Then the library instruction, in a throwaway project rather than a tool
+install:
+
+```sh
+uv init /tmp/cetools-consumer && cd /tmp/cetools-consumer
+# the README's `uv add` line, verbatim
+uv run python -c "import cetools; print(cetools.__name__)"
+```
+
+Expected: the dependency resolves and the import succeeds.
+
+Validates FR-016, FR-017, FR-026, SC-007, and User Story 2.
 
 ## 10. A second push of the same tag publishes nothing
 

@@ -94,8 +94,9 @@ depends on. It lives in US1 because the workflow cannot exist without it.
 
 ### The workflow (`contracts/release-workflow.md`)
 
-- [ ] T020 [US1] Add a failing guard for the workflow's structural invariants — a new module or a section of `tests/guards/test_lint_commands.py`'s neighbors, e.g. `tests/guards/test_release_workflow.py` — asserting that `.github/workflows/release.yaml` exists, triggers only on `push:` `tags: ['v*']`, grants exactly `contents: write`, `id-token: write`, and `attestations: write`, carries no `continue-on-error` anywhere, and contains none of `gh release edit`, `gh release upload`, `--clobber`, `--draft`, or `--generate-notes`.
-- [ ] T021 [US1] Create `.github/workflows/release.yaml` with the ten steps of `contracts/release-workflow.md` in order — checkout at the tag, `astral-sh/setup-uv` with Python 3.13, `sh scripts/release-preflight.sh "$GITHUB_REF_NAME" pyproject.toml CHANGELOG.md`, `uv sync`, `uv run pytest` with no `-m` filter, `uv build`, `sha256sum cetools-* > SHA256SUMS.txt` inside `dist/`, `actions/attest-build-provenance` over `dist/cetools-*`, the notes file assembled from `scripts/changelog-section.sh` plus `.github/release-footer.md`, and a single `gh release create ... --verify-tag` — using the T005 pins. Make T020 pass.
+- [ ] T020 [US1] Add a failing guard for the workflow's *prohibitions* in a new `tests/guards/test_release_workflow.py`, asserting that `.github/workflows/release.yaml` exists, triggers only on `push:` `tags: ['v*']`, grants exactly `contents: write`, `id-token: write`, and `attestations: write`, carries no `continue-on-error` anywhere, and contains none of `gh release edit`, `gh release upload`, `--clobber`, `--draft`, or `--generate-notes`.
+- [ ] T020a [US1] Add the failing guard for the workflow's *required steps* to `tests/guards/test_release_workflow.py`. Everything T020 asserts is an absence; a `release.yaml` that simply omitted the preflight, ran a filtered suite, or forgot the footer would pass it, and the only remaining backstop would be a maintainer reading the release page at T062. Assert instead that the workflow: checks out the pushed tag rather than a branch tip (FR-004); invokes `scripts/release-preflight.sh` (FR-007, FR-008, FR-025); runs `pytest` with no `-m` filter and no `--deselect`, `-k`, or path argument narrowing the run (FR-005); and assembles its notes file from both `scripts/changelog-section.sh` and `.github/release-footer.md`, with the footer written *after* the section body (FR-002, FR-021). Read `release.yaml` as text and match with anchored regexes, the way `tests/guards/test_python_support.py` already reads `ci.yaml`: no YAML parser is installed, and adding one would be a dev dependency bought for a single assertion (Principle VI).
+- [ ] T021 [US1] Create `.github/workflows/release.yaml` with the ten steps of `contracts/release-workflow.md` in order — checkout at the tag, `astral-sh/setup-uv` with Python 3.13, `sh scripts/release-preflight.sh "$GITHUB_REF_NAME" pyproject.toml CHANGELOG.md`, `uv sync`, `uv run pytest` with no `-m` filter, `uv build`, `sha256sum cetools-* > SHA256SUMS.txt` inside `dist/`, `actions/attest-build-provenance` over `dist/cetools-*`, the notes file assembled from `scripts/changelog-section.sh` plus `.github/release-footer.md`, and a single `gh release create ... --verify-tag` — using the T005 pins. Make T020 and T020a pass.
 
 ### Release procedure documentation (FR-013, FR-014, FR-010)
 
@@ -123,7 +124,7 @@ instruction on a machine with no prior install, confirm `cetools --version`
 reports the released version, then follow the alternative and confirm the
 same.
 
-- [ ] T025 [US2] Replace the `uv add cetools` fence at `README.md:12` with the primary instruction `uv tool install https://github.com/lgw4/cetools/releases/download/v<declared>/cetools-<reported>-py3-none-any.whl`, and add the alternative `uv tool install git+https://github.com/lgw4/cetools@v<declared>` beneath it, both carrying the current version in the spelling each position requires (research.md R15, R2).
+- [ ] T025 [US2] Replace the `uv add cetools` fence at `README.md:12` with three instructions, each carrying the current version in the spelling its position requires (research.md R15, R2): the primary `uv tool install https://github.com/lgw4/cetools/releases/download/v<declared>/cetools-<reported>-py3-none-any.whl` (FR-016); the source alternative `uv tool install git+https://github.com/lgw4/cetools@v<declared>` (FR-017); and, for a project depending on the library rather than installing the command, `uv add <the same wheel URL>` (FR-026). The third exists because Principle I makes the library the primary artifact, and a section documenting only `uv tool install` leaves a library consumer with nothing to follow.
 - [ ] T026 [US2] Sweep for any remaining instruction that installs from a package index — `rg -n 'uv add cetools|pip install cetools' README.md CONTRIBUTING.md` — and remove or correct each (FR-018).
 - [ ] T027 [US2] Update the two remaining superseded PyPI references in `CONTRIBUTING.md` (the "the README is the description PyPI…" line near line 101 and the "README, PyPI description, CLI help" list near line 211) to name the public release page and the built package's description, matching the amended constitution's Licensing section (FR-024). Leave `specs/` and `wayfinder/` untouched: they are historical records and FR-024 excludes them.
 - [ ] T028 [US2] Add the `CHANGELOG.md` entry for the installation documentation change.
@@ -166,15 +167,17 @@ and the PEP 561 marker, verified by a packaging guard rather than by
 inspection.
 
 **Independent Test**: quickstart.md scenario 6 — build, confirm
-`cetools/py.typed` in the wheel and the `Keywords`, `Classifier`, and
-`Project-URL` lines in `METADATA`, with no `Classifier: License ::` line.
+`cetools/py.typed` in the wheel and `src/cetools/py.typed` in the sdist, and
+the `Keywords`, `Classifier`, and `Project-URL` lines in both the wheel's
+`METADATA` and the sdist's `PKG-INFO`, with no `Classifier: License ::` line
+in either.
 
 - [ ] T035 [P] [US4] Verify every classifier in `contracts/package-metadata.md` against the canonical trove list (`Development Status :: 4 - Beta`, `Environment :: Console`, `Intended Audience :: End Users/Desktop`, `Operating System :: OS Independent`, `Programming Language :: Python :: 3.13`, `Programming Language :: Python :: 3.14`, `Topic :: Games/Entertainment :: Role-Playing`, `Typing :: Typed`); nothing in this repository catches a misspelling.
 - [ ] T036 [US4] Add the failing `py.typed` guards to `tests/guards/test_packaging.py`: `cetools/py.typed` is a member of the wheel, and `<name>-<version>/src/cetools/py.typed` is a member of the sdist (FR-020).
 - [ ] T037 [US4] Create an empty `src/cetools/py.typed` — no content, not even a comment (research.md R11) — making T036 pass and confirming hatchling's `packages = ["src/cetools"]` carries it with no `pyproject.toml` change.
-- [ ] T038 [US4] Add the failing metadata guards to `tests/guards/test_packaging.py`, at the shape `contracts/package-metadata.md` recommends: the built wheel's `METADATA` carries a non-empty `Keywords` line, at least one `Classifier` line, `Project-URL` entries for the repository, the changelog, and the issue tracker, no `Classifier: License ::` line, and neither `Cepheus Engine` nor `Samardan Press` in `Keywords` or any `Classifier`. Do not pin the exact classifier list.
+- [ ] T038 [US4] Add the failing metadata guards to `tests/guards/test_packaging.py`, at the shape `contracts/package-metadata.md` recommends: a non-empty `Keywords` line, at least one `Classifier` line, `Project-URL` entries for the repository, the changelog, and the issue tracker, no `Classifier: License ::` line, and neither `Cepheus Engine` nor `Samardan Press` in `Keywords` or any `Classifier`. Do not pin the exact classifier list. Run every assertion against **both** formats — the wheel's `cetools-<version>.dist-info/METADATA` and the sdist's `<name>-<version>/PKG-INFO` — because SC-014 binds both, and a build-backend change that dropped a field from one and not the other is exactly what a one-format guard would miss. Factor the field extraction into a helper taking the metadata text so both legs share it.
 - [ ] T039 [US4] Add `keywords`, `classifiers`, `authors = [{ name = "Chip Warden" }]` (name only; research.md R22), and a `[project.urls]` table with `Homepage`, `Repository`, `Changelog`, and `Issues` to `pyproject.toml`'s `[project]` section per `contracts/package-metadata.md`, leaving `license`, `license-files`, and `description` untouched. Make T038 pass.
-- [ ] T040 [US4] Decide and record whether `tests/guards/test_python_support.py` should also hold the two `Programming Language :: Python ::` classifiers in step with `requires-python` and `ci.yaml`'s matrix (`contracts/package-metadata.md` leaves this open); if yes, add the failing test and extend the guard.
+- [ ] T040 [US4] Extend `tests/guards/test_python_support.py` so it also holds the two `Programming Language :: Python ::` classifiers in step with `requires-python` and `ci.yaml`'s matrix — failing test first. `contracts/package-metadata.md` left this open; it is settled yes, because those three already drift independently and that guard exists for exactly that drift. Derive the expected classifier set from the matrix the guard already parses rather than restating the versions.
 - [ ] T041 [US4] Add the `CHANGELOG.md` entry for the package metadata and the `py.typed` marker.
 
 **Checkpoint**: an inspection tool pointed at the built artifact finds what a
@@ -250,7 +253,7 @@ after everything above is merged to `main` and `ci.yaml` is green.
 - [ ] T060 Push the version tag — `git tag v<declared>` then `git push origin v<declared>` — and take no further action (quickstart.md scenario 7, SC-001).
 - [ ] T061 Verify the published release against quickstart.md scenario 8: download the assets, run `sha256sum -c SHA256SUMS.txt` (or `shasum -a 256 -c`), and run `gh attestation verify` on each of the two distribution artifacts.
 - [ ] T062 Verify the release body: its text is the changelog section verbatim, it ends with the footer, and it carries no checksums, download links, or generated commit list (FR-002, research.md R7).
-- [ ] T063 Verify the installation instructions as a reader would, per quickstart.md scenario 9: the primary wheel URL resolves, `cetools --version` reports the released version, the worked example in the README reproduces, and the `git+…@v<tag>` alternative installs the same version.
+- [ ] T063 Verify the installation instructions as a reader would, per quickstart.md scenario 9: the primary wheel URL resolves, `cetools --version` reports the released version, the worked example in the README reproduces, the `git+…@v<tag>` alternative installs the same version, and the `uv add` dependency line resolves in a throwaway project with `import cetools` succeeding (FR-026).
 - [ ] T064 Verify the already-published refusal per quickstart.md scenario 10: capture `gh release view --json publishedAt,assets`, force-push the same tag, confirm the run aborts at the preflight naming the version as already published, and confirm the release is byte-identical afterward (FR-025, SC-013).
 
 ---
@@ -288,6 +291,7 @@ they enable.
 Serialize edits to these rather than parallelizing across them:
 
 - `tests/guards/test_release_scripts.py` — T006, T008–T017
+- `tests/guards/test_release_workflow.py` — T020, T020a
 - `tests/guards/test_packaging.py` — T036, T038, T042–T044
 - `tests/guards/test_documented_version.py` — T029–T032
 - `pyproject.toml` — T039, T048

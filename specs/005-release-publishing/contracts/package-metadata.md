@@ -54,8 +54,11 @@ classifiers = [
   list at task time.
 - The two `Programming Language` entries must stay in step with
   `requires-python` and with `ci.yaml`'s matrix. `tests/guards/
-  test_python_support.py` already exists to keep those in step; check whether
-  it should also cover the classifiers.
+  test_python_support.py` already exists to keep those in step, and it is
+  extended to cover the classifiers as well: the three drift independently, and
+  keeping the classifiers out of the guard that exists for that drift would be
+  an arbitrary line. The expected set is derived from the matrix the guard
+  already parses, not restated beside it.
 - `Typing :: Typed` is the metadata half of the `py.typed` marker. Shipping one
   without the other is a contradiction.
 
@@ -105,20 +108,26 @@ binds:
 | --- | --- | --- |
 | The `py.typed` marker is present | `cetools/py.typed` | `src/cetools/py.typed` |
 | Every rules-data file appears at its full relative path | `cetools/data/<rel>` | `src/cetools/data/<rel>` |
+| The descriptive fields and repository links are present | `<name>-<version>.dist-info/METADATA` | `<name>-<version>/PKG-INFO` |
 
 The full-path comparison replaces the current basename comparison in
 `test_wheel_contains_every_packaged_data_file` and
 `test_sdist_contains_every_packaged_data_file` (FR-015, SC-010). On failure it
 must name the differing paths, not report a set inequality.
 
-Whether the descriptive fields themselves get a guard is a task-time call. The
-argument for one: FR-019 is a shipped-artifact requirement like every other
-check in that module, and a dropped `[project.urls]` table is silent. The
-argument against: a guard asserting the exact classifier list is a second copy
-of `pyproject.toml` that has to be edited twice. A middle position, asserting
-that the built metadata carries a non-empty `Keywords`, at least one
-`Classifier`, and `Project-URL` entries for the three FR-019 names, without
-pinning their values, is the one this contract recommends.
+The descriptive fields get a guard: FR-019 is a shipped-artifact requirement
+like every other check in that module, and a dropped `[project.urls]` table is
+silent. What it does *not* do is assert the exact classifier list, which would
+be a second copy of `pyproject.toml` to edit twice. The middle position — the
+built metadata carries a non-empty `Keywords`, at least one `Classifier`, and
+`Project-URL` entries for the three FR-019 names, with none of their values
+pinned — is the shape to write.
+
+It runs against **both** formats. SC-014 binds both, `PKG-INFO` and `METADATA`
+are the same core-metadata format so one extraction helper serves both legs,
+and a one-format guard would miss precisely the failure worth catching: a build
+backend or configuration change that carries a field into one artifact and
+drops it from the other.
 
 ## What must not appear
 
