@@ -1,0 +1,59 @@
+name: Release
+
+# The only trigger. No workflow_dispatch, no release event, no schedule:
+# FR-003 makes the tag push the sole way to cut a release.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write        # create the release, upload assets
+  id-token: write         # attest-build-provenance
+  attestations: write     # attest-build-provenance
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # Exact tag, not @v10: astral-sh stopped publishing floating majors
+      # after v7, so @v10 does not resolve (matches ci.yaml's convention).
+      - uses: astral-sh/setup-uv@v10.0.1
+        with:
+          python-version: "3.13"
+
+      - name: Preflight
+        run: sh scripts/release-preflight.sh "$GITHUB_REF_NAME" pyproject.toml CHANGELOG.md
+
+      - run: uv sync
+
+      - run: uv run pytest
+
+      - run: uv build
+
+      - name: Checksum manifest
+        working-directory: dist
+        run: sha256sum cetools-* > SHA256SUMS.txt
+
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: dist/cetools-*
+
+      - name: Assemble release notes
+        run: |
+          sh scripts/changelog-section.sh "${GITHUB_REF_NAME#v}" CHANGELOG.md > /tmp/notes.md
+          printf '\n' >> /tmp/notes.md
+          cat .github/release-footer.md >> /tmp/notes.md
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/cetools-*.tar.gz \
+            dist/cetools-*.whl \
+            dist/SHA256SUMS.txt \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file /tmp/notes.md \
+            --verify-tag

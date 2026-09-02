@@ -13,7 +13,7 @@ metadata reports — and therefore the version `cetools` prints in its
 provenance block — drops it: `2026.08.1` here is `2026.8.1` there. The two
 name the same release.
 
-## 2026.08.1 (unreleased)
+## 2026.09.1 2026-09-01
 
 First release: the dice and 2D6 task-check engine, as a library and a CLI.
 
@@ -634,6 +634,66 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   already read from data. Shipped at `1`, matching the prior behavior, so
   no packaged seed's output changes; an override written against
   `schema-version = 1` must add the key to keep validating (FR-038, T179).
+- **Tag-triggered release publishing.** Pushing `v<declared version>`
+  publishes a release on the project's public source repository: a
+  preflight (`scripts/release-preflight.sh`) refuses a tag that disagrees
+  with `project.version`, a changelog section that is missing, marked
+  `(unreleased)`, or empty, and a version that is already published (failing
+  closed if the answer cannot be determined); only then does the full test
+  suite run at the tagged commit, both distribution formats build, a
+  combined `SHA256SUMS.txt` and a signed provenance attestation are produced
+  for each artifact, and the release is published with the changelog
+  section verbatim followed by a fixed attribution footer
+  (`.github/release-footer.md`) as its notes. Nothing is published unless
+  every check and the full suite pass. `scripts/changelog-section.sh`
+  extracts a version's changelog body for reuse by both the preflight and
+  the workflow. Neither script ships; `scripts/` is release tooling, not
+  part of a distribution (FR-001 through FR-010, FR-021, FR-025).
+- **README installation points at the published artifact.** `uv add
+  cetools` named a package index that has never carried this package. The
+  primary instruction is now `uv tool install` against the released wheel's
+  download URL, with an alternative that installs from the tagged source
+  (`uv tool install git+...@v<version>`) and a third for a project that
+  depends on `cetools` as a library rather than installing the command
+  (`uv add <the same wheel URL>`). `CONTRIBUTING.md`'s remaining references
+  to a PyPI description now name the public release page and the built
+  package's description instead (FR-016 through FR-018, FR-024, FR-026).
+- **Package metadata a published artifact is expected to carry.** Both
+  distributions now declare `keywords`, `classifiers` (including
+  `Typing :: Typed`, with no redundant `License ::` classifier), `authors`
+  (name only), and a `[project.urls]` table naming the repository, the
+  changelog, and the issue tracker. An empty `src/cetools/py.typed` ships in
+  both formats as the PEP 561 marker. A packaging guard verifies the marker
+  and the descriptive fields in the built wheel's `METADATA` and the
+  sdist's `PKG-INFO`, and the Python trove classifiers are held in step
+  with `requires-python` and `ci.yaml`'s matrix by the guard that already
+  exists for that drift (FR-019, FR-020).
+- **The documented-version drift guard now covers the install command, in
+  both of the version's spellings.** The guard's single pattern group split
+  into a reported (normalized) group and a declared (padded) group compared
+  against different expected values: the wheel filename in the install
+  command joins the reported group, and the `releases/download/v.../` tag
+  segment and the `@v...` source-install ref join a new declared group
+  compared against `project.version`. A stale value fails naming the file
+  and the value, and a value normalized before comparing — the padded form
+  in the filename position or the unpadded form in the tag position — fails
+  too, rather than passing on a coincidental match (FR-011, FR-012).
+- **`mypy` is available as an optional type checker.** It installs with the
+  `dev` dependency group and is configured under `[tool.mypy]`, documented
+  in `CONTRIBUTING.md`'s "Style and tooling" section outside the fence a
+  guard holds to a clean run — it gates nothing: not the suite, not `ci.yaml`,
+  not a release. Baseline `uv run mypy src/cetools` reports 69 pre-existing
+  errors, none cheap to fix without risking behavior changes; a clean run is
+  deliberately not a deliverable of this change (FR-022).
+- **The packaging guard compares full relative paths, not basenames.**
+  `test_wheel_contains_every_packaged_data_file` and
+  `test_sdist_contains_every_packaged_data_file` used to compare only
+  basenames, which quietly also enforced basename uniqueness across the
+  rules-data tree — a property `tests/guards/test_data_layout.py` already
+  owns on its own. The comparison now checks each `.toml` file's path
+  relative to `src/cetools/` (source) or `cetools/` (built artifact), and a
+  mismatch names the differing paths instead of reporting a bare set
+  inequality (FR-015, SC-010).
 
 ### Fixed
 

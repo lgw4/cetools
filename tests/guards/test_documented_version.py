@@ -22,9 +22,21 @@ from cetools.provenance import package_version
 
 _ROOT = Path(__file__).resolve().parents[2]
 
-# `Rules: packaged (cetools X)` in a text block, and `"version": "X"` in a
-# JSON block, are the two places a version reaches documented output.
-_PATTERNS = (re.compile(r"\(cetools ([^)]+)\)"), re.compile(r'"version": "([^"]+)"'))
+# `Rules: packaged (cetools X)` in a text block, `"version": "X"` in a JSON
+# block, and the wheel filename in the install command are the three places
+# the *reported* (normalized) version reaches documented output.
+_REPORTED_PATTERNS = (
+    re.compile(r"\(cetools ([^)]+)\)"),
+    re.compile(r'"version": "([^"]+)"'),
+    re.compile(r"cetools-([\w.]+)-py3-none-any\.whl"),
+)
+# The `releases/download/v.../` tag segment and the `@v...` source-install
+# ref are the two places the *declared* (padded) version reaches documented
+# output (research.md R13 for 005-release-publishing).
+_DECLARED_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"releases/download/v([^/]+)/"),
+    re.compile(r"cetools@v([\w.]+)"),
+)
 
 
 def _documented_outputs() -> list[Path]:
@@ -34,10 +46,14 @@ def _documented_outputs() -> list[Path]:
     return [path for path in paths if path.is_file()]
 
 
+def _matches(text: str, patterns: tuple[re.Pattern[str], ...]) -> set[str]:
+    return {match for pattern in patterns for match in pattern.findall(text)}
+
+
 @pytest.mark.parametrize("path", _documented_outputs(), ids=lambda path: path.name)
 def test_documented_versions_match_the_reported_version(path):
     text = path.read_text(encoding="utf-8")
-    found = {match for pattern in _PATTERNS for match in pattern.findall(text)}
+    found = _matches(text, _REPORTED_PATTERNS)
     stale = sorted(version for version in found if version != package_version())
     assert not stale, (
         f"{path.relative_to(_ROOT)} documents {stale}, "
@@ -45,15 +61,46 @@ def test_documented_versions_match_the_reported_version(path):
     )
 
 
+@pytest.mark.parametrize("path", _documented_outputs(), ids=lambda path: path.name)
+def test_documented_declared_versions_match_the_declared_version(path):
+    text = path.read_text(encoding="utf-8")
+    found = _matches(text, _DECLARED_PATTERNS)
+    declared = _declared_version()
+    stale = sorted(version for version in found if version != declared)
+    assert not stale, (
+        f"{path.relative_to(_ROOT)} documents {stale} in a declared-version position, "
+        f"but the project declares {declared!r}"
+    )
+
+
+def test_swapped_version_spellings_fail_in_both_positions():
+    """The property FR-012 requires: a padded form in the filename position,
+    or an unpadded form in the tag position, must each fail — not just the
+    ordinary case of a stale value in its own position. If this passed, the
+    guard would be normalizing before comparing.
+    """
+    swapped = (
+        "https://github.com/lgw4/cetools/releases/download/v2026.8.1/"
+        "cetools-2026.08.1-py3-none-any.whl"
+    )
+    assert _matches(swapped, _DECLARED_PATTERNS) == {"2026.8.1"} != {_declared_version()}
+    assert _matches(swapped, _REPORTED_PATTERNS) == {"2026.08.1"} != {package_version()}
+
+
 def test_the_guard_has_something_to_check():
     """A glob that matched nothing would pass silently."""
-    documented = {
+    reported = {
         match
         for path in _documented_outputs()
-        for pattern in _PATTERNS
-        for match in pattern.findall(path.read_text(encoding="utf-8"))
+        for match in _matches(path.read_text(encoding="utf-8"), _REPORTED_PATTERNS)
     }
-    assert documented == {package_version()}
+    declared = {
+        match
+        for path in _documented_outputs()
+        for match in _matches(path.read_text(encoding="utf-8"), _DECLARED_PATTERNS)
+    }
+    assert reported == {package_version()}
+    assert declared == {_declared_version()}
 
 
 # --- the constitution's two Development Workflow clauses ---------------------

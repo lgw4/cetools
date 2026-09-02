@@ -60,13 +60,13 @@ errors and nothing else.
 Packaged:
 
 ```text
-  Rules: packaged (cetools 2026.8.1)
+  Rules: packaged (cetools 2026.9.1)
 ```
 
 Overridden, with a file ignored:
 
 ```text
-  Rules: overridden (cetools 2026.8.1)
+  Rules: overridden (cetools 2026.9.1)
     navy.toml     replaced  sha256:3b1f...c0
     scouts.toml   added     sha256:9ad4...71
     notes.md      ignored
@@ -88,7 +88,7 @@ An override holding nothing but ignored files still reads `packaged`, because no
 took effect, and still lists them:
 
 ```text
-  Rules: packaged (cetools 2026.8.1)
+  Rules: packaged (cetools 2026.9.1)
     notes.md   ignored
 ```
 
@@ -110,7 +110,7 @@ Check: FAILURE
     cover                  -2
   Total: 5 vs target 8
   Seed:  14333185781139156525
-  Rules: packaged (cetools 2026.8.1)
+  Rules: packaged (cetools 2026.9.1)
 ```
 
 The outer label column stays seven characters wide, because `Rules:` is no longer
@@ -127,7 +127,7 @@ not become the only check on it.
 ```text
 Rules data is valid.
   Files: 5
-  Rules: packaged (cetools 2026.8.1)
+  Rules: packaged (cetools 2026.9.1)
 ```
 
 ### `cetools validate`, with problems
@@ -143,7 +143,7 @@ skills.toml:skills: found an empty table; expected at least one entry
 Rules data is invalid.
   Files:    5
   Problems: 4
-  Rules:    packaged (cetools 2026.8.1)
+  Rules:    packaged (cetools 2026.9.1)
 ```
 
 The problem line is `FILE:LOCATION: found FOUND; expected EXPECTED`, dropping

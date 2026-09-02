@@ -11,6 +11,7 @@ both the wheel and the sdist are inspected here: the sdist has its own
 noticing.
 """
 
+import re
 import shutil
 import subprocess
 import tarfile
@@ -87,10 +88,41 @@ def _wheel_data_files(wheel: zipfile.ZipFile) -> list[str]:
     )
 
 
+def _path_set_difference(expected: set[str], actual: set[str]) -> str | None:
+    """None if the two sets are equal; otherwise a message naming exactly
+    which paths differ, in both directions, rather than a bare set
+    inequality.
+    """
+    missing = expected - actual
+    extra = actual - expected
+    if not missing and not extra:
+        return None
+    return f"missing: {sorted(missing)}, unexpected: {sorted(extra)}"
+
+
+def test_the_set_difference_helper_reports_a_flattened_layout():
+    """A synthetic flattened build: every basename present, every path
+    different. FR-015's whole point is that a full-path comparison reports
+    this rather than passing on basename equality (SC-010).
+    """
+    source = {"careers/scout.toml", "chargen/aging.toml"}
+    flattened = {"scout.toml", "aging.toml"}
+    diff = _path_set_difference(source, flattened)
+    assert diff is not None
+    assert "careers/scout.toml" in diff
+    assert "chargen/aging.toml" in diff
+
+
+def _source_data_paths(repo_root: Path) -> set[str]:
+    base = repo_root / "src" / "cetools"
+    return {p.relative_to(base).as_posix() for p in (base / "data").rglob("*.toml")}
+
+
 def test_wheel_contains_every_packaged_data_file(wheel, repo_root):
-    source_basenames = {p.name for p in (repo_root / "src" / "cetools" / "data").rglob("*.toml")}
-    wheel_basenames = {name.rsplit("/", 1)[-1] for name in _wheel_data_files(wheel)}
-    assert wheel_basenames == source_basenames
+    source_paths = _source_data_paths(repo_root)
+    wheel_paths = {name.removeprefix("cetools/") for name in _wheel_data_files(wheel)}
+    diff = _path_set_difference(source_paths, wheel_paths)
+    assert diff is None, diff
 
 
 def test_every_data_file_in_the_wheel_carries_its_ogc_designation(wheel):
@@ -187,9 +219,10 @@ def _sdist_data_files(sdist: tarfile.TarFile) -> list[str]:
 
 
 def test_sdist_contains_every_packaged_data_file(sdist, repo_root):
-    source_basenames = {p.name for p in (repo_root / "src" / "cetools" / "data").rglob("*.toml")}
-    sdist_basenames = {name.rsplit("/", 1)[-1] for name in _sdist_data_files(sdist)}
-    assert sdist_basenames == source_basenames
+    source_paths = _source_data_paths(repo_root)
+    sdist_paths = {name.removeprefix("src/cetools/") for name in _sdist_data_files(sdist)}
+    diff = _path_set_difference(source_paths, sdist_paths)
+    assert diff is None, diff
 
 
 def test_every_data_file_in_the_sdist_carries_its_ogc_designation(sdist):
@@ -283,3 +316,49 @@ def test_sdist_carries_the_ogl_text_with_its_section_15_chain(sdist, assert_sect
     text = _read_from_sdist(sdist, "LICENSE-OGL.txt")
     assert "OPEN GAME LICENSE Version 1.0a" in text
     assert_section_15_chain(text, "the sdist's LICENSE-OGL.txt")
+
+
+# --- 005-release-publishing: the py.typed marker and descriptive metadata --
+
+
+def test_wheel_contains_the_py_typed_marker(wheel):
+    assert "cetools/py.typed" in wheel.namelist()
+
+
+def test_sdist_contains_the_py_typed_marker(sdist):
+    matches = [n for n in sdist.getnames() if n.split("/", 1)[-1] == "src/cetools/py.typed"]
+    assert matches, "src/cetools/py.typed is missing from the sdist"
+
+
+def _wheel_metadata(wheel: zipfile.ZipFile) -> str:
+    matches = [n for n in wheel.namelist() if n.endswith(".dist-info/METADATA")]
+    assert len(matches) == 1, matches
+    return wheel.read(matches[0]).decode("utf-8")
+
+
+def _assert_descriptive_metadata(text: str, where: str) -> None:
+    assert re.search(r"^Keywords: \S", text, re.MULTILINE), f"{where} carries no Keywords line"
+    assert re.search(r"^Classifier: ", text, re.MULTILINE), f"{where} carries no Classifier line"
+    for name in ("Homepage", "Repository", "Changelog", "Issues"):
+        assert re.search(
+            rf"^Project-URL: {name},", text, re.MULTILINE
+        ), f"{where} carries no Project-URL entry for {name}"
+    assert not re.search(
+        r"^Classifier: License ::", text, re.MULTILINE
+    ), f"{where} carries a redundant License :: classifier"
+
+    keywords_line = re.search(r"^Keywords: (.*)$", text, re.MULTILINE)
+    classifier_lines = re.findall(r"^Classifier: (.*)$", text, re.MULTILINE)
+    for marker in ("Cepheus Engine", "Samardan Press"):
+        assert marker not in keywords_line.group(1), f"{where} names {marker} in Keywords"
+        assert not any(
+            marker in line for line in classifier_lines
+        ), f"{where} names {marker} in a Classifier"
+
+
+def test_wheel_metadata_carries_the_descriptive_fields(wheel):
+    _assert_descriptive_metadata(_wheel_metadata(wheel), "the wheel's METADATA")
+
+
+def test_sdist_metadata_carries_the_descriptive_fields(sdist):
+    _assert_descriptive_metadata(_read_from_sdist(sdist, "PKG-INFO"), "the sdist's PKG-INFO")

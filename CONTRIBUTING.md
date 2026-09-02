@@ -98,9 +98,9 @@ forbids.
 If your change alters human-readable CLI output, the golden files in
 `tests/golden/` change with it in the same commit, and the diff should show
 the new output plainly enough to be reviewed on sight. The worked examples
-in `README.md` are reference output too — the README is the description PyPI
-renders — and `tests/integration/test_golden.py` runs each of them and
-compares.
+in `README.md` are reference output too — the README is also the built
+package's description — and `tests/integration/test_golden.py` runs each of
+them and compares.
 
 **Anything new is reachable from both sides.** A new library function needs
 a CLI path to it (Principle II), and a new CLI flag needs to be a thin call
@@ -148,6 +148,12 @@ thousand rolled names) and are marked `slow`. Run `uv run pytest -m "not
 slow"` as the inner loop after each step so the suite stays fast enough to
 run that often; run the full `uv run pytest` before every commit and rely on
 CI to run it unconditionally.
+
+The `dev` dependency group also installs [mypy](https://mypy-lang.org/),
+configured under `[tool.mypy]` in `pyproject.toml`. Run it with
+`uv run mypy src/cetools`. Like `rumdl` below, it gates nothing: not the
+suite, not CI, not a release — Principle III forbids mandating a clean
+type-check run, and none is required here.
 
 `pyproject.toml` also carries a `[tool.rumdl]` section, configuring the
 [rumdl](https://github.com/rvben/rumdl) markdown linter for this repository:
@@ -208,7 +214,8 @@ line it sits on.
   Open Game Content data file.
 - **Compatibility claims carry attribution.** The README currently makes no
   compatibility claim and therefore owes no trademark attribution. If a
-  change adds one, anywhere (README, PyPI description, CLI help), it adds
+  change adds one, anywhere (README, the public release page, the built
+  package's description, CLI help), it adds
   the Compatibility-Statement License attribution ("Cepheus Engine and
   Samardan Press are the trademarks of Jason 'Flynn' Kemp") and a statement
   of non-affiliation in the same change.
@@ -240,7 +247,35 @@ unreleased version, in the same commit as the change itself.
 Versioning is CalVer, `YYYY.0M.INC1`: `2026.08.1` is the first release cut
 in August 2026, `2026.08.2` the second. Because CalVer signals nothing about
 compatibility, breaking changes are called out prominently in the changelog
-entry, under their own heading. Releases are published to PyPI.
+entry, under their own heading.
+
+A release is a tag push, and nothing else. Cutting one:
+
+1. **Confirm the month.** If the current month no longer matches the month
+   the declared version names (`project.version` in `pyproject.toml`), bump
+   the version first — the `##` heading in `CHANGELOG.md` and every other
+   documented occurrence of the version go with it in the same commit. No
+   guard checks this against the calendar (research.md R17 for
+   005-release-publishing); it is a maintainer step.
+2. **Date the changelog heading.** Change the declared version's
+   `## <version> (unreleased)` heading in `CHANGELOG.md` to
+   `## <version> <ISO date>`.
+3. **Confirm every documented occurrence of the version is current**:
+   `uv run pytest tests/guards/test_documented_version.py`.
+4. **Commit and push to `main`.** Wait for `ci.yaml` to go green.
+5. **Tag and push the tag**: `git tag v<version>` then
+   `git push origin v<version>`.
+
+Pushing the tag is the only trigger for `.github/workflows/release.yaml`,
+which runs a preflight (`scripts/release-preflight.sh`), the full test
+suite, builds both distribution formats, attests their provenance, and
+publishes a release on the project's public source repository — carrying
+the sdist, the wheel, a combined `SHA256SUMS.txt`, and the changelog
+section as the release notes — with no manual step after the push. Nothing
+is published unless every check and the full suite pass, so a failed
+attempt leaves the version number available for a retry. A published
+version number is otherwise spent and never reused, per the constitution's
+Development Workflow section.
 
 ## Review
 
