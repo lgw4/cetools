@@ -100,10 +100,28 @@ def _path_set_difference(expected: set[str], actual: set[str]) -> str | None:
     return f"missing: {sorted(missing)}, unexpected: {sorted(extra)}"
 
 
+def test_the_set_difference_helper_reports_a_flattened_layout():
+    """A synthetic flattened build: every basename present, every path
+    different. FR-015's whole point is that a full-path comparison reports
+    this rather than passing on basename equality (SC-010).
+    """
+    source = {"careers/scout.toml", "chargen/aging.toml"}
+    flattened = {"scout.toml", "aging.toml"}
+    diff = _path_set_difference(source, flattened)
+    assert diff is not None
+    assert "careers/scout.toml" in diff
+    assert "chargen/aging.toml" in diff
+
+
+def _source_data_paths(repo_root: Path) -> set[str]:
+    base = repo_root / "src" / "cetools"
+    return {p.relative_to(base).as_posix() for p in (base / "data").rglob("*.toml")}
+
+
 def test_wheel_contains_every_packaged_data_file(wheel, repo_root):
-    source_basenames = {p.name for p in (repo_root / "src" / "cetools" / "data").rglob("*.toml")}
-    wheel_basenames = {name.rsplit("/", 1)[-1] for name in _wheel_data_files(wheel)}
-    diff = _path_set_difference(source_basenames, wheel_basenames)
+    source_paths = _source_data_paths(repo_root)
+    wheel_paths = {name.removeprefix("cetools/") for name in _wheel_data_files(wheel)}
+    diff = _path_set_difference(source_paths, wheel_paths)
     assert diff is None, diff
 
 
@@ -201,9 +219,9 @@ def _sdist_data_files(sdist: tarfile.TarFile) -> list[str]:
 
 
 def test_sdist_contains_every_packaged_data_file(sdist, repo_root):
-    source_basenames = {p.name for p in (repo_root / "src" / "cetools" / "data").rglob("*.toml")}
-    sdist_basenames = {name.rsplit("/", 1)[-1] for name in _sdist_data_files(sdist)}
-    diff = _path_set_difference(source_basenames, sdist_basenames)
+    source_paths = _source_data_paths(repo_root)
+    sdist_paths = {name.removeprefix("src/cetools/") for name in _sdist_data_files(sdist)}
+    diff = _path_set_difference(source_paths, sdist_paths)
     assert diff is None, diff
 
 

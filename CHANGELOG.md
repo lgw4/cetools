@@ -678,6 +678,15 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   and the value, and a value normalized before comparing — the padded form
   in the filename position or the unpadded form in the tag position — fails
   too, rather than passing on a coincidental match (FR-011, FR-012).
+- **The packaging guard compares full relative paths, not basenames.**
+  `test_wheel_contains_every_packaged_data_file` and
+  `test_sdist_contains_every_packaged_data_file` used to compare only
+  basenames, which quietly also enforced basename uniqueness across the
+  rules-data tree — a property `tests/guards/test_data_layout.py` already
+  owns on its own. The comparison now checks each `.toml` file's path
+  relative to `src/cetools/` (source) or `cetools/` (built artifact), and a
+  mismatch names the differing paths instead of reporting a bare set
+  inequality (FR-015, SC-010).
 
 ### Fixed
 
