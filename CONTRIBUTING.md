@@ -253,7 +253,7 @@ A release is a tag push, and nothing else. Cutting one:
 
 1. **Confirm the month.** If the current month no longer matches the month
    the declared version names (`project.version` in `pyproject.toml`), bump
-   the version first — the `## ` heading in `CHANGELOG.md` and every other
+   the version first — the `##` heading in `CHANGELOG.md` and every other
    documented occurrence of the version go with it in the same commit. No
    guard checks this against the calendar (research.md R17 for
    005-release-publishing); it is a maintainer step.

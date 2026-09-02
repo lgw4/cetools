@@ -91,7 +91,11 @@ python_version = "3.13"
 flavor = "gfm"
 disable = ["MD013"]
 # Vendored Spec Kit tooling; its markdown is not ours to fix.
-exclude = [".claude", ".specify"]
+# .github/release-footer.md: a fragment appended after the changelog body in
+# a release's notes, not a standalone document — MD041 (first-line heading)
+# does not apply, and adding one would put an unwanted heading on every
+# published release page.
+exclude = [".claude", ".specify", ".github/release-footer.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
