@@ -69,3 +69,24 @@ def test_the_matrix_verifies_no_python_the_package_declares_unsupported():
         + ", ".join(f"{major}.{minor}" for major, minor in stray)
         + " but requires-python refuses to install there"
     )
+
+
+def _declared_classifiers() -> list[str]:
+    pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    return pyproject["project"].get("classifiers", [])
+
+
+def test_the_python_trove_classifiers_match_the_ci_matrix():
+    # requires-python, the classifiers, and ci.yaml's matrix already drift
+    # independently; the expected set is derived from the matrix this module
+    # already parses, rather than a second copy of the version list.
+    expected = {
+        f"Programming Language :: Python :: {major}.{minor}" for major, minor in _matrix_versions()
+    }
+    declared = {
+        c for c in _declared_classifiers() if c.startswith("Programming Language :: Python")
+    }
+    assert declared == expected, (
+        f"pyproject.toml's Python classifiers are {sorted(declared)}, but "
+        f".github/workflows/ci.yaml's matrix implies {sorted(expected)}"
+    )

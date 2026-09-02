@@ -11,6 +11,7 @@ both the wheel and the sdist are inspected here: the sdist has its own
 noticing.
 """
 
+import re
 import shutil
 import subprocess
 import tarfile
@@ -283,3 +284,49 @@ def test_sdist_carries_the_ogl_text_with_its_section_15_chain(sdist, assert_sect
     text = _read_from_sdist(sdist, "LICENSE-OGL.txt")
     assert "OPEN GAME LICENSE Version 1.0a" in text
     assert_section_15_chain(text, "the sdist's LICENSE-OGL.txt")
+
+
+# --- 005-release-publishing: the py.typed marker and descriptive metadata --
+
+
+def test_wheel_contains_the_py_typed_marker(wheel):
+    assert "cetools/py.typed" in wheel.namelist()
+
+
+def test_sdist_contains_the_py_typed_marker(sdist):
+    matches = [n for n in sdist.getnames() if n.split("/", 1)[-1] == "src/cetools/py.typed"]
+    assert matches, "src/cetools/py.typed is missing from the sdist"
+
+
+def _wheel_metadata(wheel: zipfile.ZipFile) -> str:
+    matches = [n for n in wheel.namelist() if n.endswith(".dist-info/METADATA")]
+    assert len(matches) == 1, matches
+    return wheel.read(matches[0]).decode("utf-8")
+
+
+def _assert_descriptive_metadata(text: str, where: str) -> None:
+    assert re.search(r"^Keywords: \S", text, re.MULTILINE), f"{where} carries no Keywords line"
+    assert re.search(r"^Classifier: ", text, re.MULTILINE), f"{where} carries no Classifier line"
+    for name in ("Homepage", "Repository", "Changelog", "Issues"):
+        assert re.search(
+            rf"^Project-URL: {name},", text, re.MULTILINE
+        ), f"{where} carries no Project-URL entry for {name}"
+    assert not re.search(
+        r"^Classifier: License ::", text, re.MULTILINE
+    ), f"{where} carries a redundant License :: classifier"
+
+    keywords_line = re.search(r"^Keywords: (.*)$", text, re.MULTILINE)
+    classifier_lines = re.findall(r"^Classifier: (.*)$", text, re.MULTILINE)
+    for marker in ("Cepheus Engine", "Samardan Press"):
+        assert marker not in keywords_line.group(1), f"{where} names {marker} in Keywords"
+        assert not any(
+            marker in line for line in classifier_lines
+        ), f"{where} names {marker} in a Classifier"
+
+
+def test_wheel_metadata_carries_the_descriptive_fields(wheel):
+    _assert_descriptive_metadata(_wheel_metadata(wheel), "the wheel's METADATA")
+
+
+def test_sdist_metadata_carries_the_descriptive_fields(sdist):
+    _assert_descriptive_metadata(_read_from_sdist(sdist, "PKG-INFO"), "the sdist's PKG-INFO")

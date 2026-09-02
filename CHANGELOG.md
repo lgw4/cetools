@@ -649,7 +649,25 @@ First release: the dice and 2D6 task-check engine, as a library and a CLI.
   extracts a version's changelog body for reuse by both the preflight and
   the workflow. Neither script ships; `scripts/` is release tooling, not
   part of a distribution (FR-001 through FR-010, FR-021, FR-025).
-
+- **README installation points at the published artifact.** `uv add
+  cetools` named a package index that has never carried this package. The
+  primary instruction is now `uv tool install` against the released wheel's
+  download URL, with an alternative that installs from the tagged source
+  (`uv tool install git+...@v<version>`) and a third for a project that
+  depends on `cetools` as a library rather than installing the command
+  (`uv add <the same wheel URL>`). `CONTRIBUTING.md`'s remaining references
+  to a PyPI description now name the public release page and the built
+  package's description instead (FR-016 through FR-018, FR-024, FR-026).
+- **Package metadata a published artifact is expected to carry.** Both
+  distributions now declare `keywords`, `classifiers` (including
+  `Typing :: Typed`, with no redundant `License ::` classifier), `authors`
+  (name only), and a `[project.urls]` table naming the repository, the
+  changelog, and the issue tracker. An empty `src/cetools/py.typed` ships in
+  both formats as the PEP 561 marker. A packaging guard verifies the marker
+  and the descriptive fields in the built wheel's `METADATA` and the
+  sdist's `PKG-INFO`, and the Python trove classifiers are held in step
+  with `requires-python` and `ci.yaml`'s matrix by the guard that already
+  exists for that drift (FR-019, FR-020).
 - **The documented-version drift guard now covers the install command, in
   both of the version's spellings.** The guard's single pattern group split
   into a reported (normalized) group and a declared (padded) group compared
