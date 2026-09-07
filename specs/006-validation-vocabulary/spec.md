@@ -28,6 +28,11 @@ may contain is stated once and reported the same way everywhere."
   found to differ only in that one case, and the more numerous of them
   contradicts itself, calling one rule "a string" when the key is missing and
   "a non-empty string" when the value is present and empty.
+- Q: When an optional boolean field is present but holds something other than a
+  boolean, what should the check hand back? (FR-005) → A: Report the problem and
+  return the declared default, which is what the code does today. The check
+  always yields a boolean and never an absent result, so no call site has to
+  branch on the rejected case.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -202,11 +207,6 @@ defines any of the checks.
   is present but empty. The two string checks being merged differ in this one
   case and in no other, and the more widely used of them describes one rule two
   ways depending on how it was broken.
-- Q: When an optional boolean field is present but holds something other than a
-  boolean, what should the check hand back? (FR-005) → A: Report the problem and
-  return the declared default, which is what the code does today. The check
-  always yields a boolean and never an absent result, so no call site has to
-  branch on the rejected case.
 - **FR-010**: A value below a required minimum other than one MUST keep its
   current phrasing naming that minimum.
 - **FR-010a**: A dice-notation field that is absent MUST keep expecting "a
