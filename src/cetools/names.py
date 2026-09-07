@@ -38,7 +38,9 @@ def _require_string(
 ) -> str | None:
     if key not in container:
         problems.append(
-            ValidationProblem(file=file, location=location, found="missing", expected="a string")
+            ValidationProblem(
+                file=file, location=location, found="missing", expected="a non-empty string"
+            )
         )
         return None
     value = container[key]

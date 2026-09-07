@@ -78,6 +78,15 @@ class TestGivenNameTable:
         assert table is None
         assert any(p.location == "source" and p.found == "missing" for p in problems)
 
+    def test_missing_source_expects_a_non_empty_string(self):
+        data = self._data()
+        del data["source"]
+        table, problems = parse_given_names(data, "given-names.toml")
+        assert table is None
+        matching = [p for p in problems if p.location == "source"]
+        assert len(matching) == 1
+        assert matching[0].expected == "a non-empty string"
+
     def test_empty_source_is_a_problem(self):
         table, problems = parse_given_names(self._data(source=""), "given-names.toml")
         assert table is None

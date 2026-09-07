@@ -100,13 +100,9 @@ def _require_int(
         )
         return None
     if minimum is not None and value < minimum:
+        expected = "a positive integer" if minimum == 1 else f"an integer >= {minimum}"
         problems.append(
-            ValidationProblem(
-                file=file,
-                location=location,
-                found=str(value),
-                expected=f"an integer >= {minimum}",
-            )
+            ValidationProblem(file=file, location=location, found=str(value), expected=expected)
         )
         return None
     return value
@@ -121,7 +117,9 @@ def _require_string(
 ) -> str | None:
     if key not in container:
         problems.append(
-            ValidationProblem(file=file, location=location, found="missing", expected="a string")
+            ValidationProblem(
+                file=file, location=location, found="missing", expected="a non-empty string"
+            )
         )
         return None
     value = container[key]
