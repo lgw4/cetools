@@ -1,9 +1,12 @@
 """FR-014a/FR-014c: each of the seven field-checking vocabulary functions
 (006-validation-vocabulary, contracts/schema-vocabulary.md) is defined
-exactly once in the whole tree, in `src/cetools/schema.py`. This is the
-guard that holds the rule the migration restored: the duplication removed
-from five modules accumulated one locally reasonable copy at a time, and a
-comment would not have stopped the seventeenth.
+exactly once in the library's own source tree, under `src/`, in
+`src/cetools/schema.py`. That tree is the scope FR-014b sets and the scope
+this guard scans; a definition under `tests/` or anywhere else in the
+repository is outside its reach. This is the guard that holds the rule the
+migration restored: the duplication removed from five modules accumulated
+one locally reasonable copy at a time, and a comment would not have
+stopped the seventeenth.
 
 What this does not catch (FR-014b): the guard recognizes a check by its
 name at a module's top level. A check written fresh and inline, without a

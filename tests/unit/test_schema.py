@@ -1,6 +1,6 @@
 """Direct tests of the shared field-checking vocabulary
 (contracts/schema-vocabulary.md, 006-validation-vocabulary). Written before
-`schema.py` exists (FR-018): each case transcribes one row of one table in
+`schema.py` existed (FR-018): each case transcribes one row of one table in
 the contract, so the contract stays the single place a rule about a check's
 wording is stated.
 """
