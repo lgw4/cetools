@@ -49,11 +49,11 @@ needing "an integer >= 1". Both fields require the same thing. The reader has to
 notice that two different sentences describe one rule, and cannot tell whether
 the difference is meaningful.
 
-The same split runs through the text fields. A required name that is absent is
-reported as needing "a string", while the same field left empty is reported as
-needing "a non-empty string", and a characteristic's label absent is reported
-as needing "a non-empty string" again. One requirement, described three ways,
-depending on which module and which failure the reader happened to hit.
+The same split runs through the required text fields. A career's name left out
+is reported as needing "a string", while that same field left empty is reported
+as needing "a non-empty string", and a characteristic's label left out is
+reported as needing "a non-empty string" again. One requirement, described three
+ways, depending on which module and which failure the reader happened to hit.
 
 **Why this priority**: It is the only part of this feature a reader of the
 reports can see, and it has to land first regardless: the duplicated checks
@@ -186,7 +186,10 @@ defines any of the checks.
   of a rules data file holds an acceptable value.
 - **FR-002**: The vocabulary MUST provide a required-integer check accepting an
   optional lower bound.
-- **FR-003**: The vocabulary MUST provide a required non-empty-string check.
+- **FR-003**: The vocabulary MUST provide a required non-empty-string check. A
+  field guarded by it is called a *required text field* throughout this
+  specification. The two names are one rule seen from two sides, the check's and
+  the data file's, and no requirement here distinguishes them.
 - **FR-004**: The vocabulary MUST provide a required-boolean check.
 - **FR-005**: The vocabulary MUST provide an optional-boolean check that takes a
   declared default when the key is absent and reports no problem for it. When
@@ -210,17 +213,43 @@ defines any of the checks.
 - **FR-010**: A value below a required minimum other than one MUST keep its
   current phrasing naming that minimum.
 - **FR-010a**: A dice-notation field that is absent MUST keep expecting "a
-  string". It requires valid notation rather than a non-empty name, so it is
-  not the rule FR-009a unifies and MUST NOT be swept into it.
-- **FR-011**: An absent key MUST be reported as "missing"; a key present holding
-  the wrong type MUST be reported by naming the type found, in the vocabulary
-  the data files themselves use.
+  string". It requires valid dice notation rather than merely text with
+  something in it, so it is not the rule FR-009a unifies and MUST NOT be swept
+  into it. A dice-notation field is not a required text field.
+- **FR-011**: In every required check, an absent key MUST be reported as
+  "missing"; a key present holding the wrong type MUST be reported by naming the
+  type found, in the vocabulary the data files themselves use. This binds the
+  required checks only. The optional-boolean check of FR-005 treats an absent key
+  as a success that yields the declared default and reports nothing for it, which
+  is an exception to this rule rather than a violation of it.
 - **FR-012**: A boolean MUST be rejected wherever an integer is required.
 - **FR-013**: Every validation message MUST be unchanged by this feature except
   the two named in FR-009 and FR-009a: the fields whose minimum is one and whose
   current phrasing names that minimum numerically, and the absent-key report for
-  required text fields. Any further divergence found during the work is a
-  finding to be raised, not a message to be quietly rewritten.
+  required text fields. Any further divergence is a finding to be raised, not a
+  message to be quietly rewritten; FR-013b says to whom, and with what effect on
+  the work in flight.
+- **FR-013a**: The obligation in FR-013 MUST be established by comparing the
+  validator's output over the invalid-fixture corpus before and after each
+  structural change. It MUST NOT be inferred from the test suite passing, which
+  is not evidence for it: the source emits sixty-three distinct expected
+  phrasings, and the tests name nine of them in an assertion, or nineteen
+  counting comparisons against a whole problem. The fifty-four unnamed ones
+  include the phrasing FR-009a makes canonical and every table phrasing the
+  required-table check carries, so the messages the suite covers least are the
+  ones this feature disturbs most.
+- **FR-013b**: A divergence from FR-013 MUST be surfaced to the maintainer as a
+  decision about the wording, and MUST NOT be settled by whoever finds it. This
+  holds whether the divergence is found while the work is in progress or after
+  the change that introduced it has landed. Until it is settled, no further
+  structural change ships: the method of this feature is that every step is
+  provably message-neutral, and a step taken on top of an unexplained divergence
+  cannot be. Where the divergence has already landed, whether to correct it
+  forward or to amend the change that caused it is the maintainer's call, but
+  the divergence and its resolution MUST appear in the record either way. The
+  one outcome ruled out is a message quietly becoming correct with no note that
+  it was ever wrong, which is how the drift this feature removes accumulated in
+  the first place.
 - **FR-014**: No module other than the vocabulary MUST define any of the checks
   in FR-002 through FR-008.
 - **FR-014a**: An automated guard MUST fail when any of the checks in FR-002
@@ -228,17 +257,41 @@ defines any of the checks.
   cannot reintroduce a copy unnoticed. The duplication this feature removes
   accumulated one module at a time, each addition defensible on its own, which
   is why the rule needs an enforcer rather than a note.
+- **FR-014b**: "Defined" in FR-014a means a named definition at the top level of
+  a module in the library's own source tree. The guard therefore does NOT catch
+  a check written fresh and inline without a name, which is the very shape
+  FR-015 converts. This limit MUST be stated wherever the guard is described, so
+  that nobody reads the guard as a stronger promise than it is. Closing it would
+  mean recognizing a check by its structure rather than its name, a much larger
+  machine aimed at a rarer mistake than the one that actually happened: the
+  copies that accumulated were copies of a named helper, five times over.
+- **FR-014c**: The guard MUST itself be demonstrably able to fail, shown by a
+  test that plants a definition the rule forbids and confirms the guard rejects
+  it. A guard that would pass against a reintroduced duplicate reports the rule
+  as held while it is being broken, which is worse than having no guard. Every
+  existing guard in this project carries such a self-test; this one states the
+  obligation rather than relying on the convention being noticed.
 - **FR-015**: Every module that parses a rules data file MUST obtain these
   checks from the vocabulary, including at the sites that currently express the
-  same checks inline without naming them.
+  same checks inline without naming them. A site expresses one of these checks
+  inline when it decides the acceptability of a single field named by key within
+  a table, and reports the same found and expected phrasings that check reports.
+  A decision about a whole array, or about an element identified by position
+  rather than by key, is not such a site: it belongs to the array handling
+  FR-020 leaves alone, even where its per-element test resembles one of these
+  checks. The per-element non-empty-string test inside the name-table array
+  reader is the case this distinction settles, and it stays where it is.
 - **FR-016**: The vocabulary MUST be package-internal: reachable by the modules
   that parse data files, and absent from the library's declared public surface.
 - **FR-017**: The field-by-field declaration that drives chargen parameter
   parsing MUST stay local to that module, resolving each declared kind through
   the shared checks rather than through copies.
 - **FR-018**: The vocabulary MUST have its own direct tests, written before it
-  exists and failing until it does, covering each check's absent-key,
-  wrong-type, boundary, and accepted paths.
+  exists and failing until it does, covering every outcome each check can
+  produce, as enumerated for that check in the interface contract. Most checks
+  share four outcomes: the absent key, the wrong type, the boundary, and the
+  accepted value. Two do not have that shape, and for them the contract's own
+  enumeration governs rather than that list.
 - **FR-019**: The wording changes in FR-009 and FR-009a MUST ship separately
   from, and before, the removal of the duplicate definitions, and MUST carry a
   changelog entry. The removal itself is not user-visible and MUST NOT claim a
@@ -270,15 +323,17 @@ defines any of the checks.
   phrasing, and every required text field reports the same expected phrasing
   whether it is absent or empty. The count of distinct phrasings falls from two
   to one for the first rule and from two to one for the second.
-- **SC-002**: Each of the seven checks is defined exactly once across the whole
-  source tree, down from sixteen definitions of the seven, and a test fails if
-  that stops being true.
+- **SC-002**: Each of the seven checks is defined exactly once across the
+  library's own source tree, down from sixteen definitions of the seven, and a
+  test fails if that stops being true.
 - **SC-003**: Validating the packaged data set and the existing invalid-fixture
   corpus produces messages identical to those produced before this feature,
-  except for the two rules named in FR-013.
+  except for the two rules named in FR-013. This is established by the
+  before-and-after comparison FR-013a requires, not inferred from the suite.
 - **SC-004**: The full test suite passes, with the only test changes being the
   wording assertions added for the two rules in FR-013, the new tests covering
-  the vocabulary directly, and the guard required by FR-014a.
+  the vocabulary directly, and the guard required by FR-014a together with the
+  self-test FR-014c requires of it.
 - **SC-005**: A contributor adding a checked field to any data-file kind can do
   so without writing a type check, a missing-key check, or a problem message,
   and without copying anything from another module.
@@ -294,9 +349,15 @@ defines any of the checks.
   the two it is looking at.
 - No existing test pins either phrasing being changed, for either rule, and no
   golden output or documented example carries a validation problem message at
-  all: the one documented run of the validator shows its success path. So both
-  choices are free, and the changes are observable only to someone who breaks
-  one of these fields.
+  all: the one documented run of the validator shows its success path. The
+  machine-readable contract corpus does pin validation problem text, in four
+  places, but only for a malformed file and for two registry-resolution
+  messages: none of these is either rule, and the registry checks are excluded
+  outright by FR-020. That corpus is named here because the project's own
+  contributor guidance treats a change to machine-readable output as breaking
+  it, so an exposure argument that passed over it would have been incomplete
+  even though its conclusion holds. So both choices are free, and the changes
+  are observable only to someone who breaks one of these fields.
 - Where two phrasings compete, the surviving one is the more accurate, not the
   less disruptive. This follows the reports elsewhere, which are written in
   English rather than in notation: they say "a non-empty string", "an empty

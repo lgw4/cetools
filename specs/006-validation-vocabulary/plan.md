@@ -208,11 +208,20 @@ where it is cheapest to find: `names.py` (7 sites), `rules.py` (4 + 3 inline),
 (36 + 2 inline). Exact commit granularity is `/speckit-tasks`' call.
 
 Each module: add the import, delete its definitions, rewire its call sites,
-convert its inline sites, run the whole suite. The suite passing unchanged is
-the proof; nothing else can be.
+convert its inline sites, run the whole suite, and capture the validator's
+output over the invalid-fixture corpus before and after, confirming no message
+moved (FR-013a).
 
-Then `tests/guards/test_no_duplicate_checks.py`, with its own can-it-fail
-self-test, following `tests/guards/test_no_locale.py`'s `ast`-based pattern.
+The suite alone is not the proof, and an earlier draft of this plan said it was.
+The suite names nine of the sixty-three distinct expected phrasings the source
+emits, nineteen counting comparisons against a whole problem. The fifty-four it
+never names include every table phrasing the `require_dict` conversions carry,
+which is to say the migration's riskiest step is its least covered. The
+before-and-after comparison is what covers them.
+
+Then `tests/guards/test_no_duplicate_checks.py`, with the can-it-fail self-test
+FR-014c requires, following `tests/guards/test_no_locale.py`'s `ast`-based
+pattern.
 
 **No changelog entry for Phase B or C.** The extraction is invisible to a
 library user, and claiming an entry would put noise in a document that exists to
@@ -222,10 +231,12 @@ tell readers what changed for them (FR-019).
 
 | Risk | Handling |
 |---|---|
-| A third divergence is discovered mid-migration and quietly absorbed | FR-013 makes it a finding to raise, not a message to rewrite. The AST comparison in research R6 says there is no third, but that check ran once, against today's tree. |
+| A third divergence is discovered and quietly absorbed | FR-013 makes it a finding to raise, not a message to rewrite. FR-013b routes it to the maintainer, halts further structural work until it is settled, and applies equally after the change has landed. The AST comparison in research R6 says there is no third, but that check ran once, against today's tree. |
 | A naive `require_dict` merge downgrades three "missing" reports to "NoneType" | Specified against explicitly: the value-taking check reports `None` as missing, and the three sites are named in [data-model.md](data-model.md). |
 | The two loop sites look unconvertible and grow an eighth check | Shown convertible in [data-model.md](data-model.md): both iterate `.items()`, so container and key are in hand. |
-| The guard passes while duplication grows back inline | Accepted and recorded. The guard catches a *named* definition, not a fresh hand-inlined check. Structural detection is a much larger machine aimed at a rarer mistake; the copies that actually accumulated were copies of a named helper, five times. See research R8, *Known limit*. |
+| The guard passes while duplication grows back inline | Bounded, not solved, and now stated in the requirements rather than only here: FR-014b defines "defined" as a named top-level definition and obliges the limit to be disclosed wherever the guard is described. Structural detection is a much larger machine aimed at a rarer mistake; the copies that actually accumulated were copies of a named helper, five times. |
+| The guard is written so that it cannot fail, and reports the rule as held while it is broken | FR-014c requires a self-test that plants a forbidden definition and confirms rejection, matching what all ten existing modules under `tests/guards/` already do. |
+| A migration commit moves a message no test names | FR-013a requires the before-and-after comparison per structural change. This is the risk the suite cannot cover on its own; see Phase C. |
 | `chargen.py` carries half the call sites, so its migration is the riskiest | It goes last, after the pattern is established four times, and `test_chargen.py` plus the 43 tests in `test_validation_categories.py` cover it. |
 
 ## Complexity Tracking

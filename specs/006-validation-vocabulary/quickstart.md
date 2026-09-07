@@ -107,8 +107,10 @@ assertions added in Scenario 1's commit. In particular the forty-three tests in
 broadest statement of what the validator says about broken data, and they are
 the reason the extraction can be trusted.
 
-To see the messages themselves are unchanged, capture the validator's full
-output before and after and diff it:
+**This next step is required, not optional** (FR-013a). The suite names nine of
+the sixty-three distinct expected phrasings the source emits, so it cannot
+report a message it never mentions. Capture the validator's full output before
+and after each structural change and diff it:
 
 ```sh
 git stash                       # or check out the pre-extraction commit
@@ -121,6 +123,12 @@ diff /tmp/before.json /tmp/after.json
 **Expected**: no differences, for any broken data set, across the structural
 commits. Differences across the *behavioral* commit are expected and are
 exactly the ones Scenario 1 names.
+
+Use a broken corpus wide enough to reach the messages the suite does not: the
+five table phrasings the required-table conversions carry
+(`"a table"`, `"a table with label and class"`, `"a [task] table"`,
+`"a [pseudo-hex] table"`, `"a mustering-out table"`) are all in the set no test
+names, and they sit on the migration's riskiest step.
 
 ## Scenario 4: the duplication cannot grow back (FR-014a)
 

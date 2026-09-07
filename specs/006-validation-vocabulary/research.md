@@ -202,23 +202,40 @@ mechanical because inspection got it wrong once already.
 ## R7. Testing approach
 
 **Decision**: `tests/unit/test_schema.py`, written first and failing, plus the
-existing suite unchanged as the regression net, plus one new guard.
+existing suite as a regression net, plus a before-and-after output comparison
+that covers what the suite does not, plus one new guard.
 
-**Rationale**: Principle III is non-negotiable, and the two kinds of test here
-do different jobs.
+**Rationale**: Principle III is non-negotiable, and these do different jobs.
 
 - **`tests/unit/test_schema.py`** is the Red step for the vocabulary itself:
-  roughly 25-30 direct cases covering each check's absent-key, wrong-type,
-  empty-string, `minimum` boundary, and accepted paths, plus
-  `unrecognized_key_problems`' sort order and its `expected` list. It is
-  written before `schema.py` exists and must fail on import (FR-018). Its cases
-  come from the tables in `contracts/schema-vocabulary.md`, which are written
-  as exact strings for that purpose.
+  roughly 25-30 direct cases covering every outcome each check can produce, as
+  enumerated for that check in `contracts/schema-vocabulary.md`. Most checks
+  have four outcomes; `optional_bool` and `unrecognized_key_problems` do not
+  have that shape, which is why FR-018 defers to the contract's enumeration
+  rather than naming a fixed list of paths. Written before `schema.py` exists
+  and must fail on import (FR-018). Its cases come from the contract's tables,
+  which are written as exact strings for that purpose.
 - **The existing suite**: `test_careers.py`, `test_chargen.py`,
   `test_registries.py`, `test_names.py`, `test_rules.py`, and the forty-three
-  tests in `tests/integration/test_validation_categories.py`—is the proof
-  that the extraction changed nothing. It must pass unchanged apart from the
-  wording assertions added in the behavioral commit (SC-003, SC-004).
+  tests in `tests/integration/test_validation_categories.py`. A regression net,
+  but a partial one, which an earlier draft of this document overstated as
+  proof.
+- **The before-and-after comparison** (FR-013a) is what makes the extraction's
+  claim checkable. Measured: the source emits sixty-three distinct literal
+  `expected` phrasings; tests name nine of them in an `expected == "…"`
+  assertion, nineteen counting comparisons against a whole `ValidationProblem`.
+  The fifty-four that no test names include `"a non-empty string"`, the wording
+  FR-009a makes canonical, and `"a table"`, `"a table with label and class"`,
+  `"a [task] table"`, `"a [pseudo-hex] table"`, and `"a mustering-out table"`,
+  which are precisely the strings the `require_dict` conversions pass through.
+  Capturing `cetools validate --json` over the invalid-fixture corpus before and
+  after each structural change, and diffing, covers all sixty-three.
+
+**Why the suite alone was not enough**: it was written to cover *categories* of
+validation failure, not every phrasing. That is the right shape for the tests it
+is, and the wrong shape for the question this feature asks, which is whether any
+phrasing moved. The gap was found by a checklist review, not by the suite
+failing, which is the point: a suite cannot report a message it never names.
 
 The order within the behavioral commit is the same discipline one level down:
 assert the new wording, watch it fail, change the two source lines, watch it
@@ -261,15 +278,17 @@ match the name in a docstring, a comment, or a call site, so it could not tell
 a definition from a mention. And "defined at the top level of a module" is not
 expressible as a regex at all, but falls straight out of walking the tree.
 
-**Self-test, per repository convention**: every guard module here carries a
-test proving its detector is not vacuous—`test_the_guard_can_fail`,
+**Self-test, now required by FR-014c rather than left to convention**: every
+guard module here carries a test proving its detector is not vacuous—`test_the_guard_can_fail`,
 `test_the_guard_has_something_to_check`, `test_the_coverage_check_can_fail`.
 The pattern in `test_no_locale.py` is to plant an offending file under `src/`,
 assert the detector catches it, and `unlink()` it. The new guard carries the
 same, since a guard that would pass against a reintroduced duplicate is worse
 than none: it would report the rule as held while the duplication grew back.
 
-**Known limit, accepted**: the guard catches a *named* definition reappearing.
+**Known limit, bounded rather than solved** (now FR-014b, which also obliges
+this limit to be disclosed wherever the guard is described): the guard catches a
+*named* definition reappearing.
 It does not catch a fresh hand-inlined equivalent check—precisely the shape
 of the eleven inline sites this feature converts. Catching that would mean
 recognizing a check by its structure rather than its name, which is a
