@@ -10,49 +10,9 @@ from dataclasses import dataclass
 
 from cetools.dice import Roller
 from cetools.errors import ValidationProblem, type_name
+from cetools.schema import require_string, unrecognized_key_problems
 
 _HEADER_KEYS = frozenset({"schema", "schema-version"})
-
-
-def _unrecognized_key_problems(
-    data: Mapping[str, object], allowed: frozenset[str], file: str, prefix: str = ""
-) -> list[ValidationProblem]:
-    extra = sorted(set(data) - allowed)
-    return [
-        ValidationProblem(
-            file=file,
-            location=f"{prefix}{key}",
-            found=f"unrecognized key {key!r}",
-            expected=f"one of: {', '.join(sorted(allowed))}",
-        )
-        for key in extra
-    ]
-
-
-def _require_string(
-    container: Mapping[str, object],
-    key: str,
-    file: str,
-    location: str,
-    problems: list[ValidationProblem],
-) -> str | None:
-    if key not in container:
-        problems.append(
-            ValidationProblem(
-                file=file, location=location, found="missing", expected="a non-empty string"
-            )
-        )
-        return None
-    value = container[key]
-    if not isinstance(value, str) or not value:
-        found = type_name(value) if not isinstance(value, str) else "an empty string"
-        problems.append(
-            ValidationProblem(
-                file=file, location=location, found=found, expected="a non-empty string"
-            )
-        )
-        return None
-    return value
 
 
 def _require_name_array(
@@ -101,9 +61,9 @@ def parse_given_names(
     data: Mapping[str, object], file: str
 ) -> tuple[GivenNameTable | None, tuple[ValidationProblem, ...]]:
     problems: list[ValidationProblem] = []
-    problems.extend(_unrecognized_key_problems(data, _HEADER_KEYS | {"source", "names"}, file))
+    problems.extend(unrecognized_key_problems(data, _HEADER_KEYS | {"source", "names"}, file))
 
-    source = _require_string(data, "source", file, "source", problems)
+    source = require_string(data, "source", file, "source", problems)
 
     names: tuple[str, ...] | None = None
     if "names" not in data:
@@ -142,9 +102,9 @@ def _parse_surname_entry(
         )
         return None, problems
 
-    problems.extend(_unrecognized_key_problems(value, {"name", "people"}, file, f"{location}."))
+    problems.extend(unrecognized_key_problems(value, {"name", "people"}, file, f"{location}."))
 
-    name = _require_string(value, "name", file, f"{location}.name", problems)
+    name = require_string(value, "name", file, f"{location}.name", problems)
 
     people = ""
     if "people" in value:
@@ -183,11 +143,11 @@ def parse_surnames(
 ) -> tuple[SurnameTable | None, tuple[ValidationProblem, ...]]:
     problems: list[ValidationProblem] = []
     problems.extend(
-        _unrecognized_key_problems(data, _HEADER_KEYS | {"region", "source", "names"}, file)
+        unrecognized_key_problems(data, _HEADER_KEYS | {"region", "source", "names"}, file)
     )
 
-    region = _require_string(data, "region", file, "region", problems)
-    source = _require_string(data, "source", file, "source", problems)
+    region = require_string(data, "region", file, "region", problems)
+    source = require_string(data, "source", file, "source", problems)
 
     names: tuple[SurnameEntry, ...] | None = None
     if "names" not in data:
