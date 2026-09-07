@@ -144,26 +144,26 @@ Each pair below is one red step and one green step. The `expected` and `found`
 strings come from the tables in `contracts/schema-vocabulary.md`, which is the
 contract; these tests are its transcription.
 
-- [ ] T021 [US2] Create `tests/unit/test_schema.py` covering all seven outcomes of `require_int` (absent key, `bool` value, non-`int` value, no minimum, below a `minimum` of 1, below another `minimum`, at or above `minimum`); it fails on import because `src/cetools/schema.py` does not exist
-- [ ] T022 [US2] Create `src/cetools/schema.py` importing `ValidationProblem` and `type_name` from `src/cetools/errors.py` and `_check_dice` from `src/cetools/tasks.py`, and implement `require_int` by moving `careers.py:169`'s body; run `uv run pytest`
-- [ ] T023 [US2] Add the four `require_string` outcomes to `tests/unit/test_schema.py` (absent key, empty string, non-`str`, accepted); watch them fail
-- [ ] T024 [US2] Implement `require_string` in `src/cetools/schema.py` with `registries._require_nonempty_string`'s behavior; run `uv run pytest`
-- [ ] T025 [US2] Add the three `require_bool` outcomes to `tests/unit/test_schema.py`; watch them fail
-- [ ] T026 [US2] Implement `require_bool` in `src/cetools/schema.py` by moving `chargen.py:139`'s body; run `uv run pytest`
-- [ ] T027 [US2] Add the four `require_roll` outcomes to `tests/unit/test_schema.py`, including a rejected `d66` and an absent key still expecting `"a string"`; watch them fail
-- [ ] T028 [US2] Implement `require_roll` in `src/cetools/schema.py` by moving `careers.py:200`'s body; run `uv run pytest`
-- [ ] T029 [US2] Add the three `require_dict` outcomes to `tests/unit/test_schema.py`, the `value is None` row asserting `found == "missing"` and the caller's own `expected`; watch them fail
-- [ ] T030 [US2] Implement `require_dict` in `src/cetools/schema.py`, value-taking, with the `None`-means-missing row `careers._require_dict` lacks; run `uv run pytest`
-- [ ] T031 [US2] Add the three `optional_bool` outcomes to `tests/unit/test_schema.py`, the non-`bool` row asserting that a problem is reported **and** the declared default is returned (FR-005); watch them fail
-- [ ] T032 [US2] Implement `optional_bool` in `src/cetools/schema.py` from the shape `careers.py:944-972` repeats twice; run `uv run pytest`
-- [ ] T033 [US2] Add `unrecognized_key_problems` cases to `tests/unit/test_schema.py`: one problem per unadmitted key, sorted by key name, each `expected` naming the sorted admitted keys, and the empty list when every key is admitted; watch them fail
-- [ ] T034 [US2] Implement `unrecognized_key_problems` in `src/cetools/schema.py` as a pure move of the byte-identical body; run `uv run pytest`
+- [X] T021 [US2] Create `tests/unit/test_schema.py` covering all seven outcomes of `require_int` (absent key, `bool` value, non-`int` value, no minimum, below a `minimum` of 1, below another `minimum`, at or above `minimum`); it fails on import because `src/cetools/schema.py` does not exist
+- [X] T022 [US2] Create `src/cetools/schema.py` importing `ValidationProblem` and `type_name` from `src/cetools/errors.py` and `_check_dice` from `src/cetools/tasks.py`, and implement `require_int` by moving `careers.py:169`'s body; run `uv run pytest`
+- [X] T023 [US2] Add the four `require_string` outcomes to `tests/unit/test_schema.py` (absent key, empty string, non-`str`, accepted); watch them fail
+- [X] T024 [US2] Implement `require_string` in `src/cetools/schema.py` with `registries._require_nonempty_string`'s behavior; run `uv run pytest`
+- [X] T025 [US2] Add the three `require_bool` outcomes to `tests/unit/test_schema.py`; watch them fail
+- [X] T026 [US2] Implement `require_bool` in `src/cetools/schema.py` by moving `chargen.py:139`'s body; run `uv run pytest`
+- [X] T027 [US2] Add the four `require_roll` outcomes to `tests/unit/test_schema.py`, including a rejected `d66` and an absent key still expecting `"a string"`; watch them fail
+- [X] T028 [US2] Implement `require_roll` in `src/cetools/schema.py` by moving `careers.py:200`'s body; run `uv run pytest`
+- [X] T029 [US2] Add the three `require_dict` outcomes to `tests/unit/test_schema.py`, the `value is None` row asserting `found == "missing"` and the caller's own `expected`; watch them fail
+- [X] T030 [US2] Implement `require_dict` in `src/cetools/schema.py`, value-taking, with the `None`-means-missing row `careers._require_dict` lacks; run `uv run pytest`
+- [X] T031 [US2] Add the three `optional_bool` outcomes to `tests/unit/test_schema.py`, the non-`bool` row asserting that a problem is reported **and** the declared default is returned (FR-005); watch them fail
+- [X] T032 [US2] Implement `optional_bool` in `src/cetools/schema.py` from the shape `careers.py:944-972` repeats twice; run `uv run pytest`
+- [X] T033 [US2] Add `unrecognized_key_problems` cases to `tests/unit/test_schema.py`: one problem per unadmitted key, sorted by key name, each `expected` naming the sorted admitted keys, and the empty list when every key is admitted; watch them fail
+- [X] T034 [US2] Implement `unrecognized_key_problems` in `src/cetools/schema.py` as a pure move of the byte-identical body; run `uv run pytest`
 
 ### Verification and delivery for User Story 2
 
-- [ ] T035 [US2] Confirm `src/cetools/schema.py` is absent from `src/cetools/__init__.py`'s `__all__` and that every function is bare-named rather than underscore-prefixed (FR-016)
-- [ ] T036 [US2] Confirm `tests/unit/test_schema.py` covers every row of every table in `contracts/schema-vocabulary.md`—twenty-four rows across six checks—plus the three behaviors stated in prose for `unrecognized_key_problems`, since FR-018 binds the contract's own enumeration rather than a fixed four-path list
-- [ ] T037 [US2] Run `uv run pytest` and the three lint commands, then commit as a **structural** change (`refactor(schema): …`), with no `CHANGELOG.md` entry (FR-019)
+- [X] T035 [US2] Confirm `src/cetools/schema.py` is absent from `src/cetools/__init__.py`'s `__all__` and that every function is bare-named rather than underscore-prefixed (FR-016)
+- [X] T036 [US2] Confirm `tests/unit/test_schema.py` covers every row of every table in `contracts/schema-vocabulary.md`—twenty-four rows across six checks—plus the three behaviors stated in prose for `unrecognized_key_problems`, since FR-018 binds the contract's own enumeration rather than a fixed four-path list
+- [X] T037 [US2] Run `uv run pytest` and the three lint commands, then commit as a **structural** change (`refactor(schema): …`), with no `CHANGELOG.md` entry (FR-019)
 
 **Checkpoint**: the vocabulary exists and is proven. No parser has changed, so
 the whole existing suite still passes untouched.
@@ -184,49 +184,49 @@ cheapest to find. Each module is its own commit.
 
 ### names.py (2 definitions, 7 call sites, 0 inline)
 
-- [ ] T038 [US3] In `src/cetools/names.py`: import the vocabulary, delete `_unrecognized_key_problems` (line 17) and `_require_string` (line 32), and rewire all 7 call sites (lines 102, 104, 143, 145, 184, 187, 188)
-- [ ] T039 [US3] Leave `names._require_name_array` (lines 56-85) exactly as it is: its per-element non-empty-string test decides an element identified by position rather than a field named by key, so it is array handling FR-020 excludes, not an inline site FR-015 converts
-- [ ] T040 [US3] Run `uv run pytest`, capture to `$CAPTURES/02-names.json`, diff against `$CAPTURES/01-behavioral.json`, confirm the diff is empty, then commit as **structural**
+- [X] T038 [US3] In `src/cetools/names.py`: import the vocabulary, delete `_unrecognized_key_problems` (line 17) and `_require_string` (line 32), and rewire all 7 call sites (lines 102, 104, 143, 145, 184, 187, 188)
+- [X] T039 [US3] Leave `names._require_name_array` (lines 56-85) exactly as it is: its per-element non-empty-string test decides an element identified by position rather than a field named by key, so it is array handling FR-020 excludes, not an inline site FR-015 converts
+- [X] T040 [US3] Run `uv run pytest`, capture to `$CAPTURES/02-names.json`, diff against `$CAPTURES/01-behavioral.json`, confirm the diff is empty, then commit as **structural**
 
 ### rules.py (2 definitions, 4 call sites, 3 inline)
 
-- [ ] T041 [US3] In `src/cetools/rules.py`: import the vocabulary, delete `_unrecognized_key_problems` (line 142) and `_require_int` (line 269), and rewire all 4 call sites (lines 166, 182, 212, 213)
-- [ ] T042 [US3] Convert the three inline sites in `src/cetools/rules.py`: the dict check at 169-179 to `require_dict`, keeping `"a [task] table"` **and its `task = {}` fallback**—write `task = require_dict(...) or {}`, because this is the only one of the five table conversions that does not return on failure. It carries on to check `roll`, `target`, and `unskilled-dm` against the empty table, and a literal conversion that let `None` through would either raise or drop three problems from the report. The other four sites all return immediately. Then convert the fully inlined roll check at 185-210 to `require_roll`, and the integer check at 231-240 to `require_int(dd, name, …)`, replacing its `ok = False; continue` bookkeeping with `is None`
-- [ ] T043 [US3] Leave `rules.py:217-227` alone: it rejects a table that is absent, wrong-typed, **or** empty in one compound message, a different rule from `require_dict`'s (`data-model.md`, *Not converted*)
-- [ ] T044 [US3] Run `uv run pytest`, capture to `$CAPTURES/03-rules.json`, diff against `$CAPTURES/02-names.json`, confirm the diff is empty, then commit as **structural**
+- [X] T041 [US3] In `src/cetools/rules.py`: import the vocabulary, delete `_unrecognized_key_problems` (line 142) and `_require_int` (line 269), and rewire all 4 call sites (lines 166, 182, 212, 213)
+- [X] T042 [US3] Convert the three inline sites in `src/cetools/rules.py`: the dict check at 169-179 to `require_dict`, keeping `"a [task] table"` **and its `task = {}` fallback**—write `task = require_dict(...) or {}`, because this is the only one of the five table conversions that does not return on failure. It carries on to check `roll`, `target`, and `unskilled-dm` against the empty table, and a literal conversion that let `None` through would either raise or drop three problems from the report. The other four sites all return immediately. Then convert the fully inlined roll check at 185-210 to `require_roll`, and the integer check at 231-240 to `require_int(dd, name, …)`, replacing its `ok = False; continue` bookkeeping with `is None`
+- [X] T043 [US3] Leave `rules.py:217-227` alone: it rejects a table that is absent, wrong-typed, **or** empty in one compound message, a different rule from `require_dict`'s (`data-model.md`, *Not converted*)
+- [X] T044 [US3] Run `uv run pytest`, capture to `$CAPTURES/03-rules.json`, diff against `$CAPTURES/02-names.json`, confirm the diff is empty, then commit as **structural**
 
 ### registries.py (2 definitions, 7 call sites, 4 inline)
 
-- [ ] T045 [US3] In `src/cetools/registries.py`: import the vocabulary, delete `_unrecognized_key_problems` (line 131) and `_require_nonempty_string` (line 253), and rewire all 7 call sites (lines 243, 246, 247, 290, 348, 445, 532), the two `_require_nonempty_string` calls becoming `require_string`
-- [ ] T046 [US3] Convert the four inline sites in `src/cetools/registries.py`: the integer check at 176-186 to `require_int(data, key, …)`; the dict check at 231-240 to `require_dict`, keeping `"a table with label and class"`; the dict check at 279-288 to `require_dict`, keeping `"a [pseudo-hex] table"` **and** its `"missing"` report for an absent value; and the integer check at 292-300 to `require_int(data, "minimum", …)`
-- [ ] T047 [US3] Leave `registries.py:160-170` alone, for the same reason as T043
-- [ ] T048 [US3] Run `uv run pytest`, capture to `$CAPTURES/04-registries.json`, diff against `$CAPTURES/03-rules.json`, confirm the diff is empty, then commit as **structural**
+- [X] T045 [US3] In `src/cetools/registries.py`: import the vocabulary, delete `_unrecognized_key_problems` (line 131) and `_require_nonempty_string` (line 253), and rewire all 7 call sites (lines 243, 246, 247, 290, 348, 445, 532), the two `_require_nonempty_string` calls becoming `require_string`
+- [X] T046 [US3] Convert the four inline sites in `src/cetools/registries.py`: the integer check at 176-186 to `require_int(data, key, …)`; the dict check at 231-240 to `require_dict`, keeping `"a table with label and class"`; the dict check at 279-288 to `require_dict`, keeping `"a [pseudo-hex] table"` **and** its `"missing"` report for an absent value; and the integer check at 292-300 to `require_int(data, "minimum", …)`
+- [X] T047 [US3] Leave `registries.py:160-170` alone, for the same reason as T043
+- [X] T048 [US3] Run `uv run pytest`, capture to `$CAPTURES/04-registries.json`, diff against `$CAPTURES/03-rules.json`, confirm the diff is empty, then commit as **structural**
 
 ### careers.py (5 definitions, 19 call sites, 2 inline)
 
-- [ ] T049 [US3] In `src/cetools/careers.py`: import the vocabulary and delete `_unrecognized_key_problems` (117), `_require_dict` (132), `_require_string` (145), `_require_int` (169), and `_require_roll` (200)
-- [ ] T050 [US3] Rewire all 19 named call sites in `src/cetools/careers.py` (lines 329, 334, 360, 361, 381, 416, 421, 506, 536, 541, 544, 655, 660, 663, 806, 810, 924, 941, 942)
-- [ ] T051 [US3] Convert the two inline optional-bool sites in `src/cetools/careers.py`—`always-available` at 944-957 and `re-enterable` at 959-972—to `optional_bool(…, default=False)`
-- [ ] T052 [US3] Leave `careers._notation_field` and `careers._skill_problem` alone: they resolve names against a registry rather than check TOML types, and FR-020 excludes them
-- [ ] T053 [US3] Run `uv run pytest`, capture to `$CAPTURES/05-careers.json`, diff against `$CAPTURES/04-registries.json`, confirm the diff is empty, then commit as **structural**
+- [X] T049 [US3] In `src/cetools/careers.py`: import the vocabulary and delete `_unrecognized_key_problems` (117), `_require_dict` (132), `_require_string` (145), `_require_int` (169), and `_require_roll` (200)
+- [X] T050 [US3] Rewire all 19 named call sites in `src/cetools/careers.py` (lines 329, 334, 360, 361, 381, 416, 421, 506, 536, 541, 544, 655, 660, 663, 806, 810, 924, 941, 942)
+- [X] T051 [US3] Convert the two inline optional-bool sites in `src/cetools/careers.py`—`always-available` at 944-957 and `re-enterable` at 959-972—to `optional_bool(…, default=False)`
+- [X] T052 [US3] Leave `careers._notation_field` and `careers._skill_problem` alone: they resolve names against a registry rather than check TOML types, and FR-020 excludes them
+- [X] T053 [US3] Run `uv run pytest`, capture to `$CAPTURES/05-careers.json`, diff against `$CAPTURES/04-registries.json`, confirm the diff is empty, then commit as **structural**
 
 ### chargen.py (5 definitions, 36 call sites, 2 inline)
 
-- [ ] T054 [US3] In `src/cetools/chargen.py`: import the vocabulary and delete `_unrecognized_key_problems` (30), `_require_roll` (45), `_require_int` (80), `_require_string` (115), and `_require_bool` (139)
-- [ ] T055 [US3] Rewire all 36 named call sites in `src/cetools/chargen.py` (lines 179, 181, 283, 286, 287, 363, 366, 401, 404, 570, 581, 586, 587, 671, 674, 729, 734, 735, 862, 929, 932, 933, 965, 968, 1028, 1031, 1032, 1215, 1216, 1217, 1270, 1277, 1279, 1281, 1283, 1312)
-- [ ] T056 [US3] Convert the two inline dict sites in `src/cetools/chargen.py`: 1207-1213 and 1259-1268, both keeping `"a table"`, the second keeping its `"missing"` report for an absent group (its `group not in data` membership test becomes `require_dict`'s `value is None` row)
-- [ ] T057 [US3] Confirm `_CHARGEN_GROUPS` (`src/cetools/chargen.py:1087-1137`) stays in the module unchanged and that `_parse_chargen_group` (1249-1305) now dispatches each declared kind to the vocabulary rather than to chargen's deleted copies (FR-017)
-- [ ] T058 [US3] Leave `chargen._parse_rank_bonus_list` alone: it is array handling, excluded by FR-020
-- [ ] T059 [US3] Run `uv run pytest`, capture to `$CAPTURES/06-chargen.json`, diff against `$CAPTURES/05-careers.json`, confirm the diff is empty, then commit as **structural**
+- [X] T054 [US3] In `src/cetools/chargen.py`: import the vocabulary and delete `_unrecognized_key_problems` (30), `_require_roll` (45), `_require_int` (80), `_require_string` (115), and `_require_bool` (139)
+- [X] T055 [US3] Rewire all 36 named call sites in `src/cetools/chargen.py` (lines 179, 181, 283, 286, 287, 363, 366, 401, 404, 570, 581, 586, 587, 671, 674, 729, 734, 735, 862, 929, 932, 933, 965, 968, 1028, 1031, 1032, 1215, 1216, 1217, 1270, 1277, 1279, 1281, 1283, 1312)
+- [X] T056 [US3] Convert the two inline dict sites in `src/cetools/chargen.py`: 1207-1213 and 1259-1268, both keeping `"a table"`, the second keeping its `"missing"` report for an absent group (its `group not in data` membership test becomes `require_dict`'s `value is None` row)
+- [X] T057 [US3] Confirm `_CHARGEN_GROUPS` (`src/cetools/chargen.py:1087-1137`) stays in the module unchanged and that `_parse_chargen_group` (1249-1305) now dispatches each declared kind to the vocabulary rather than to chargen's deleted copies (FR-017)
+- [X] T058 [US3] Leave `chargen._parse_rank_bonus_list` alone: it is array handling, excluded by FR-020
+- [X] T059 [US3] Run `uv run pytest`, capture to `$CAPTURES/06-chargen.json`, diff against `$CAPTURES/05-careers.json`, confirm the diff is empty, then commit as **structural**
 
 ### The guard (FR-014a, FR-014b, FR-014c)
 
-- [ ] T060 [US3] Create `tests/guards/test_no_duplicate_checks.py` with its can-it-fail self-test first: plant a module source that defines one of the seven checks at top level, and assert the detector rejects it. It fails because the detector does not exist yet
-- [ ] T061 [US3] Implement the detector in `tests/guards/test_no_duplicate_checks.py`, walking `src/**/*.py` with `ast` and following the pattern of `tests/guards/test_no_locale.py` (its `repo_root` fixture comes from `tests/conftest.py`); run `uv run pytest`
-- [ ] T062 [US3] Add the real assertion to `tests/guards/test_no_duplicate_checks.py`: each of the seven checks, with or without a leading underscore, is defined at top level in `src/cetools/schema.py` and nowhere else in `src/`
-- [ ] T063 [US3] State the guard's limit in the module docstring of `tests/guards/test_no_duplicate_checks.py`: it recognizes a check by its name at a module's top level, so it does not catch a check written fresh and inline without a name (FR-014b)
-- [ ] T064 [US3] Run the quickstart Scenario 4 loop by hand and confirm each of the seven checks reports exactly one definition, all in `src/cetools/schema.py`, down from sixteen across five files (SC-002)
-- [ ] T065 [US3] Run `uv run pytest` and the three lint commands, then commit the guard as **structural**, with no `CHANGELOG.md` entry
+- [X] T060 [US3] Create `tests/guards/test_no_duplicate_checks.py` with its can-it-fail self-test first: plant a module source that defines one of the seven checks at top level, and assert the detector rejects it. It fails because the detector does not exist yet
+- [X] T061 [US3] Implement the detector in `tests/guards/test_no_duplicate_checks.py`, walking `src/**/*.py` with `ast` and following the pattern of `tests/guards/test_no_locale.py` (its `repo_root` fixture comes from `tests/conftest.py`); run `uv run pytest`
+- [X] T062 [US3] Add the real assertion to `tests/guards/test_no_duplicate_checks.py`: each of the seven checks, with or without a leading underscore, is defined at top level in `src/cetools/schema.py` and nowhere else in `src/`
+- [X] T063 [US3] State the guard's limit in the module docstring of `tests/guards/test_no_duplicate_checks.py`: it recognizes a check by its name at a module's top level, so it does not catch a check written fresh and inline without a name (FR-014b)
+- [X] T064 [US3] Run the quickstart Scenario 4 loop by hand and confirm each of the seven checks reports exactly one definition, all in `src/cetools/schema.py`, down from sixteen across five files (SC-002)
+- [X] T065 [US3] Run `uv run pytest` and the three lint commands, then commit the guard as **structural**, with no `CHANGELOG.md` entry
 
 **Checkpoint**: all three stories complete. The duplication is gone and cannot
 grow back unnoticed in the shape it grew in.
@@ -235,13 +235,13 @@ grow back unnoticed in the shape it grew in.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T066 Run the whole suite including the slow marker: `uv run pytest` with no `-m` filter, from the repository root
-- [ ] T067 Run `uv run black src tests`, `uv run isort src tests`, and `uv run flake8 src tests` and resolve every warning
-- [ ] T068 Walk all four scenarios in [quickstart.md](quickstart.md) end to end and confirm each expected outcome, including the FR-010a check that an absent `task.roll` still expects `"a string"`
-- [ ] T069 Confirm `CHANGELOG.md` carries exactly one entry from this feature, the wording change from T019, and that no structural commit claimed one (FR-019, SC-004)
-- [ ] T070 Confirm the final capture `$CAPTURES/06-chargen.json` differs from `$CAPTURES/00-pre-feature.json` only in the two rules named in FR-013 (SC-003)
-- [ ] T071 Verify SC-005 by doing it: add one checked field to a data-file kind—a required non-empty string and an integer with a minimum—using only `src/cetools/schema.py`, writing no type check, no missing-key check, and no problem message, and copying nothing from another module. Confirm it validates as expected, then revert. This is the feature's stated point and the only success criterion nothing else exercises
-- [ ] T072 Mark this file complete and confirm every checklist item in [checklists/refactor.md](checklists/refactor.md) still holds against the delivered work
+- [X] T066 Run the whole suite including the slow marker: `uv run pytest` with no `-m` filter, from the repository root
+- [X] T067 Run `uv run black src tests`, `uv run isort src tests`, and `uv run flake8 src tests` and resolve every warning
+- [X] T068 Walk all four scenarios in [quickstart.md](quickstart.md) end to end and confirm each expected outcome, including the FR-010a check that an absent `task.roll` still expects `"a string"`
+- [X] T069 Confirm `CHANGELOG.md` carries exactly one entry from this feature, the wording change from T019, and that no structural commit claimed one (FR-019, SC-004)
+- [X] T070 Confirm the final capture `$CAPTURES/06-chargen.json` differs from `$CAPTURES/00-pre-feature.json` only in the two rules named in FR-013 (SC-003)
+- [X] T071 Verify SC-005 by doing it: add one checked field to a data-file kind—a required non-empty string and an integer with a minimum—using only `src/cetools/schema.py`, writing no type check, no missing-key check, and no problem message, and copying nothing from another module. Confirm it validates as expected, then revert. This is the feature's stated point and the only success criterion nothing else exercises
+- [X] T072 Mark this file complete and confirm every checklist item in [checklists/refactor.md](checklists/refactor.md) still holds against the delivered work
 
 ---
 
