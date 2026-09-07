@@ -13,6 +13,21 @@ metadata reports — and therefore the version `cetools` prints in its
 provenance block — drops it: `2026.08.1` here is `2026.8.1` there. The two
 name the same release.
 
+## 2026.09.2 (unreleased)
+
+### Fixed
+
+- **One wording for the `minimum=1` integer check and the absent-key text
+  check.** `chargen.toml`-derived fields that fall below a `minimum=1`
+  integer now report `"a positive integer"` rather than `"an integer >= 1"`,
+  matching what `careers.py`'s `throws.*.target` already said. A required
+  text field that is entirely absent — a career's `name`, a name table's
+  `source`, a chargen scalar declared `("string", ...)` — now reports
+  `"a non-empty string"` rather than `"a string"`, matching what an empty
+  (but present) value already said. `task.roll` and every other dice-notation
+  field are unaffected: they keep `"a string"` for an absent key, because
+  they require valid dice notation, not merely a non-empty name.
+
 ## 2026.09.1 2026-09-01
 
 First release: the dice and 2D6 task-check engine, as a library and a CLI.

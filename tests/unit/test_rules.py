@@ -458,6 +458,23 @@ class TestCollectedRatherThanRaisedOrDropped:
         assert matching[0].found == "an integer"
         assert matching[0].expected == "a string"
 
+    def test_an_absent_roll_still_expects_a_string(self, tmp_path):
+        # FR-010a: `task.roll` wants dice notation, not a name with something
+        # in it, so its absent-key wording is deliberately not swept into the
+        # "a non-empty string" unification the rest of the required-text
+        # fields get. The test above pins the wrong-type row (`roll = 6`);
+        # nothing pinned the absent-key row until this test, which is why it
+        # goes in before any string check is edited (data-model.md, Exposure).
+        (tmp_path / "tasks.toml").write_text(
+            TASKS.replace('roll = "2d6"\n', "", 1), encoding="utf-8"
+        )
+        report = validate_rules(tmp_path)
+        assert not report.valid
+        matching = [p for p in report.problems if p.location == "task.roll"]
+        assert len(matching) == 1
+        assert matching[0].found == "missing"
+        assert matching[0].expected == "a string"
+
     def test_a_misspelled_key_inside_the_task_table_reports_both_halves(self, tmp_path):
         # The `tasks.toml` analogue of the five career sites T084 closed: a
         # misspelling is an unrecognized key *and* a missing required one, and

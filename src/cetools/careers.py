@@ -13,7 +13,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 
-from cetools.errors import RulesDataError, ValidationProblem, type_name
+from cetools.errors import ValidationProblem, type_name
 from cetools.notation import (
     BenefitItem,
     CharacteristicAdjustment,
@@ -31,7 +31,14 @@ from cetools.registries import (
     SkillRegistry,
     SkillResolution,
 )
-from cetools.tasks import _check_dice
+from cetools.schema import (
+    optional_bool,
+    require_dict,
+    require_int,
+    require_roll,
+    require_string,
+    unrecognized_key_problems,
+)
 
 type SkillTableEntry = SkillReference | SkillGrant | CharacteristicAdjustment
 
@@ -112,123 +119,6 @@ class CareerDefinition:
     tables: Mapping[str, SkillTable]
     ladders: tuple[RankLadder, ...]
     mustering_out: MusteringOut
-
-
-def _unrecognized_key_problems(
-    data: Mapping[str, object], allowed: frozenset[str], file: str, prefix: str = ""
-) -> list[ValidationProblem]:
-    extra = sorted(set(data) - allowed)
-    return [
-        ValidationProblem(
-            file=file,
-            location=f"{prefix}{key}",
-            found=f"unrecognized key {key!r}",
-            expected=f"one of: {', '.join(sorted(allowed))}",
-        )
-        for key in extra
-    ]
-
-
-def _require_dict(
-    value: object, file: str, location: str, expected: str, problems: list[ValidationProblem]
-) -> dict | None:
-    if not isinstance(value, dict):
-        problems.append(
-            ValidationProblem(
-                file=file, location=location, found=type_name(value), expected=expected
-            )
-        )
-        return None
-    return value
-
-
-def _require_string(
-    container: Mapping[str, object],
-    key: str,
-    file: str,
-    location: str,
-    problems: list[ValidationProblem],
-) -> str | None:
-    if key not in container:
-        problems.append(
-            ValidationProblem(file=file, location=location, found="missing", expected="a string")
-        )
-        return None
-    value = container[key]
-    if not isinstance(value, str) or not value:
-        found = type_name(value) if not isinstance(value, str) else "an empty string"
-        problems.append(
-            ValidationProblem(
-                file=file, location=location, found=found, expected="a non-empty string"
-            )
-        )
-        return None
-    return value
-
-
-def _require_int(
-    container: Mapping[str, object],
-    key: str,
-    file: str,
-    location: str,
-    problems: list[ValidationProblem],
-    *,
-    minimum: int | None = None,
-) -> int | None:
-    if key not in container:
-        problems.append(
-            ValidationProblem(file=file, location=location, found="missing", expected="an integer")
-        )
-        return None
-    value = container[key]
-    if not isinstance(value, int) or isinstance(value, bool):
-        problems.append(
-            ValidationProblem(
-                file=file, location=location, found=type_name(value), expected="an integer"
-            )
-        )
-        return None
-    if minimum is not None and value < minimum:
-        expected = "a positive integer" if minimum == 1 else f"an integer >= {minimum}"
-        problems.append(
-            ValidationProblem(file=file, location=location, found=str(value), expected=expected)
-        )
-        return None
-    return value
-
-
-def _require_roll(
-    container: Mapping[str, object],
-    key: str,
-    file: str,
-    location: str,
-    problems: list[ValidationProblem],
-) -> str | None:
-    """A dice-notation field, rejecting `d66` for the same reason
-    `chargen._require_roll` and `task.roll` do: the row a table reads is the
-    throw's total, not a two-digit table value.
-    """
-    if key not in container:
-        problems.append(
-            ValidationProblem(file=file, location=location, found="missing", expected="a string")
-        )
-        return None
-    value = container[key]
-    if not isinstance(value, str):
-        problems.append(
-            ValidationProblem(
-                file=file, location=location, found=type_name(value), expected="a string"
-            )
-        )
-        return None
-    try:
-        _check_dice(value)
-    except RulesDataError as exc:
-        problems.append(
-            ValidationProblem(file=file, location=location, found=repr(value), expected=str(exc))
-        )
-        return None
-    return value
 
 
 def _notation_field(
@@ -326,12 +216,12 @@ def _parse_throw(
     *,
     admits_characteristic: bool = True,
 ) -> Throw | None:
-    table = _require_dict(value, file, location, "a throw table", problems)
+    table = require_dict(value, file, location, "a throw table", problems)
     if table is None:
         return None
 
     allowed_keys = {"target", "dice"} | ({"characteristic"} if admits_characteristic else set())
-    problems.extend(_unrecognized_key_problems(table, allowed_keys, file, f"{location}."))
+    problems.extend(unrecognized_key_problems(table, allowed_keys, file, f"{location}."))
 
     characteristic = None
     if "characteristic" in table and admits_characteristic:
@@ -357,8 +247,8 @@ def _parse_throw(
         else:
             characteristic = code
 
-    target = _require_int(table, "target", file, f"{location}.target", problems, minimum=1)
-    dice = _require_roll(table, "dice", file, f"{location}.dice", problems)
+    target = require_int(table, "target", file, f"{location}.target", problems, minimum=1)
+    dice = require_roll(table, "dice", file, f"{location}.dice", problems)
     if target is None or dice is None:
         return None
     return Throw(characteristic=characteristic, target=target, dice=dice)
@@ -378,7 +268,7 @@ def _parse_throws(
         )
         return {}
 
-    problems.extend(_unrecognized_key_problems(raw, _ALL_THROWS, file, "throws."))
+    problems.extend(unrecognized_key_problems(raw, _ALL_THROWS, file, "throws."))
     for key in _REQUIRED_THROWS:
         if key not in raw:
             problems.append(
@@ -413,12 +303,12 @@ def _parse_skill_table(
     benefits: BenefitRegistry,
     problems: list[ValidationProblem],
 ) -> SkillTable | None:
-    table = _require_dict(value, file, location, "a table", problems)
+    table = require_dict(value, file, location, "a table", problems)
     if table is None:
         return None
 
     problems.extend(
-        _unrecognized_key_problems(table, {"requires", "entries"}, file, f"{location}.")
+        unrecognized_key_problems(table, {"requires", "entries"}, file, f"{location}.")
     )
 
     requires = None
@@ -503,7 +393,7 @@ def _parse_tables(
         )
         return {}
 
-    problems.extend(_unrecognized_key_problems(raw, _ALL_TABLES, file, "tables."))
+    problems.extend(unrecognized_key_problems(raw, _ALL_TABLES, file, "tables."))
     for key in _REQUIRED_TABLES:
         if key not in raw:
             problems.append(
@@ -533,15 +423,15 @@ def _parse_rank(
     benefits: BenefitRegistry,
     problems: list[ValidationProblem],
 ) -> Rank | None:
-    table = _require_dict(value, file, location, "a rank table", problems)
+    table = require_dict(value, file, location, "a rank table", problems)
     if table is None:
         return None
 
     problems.extend(
-        _unrecognized_key_problems(table, {"rank", "title", "bonus"}, file, f"{location}.")
+        unrecognized_key_problems(table, {"rank", "title", "bonus"}, file, f"{location}.")
     )
 
-    rank_position = _require_int(table, "rank", file, f"{location}.rank", problems, minimum=0)
+    rank_position = require_int(table, "rank", file, f"{location}.rank", problems, minimum=0)
 
     title = ""
     if "title" in table:
@@ -652,15 +542,15 @@ def _parse_ladder(
     benefits: BenefitRegistry,
     problems: list[ValidationProblem],
 ) -> RankLadder | None:
-    table = _require_dict(value, file, location, "a ladder table", problems)
+    table = require_dict(value, file, location, "a ladder table", problems)
     if table is None:
         return None
 
     problems.extend(
-        _unrecognized_key_problems(table, {"name", "role", "ranks"}, file, f"{location}.")
+        unrecognized_key_problems(table, {"name", "role", "ranks"}, file, f"{location}.")
     )
 
-    name = _require_string(table, "name", file, f"{location}.name", problems)
+    name = require_string(table, "name", file, f"{location}.name", problems)
 
     role = None
     if "role" not in table:
@@ -803,11 +693,11 @@ def _parse_mustering_out(
     problems: list[ValidationProblem],
 ) -> MusteringOut | None:
     location = "mustering-out"
-    table = _require_dict(value, file, location, "a mustering-out table", problems)
+    table = require_dict(value, file, location, "a mustering-out table", problems)
     if table is None:
         return None
 
-    problems.extend(_unrecognized_key_problems(table, {"cash", "benefits"}, file, f"{location}."))
+    problems.extend(unrecognized_key_problems(table, {"cash", "benefits"}, file, f"{location}."))
 
     cash: tuple[int, ...] | None = None
     if "cash" not in table:
@@ -921,7 +811,7 @@ def parse_career(
 ) -> tuple[CareerDefinition | None, tuple[ValidationProblem, ...]]:
     problems: list[ValidationProblem] = []
     problems.extend(
-        _unrecognized_key_problems(
+        unrecognized_key_problems(
             data,
             _HEADER_KEYS
             | {
@@ -938,38 +828,11 @@ def parse_career(
         )
     )
 
-    name = _require_string(data, "name", file, "name", problems)
-    medical_tier = _require_string(data, "medical-tier", file, "medical-tier", problems)
+    name = require_string(data, "name", file, "name", problems)
+    medical_tier = require_string(data, "medical-tier", file, "medical-tier", problems)
 
-    always_available = False
-    if "always-available" in data:
-        raw_always_available = data["always-available"]
-        if not isinstance(raw_always_available, bool):
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location="always-available",
-                    found=type_name(raw_always_available),
-                    expected="a boolean",
-                )
-            )
-        else:
-            always_available = raw_always_available
-
-    re_enterable = False
-    if "re-enterable" in data:
-        raw_re_enterable = data["re-enterable"]
-        if not isinstance(raw_re_enterable, bool):
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location="re-enterable",
-                    found=type_name(raw_re_enterable),
-                    expected="a boolean",
-                )
-            )
-        else:
-            re_enterable = raw_re_enterable
+    always_available = optional_bool(data, "always-available", file, "always-available", problems)
+    re_enterable = optional_bool(data, "re-enterable", file, "re-enterable", problems)
 
     throws: Mapping[str, Throw] = {}
     if "throws" not in data:

@@ -801,3 +801,31 @@ class TestChargenParameters:
         parameters, problems = parse_chargen_parameters(data, "chargen-parameters.toml")
         assert parameters is None
         assert any(p.location == "continuation.roll" for p in problems)
+
+    def test_below_minimum_of_one_reports_a_positive_integer(self):
+        data = copy.deepcopy(_valid_chargen_parameters_data())
+        data["terms"]["term-years"] = 0
+        parameters, problems = parse_chargen_parameters(data, "chargen-parameters.toml")
+        assert parameters is None
+        matching = [p for p in problems if p.location == "terms.term-years"]
+        assert len(matching) == 1
+        assert matching[0].expected == "a positive integer"
+
+    def test_below_minimum_of_zero_still_reports_the_notation_wording(self):
+        data = copy.deepcopy(_valid_chargen_parameters_data())
+        data["survival"]["natural-failure"] = -1
+        parameters, problems = parse_chargen_parameters(data, "chargen-parameters.toml")
+        assert parameters is None
+        matching = [p for p in problems if p.location == "survival.natural-failure"]
+        assert len(matching) == 1
+        assert matching[0].expected == "an integer >= 0"
+
+    def test_an_absent_required_string_field_expects_a_non_empty_string(self):
+        data = copy.deepcopy(_valid_chargen_parameters_data())
+        del data["background-skills"]["characteristic"]
+        parameters, problems = parse_chargen_parameters(data, "chargen-parameters.toml")
+        assert parameters is None
+        matching = [p for p in problems if p.location == "background-skills.characteristic"]
+        assert len(matching) == 1
+        assert matching[0].found == "missing"
+        assert matching[0].expected == "a non-empty string"

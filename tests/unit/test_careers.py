@@ -719,6 +719,16 @@ class TestEmptyStringsAreRejectedWhereANameIsRequired:
         assert len(matching) == 1
         assert matching[0].found == "an empty string"
 
+    def test_an_absent_career_name(self, valid_data, characteristics, skills, benefits):
+        data = copy.deepcopy(valid_data)
+        del data["name"]
+        career, problems = parse_career(data, FILE, characteristics, skills, benefits)
+        assert career is None
+        matching = [p for p in problems if p.location == "name"]
+        assert len(matching) == 1
+        assert matching[0].found == "missing"
+        assert matching[0].expected == "a non-empty string"
+
     def test_an_empty_rank_title(self, valid_data, characteristics, skills, benefits):
         data = copy.deepcopy(valid_data)
         data["ladders"][0]["ranks"][0]["title"] = ""

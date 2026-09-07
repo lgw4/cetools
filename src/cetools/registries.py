@@ -16,6 +16,12 @@ from types import MappingProxyType
 
 from cetools.errors import RulesDataError, TaskError, ValidationProblem, type_name
 from cetools.notation import SkillReference
+from cetools.schema import (
+    require_dict,
+    require_int,
+    require_string,
+    unrecognized_key_problems,
+)
 
 _HEADER_KEYS = frozenset({"schema", "schema-version"})
 
@@ -128,21 +134,6 @@ class BenefitRegistry:
         return name in self.items
 
 
-def _unrecognized_key_problems(
-    data: Mapping[str, object], allowed: frozenset[str], file: str, prefix: str = ""
-) -> list[ValidationProblem]:
-    extra = sorted(set(data) - allowed)
-    return [
-        ValidationProblem(
-            file=file,
-            location=f"{prefix}{key}",
-            found=f"unrecognized key {key!r}",
-            expected=f"one of: {', '.join(sorted(allowed))}",
-        )
-        for key in extra
-    ]
-
-
 def _parse_bands(
     data: object, file: str, location: str
 ) -> tuple[tuple[Band, ...] | None, list[ValidationProblem]]:
@@ -172,16 +163,9 @@ def _parse_bands(
     bands: list[Band] = []
     unbounded_count = 0
     ok = True
-    for key, value in data.items():
-        if not isinstance(value, int) or isinstance(value, bool):
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location=f"{location}.{key}",
-                    found=type_name(value),
-                    expected="an integer",
-                )
-            )
+    for key in data:
+        value = require_int(data, key, file, f"{location}.{key}", problems)
+        if value is None:
             ok = False
             continue
         range_match = _BAND_RANGE.match(key)
@@ -228,47 +212,19 @@ def _parse_characteristic_entry(
 ) -> tuple[str | None, str | None, list[ValidationProblem]]:
     location = f"characteristics.{code}"
     problems: list[ValidationProblem] = []
-    if not isinstance(entry, dict):
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location=location,
-                found=type_name(entry),
-                expected="a table with label and class",
-            )
-        )
+    entry_table = require_dict(entry, file, location, "a table with label and class", problems)
+    if entry_table is None:
         return None, None, problems
 
     problems.extend(
-        _unrecognized_key_problems(entry, _CHARACTERISTIC_ENTRY_KEYS, file, f"{location}.")
+        unrecognized_key_problems(entry_table, _CHARACTERISTIC_ENTRY_KEYS, file, f"{location}.")
     )
 
-    label = _require_nonempty_string(entry, "label", file, f"{location}.label", problems)
-    characteristic_class = _require_nonempty_string(
-        entry, "class", file, f"{location}.class", problems
+    label = require_string(entry_table, "label", file, f"{location}.label", problems)
+    characteristic_class = require_string(
+        entry_table, "class", file, f"{location}.class", problems
     )
     return label, characteristic_class, problems
-
-
-def _require_nonempty_string(
-    container: Mapping[str, object],
-    key: str,
-    file: str,
-    location: str,
-    problems: list[ValidationProblem],
-) -> str | None:
-    value = container.get(key)
-    if isinstance(value, str) and value:
-        return value
-    found = (
-        "an empty string"
-        if value == ""
-        else ("missing" if key not in container else type_name(value))
-    )
-    problems.append(
-        ValidationProblem(file=file, location=location, found=found, expected="a non-empty string")
-    )
-    return None
 
 
 def _parse_pseudo_hex(
@@ -276,32 +232,15 @@ def _parse_pseudo_hex(
 ) -> tuple[tuple[int, tuple[str, ...]] | None, list[ValidationProblem]]:
     location = "pseudo-hex"
     problems: list[ValidationProblem] = []
-    if not isinstance(data, dict):
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location=location,
-                found="missing" if data is None else type_name(data),
-                expected="a [pseudo-hex] table",
-            )
-        )
+    table = require_dict(data, file, location, "a [pseudo-hex] table", problems)
+    if table is None:
         return None, problems
 
-    problems.extend(_unrecognized_key_problems(data, {"minimum", "symbols"}, file))
+    problems.extend(unrecognized_key_problems(table, {"minimum", "symbols"}, file))
 
-    minimum = data.get("minimum")
-    if not isinstance(minimum, int) or isinstance(minimum, bool):
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location=f"{location}.minimum",
-                found="missing" if "minimum" not in data else type_name(minimum),
-                expected="an integer",
-            )
-        )
-        minimum = None
+    minimum = require_int(table, "minimum", file, f"{location}.minimum", problems)
 
-    symbols_raw = data.get("symbols")
+    symbols_raw = table.get("symbols")
     symbols: tuple[str, ...] | None = None
     if not isinstance(symbols_raw, list) or not symbols_raw:
         problems.append(
@@ -310,7 +249,7 @@ def _parse_pseudo_hex(
                 location=f"{location}.symbols",
                 found=(
                     "missing"
-                    if "symbols" not in data
+                    if "symbols" not in table
                     else ("an empty array" if symbols_raw == [] else type_name(symbols_raw))
                 ),
                 expected="a non-empty array of strings",
@@ -345,7 +284,7 @@ def _parse_pseudo_hex(
 def parse_characteristics(
     data: Mapping[str, object], file: str
 ) -> tuple[CharacteristicRegistry | None, tuple[ValidationProblem, ...]]:
-    problems = _unrecognized_key_problems(
+    problems = unrecognized_key_problems(
         data, _HEADER_KEYS | {"characteristics", "modifier-dms", "pseudo-hex"}, file
     )
 
@@ -442,7 +381,7 @@ def _acyclic_problems(skills: Mapping[str, tuple[str, ...]], file: str) -> list[
 def parse_skills(
     data: Mapping[str, object], file: str
 ) -> tuple[SkillRegistry | None, tuple[ValidationProblem, ...]]:
-    problems = _unrecognized_key_problems(data, _HEADER_KEYS | {"skills"}, file)
+    problems = unrecognized_key_problems(data, _HEADER_KEYS | {"skills"}, file)
 
     table = data.get("skills")
     if not isinstance(table, dict):
@@ -529,7 +468,7 @@ def parse_skills(
 def parse_benefits(
     data: Mapping[str, object], file: str
 ) -> tuple[BenefitRegistry | None, tuple[ValidationProblem, ...]]:
-    problems = _unrecognized_key_problems(data, _HEADER_KEYS | {"benefits"}, file)
+    problems = unrecognized_key_problems(data, _HEADER_KEYS | {"benefits"}, file)
 
     items = data.get("benefits")
     if not isinstance(items, list):

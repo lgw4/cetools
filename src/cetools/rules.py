@@ -52,7 +52,13 @@ from cetools.registries import (
     parse_characteristics,
     parse_skills,
 )
-from cetools.tasks import TaskParameters, _check_dice
+from cetools.schema import (
+    require_dict,
+    require_int,
+    require_roll,
+    unrecognized_key_problems,
+)
+from cetools.tasks import TaskParameters
 
 _HEADER_KEYS = frozenset({"schema", "schema-version"})
 
@@ -139,21 +145,6 @@ class ValidationReport:
 # --- task-parameters schema (contracts/data-files.md) ----------------------
 
 
-def _unrecognized_key_problems(
-    data: Mapping[str, object], allowed: frozenset[str], file: str, prefix: str = ""
-) -> list[ValidationProblem]:
-    extra = sorted(set(data) - allowed)
-    return [
-        ValidationProblem(
-            file=file,
-            location=f"{prefix}{key}",
-            found=f"unrecognized key {key!r}",
-            expected=f"one of: {', '.join(sorted(allowed))}",
-        )
-        for key in extra
-    ]
-
-
 def parse_task_parameters(
     data: Mapping[str, object], file: str
 ) -> tuple[TaskParameters | None, tuple[ValidationProblem, ...]]:
@@ -163,54 +154,20 @@ def parse_task_parameters(
     """
     problems: list[ValidationProblem] = []
     problems.extend(
-        _unrecognized_key_problems(data, _HEADER_KEYS | {"task", "difficulty-dms"}, file)
+        unrecognized_key_problems(data, _HEADER_KEYS | {"task", "difficulty-dms"}, file)
     )
 
-    task = data.get("task")
-    if not isinstance(task, dict):
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location="task",
-                found="missing" if task is None else type_name(task),
-                expected="a [task] table",
-            )
-        )
-        task = {}
-    else:
-        problems.extend(
-            _unrecognized_key_problems(task, {"roll", "target", "unskilled-dm"}, file, "task.")
-        )
+    # `require_dict`'s `None` fallback stands in for an invalid `[task]`
+    # table; the unrecognized-key check below is then run against `{}` and
+    # reports nothing extra, matching what skipping it outright would do.
+    task = require_dict(data.get("task"), file, "task", "a [task] table", problems) or {}
+    problems.extend(
+        unrecognized_key_problems(task, {"roll", "target", "unskilled-dm"}, file, "task.")
+    )
 
-    roll: str | None = None
-    if "roll" not in task:
-        problems.append(
-            ValidationProblem(
-                file=file, location="task.roll", found="missing", expected="a string"
-            )
-        )
-    elif not isinstance(task["roll"], str):
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location="task.roll",
-                found=type_name(task["roll"]),
-                expected="a string",
-            )
-        )
-    else:
-        try:
-            _check_dice(task["roll"])
-            roll = task["roll"]
-        except RulesDataError as exc:
-            problems.append(
-                ValidationProblem(
-                    file=file, location="task.roll", found=repr(task["roll"]), expected=str(exc)
-                )
-            )
-
-    target = _require_int(task, "target", file, "task.target", problems)
-    unskilled_dm = _require_int(task, "unskilled-dm", file, "task.unskilled-dm", problems)
+    roll = require_roll(task, "roll", file, "task.roll", problems)
+    target = require_int(task, "target", file, "task.target", problems)
+    unskilled_dm = require_int(task, "unskilled-dm", file, "task.unskilled-dm", problems)
 
     difficulty_dms: dict[str, int] = {}
     dd = data.get("difficulty-dms")
@@ -228,16 +185,9 @@ def parse_task_parameters(
     else:
         zero_count = 0
         ok = True
-        for name, value in dd.items():
-            if not isinstance(value, int) or isinstance(value, bool):
-                problems.append(
-                    ValidationProblem(
-                        file=file,
-                        location=f"difficulty-dms.{name}",
-                        found=type_name(value),
-                        expected="an integer",
-                    )
-                )
+        for name in dd:
+            value = require_int(dd, name, file, f"difficulty-dms.{name}", problems)
+            if value is None:
                 ok = False
                 continue
             if value == 0:
@@ -264,29 +214,6 @@ def parse_task_parameters(
         ),
         (),
     )
-
-
-def _require_int(
-    container: Mapping[str, object],
-    key: str,
-    file: str,
-    location: str,
-    problems: list[ValidationProblem],
-) -> int | None:
-    if key not in container:
-        problems.append(
-            ValidationProblem(file=file, location=location, found="missing", expected="an integer")
-        )
-        return None
-    value = container[key]
-    if not isinstance(value, int) or isinstance(value, bool):
-        problems.append(
-            ValidationProblem(
-                file=file, location=location, found=type_name(value), expected="an integer"
-            )
-        )
-        return None
-    return value
 
 
 # Kind to parse function, one entry per single-instance kind whose parser
