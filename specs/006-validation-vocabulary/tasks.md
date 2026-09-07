@@ -53,8 +53,8 @@ below:
 **Purpose**: establish that the tree is green before anything moves, so a later
 failure is attributable.
 
-- [ ] T001 [P] Run `uv run pytest` from the repository root and record the pass count as the pre-feature baseline in `/tmp/cetools-006/baseline-suite.txt`
-- [ ] T002 [P] Run `uv run black --check src tests`, `uv run isort --check src tests`, and `uv run flake8 src tests` and confirm all three are clean, so a later warning is known to be this feature's
+- [X] T001 [P] Run `uv run pytest` from the repository root and record the pass count as the pre-feature baseline in `/tmp/cetools-006/baseline-suite.txt`
+- [X] T002 [P] Run `uv run black --check src tests`, `uv run isort --check src tests`, and `uv run flake8 src tests` and confirm all three are clean, so a later warning is known to be this feature's
 
 ---
 
@@ -66,15 +66,15 @@ can be shown message-neutral without it.
 **⚠️ CRITICAL**: no user story work begins until T006 confirms the corpus
 actually reaches the messages this feature disturbs.
 
-- [ ] T003 Write a corpus builder at `/tmp/cetools-006/build-corpus.sh` (pure Bourne shell) that sets `CORPUS=/tmp/cetools-006/corpus` and `CAPTURES=/tmp/cetools-006/captures`, creates both, copies `src/cetools/data/` to `$CORPUS`, and applies one breakage per outcome in `contracts/schema-vocabulary.md`: an absent key, a wrong type, a `bool` in an integer field, an empty string, a non-table where each of the five named tables is required, a malformed dice notation, `d66` where a throw is required, a non-boolean optional flag, and an unrecognized key. Three of the breakages need to be doubled, because a single instance cannot show what the diff has to show:
+- [X] T003 Write a corpus builder at `/tmp/cetools-006/build-corpus.sh` (pure Bourne shell) that sets `CORPUS=/tmp/cetools-006/corpus` and `CAPTURES=/tmp/cetools-006/captures`, creates both, copies `src/cetools/data/` to `$CORPUS`, and applies one breakage per outcome in `contracts/schema-vocabulary.md`: an absent key, a wrong type, a `bool` in an integer field, an empty string, a non-table where each of the five named tables is required, a malformed dice notation, `d66` where a throw is required, a non-boolean optional flag, and an unrecognized key. Three of the breakages need to be doubled, because a single instance cannot show what the diff has to show:
   - a below-minimum value at `minimum=1` in **both** `chargen.py`'s path (say `terms.term-years`) and `careers.py`'s (`throws.*.target`), so the diff shows the first moving to `"a positive integer"` while the second, which already says it, stays put
   - a below-minimum value at `minimum=0` as well, so the diff shows `"an integer >= 0"` unmoved
   - an **absent** dice-notation key as well as a malformed one, so the diff can catch the string-check edits of T012, T014, and T016 reaching the roll check. This is the corpus half of the gap T010 pins in the suite; without it both nets miss the same row
 
   Keep breakages that could mask one another in separate files. A file whose schema version fails to match, or that is not well-formed TOML, reports that and nothing else from that file (`tests/integration/test_validation_categories.py`), so a corpus that stacks breakages can lose messages silently and give an empty diff for the wrong reason.
-- [ ] T004 Write a capture script at `/tmp/cetools-006/capture.sh` (pure Bourne shell) that runs `uv run cetools validate $CORPUS --json`, sorts the problems by `(file, location, found, expected)`, and writes the result to a named file under `$CAPTURES`
-- [ ] T005 Run T003 and T004 against the current tree to produce `$CAPTURES/00-pre-feature.json`, the reference every later capture is diffed against
-- [ ] T006 Confirm the corpus is not vacuous. `$CAPTURES/00-pre-feature.json` must contain every one of the following, and the check is on the whole problem, not just the `expected` string, since several of these differ only by `file` and `location`:
+- [X] T004 Write a capture script at `/tmp/cetools-006/capture.sh` (pure Bourne shell) that runs `uv run cetools validate $CORPUS --json`, sorts the problems by `(file, location, found, expected)`, and writes the result to a named file under `$CAPTURES`
+- [X] T005 Run T003 and T004 against the current tree to produce `$CAPTURES/00-pre-feature.json`, the reference every later capture is diffed against
+- [X] T006 Confirm the corpus is not vacuous. `$CAPTURES/00-pre-feature.json` must contain every one of the following, and the check is on the whole problem, not just the `expected` string, since several of these differ only by `file` and `location`:
   - `"an integer >= 1"` from a chargen field, **and** `"a positive integer"` from `careers.py`'s `throws.*.target`
   - `"an integer >= 0"` from a `minimum=0` field
   - `"a string"` with `found == "missing"` from an **absent** dice-notation field, and `"a string"` with a type in `found` from a wrong-typed one
@@ -105,23 +105,23 @@ still not existing.
 
 Strictly alternating red/green, one test at a time, whole suite after each.
 
-- [ ] T007 [US1] Add a failing test in `tests/unit/test_chargen.py` asserting that `terms.term-years = 0` reports `expected == "a positive integer"`; watch it fail against the current `"an integer >= 1"`
-- [ ] T008 [US1] Change the `minimum` branch of `_require_int` in `src/cetools/chargen.py` (lines 102-111) to match `src/cetools/careers.py:192`, special-casing `minimum == 1` as `"a positive integer"`; run `uv run pytest`
-- [ ] T009 [US1] Add a pinning test in `tests/unit/test_chargen.py` asserting a `minimum=0` field still reports `expected == "an integer >= 0"` (FR-010, Acceptance Scenario 3). This one passes on first run by design: it pins behavior that must not move, and is not a red step
-- [ ] T010 [US1] Pin **both** halves of FR-010a in `tests/unit/test_rules.py`, **before** any string check is edited, because only one half is pinned today. Add a test that removes `roll` from `[task]` entirely and asserts `found == "missing"` **and** `expected == "a string"`; confirm the existing `tests/unit/test_rules.py:459` still passes untouched. That existing test sets `roll = 6`, so it pins the *wrong-type* row, not the absent-key row: nothing in the suite currently asserts the absent-key `expected` string FR-010a exists to protect, and `tests/unit/test_chargen.py:71-74` deletes `roll` but asserts only `location` and `found`. T012, T014, and T016 edit the absent-key branch of the string check in three modules, and this test is what stops that edit reaching the roll check. Like T009 it is a pin, not a red step, and passes on first run
-- [ ] T011 [US1] Add a failing test in `tests/unit/test_careers.py` asserting that a career file with no `name` reports `expected == "a non-empty string"`; watch it fail against `"a string"`
-- [ ] T012 [US1] Change the absent-key branch of `_require_string` in `src/cetools/careers.py` (line 145) to report `"a non-empty string"`; run `uv run pytest`
-- [ ] T013 [US1] Add a failing test in `tests/unit/test_names.py` asserting an absent required text field reports `expected == "a non-empty string"`; watch it fail
-- [ ] T014 [US1] Change the absent-key branch of `_require_string` in `src/cetools/names.py` (line 32); run `uv run pytest`
-- [ ] T015 [US1] Add a failing test in `tests/unit/test_chargen.py` asserting an absent required text field reports `expected == "a non-empty string"`; watch it fail
-- [ ] T016 [US1] Change the absent-key branch of `_require_string` in `src/cetools/chargen.py` (line 115); run `uv run pytest`
+- [X] T007 [US1] Add a failing test in `tests/unit/test_chargen.py` asserting that `terms.term-years = 0` reports `expected == "a positive integer"`; watch it fail against the current `"an integer >= 1"`
+- [X] T008 [US1] Change the `minimum` branch of `_require_int` in `src/cetools/chargen.py` (lines 102-111) to match `src/cetools/careers.py:192`, special-casing `minimum == 1` as `"a positive integer"`; run `uv run pytest`
+- [X] T009 [US1] Add a pinning test in `tests/unit/test_chargen.py` asserting a `minimum=0` field still reports `expected == "an integer >= 0"` (FR-010, Acceptance Scenario 3). This one passes on first run by design: it pins behavior that must not move, and is not a red step
+- [X] T010 [US1] Pin **both** halves of FR-010a in `tests/unit/test_rules.py`, **before** any string check is edited, because only one half is pinned today. Add a test that removes `roll` from `[task]` entirely and asserts `found == "missing"` **and** `expected == "a string"`; confirm the existing `tests/unit/test_rules.py:459` still passes untouched. That existing test sets `roll = 6`, so it pins the *wrong-type* row, not the absent-key row: nothing in the suite currently asserts the absent-key `expected` string FR-010a exists to protect, and `tests/unit/test_chargen.py:71-74` deletes `roll` but asserts only `location` and `found`. T012, T014, and T016 edit the absent-key branch of the string check in three modules, and this test is what stops that edit reaching the roll check. Like T009 it is a pin, not a red step, and passes on first run
+- [X] T011 [US1] Add a failing test in `tests/unit/test_careers.py` asserting that a career file with no `name` reports `expected == "a non-empty string"`; watch it fail against `"a string"`
+- [X] T012 [US1] Change the absent-key branch of `_require_string` in `src/cetools/careers.py` (line 145) to report `"a non-empty string"`; run `uv run pytest`
+- [X] T013 [US1] Add a failing test in `tests/unit/test_names.py` asserting an absent required text field reports `expected == "a non-empty string"`; watch it fail
+- [X] T014 [US1] Change the absent-key branch of `_require_string` in `src/cetools/names.py` (line 32); run `uv run pytest`
+- [X] T015 [US1] Add a failing test in `tests/unit/test_chargen.py` asserting an absent required text field reports `expected == "a non-empty string"`; watch it fail
+- [X] T016 [US1] Change the absent-key branch of `_require_string` in `src/cetools/chargen.py` (line 115); run `uv run pytest`
 
 ### Verification and delivery for User Story 1
 
-- [ ] T017 [US1] Capture the post-change report to `$CAPTURES/01-behavioral.json` with `/tmp/cetools-006/capture.sh` and diff it against `$CAPTURES/00-pre-feature.json`
-- [ ] T018 [US1] Confirm the diff contains only the six `minimum=1` fields moving to `"a positive integer"` and the thirteen required-text-field sites moving to `"a non-empty string"`, per `data-model.md`'s *Inventory: behavioral blast radius*. Any other moved message is a finding for the maintainer under FR-013b, not a message to rewrite, and halts the work until settled
-- [ ] T019 [US1] Add one `CHANGELOG.md` entry covering both wording changes and nothing else (FR-019)
-- [ ] T020 [US1] Run `uv run pytest` and the three lint commands, then commit as a **behavioral** change with a Conventional Commits scope (`fix(schema): …` or `feat(schema): …`), the message stating that it is behavioral
+- [X] T017 [US1] Capture the post-change report to `$CAPTURES/01-behavioral.json` with `/tmp/cetools-006/capture.sh` and diff it against `$CAPTURES/00-pre-feature.json`
+- [X] T018 [US1] Confirm the diff contains only the six `minimum=1` fields moving to `"a positive integer"` and the thirteen required-text-field sites moving to `"a non-empty string"`, per `data-model.md`'s *Inventory: behavioral blast radius*. Any other moved message is a finding for the maintainer under FR-013b, not a message to rewrite, and halts the work until settled
+- [X] T019 [US1] Add one `CHANGELOG.md` entry covering both wording changes and nothing else (FR-019)
+- [X] T020 [US1] Run `uv run pytest` and the three lint commands, then commit as a **behavioral** change with a Conventional Commits scope (`fix(schema): …` or `feat(schema): …`), the message stating that it is behavioral
 
 **Checkpoint**: User Story 1 is complete and independently verifiable. No
 duplicate has yet been removed. `$CAPTURES/01-behavioral.json` is now the
