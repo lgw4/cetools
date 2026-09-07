@@ -139,6 +139,14 @@ uv run pytest tests/guards/test_no_duplicate_checks.py -v
 **Expected**: passes, and its self-test demonstrates the detector is not
 vacuous—following the convention every guard in `tests/guards/` observes.
 
+**What it does not catch** (FR-014b, stated here because the requirement obliges
+every description of the guard to state it): the guard recognizes a check by its
+name at a module's top level. A check written fresh and inline, without a name,
+goes undetected—which is the very shape this feature spends eleven conversions
+removing. Closing that would mean recognizing a check by its structure, a much
+larger machine aimed at a rarer mistake than the one that actually happened: the
+copies that accumulated were copies of a named helper, five times over.
+
 To confirm by hand that each check is defined exactly once:
 
 ```sh

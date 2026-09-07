@@ -185,8 +185,14 @@ was present and empty. The surviving wording is the accurate one.
 
 The absent-key row keeps `"a string"` and is deliberately **not** swept into
 FR-009a's unification: this field requires valid dice notation, not a name with
-something in it, so the two rules are different rules (FR-010a). `test_rules.py:459`
-asserts this wording for `task.roll` and must keep passing unchanged.
+something in it, so the two rules are different rules (FR-010a).
+
+No existing test pins that row. `test_rules.py:459` is the only test asserting
+`expected == "a string"`, and it sets `roll = 6`: it pins the *wrong-type* row,
+one line below. `test_chargen.py:71-74` deletes `roll` and asserts `location`
+and `found` but not `expected`. The behavioral commit adds the missing pin
+before it edits any string check, and `test_rules.py:459` keeps passing
+unchanged beside it.
 
 Rejecting `d66` is `_check_dice`'s job, not this module's: the row a table
 reads is the throw's total, and `d66` composes two faces into a two-digit

@@ -66,10 +66,23 @@ can be shown message-neutral without it.
 **⚠️ CRITICAL**: no user story work begins until T006 confirms the corpus
 actually reaches the messages this feature disturbs.
 
-- [ ] T003 Write a corpus builder at `/tmp/cetools-006/build-corpus.sh` (pure Bourne shell) that copies `src/cetools/data/` to `$CORPUS` and applies one breakage per outcome in `contracts/schema-vocabulary.md`: an absent key, a wrong type, a `bool` in an integer field, an empty string, a below-minimum value at `minimum=1` and at `minimum=0`, a non-table where each of the five named tables is required, a malformed dice notation, `d66` where a throw is required, a non-boolean optional flag, and an unrecognized key
+- [ ] T003 Write a corpus builder at `/tmp/cetools-006/build-corpus.sh` (pure Bourne shell) that sets `CORPUS=/tmp/cetools-006/corpus` and `CAPTURES=/tmp/cetools-006/captures`, creates both, copies `src/cetools/data/` to `$CORPUS`, and applies one breakage per outcome in `contracts/schema-vocabulary.md`: an absent key, a wrong type, a `bool` in an integer field, an empty string, a non-table where each of the five named tables is required, a malformed dice notation, `d66` where a throw is required, a non-boolean optional flag, and an unrecognized key. Three of the breakages need to be doubled, because a single instance cannot show what the diff has to show:
+  - a below-minimum value at `minimum=1` in **both** `chargen.py`'s path (say `terms.term-years`) and `careers.py`'s (`throws.*.target`), so the diff shows the first moving to `"a positive integer"` while the second, which already says it, stays put
+  - a below-minimum value at `minimum=0` as well, so the diff shows `"an integer >= 0"` unmoved
+  - an **absent** dice-notation key as well as a malformed one, so the diff can catch the string-check edits of T012, T014, and T016 reaching the roll check. This is the corpus half of the gap T010 pins in the suite; without it both nets miss the same row
+
+  Keep breakages that could mask one another in separate files. A file whose schema version fails to match, or that is not well-formed TOML, reports that and nothing else from that file (`tests/integration/test_validation_categories.py`), so a corpus that stacks breakages can lose messages silently and give an empty diff for the wrong reason.
 - [ ] T004 Write a capture script at `/tmp/cetools-006/capture.sh` (pure Bourne shell) that runs `uv run cetools validate $CORPUS --json`, sorts the problems by `(file, location, found, expected)`, and writes the result to a named file under `$CAPTURES`
 - [ ] T005 Run T003 and T004 against the current tree to produce `$CAPTURES/00-pre-feature.json`, the reference every later capture is diffed against
-- [ ] T006 Confirm the corpus is not vacuous: `$CAPTURES/00-pre-feature.json` must contain `"an integer >= 1"`, `"a string"` from an absent required text field, and all five table phrasings (`"a table"`, `"a table with label and class"`, `"a [task] table"`, `"a [pseudo-hex] table"`, `"a mustering-out table"`). If any is absent, extend `/tmp/cetools-006/build-corpus.sh` until it is present—a corpus that misses the messages this feature moves proves nothing
+- [ ] T006 Confirm the corpus is not vacuous. `$CAPTURES/00-pre-feature.json` must contain every one of the following, and the check is on the whole problem, not just the `expected` string, since several of these differ only by `file` and `location`:
+  - `"an integer >= 1"` from a chargen field, **and** `"a positive integer"` from `careers.py`'s `throws.*.target`
+  - `"an integer >= 0"` from a `minimum=0` field
+  - `"a string"` with `found == "missing"` from an **absent** dice-notation field, and `"a string"` with a type in `found` from a wrong-typed one
+  - `"a string"` with `found == "missing"` from an absent required text field, and `"a non-empty string"` from one present but empty
+  - all five table phrasings: `"a table"`, `"a table with label and class"`, `"a [task] table"`, `"a [pseudo-hex] table"`, `"a mustering-out table"`
+  - `"a boolean"` from a non-boolean optional flag, and an `unrecognized key` problem
+
+  If any is absent, extend `/tmp/cetools-006/build-corpus.sh` until it is present. A corpus that misses the messages this feature moves proves nothing, and an empty diff from it is worse than no diff, because it reads as evidence.
 
 **Checkpoint**: the before-and-after comparison is available and demonstrably
 reaches the messages at risk.
@@ -95,13 +108,13 @@ Strictly alternating red/green, one test at a time, whole suite after each.
 - [ ] T007 [US1] Add a failing test in `tests/unit/test_chargen.py` asserting that `terms.term-years = 0` reports `expected == "a positive integer"`; watch it fail against the current `"an integer >= 1"`
 - [ ] T008 [US1] Change the `minimum` branch of `_require_int` in `src/cetools/chargen.py` (lines 102-111) to match `src/cetools/careers.py:192`, special-casing `minimum == 1` as `"a positive integer"`; run `uv run pytest`
 - [ ] T009 [US1] Add a pinning test in `tests/unit/test_chargen.py` asserting a `minimum=0` field still reports `expected == "an integer >= 0"` (FR-010, Acceptance Scenario 3). This one passes on first run by design: it pins behavior that must not move, and is not a red step
-- [ ] T010 [US1] Add a failing test in `tests/unit/test_careers.py` asserting that a career file with no `name` reports `expected == "a non-empty string"`; watch it fail against `"a string"`
-- [ ] T011 [US1] Change the absent-key branch of `_require_string` in `src/cetools/careers.py` (line 145) to report `"a non-empty string"`; run `uv run pytest`
-- [ ] T012 [US1] Add a failing test in `tests/unit/test_names.py` asserting an absent required text field reports `expected == "a non-empty string"`; watch it fail
-- [ ] T013 [US1] Change the absent-key branch of `_require_string` in `src/cetools/names.py` (line 32); run `uv run pytest`
-- [ ] T014 [US1] Add a failing test in `tests/unit/test_chargen.py` asserting an absent required text field reports `expected == "a non-empty string"`; watch it fail
-- [ ] T015 [US1] Change the absent-key branch of `_require_string` in `src/cetools/chargen.py` (line 115); run `uv run pytest`
-- [ ] T016 [US1] Confirm `tests/unit/test_rules.py:459` still passes untouched: an absent `task.roll` keeps `expected == "a string"`, because a dice-notation field is not a required text field (FR-010a)
+- [ ] T010 [US1] Pin **both** halves of FR-010a in `tests/unit/test_rules.py`, **before** any string check is edited, because only one half is pinned today. Add a test that removes `roll` from `[task]` entirely and asserts `found == "missing"` **and** `expected == "a string"`; confirm the existing `tests/unit/test_rules.py:459` still passes untouched. That existing test sets `roll = 6`, so it pins the *wrong-type* row, not the absent-key row: nothing in the suite currently asserts the absent-key `expected` string FR-010a exists to protect, and `tests/unit/test_chargen.py:71-74` deletes `roll` but asserts only `location` and `found`. T012, T014, and T016 edit the absent-key branch of the string check in three modules, and this test is what stops that edit reaching the roll check. Like T009 it is a pin, not a red step, and passes on first run
+- [ ] T011 [US1] Add a failing test in `tests/unit/test_careers.py` asserting that a career file with no `name` reports `expected == "a non-empty string"`; watch it fail against `"a string"`
+- [ ] T012 [US1] Change the absent-key branch of `_require_string` in `src/cetools/careers.py` (line 145) to report `"a non-empty string"`; run `uv run pytest`
+- [ ] T013 [US1] Add a failing test in `tests/unit/test_names.py` asserting an absent required text field reports `expected == "a non-empty string"`; watch it fail
+- [ ] T014 [US1] Change the absent-key branch of `_require_string` in `src/cetools/names.py` (line 32); run `uv run pytest`
+- [ ] T015 [US1] Add a failing test in `tests/unit/test_chargen.py` asserting an absent required text field reports `expected == "a non-empty string"`; watch it fail
+- [ ] T016 [US1] Change the absent-key branch of `_require_string` in `src/cetools/chargen.py` (line 115); run `uv run pytest`
 
 ### Verification and delivery for User Story 1
 
@@ -178,7 +191,7 @@ cheapest to find. Each module is its own commit.
 ### rules.py (2 definitions, 4 call sites, 3 inline)
 
 - [ ] T041 [US3] In `src/cetools/rules.py`: import the vocabulary, delete `_unrecognized_key_problems` (line 142) and `_require_int` (line 269), and rewire all 4 call sites (lines 166, 182, 212, 213)
-- [ ] T042 [US3] Convert the three inline sites in `src/cetools/rules.py`: the dict check at 169-179 to `require_dict`, keeping `"a [task] table"`; the fully inlined roll check at 185-210 to `require_roll`; and the integer check at 231-240 to `require_int(dd, name, …)`, replacing its `ok = False; continue` bookkeeping with `is None`
+- [ ] T042 [US3] Convert the three inline sites in `src/cetools/rules.py`: the dict check at 169-179 to `require_dict`, keeping `"a [task] table"` **and its `task = {}` fallback**—write `task = require_dict(...) or {}`, because this is the only one of the five table conversions that does not return on failure. It carries on to check `roll`, `target`, and `unskilled-dm` against the empty table, and a literal conversion that let `None` through would either raise or drop three problems from the report. The other four sites all return immediately. Then convert the fully inlined roll check at 185-210 to `require_roll`, and the integer check at 231-240 to `require_int(dd, name, …)`, replacing its `ok = False; continue` bookkeeping with `is None`
 - [ ] T043 [US3] Leave `rules.py:217-227` alone: it rejects a table that is absent, wrong-typed, **or** empty in one compound message, a different rule from `require_dict`'s (`data-model.md`, *Not converted*)
 - [ ] T044 [US3] Run `uv run pytest`, capture to `$CAPTURES/03-rules.json`, diff against `$CAPTURES/02-names.json`, confirm the diff is empty, then commit as **structural**
 
@@ -227,7 +240,8 @@ grow back unnoticed in the shape it grew in.
 - [ ] T068 Walk all four scenarios in [quickstart.md](quickstart.md) end to end and confirm each expected outcome, including the FR-010a check that an absent `task.roll` still expects `"a string"`
 - [ ] T069 Confirm `CHANGELOG.md` carries exactly one entry from this feature, the wording change from T019, and that no structural commit claimed one (FR-019, SC-004)
 - [ ] T070 Confirm the final capture `$CAPTURES/06-chargen.json` differs from `$CAPTURES/00-pre-feature.json` only in the two rules named in FR-013 (SC-003)
-- [ ] T071 Mark this file complete and confirm every checklist item in [checklists/refactor.md](checklists/refactor.md) still holds against the delivered work
+- [ ] T071 Verify SC-005 by doing it: add one checked field to a data-file kind—a required non-empty string and an integer with a minimum—using only `src/cetools/schema.py`, writing no type check, no missing-key check, and no problem message, and copying nothing from another module. Confirm it validates as expected, then revert. This is the feature's stated point and the only success criterion nothing else exercises
+- [ ] T072 Mark this file complete and confirm every checklist item in [checklists/refactor.md](checklists/refactor.md) still holds against the delivered work
 
 ---
 
@@ -260,8 +274,18 @@ against the finished tree.
 
 FR-013b: if any diff step (T018, T040, T044, T048, T053, T059) shows a message
 this feature did not intend to move, stop. Surface it to the maintainer as a
-decision about the wording. No further structural task ships until it is
-settled, and the divergence and its resolution go in the record either way.
+decision about the wording, and do not settle it yourself. No further structural
+task ships until it is settled.
+
+The record is not optional, and it is a step of the halted task rather than an
+afterthought: append the divergence to this file under a **Divergences** heading,
+naming the diff step that found it, the message before and after, and the
+maintainer's decision. This applies equally if the divergence is found after the
+commit that introduced it has landed; whether to correct it forward or amend
+that commit is the maintainer's call, but both paths write it down. The one
+outcome ruled out is a message quietly becoming correct with no note that it was
+ever wrong, which is how the drift this feature removes accumulated in the first
+place.
 
 ---
 

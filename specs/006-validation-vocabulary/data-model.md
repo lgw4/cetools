@@ -223,6 +223,10 @@ Neither change is pinned anywhere:
   being merged.
 - The one test asserting `expected == "a string"` is `test_rules.py:459`,
   which covers `task.roll`—the roll check, excluded by FR-010a. It must keep
-  passing unchanged, and is the reason FR-010a exists.
+  passing unchanged. Note what it does *not* cover: it sets `roll = 6`, so it
+  pins the wrong-type row, not the absent-key one. `test_chargen.py:71-74`
+  deletes `roll` but asserts only `location` and `found`. So the absent-key
+  `"a string"` FR-010a protects is pinned nowhere today, which is why the
+  behavioral commit adds that test before touching any string check.
 - The five other `"a string"` matches under `tests/` are all `found ==`, not
   `expected ==`: a string value found where another type was required. Unaffected.

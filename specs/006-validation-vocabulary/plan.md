@@ -183,8 +183,15 @@ Six fields and thirteen call sites are affected; the complete list, and the
 evidence that nothing pins either phrasing, is in
 [data-model.md](data-model.md).
 
-`require_roll`'s absent-key wording stays `"a string"` (FR-010a).
-`test_rules.py:459` asserts it for `task.roll` and must keep passing untouched.
+`require_roll`'s absent-key wording stays `"a string"` (FR-010a), and this phase
+adds the test that says so. Nothing in the suite pins it today:
+`test_rules.py:459` is the only test asserting `expected == "a string"`, and it
+sets `roll = 6`, which is the wrong-type row rather than the absent-key one.
+`test_chargen.py:71-74` does delete `roll`, but asserts only `location` and
+`found`. So the row FR-010a exists to protect is unguarded at exactly the moment
+step 2 edits the absent-key branch of the string check in three modules. The
+pin goes in first, and `test_rules.py:459` must keep passing untouched beside
+it.
 
 ### Phase B—structural: build the vocabulary (User Story 2, P2)
 
