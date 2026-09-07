@@ -335,3 +335,9 @@ half-done.
   command, option, exit code, or output stream, and the four validation-problem
   strings the contract corpus pins are a malformed file and two
   registry-resolution messages, none of them either rule being changed
+
+---
+
+## Phase 7: Convergence
+
+- [X] T073 Convert the inline integer check on `amount` in `_parse_class_effect`, `src/cetools/chargen.py:165-186`, to `require_int(value, "amount", file, f"{location}.amount", problems)` per FR-015 (partial). Its absent-key and wrong-type branches are `require_int`'s, phrasing for phrasing, including the explicit `bool` rejection; only the `amount == 0` → `"a signed, non-zero integer"` condition is its own, and it stays, as an `if amount == 0` after the call that sets `amount = None`. Pass no `minimum`. This is a **structural** commit with no `CHANGELOG.md` entry, and FR-013a still binds: capture the validator's output over the invalid-fixture corpus before and after and confirm the diff is empty. Any divergence goes to the maintainer under FR-013b rather than being resolved in place

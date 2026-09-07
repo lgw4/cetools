@@ -162,35 +162,17 @@ def _parse_class_effect(
     characteristic_class = require_string(value, "class", file, f"{location}.class", problems)
     count = require_int(value, "count", file, f"{location}.count", problems, minimum=1)
 
-    amount = None
-    if "amount" not in value:
+    amount = require_int(value, "amount", file, f"{location}.amount", problems)
+    if amount == 0:
         problems.append(
             ValidationProblem(
-                file=file, location=f"{location}.amount", found="missing", expected="an integer"
+                file=file,
+                location=f"{location}.amount",
+                found="0",
+                expected="a signed, non-zero integer",
             )
         )
-    else:
-        raw_amount = value["amount"]
-        if not isinstance(raw_amount, int) or isinstance(raw_amount, bool):
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location=f"{location}.amount",
-                    found=type_name(raw_amount),
-                    expected="an integer",
-                )
-            )
-        elif raw_amount == 0:
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location=f"{location}.amount",
-                    found="0",
-                    expected="a signed, non-zero integer",
-                )
-            )
-        else:
-            amount = raw_amount
+        amount = None
 
     if characteristic_class is None or count is None or amount is None:
         return None, problems
