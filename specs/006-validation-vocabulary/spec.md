@@ -14,6 +14,21 @@ Give the checking layer one home, the way `errors.py` already gives
 `ValidationProblem` and `type_name` one home, so a rule about what a data file
 may contain is stated once and reported the same way everywhere."
 
+## Clarifications
+
+### Session 2026-09-06
+
+- Q: Should a guard test enforce that each of the seven checks is defined in
+  only one place, so the duplication cannot grow back? (FR-014, SC-002) → A:
+  Yes. A guard scans the source for definitions of the seven checks and fails
+  if any is defined outside the vocabulary, following the six existing guards
+  that already read source text to hold a standing rule.
+- Q: When the two string checks merge, which wording should an absent key
+  report? (FR-013) → A: "A non-empty string", everywhere. The two checks were
+  found to differ only in that one case, and the more numerous of them
+  contradicts itself, calling one rule "a string" when the key is missing and
+  "a non-empty string" when the value is present and empty.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - One wording for one rule (Priority: P1)
@@ -29,13 +44,20 @@ needing "an integer >= 1". Both fields require the same thing. The reader has to
 notice that two different sentences describe one rule, and cannot tell whether
 the difference is meaningful.
 
+The same split runs through the text fields. A required name that is absent is
+reported as needing "a string", while the same field left empty is reported as
+needing "a non-empty string", and a characteristic's label absent is reported
+as needing "a non-empty string" again. One requirement, described three ways,
+depending on which module and which failure the reader happened to hit.
+
 **Why this priority**: It is the only part of this feature a reader of the
 reports can see, and it has to land first regardless: the duplicated checks
 cannot be merged into one until they agree on what to say.
 
 **Independent Test**: Put a below-minimum value in each field that requires at
-least one, run validation, and confirm every one of them reports the same
-expected phrasing, with no reference to any other change in this feature.
+least one, and leave each required text field absent, then run validation and
+confirm that each of the two rules is described in the same words wherever it
+is broken, with no reference to any other change in this feature.
 
 **Acceptance Scenarios**:
 
@@ -48,9 +70,15 @@ expected phrasing, with no reference to any other change in this feature.
 3. **Given** any field whose minimum is `0` rather than `1`, **When** a value
    below it is validated, **Then** the reported problem expects "an integer >=
    0", unchanged.
-4. **Given** the whole packaged data set, **When** it is validated, **Then**
-   every reported problem other than those for the six fields whose minimum is
-   one is worded exactly as it was before this change.
+4. **Given** any required text field left absent, **When** it is validated,
+   **Then** the reported problem expects "a non-empty string", the same words
+   that field already uses when its value is present but empty.
+5. **Given** a dice-notation field left absent, **When** it is validated,
+   **Then** the reported problem still expects "a string", because that field
+   requires notation rather than merely a name with something in it.
+6. **Given** the whole packaged data set, **When** it is validated, **Then**
+   every reported problem outside the two rules above is worded exactly as it
+   was before this change.
 
 ---
 
@@ -88,6 +116,9 @@ paths, without any parser module having been changed yet.
    sorted order, each naming the admitted keys.
 5. **Given** an optional boolean field, **When** the key is absent, **Then** the
    declared default is taken and no problem is reported.
+6. **Given** an optional boolean field, **When** the key is present holding a
+   value that is not a boolean, **Then** a problem is reported and the declared
+   default is still yielded.
 
 ---
 
@@ -153,7 +184,10 @@ defines any of the checks.
 - **FR-003**: The vocabulary MUST provide a required non-empty-string check.
 - **FR-004**: The vocabulary MUST provide a required-boolean check.
 - **FR-005**: The vocabulary MUST provide an optional-boolean check that takes a
-  declared default when the key is absent and reports no problem for it.
+  declared default when the key is absent and reports no problem for it. When
+  the key is present holding something other than a boolean, the check MUST
+  report a problem and still yield the declared default: it always produces a
+  boolean, never an absent result, so no caller has to handle the rejected case.
 - **FR-006**: The vocabulary MUST provide a required dice-notation check that
   rejects notation the grammar refuses and rejects the two-digit table die.
 - **FR-007**: The vocabulary MUST provide a required-table check that accepts a
@@ -163,17 +197,37 @@ defines any of the checks.
   each naming the admitted keys.
 - **FR-009**: A value below a required minimum of one MUST be reported as
   expecting "a positive integer", in every data-file kind.
+- **FR-009a**: A required text field that is absent MUST be reported as
+  expecting "a non-empty string", the same words already used when such a field
+  is present but empty. The two string checks being merged differ in this one
+  case and in no other, and the more widely used of them describes one rule two
+  ways depending on how it was broken.
+- Q: When an optional boolean field is present but holds something other than a
+  boolean, what should the check hand back? (FR-005) → A: Report the problem and
+  return the declared default, which is what the code does today. The check
+  always yields a boolean and never an absent result, so no call site has to
+  branch on the rejected case.
 - **FR-010**: A value below a required minimum other than one MUST keep its
   current phrasing naming that minimum.
+- **FR-010a**: A dice-notation field that is absent MUST keep expecting "a
+  string". It requires valid notation rather than a non-empty name, so it is
+  not the rule FR-009a unifies and MUST NOT be swept into it.
 - **FR-011**: An absent key MUST be reported as "missing"; a key present holding
   the wrong type MUST be reported by naming the type found, in the vocabulary
   the data files themselves use.
 - **FR-012**: A boolean MUST be rejected wherever an integer is required.
 - **FR-013**: Every validation message MUST be unchanged by this feature except
-  those for the six fields whose minimum is one and whose current phrasing names
-  the minimum numerically.
+  the two named in FR-009 and FR-009a: the fields whose minimum is one and whose
+  current phrasing names that minimum numerically, and the absent-key report for
+  required text fields. Any further divergence found during the work is a
+  finding to be raised, not a message to be quietly rewritten.
 - **FR-014**: No module other than the vocabulary MUST define any of the checks
   in FR-002 through FR-008.
+- **FR-014a**: An automated guard MUST fail when any of the checks in FR-002
+  through FR-008 is defined outside the vocabulary, so that a later module
+  cannot reintroduce a copy unnoticed. The duplication this feature removes
+  accumulated one module at a time, each addition defensible on its own, which
+  is why the rule needs an enforcer rather than a note.
 - **FR-015**: Every module that parses a rules data file MUST obtain these
   checks from the vocabulary, including at the sites that currently express the
   same checks inline without naming them.
@@ -185,10 +239,10 @@ defines any of the checks.
 - **FR-018**: The vocabulary MUST have its own direct tests, written before it
   exists and failing until it does, covering each check's absent-key,
   wrong-type, boundary, and accepted paths.
-- **FR-019**: The wording change in FR-009 MUST ship separately from, and before,
-  the removal of the duplicate definitions, and MUST carry a changelog entry.
-  The removal itself is not user-visible and MUST NOT claim a changelog entry of
-  its own.
+- **FR-019**: The wording changes in FR-009 and FR-009a MUST ship separately
+  from, and before, the removal of the duplicate definitions, and MUST carry a
+  changelog entry. The removal itself is not user-visible and MUST NOT claim a
+  changelog entry of its own.
 - **FR-020**: This feature MUST NOT introduce a carrier for the file-and-path
   pair, MUST NOT introduce a shared check for arrays of parsed elements, MUST
   NOT extend the field-by-field declaration pattern to any other module, and
@@ -213,16 +267,18 @@ defines any of the checks.
 ### Measurable Outcomes
 
 - **SC-001**: Every field requiring a minimum of one reports the same expected
-  phrasing. The count of distinct phrasings for that one rule falls from two to
-  one.
+  phrasing, and every required text field reports the same expected phrasing
+  whether it is absent or empty. The count of distinct phrasings falls from two
+  to one for the first rule and from two to one for the second.
 - **SC-002**: Each of the seven checks is defined exactly once across the whole
-  source tree, down from sixteen definitions of the seven.
+  source tree, down from sixteen definitions of the seven, and a test fails if
+  that stops being true.
 - **SC-003**: Validating the packaged data set and the existing invalid-fixture
   corpus produces messages identical to those produced before this feature,
-  except for the six fields named in FR-013.
+  except for the two rules named in FR-013.
 - **SC-004**: The full test suite passes, with the only test changes being the
-  wording assertions added for the six fields and the new tests covering the
-  vocabulary directly.
+  wording assertions added for the two rules in FR-013, the new tests covering
+  the vocabulary directly, and the guard required by FR-014a.
 - **SC-005**: A contributor adding a checked field to any data-file kind can do
   so without writing a type check, a missing-key check, or a problem message,
   and without copying anything from another module.
@@ -236,13 +292,20 @@ defines any of the checks.
   check to read an absent value as a missing key rather than as a value of some
   empty type, and it is why that check needs no separate way to be told which of
   the two it is looking at.
-- No existing test pins either phrasing of the below-minimum message, so the
-  choice between them is free. The six fields whose messages change are the only
-  places the change is observable.
-- The wording that survives is the one already used by career throw targets, on
-  the grounds that the reports elsewhere are written in English rather than in
-  notation: they say "a non-empty string", "an empty table", "at least one
-  entry".
+- No existing test pins either phrasing being changed, for either rule, and no
+  golden output or documented example carries a validation problem message at
+  all: the one documented run of the validator shows its success path. So both
+  choices are free, and the changes are observable only to someone who breaks
+  one of these fields.
+- Where two phrasings compete, the surviving one is the more accurate, not the
+  less disruptive. This follows the reports elsewhere, which are written in
+  English rather than in notation: they say "a non-empty string", "an empty
+  table", "at least one entry".
+- The duplicate implementations were compared mechanically rather than by
+  inspection. Every group is identical apart from its documentation except the
+  integer check, which has three variants, and the two string checks, which
+  differ in one case. Those two are the whole of the behavioral change, and
+  FR-013 holds the line against a third being absorbed silently.
 - The checks stay in the shape they already have, taking the file and the
   field's location as separate values. Giving that pair a carrier of its own is
   a separate change, deliberately not attempted here.
