@@ -15,6 +15,14 @@ from types import MappingProxyType
 from cetools.errors import RulesDataError, ValidationProblem, type_name
 from cetools.notation import EntryContext, NotationProblem, SkillGrant, parse_entry
 from cetools.registries import SkillRegistry, SkillResolution
+from cetools.schema import (
+    require_bool,
+    require_dict,
+    require_int,
+    require_roll,
+    require_string,
+    unrecognized_key_problems,
+)
 from cetools.tasks import _check_dice
 
 _HEADER_KEYS = frozenset({"schema", "schema-version"})
@@ -25,136 +33,6 @@ _RANGE_UNBOUNDED = re.compile(r"^(-?\d+)\+$")
 
 _AMOUNT_INTEGER = re.compile(r"^[+-]?\d+$")
 _AMOUNT_DICE = re.compile(r"^[+-]?\d*[dD]\d+(?:[+-]\d+)?$")
-
-
-def _unrecognized_key_problems(
-    data: Mapping[str, object], allowed: frozenset[str], file: str, prefix: str = ""
-) -> list[ValidationProblem]:
-    extra = sorted(set(data) - allowed)
-    return [
-        ValidationProblem(
-            file=file,
-            location=f"{prefix}{key}",
-            found=f"unrecognized key {key!r}",
-            expected=f"one of: {', '.join(sorted(allowed))}",
-        )
-        for key in extra
-    ]
-
-
-def _require_roll(
-    container: Mapping[str, object],
-    key: str,
-    file: str,
-    location: str,
-    problems: list[ValidationProblem],
-) -> str | None:
-    """A dice-notation field, rejecting `d66` for the same reason
-    `task.roll` does: the row a chargen table reads is the throw's total, and
-    `d66` composes two faces into a two-digit table value rather than
-    describing a count and a side count (001-dice-task-engine FR-029).
-    """
-    if key not in container:
-        problems.append(
-            ValidationProblem(file=file, location=location, found="missing", expected="a string")
-        )
-        return None
-    value = container[key]
-    if not isinstance(value, str):
-        problems.append(
-            ValidationProblem(
-                file=file, location=location, found=type_name(value), expected="a string"
-            )
-        )
-        return None
-    try:
-        _check_dice(value)
-    except RulesDataError as exc:
-        problems.append(
-            ValidationProblem(file=file, location=location, found=repr(value), expected=str(exc))
-        )
-        return None
-    return value
-
-
-def _require_int(
-    container: Mapping[str, object],
-    key: str,
-    file: str,
-    location: str,
-    problems: list[ValidationProblem],
-    *,
-    minimum: int | None = None,
-) -> int | None:
-    if key not in container:
-        problems.append(
-            ValidationProblem(file=file, location=location, found="missing", expected="an integer")
-        )
-        return None
-    value = container[key]
-    if not isinstance(value, int) or isinstance(value, bool):
-        problems.append(
-            ValidationProblem(
-                file=file, location=location, found=type_name(value), expected="an integer"
-            )
-        )
-        return None
-    if minimum is not None and value < minimum:
-        expected = "a positive integer" if minimum == 1 else f"an integer >= {minimum}"
-        problems.append(
-            ValidationProblem(file=file, location=location, found=str(value), expected=expected)
-        )
-        return None
-    return value
-
-
-def _require_string(
-    container: Mapping[str, object],
-    key: str,
-    file: str,
-    location: str,
-    problems: list[ValidationProblem],
-) -> str | None:
-    if key not in container:
-        problems.append(
-            ValidationProblem(
-                file=file, location=location, found="missing", expected="a non-empty string"
-            )
-        )
-        return None
-    value = container[key]
-    if not isinstance(value, str) or not value:
-        found = type_name(value) if not isinstance(value, str) else "an empty string"
-        problems.append(
-            ValidationProblem(
-                file=file, location=location, found=found, expected="a non-empty string"
-            )
-        )
-        return None
-    return value
-
-
-def _require_bool(
-    container: Mapping[str, object],
-    key: str,
-    file: str,
-    location: str,
-    problems: list[ValidationProblem],
-) -> bool | None:
-    if key not in container:
-        problems.append(
-            ValidationProblem(file=file, location=location, found="missing", expected="a boolean")
-        )
-        return None
-    value = container[key]
-    if not isinstance(value, bool):
-        problems.append(
-            ValidationProblem(
-                file=file, location=location, found=type_name(value), expected="a boolean"
-            )
-        )
-        return None
-    return value
 
 
 # --- draft-table (contracts/data-files.md) ----------------------------------
@@ -174,9 +52,9 @@ def parse_draft_table(
     data: Mapping[str, object], file: str
 ) -> tuple[DraftTable | None, tuple[ValidationProblem, ...]]:
     problems: list[ValidationProblem] = []
-    problems.extend(_unrecognized_key_problems(data, _HEADER_KEYS | {"roll", "careers"}, file))
+    problems.extend(unrecognized_key_problems(data, _HEADER_KEYS | {"roll", "careers"}, file))
 
-    roll = _require_roll(data, "roll", file, "roll", problems)
+    roll = require_roll(data, "roll", file, "roll", problems)
 
     careers: tuple[str, ...] | None = None
     if "careers" not in data:
@@ -278,11 +156,11 @@ def _parse_class_effect(
         return None, problems
 
     problems.extend(
-        _unrecognized_key_problems(value, {"class", "count", "amount"}, file, f"{location}.")
+        unrecognized_key_problems(value, {"class", "count", "amount"}, file, f"{location}.")
     )
 
-    characteristic_class = _require_string(value, "class", file, f"{location}.class", problems)
-    count = _require_int(value, "count", file, f"{location}.count", problems, minimum=1)
+    characteristic_class = require_string(value, "class", file, f"{location}.class", problems)
+    count = require_int(value, "count", file, f"{location}.count", problems, minimum=1)
 
     amount = None
     if "amount" not in value:
@@ -358,10 +236,10 @@ def _parse_aging_row(
         )
         return None, problems
 
-    problems.extend(_unrecognized_key_problems(value, {"range", "effects"}, file, f"{location}."))
+    problems.extend(unrecognized_key_problems(value, {"range", "effects"}, file, f"{location}."))
 
     bounds: tuple[int, int | None] | None = None
-    range_text = _require_string(value, "range", file, f"{location}.range", problems)
+    range_text = require_string(value, "range", file, f"{location}.range", problems)
     if range_text is not None:
         bounds = _parse_range(range_text)
         if bounds is None:
@@ -396,10 +274,10 @@ def parse_aging_table(
 ) -> tuple[AgingTable | None, tuple[ValidationProblem, ...]]:
     problems: list[ValidationProblem] = []
     problems.extend(
-        _unrecognized_key_problems(data, _HEADER_KEYS | {"roll", "modifier", "rows"}, file)
+        unrecognized_key_problems(data, _HEADER_KEYS | {"roll", "modifier", "rows"}, file)
     )
 
-    roll = _require_roll(data, "roll", file, "roll", problems)
+    roll = require_roll(data, "roll", file, "roll", problems)
 
     modifier = data.get("modifier")
     if modifier != "terms-served":
@@ -565,7 +443,7 @@ def _parse_mishap_effect(
             )
         )
         problems.extend(
-            _unrecognized_key_problems(
+            unrecognized_key_problems(
                 value, {"kind", "class", "count", "amount"}, file, f"{location}."
             )
         )
@@ -576,13 +454,13 @@ def _parse_mishap_effect(
         allowed |= {"class", "count", "amount"}
     elif kind in ("debt", "years"):
         allowed |= {"amount"}
-    problems.extend(_unrecognized_key_problems(value, allowed, file, f"{location}."))
+    problems.extend(unrecognized_key_problems(value, allowed, file, f"{location}."))
 
     characteristic_class = ""
     count = 0
     if kind == "characteristic-class":
-        parsed_class = _require_string(value, "class", file, f"{location}.class", problems)
-        parsed_count = _require_int(value, "count", file, f"{location}.count", problems, minimum=1)
+        parsed_class = require_string(value, "class", file, f"{location}.class", problems)
+        parsed_count = require_int(value, "count", file, f"{location}.count", problems, minimum=1)
         characteristic_class = parsed_class or ""
         count = parsed_count if parsed_count is not None else 0
 
@@ -666,10 +544,10 @@ def _parse_mishap_row(
         return None, problems
 
     problems.extend(
-        _unrecognized_key_problems(value, {"description", "effects"}, file, f"{location}.")
+        unrecognized_key_problems(value, {"description", "effects"}, file, f"{location}.")
     )
 
-    description = _require_string(value, "description", file, f"{location}.description", problems)
+    description = require_string(value, "description", file, f"{location}.description", problems)
 
     effects: tuple[MishapEffect, ...] | None = None
     if "effects" not in value:
@@ -724,13 +602,13 @@ def parse_mishap_table(
 ) -> tuple[MishapTable | None, tuple[ValidationProblem, ...]]:
     problems: list[ValidationProblem] = []
     problems.extend(
-        _unrecognized_key_problems(
+        unrecognized_key_problems(
             data, _HEADER_KEYS | {"roll", "injury-roll", "mishaps", "injuries"}, file
         )
     )
 
-    roll = _require_roll(data, "roll", file, "roll", problems)
-    injury_roll = _require_roll(data, "injury-roll", file, "injury-roll", problems)
+    roll = require_roll(data, "roll", file, "roll", problems)
+    injury_roll = require_roll(data, "injury-roll", file, "injury-roll", problems)
 
     mishaps: list[tuple[str, tuple[MishapEffect, ...]]] | None = None
     if "mishaps" not in data:
@@ -857,7 +735,7 @@ def parse_background_skills(
 ) -> tuple[BackgroundSkills | None, tuple[ValidationProblem, ...]]:
     problems: list[ValidationProblem] = []
     problems.extend(
-        _unrecognized_key_problems(
+        unrecognized_key_problems(
             data, _HEADER_KEYS | {"law-level", "trade-code", "education"}, file
         )
     )
@@ -924,11 +802,11 @@ def _parse_medical_threshold(
         return None, problems
 
     problems.extend(
-        _unrecognized_key_problems(value, {"target", "paid-percent"}, file, f"{location}.")
+        unrecognized_key_problems(value, {"target", "paid-percent"}, file, f"{location}.")
     )
 
-    target = _require_int(value, "target", file, f"{location}.target", problems, minimum=0)
-    paid_percent = _require_int(
+    target = require_int(value, "target", file, f"{location}.target", problems, minimum=0)
+    paid_percent = require_int(
         value, "paid-percent", file, f"{location}.paid-percent", problems, minimum=0
     )
     if paid_percent is not None and paid_percent > 100:
@@ -959,11 +837,9 @@ def _parse_tier(
         )
         return None, problems
 
-    problems.extend(
-        _unrecognized_key_problems(value, {"name", "thresholds"}, file, f"{location}.")
-    )
+    problems.extend(unrecognized_key_problems(value, {"name", "thresholds"}, file, f"{location}."))
 
-    name = _require_string(value, "name", file, f"{location}.name", problems)
+    name = require_string(value, "name", file, f"{location}.name", problems)
 
     thresholds: list[MedicalThreshold] | None = None
     if "thresholds" not in value:
@@ -1023,11 +899,11 @@ def parse_medical_tiers(
 ) -> tuple[MedicalTiers | None, tuple[ValidationProblem, ...]]:
     problems: list[ValidationProblem] = []
     problems.extend(
-        _unrecognized_key_problems(data, _HEADER_KEYS | {"roll", "rank-dm", "tiers"}, file)
+        unrecognized_key_problems(data, _HEADER_KEYS | {"roll", "rank-dm", "tiers"}, file)
     )
 
-    roll = _require_roll(data, "roll", file, "roll", problems)
-    rank_dm = _require_bool(data, "rank-dm", file, "rank-dm", problems)
+    roll = require_roll(data, "roll", file, "roll", problems)
+    rank_dm = require_bool(data, "rank-dm", file, "rank-dm", problems)
 
     tiers: dict[str, tuple[MedicalThreshold, ...]] | None = None
     if "tiers" not in data:
@@ -1202,17 +1078,13 @@ def _parse_rank_bonus(
     value: object, file: str, location: str, value_key: str
 ) -> tuple[RankBonus | None, list[ValidationProblem]]:
     problems: list[ValidationProblem] = []
-    if not isinstance(value, dict):
-        problems.append(
-            ValidationProblem(
-                file=file, location=location, found=type_name(value), expected="a table"
-            )
-        )
+    table = require_dict(value, file, location, "a table", problems)
+    if table is None:
         return None, problems
 
-    problems.extend(_unrecognized_key_problems(value, {"rank", value_key}, file, f"{location}."))
-    rank = _require_int(value, "rank", file, f"{location}.rank", problems, minimum=0)
-    amount = _require_int(value, value_key, file, f"{location}.{value_key}", problems)
+    problems.extend(unrecognized_key_problems(table, {"rank", value_key}, file, f"{location}."))
+    rank = require_int(table, "rank", file, f"{location}.rank", problems, minimum=0)
+    amount = require_int(table, value_key, file, f"{location}.{value_key}", problems)
 
     if rank is None or amount is None:
         return None, problems
@@ -1253,32 +1125,24 @@ def _parse_chargen_group(
     if group == "mustering-out":
         allowed |= set(_RANK_BONUS_ARRAYS)
 
-    table = data.get(group)
-    if not isinstance(table, dict):
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location=location,
-                found="missing" if group not in data else type_name(table),
-                expected="a table",
-            )
-        )
+    table = require_dict(data.get(group), file, location, "a table", problems)
+    if table is None:
         return {}
 
-    problems.extend(_unrecognized_key_problems(table, allowed, file, f"{location}."))
+    problems.extend(unrecognized_key_problems(table, allowed, file, f"{location}."))
 
     values: dict[str, object] = {}
     for key, (kind, minimum) in fields.items():
         field_location = f"{location}.{key}"
         attribute = _chargen_attribute(group, key)
         if kind == "roll":
-            values[attribute] = _require_roll(table, key, file, field_location, problems)
+            values[attribute] = require_roll(table, key, file, field_location, problems)
         elif kind == "bool":
-            values[attribute] = _require_bool(table, key, file, field_location, problems)
+            values[attribute] = require_bool(table, key, file, field_location, problems)
         elif kind == "string":
-            values[attribute] = _require_string(table, key, file, field_location, problems)
+            values[attribute] = require_string(table, key, file, field_location, problems)
         else:
-            values[attribute] = _require_int(
+            values[attribute] = require_int(
                 table, key, file, field_location, problems, minimum=minimum
             )
 
@@ -1307,7 +1171,7 @@ def parse_chargen_parameters(
     data: Mapping[str, object], file: str
 ) -> tuple[ChargenParameters | None, tuple[ValidationProblem, ...]]:
     problems: list[ValidationProblem] = []
-    problems.extend(_unrecognized_key_problems(data, _HEADER_KEYS | set(_CHARGEN_GROUPS), file))
+    problems.extend(unrecognized_key_problems(data, _HEADER_KEYS | set(_CHARGEN_GROUPS), file))
 
     values: dict[str, object] = {}
     for group in _CHARGEN_GROUPS:
