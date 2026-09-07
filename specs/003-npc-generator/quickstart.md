@@ -40,7 +40,7 @@ Expected: exit 0 and
 ```text
 Rules data is valid.
   Files: 26
-  Rules: packaged (cetools 2026.9.1)
+  Rules: packaged (cetools 2026.9.2)
 ```
 
 Twenty-six files, up from five: task parameters, three registries, six universal chargen

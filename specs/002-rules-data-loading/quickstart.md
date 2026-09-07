@@ -29,7 +29,7 @@ Expected: exit 0 and
 ```text
 Rules data is valid.
   Files: 5
-  Rules: packaged (cetools 2026.9.1)
+  Rules: packaged (cetools 2026.9.2)
 ```
 
 The version in parentheses is the installed package version (FR-033a); with a seed it is
@@ -186,12 +186,12 @@ uv run cetools check --seed 1
 uv run cetools check --seed 1 --json
 ```
 
-Expected: `Rules: packaged (cetools 2026.9.1)` under the seed in text, and in JSON:
+Expected: `Rules: packaged (cetools 2026.9.2)` under the seed in text, and in JSON:
 
 ```json
 "provenance": {
   "source": "packaged",
-  "version": "2026.9.1",
+  "version": "2026.9.2",
   "files": [],
   "ignored": []
 }

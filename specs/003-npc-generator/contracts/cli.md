@@ -142,14 +142,14 @@ renders byte for byte as the single character of that seed and position renders.
 
 ```text
 Seed:  14333185781139156525
-Rules: packaged (cetools 2026.9.1)
+Rules: packaged (cetools 2026.9.2)
 ```
 
 Overridden, with a file ignored:
 
 ```text
 Seed:  14333185781139156525
-Rules: overridden (cetools 2026.9.1)
+Rules: overridden (cetools 2026.9.2)
   navy.toml     replaced  sha256:3b1f...c0
   scouts.toml   added     sha256:9ad4...71
   notes.md      ignored

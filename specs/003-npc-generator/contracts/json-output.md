@@ -20,7 +20,7 @@ rather than branching on how many characters it asked for.
   "seed": "14333185781139156525",
   "provenance": {
     "source": "packaged",
-    "version": "2026.9.1",
+    "version": "2026.9.2",
     "files": [],
     "ignored": []
   },
