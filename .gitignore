@@ -601,3 +601,8 @@ GitHub.sublime-settings
 # Claude Code
 #   Machine-local permissions and settings; the shared .claude/ config stays tracked.
 .claude/settings.local.json
+
+# Architecture reviews
+#   The Markdown is the source of truth and stays tracked; the HTML is a
+#   generated rendering of it.
+architecture-reviews/**/review.html
