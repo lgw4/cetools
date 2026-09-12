@@ -157,6 +157,7 @@ shared collection and never raises. Return value is the accepted value or
         expected: str,
         expected_missing: str | None = None,
         expected_empty: str | None = None,
+        allow_empty: bool = False,
     ) -> list | None: ...
 ```
 
@@ -195,7 +196,8 @@ absorbing four further bare "must be an array" guards.
 |---|---|---|---|
 | key absent | `"missing"` | `expected_missing`, defaulting to `expected` | `None` |
 | value not a `list` | `type_name(value)` | `expected` | `None` |
-| value is `[]` | `"an empty array"` | `expected_empty`, defaulting to `expected` | `None` |
+| value is `[]`, `allow_empty=False` (the default) | `"an empty array"` | `expected_empty`, defaulting to `expected` | `None` |
+| value is `[]`, `allow_empty=True` | — | — | the list |
 | value is a non-empty `list` | — | — | the list |
 
 Three `expected` strings rather than one, because the converted sites really do
@@ -214,6 +216,13 @@ The full nineteen-row table is in [data-model.md](../data-model.md). The
 divergences the table exposes are recorded in
 [inventory.md](../inventory.md) and are **not** reconciled here: a feature that
 promises nothing it reports changes cannot also quietly improve a message.
+
+`allow_empty` preserves a further divergence, [inventory.md](../inventory.md)
+entry I-4: three arrays accept `[]` where their siblings reject it —
+`chargen.py:165` (`rows[i].effects`), `chargen.py:382`
+(`<section>[i].effects`), and `registries.py:353` (`skills.<name>`). Each
+passes `allow_empty=True` rather than being reconciled with the fields that
+require at least one element.
 
 An absent key is detected by membership (`key not in container`), not by a
 `None` value, matching what the converted sites do. `require_dict`'s
