@@ -703,10 +703,11 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
     for basename, (kind, toml_data) in sorted(parsed.items()):
         if kind != "career":
             continue
-        career, sub_problems = _parse_career(
-            toml_data, basename, career_characteristics, career_skills, career_benefits
+        career_ctx = ParseContext(basename)
+        career = _parse_career(
+            toml_data, career_ctx, career_characteristics, career_skills, career_benefits
         )
-        problems.extend(sub_problems)
+        problems.extend(career_ctx.problems)
         if career is None:
             continue
         if career.name in career_names_seen:
