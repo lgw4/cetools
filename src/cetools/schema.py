@@ -23,10 +23,18 @@ class ParseContext:
     parser carries by hand today, bundled into one object
     (contracts/parse-context.md, 007-parse-context-carrier).
 
-    Immutable in its three fields; descent (`at`) creates a new carrier
-    rather than mutating one. The watermark -- the collection's length when
-    this carrier was constructed -- is private and is what `failed` measures
-    against, making every carrier its own scope (research R4).
+    `file` and `location` are set once and never reassigned: descent (`at`)
+    derives a new carrier rather than mutating the one it is called on. That is
+    a convention the parsers keep, not something this class enforces -- both
+    attributes are plain and writable, and nothing here would stop a caller
+    rebinding them. The problem collection is the deliberate exception: it is
+    shared by reference with every derived carrier and is appended to, which is
+    what makes a problem recorded at any depth reach the one list the loader
+    reports from (FR-004).
+
+    The watermark -- the collection's length when this carrier was constructed
+    -- is private and is what `failed` measures against, making every carrier
+    its own scope (research R4).
     """
 
     def __init__(
