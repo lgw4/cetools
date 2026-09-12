@@ -10,7 +10,7 @@ with the result (research R7).
 
 import tomllib
 from collections import defaultdict
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from functools import cache
 from importlib import resources
@@ -616,79 +616,39 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
         else:
             resolved_singleton[kind] = declarers[0]
 
-    given_names: GivenNameTable | None = None
-    if "given-names" in resolved_singleton:
-        given_names_basename = resolved_singleton["given-names"]
-        given_names_ctx = ParseContext(given_names_basename)
-        given_names = parse_given_names(parsed[given_names_basename][1], given_names_ctx)
-        problems.extend(given_names_ctx.problems)
+    def parse_singleton[T](kind: str, parser: Callable[..., T | None], *extra: object) -> T | None:
+        """Parse the one file declaring `kind`, through its own carrier.
 
-    task_parameters: TaskParameters | None = None
-    if "task-parameters" in resolved_singleton:
-        task_parameters_basename = resolved_singleton["task-parameters"]
-        task_parameters_ctx = ParseContext(task_parameters_basename)
-        task_parameters = parse_task_parameters(
-            parsed[task_parameters_basename][1], task_parameters_ctx
-        )
-        problems.extend(task_parameters_ctx.problems)
+        One carrier and one collection per file (research R5), folded into the
+        run-wide list at the point that kind is parsed -- so the call order
+        below is the insertion order, and moving a call moves a report. The
+        loader's single `problems.sort()` is what makes that unobservable
+        (FR-015), and it stays where it is.
+        """
+        if kind not in resolved_singleton:
+            return None
+        basename = resolved_singleton[kind]
+        ctx = ParseContext(basename)
+        value = parser(parsed[basename][1], ctx, *extra)
+        problems.extend(ctx.problems)
+        return value
 
-    characteristics: CharacteristicRegistry | None = None
-    if "characteristics" in resolved_singleton:
-        characteristics_basename = resolved_singleton["characteristics"]
-        characteristics_ctx = ParseContext(characteristics_basename)
-        characteristics = parse_characteristics(
-            parsed[characteristics_basename][1], characteristics_ctx
-        )
-        problems.extend(characteristics_ctx.problems)
-
-    skills: SkillRegistry | None = None
-    if "skills" in resolved_singleton:
-        skills_basename = resolved_singleton["skills"]
-        skills_ctx = ParseContext(skills_basename)
-        skills = parse_skills(parsed[skills_basename][1], skills_ctx)
-        problems.extend(skills_ctx.problems)
-
-    benefits: BenefitRegistry | None = None
-    if "benefits" in resolved_singleton:
-        benefits_basename = resolved_singleton["benefits"]
-        benefits_ctx = ParseContext(benefits_basename)
-        benefits = parse_benefits(parsed[benefits_basename][1], benefits_ctx)
-        problems.extend(benefits_ctx.problems)
-
-    draft: DraftTable | None = None
-    if "draft-table" in resolved_singleton:
-        draft_basename = resolved_singleton["draft-table"]
-        draft_ctx = ParseContext(draft_basename)
-        draft = parse_draft_table(parsed[draft_basename][1], draft_ctx)
-        problems.extend(draft_ctx.problems)
-
-    aging: AgingTable | None = None
-    if "aging-table" in resolved_singleton:
-        aging_basename = resolved_singleton["aging-table"]
-        aging_ctx = ParseContext(aging_basename)
-        aging = parse_aging_table(parsed[aging_basename][1], aging_ctx)
-        problems.extend(aging_ctx.problems)
-
-    mishaps: MishapTable | None = None
-    if "mishap-table" in resolved_singleton:
-        mishaps_basename = resolved_singleton["mishap-table"]
-        mishaps_ctx = ParseContext(mishaps_basename)
-        mishaps = parse_mishap_table(parsed[mishaps_basename][1], mishaps_ctx)
-        problems.extend(mishaps_ctx.problems)
-
-    medical_tiers: MedicalTiers | None = None
-    if "medical-tiers" in resolved_singleton:
-        medical_tiers_basename = resolved_singleton["medical-tiers"]
-        medical_tiers_ctx = ParseContext(medical_tiers_basename)
-        medical_tiers = parse_medical_tiers(parsed[medical_tiers_basename][1], medical_tiers_ctx)
-        problems.extend(medical_tiers_ctx.problems)
-
-    chargen: ChargenParameters | None = None
-    if "chargen-parameters" in resolved_singleton:
-        chargen_basename = resolved_singleton["chargen-parameters"]
-        chargen_ctx = ParseContext(chargen_basename)
-        chargen = parse_chargen_parameters(parsed[chargen_basename][1], chargen_ctx)
-        problems.extend(chargen_ctx.problems)
+    given_names: GivenNameTable | None = parse_singleton("given-names", parse_given_names)
+    task_parameters: TaskParameters | None = parse_singleton(
+        "task-parameters", parse_task_parameters
+    )
+    characteristics: CharacteristicRegistry | None = parse_singleton(
+        "characteristics", parse_characteristics
+    )
+    skills: SkillRegistry | None = parse_singleton("skills", parse_skills)
+    benefits: BenefitRegistry | None = parse_singleton("benefits", parse_benefits)
+    draft: DraftTable | None = parse_singleton("draft-table", parse_draft_table)
+    aging: AgingTable | None = parse_singleton("aging-table", parse_aging_table)
+    mishaps: MishapTable | None = parse_singleton("mishap-table", parse_mishap_table)
+    medical_tiers: MedicalTiers | None = parse_singleton("medical-tiers", parse_medical_tiers)
+    chargen: ChargenParameters | None = parse_singleton(
+        "chargen-parameters", parse_chargen_parameters
+    )
 
     # Career validation proceeds even when a registry is missing or invalid,
     # against an empty substitute, so every reference cascades into its own
@@ -697,12 +657,10 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
     career_skills = skills or SkillRegistry(skills=MappingProxyType({}))
     career_benefits = benefits or BenefitRegistry(items=())
 
-    background_skills: BackgroundSkills | None = None
-    if "background-skills" in resolved_singleton:
-        bg_basename = resolved_singleton["background-skills"]
-        bg_ctx = ParseContext(bg_basename)
-        background_skills = parse_background_skills(parsed[bg_basename][1], bg_ctx, career_skills)
-        problems.extend(bg_ctx.problems)
+    # Parsed after the substitutes above, because it takes the skills registry.
+    background_skills: BackgroundSkills | None = parse_singleton(
+        "background-skills", parse_background_skills, career_skills
+    )
 
     careers: dict[str, CareerDefinition] = {}
     career_names_seen: dict[str, str] = {}
