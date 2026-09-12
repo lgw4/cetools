@@ -9,42 +9,23 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from cetools.dice import Roller
-from cetools.errors import ValidationProblem, type_name
-from cetools.schema import require_string, unrecognized_key_problems
-
-_HEADER_KEYS = frozenset({"schema", "schema-version"})
+from cetools.errors import type_name
+from cetools.schema import HEADER_KEYS, ParseContext
 
 
-def _require_name_array(
-    raw: object, file: str, location: str
-) -> tuple[tuple[str, ...] | None, list[ValidationProblem]]:
-    if not isinstance(raw, list) or not raw:
-        found = type_name(raw) if not isinstance(raw, list) else "an empty array"
-        return None, [
-            ValidationProblem(
-                file=file, location=location, found=found, expected="at least one entry"
-            )
-        ]
-    problems: list[ValidationProblem] = []
+def _parse_name_array(raw: list, ctx: ParseContext) -> tuple[str, ...] | None:
     names: list[str] = []
     ok = True
     for index, item in enumerate(raw):
         if not isinstance(item, str) or not item:
             found = type_name(item) if not isinstance(item, str) else "an empty string"
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location=f"{location}[{index}]",
-                    found=found,
-                    expected="a non-empty string",
-                )
-            )
+            ctx.at(index).report(found=found, expected="a non-empty string")
             ok = False
             continue
         names.append(item)
     if not ok:
-        return None, problems
-    return tuple(names), problems
+        return None
+    return tuple(names)
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,26 +38,19 @@ class GivenNameTable:
     names: tuple[str, ...]
 
 
-def parse_given_names(
-    data: Mapping[str, object], file: str
-) -> tuple[GivenNameTable | None, tuple[ValidationProblem, ...]]:
-    problems: list[ValidationProblem] = []
-    problems.extend(unrecognized_key_problems(data, _HEADER_KEYS | {"source", "names"}, file))
+def parse_given_names(data: Mapping[str, object], ctx: ParseContext) -> GivenNameTable | None:
+    ctx.unrecognized_keys(data, HEADER_KEYS | {"source", "names"})
 
-    source = require_string(data, "source", file, "source", problems)
+    source = ctx.require_string(data, "source")
 
-    names: tuple[str, ...] | None = None
-    if "names" not in data:
-        problems.append(
-            ValidationProblem(file=file, location="names", found="missing", expected="an array")
-        )
-    else:
-        names, sub_problems = _require_name_array(data["names"], file, "names")
-        problems.extend(sub_problems)
+    raw_names = ctx.require_list(
+        data, "names", expected="at least one entry", expected_missing="an array"
+    )
+    names = _parse_name_array(raw_names, ctx.at("names")) if raw_names is not None else None
 
-    if problems or source is None or names is None:
-        return None, tuple(problems)
-    return GivenNameTable(source=source, names=names), ()
+    if ctx.failed or source is None or names is None:
+        return None
+    return GivenNameTable(source=source, names=names)
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,40 +64,26 @@ class SurnameEntry:
     people: str = ""
 
 
-def _parse_surname_entry(
-    value: object, file: str, location: str
-) -> tuple[SurnameEntry | None, list[ValidationProblem]]:
-    problems: list[ValidationProblem] = []
+def _parse_surname_entry(value: object, ctx: ParseContext) -> SurnameEntry | None:
     if not isinstance(value, dict):
-        problems.append(
-            ValidationProblem(
-                file=file, location=location, found=type_name(value), expected="a table"
-            )
-        )
-        return None, problems
+        ctx.report(found=type_name(value), expected="a table")
+        return None
 
-    problems.extend(unrecognized_key_problems(value, {"name", "people"}, file, f"{location}."))
+    ctx.unrecognized_keys(value, {"name", "people"})
 
-    name = require_string(value, "name", file, f"{location}.name", problems)
+    name = ctx.require_string(value, "name")
 
     people = ""
     if "people" in value:
         raw_people = value["people"]
         if not isinstance(raw_people, str):
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location=f"{location}.people",
-                    found=type_name(raw_people),
-                    expected="a string",
-                )
-            )
+            ctx.at("people").report(found=type_name(raw_people), expected="a string")
         else:
             people = raw_people
 
-    if name is None or problems:
-        return None, problems
-    return SurnameEntry(name=name, people=people), problems
+    if name is None or ctx.failed:
+        return None
+    return SurnameEntry(name=name, people=people)
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,47 +98,31 @@ class SurnameTable:
     names: tuple[SurnameEntry, ...]
 
 
-def parse_surnames(
-    data: Mapping[str, object], file: str
-) -> tuple[SurnameTable | None, tuple[ValidationProblem, ...]]:
-    problems: list[ValidationProblem] = []
-    problems.extend(
-        unrecognized_key_problems(data, _HEADER_KEYS | {"region", "source", "names"}, file)
-    )
+def parse_surnames(data: Mapping[str, object], ctx: ParseContext) -> SurnameTable | None:
+    ctx.unrecognized_keys(data, HEADER_KEYS | {"region", "source", "names"})
 
-    region = require_string(data, "region", file, "region", problems)
-    source = require_string(data, "source", file, "source", problems)
+    region = ctx.require_string(data, "region")
+    source = ctx.require_string(data, "source")
 
     names: tuple[SurnameEntry, ...] | None = None
-    if "names" not in data:
-        problems.append(
-            ValidationProblem(file=file, location="names", found="missing", expected="an array")
-        )
-    else:
-        raw = data["names"]
-        if not isinstance(raw, list) or not raw:
-            found = type_name(raw) if not isinstance(raw, list) else "an empty array"
-            problems.append(
-                ValidationProblem(
-                    file=file, location="names", found=found, expected="at least one entry"
-                )
-            )
-        else:
-            parsed: list[SurnameEntry] = []
-            ok = True
-            for index, item in enumerate(raw):
-                entry, sub_problems = _parse_surname_entry(item, file, f"names[{index}]")
-                problems.extend(sub_problems)
-                if entry is None:
-                    ok = False
-                else:
-                    parsed.append(entry)
-            if ok:
-                names = tuple(parsed)
+    raw_names = ctx.require_list(
+        data, "names", expected="at least one entry", expected_missing="an array"
+    )
+    if raw_names is not None:
+        parsed: list[SurnameEntry] = []
+        ok = True
+        for index, item in enumerate(raw_names):
+            entry = _parse_surname_entry(item, ctx.at("names", index))
+            if entry is None:
+                ok = False
+            else:
+                parsed.append(entry)
+        if ok:
+            names = tuple(parsed)
 
-    if problems or region is None or source is None or names is None:
-        return None, tuple(problems)
-    return SurnameTable(region=region, source=source, names=names), ()
+    if ctx.failed or region is None or source is None or names is None:
+        return None
+    return SurnameTable(region=region, source=source, names=names)
 
 
 @dataclass(frozen=True, slots=True)

@@ -10,7 +10,7 @@ with the result (research R7).
 
 import tomllib
 from collections import defaultdict
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from functools import cache
 from importlib import resources
@@ -52,15 +52,8 @@ from cetools.registries import (
     parse_characteristics,
     parse_skills,
 )
-from cetools.schema import (
-    require_dict,
-    require_int,
-    require_roll,
-    unrecognized_key_problems,
-)
+from cetools.schema import HEADER_KEYS, ParseContext
 from cetools.tasks import TaskParameters
-
-_HEADER_KEYS = frozenset({"schema", "schema-version"})
 
 _SUPPORTED_VERSION = {
     "task-parameters": 2,
@@ -145,48 +138,37 @@ class ValidationReport:
 # --- task-parameters schema (contracts/data-files.md) ----------------------
 
 
-def parse_task_parameters(
-    data: Mapping[str, object], file: str
-) -> tuple[TaskParameters | None, tuple[ValidationProblem, ...]]:
+def parse_task_parameters(data: Mapping[str, object], ctx: ParseContext) -> TaskParameters | None:
     """Validate one already-parsed `task-parameters` TOML dict, collecting
     every problem rather than raising on the first (research R7). Restates
     every rule the previous single-purpose reader enforced.
     """
-    problems: list[ValidationProblem] = []
-    problems.extend(
-        unrecognized_key_problems(data, _HEADER_KEYS | {"task", "difficulty-dms"}, file)
-    )
+    ctx.unrecognized_keys(data, HEADER_KEYS | {"task", "difficulty-dms"})
 
     # `require_dict`'s `None` fallback stands in for an invalid `[task]`
     # table; the unrecognized-key check below is then run against `{}` and
     # reports nothing extra, matching what skipping it outright would do.
-    task = require_dict(data.get("task"), file, "task", "a [task] table", problems) or {}
-    problems.extend(
-        unrecognized_key_problems(task, {"roll", "target", "unskilled-dm"}, file, "task.")
-    )
+    task_ctx = ctx.at("task")
+    task = task_ctx.require_dict(data.get("task"), expected="a [task] table") or {}
+    task_ctx.unrecognized_keys(task, {"roll", "target", "unskilled-dm"})
 
-    roll = require_roll(task, "roll", file, "task.roll", problems)
-    target = require_int(task, "target", file, "task.target", problems)
-    unskilled_dm = require_int(task, "unskilled-dm", file, "task.unskilled-dm", problems)
+    roll = task_ctx.require_roll(task, "roll")
+    target = task_ctx.require_int(task, "target")
+    unskilled_dm = task_ctx.require_int(task, "unskilled-dm")
 
     difficulty_dms: dict[str, int] = {}
     dd = data.get("difficulty-dms")
+    difficulty_dms_ctx = ctx.at("difficulty-dms")
     if not isinstance(dd, dict) or not dd:
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location="difficulty-dms",
-                found=(
-                    "missing" if dd is None else ("an empty table" if dd == {} else type_name(dd))
-                ),
-                expected="a [difficulty-dms] table with at least one entry",
-            )
+        difficulty_dms_ctx.report(
+            found=("missing" if dd is None else ("an empty table" if dd == {} else type_name(dd))),
+            expected="a [difficulty-dms] table with at least one entry",
         )
     else:
         zero_count = 0
         ok = True
         for name in dd:
-            value = require_int(dd, name, file, f"difficulty-dms.{name}", problems)
+            value = difficulty_dms_ctx.require_int(dd, name)
             if value is None:
                 ok = False
                 continue
@@ -194,44 +176,19 @@ def parse_task_parameters(
                 zero_count += 1
             difficulty_dms[name] = value
         if ok and zero_count != 1:
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location="difficulty-dms",
-                    found=f"{zero_count} rungs at modifier 0",
-                    expected="exactly one rung at modifier 0",
-                )
+            difficulty_dms_ctx.report(
+                found=f"{zero_count} rungs at modifier 0",
+                expected="exactly one rung at modifier 0",
             )
 
-    if problems:
-        return None, tuple(problems)
-    return (
-        TaskParameters(
-            roll=roll,
-            target=target,
-            unskilled_dm=unskilled_dm,
-            difficulty_dms=difficulty_dms,
-        ),
-        (),
+    if ctx.failed:
+        return None
+    return TaskParameters(
+        roll=roll,
+        target=target,
+        unskilled_dm=unskilled_dm,
+        difficulty_dms=difficulty_dms,
     )
-
-
-# Kind to parse function, one entry per single-instance kind whose parser
-# needs nothing beyond its own file's data. `background-skills` is the one
-# exception: its parser also takes the skills registry, so it is parsed
-# separately once that registry is resolved, below.
-_SINGLETON_PARSERS = {
-    "task-parameters": parse_task_parameters,
-    "characteristics": parse_characteristics,
-    "skills": parse_skills,
-    "benefits": parse_benefits,
-    "draft-table": parse_draft_table,
-    "aging-table": parse_aging_table,
-    "mishap-table": parse_mishap_table,
-    "medical-tiers": parse_medical_tiers,
-    "chargen-parameters": parse_chargen_parameters,
-    "given-names": parse_given_names,
-}
 
 
 # --- discovery ---------------------------------------------------------------
@@ -659,25 +616,39 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
         else:
             resolved_singleton[kind] = declarers[0]
 
-    singletons: dict[str, object] = {}
-    for kind, parser in _SINGLETON_PARSERS.items():
-        if kind not in resolved_singleton:
-            continue
-        basename = resolved_singleton[kind]
-        value, sub_problems = parser(parsed[basename][1], basename)
-        problems.extend(sub_problems)
-        singletons[kind] = value
+    def parse_singleton[T](kind: str, parser: Callable[..., T | None], *extra: object) -> T | None:
+        """Parse the one file declaring `kind`, through its own carrier.
 
-    task_parameters: TaskParameters | None = singletons.get("task-parameters")
-    characteristics: CharacteristicRegistry | None = singletons.get("characteristics")
-    skills: SkillRegistry | None = singletons.get("skills")
-    benefits: BenefitRegistry | None = singletons.get("benefits")
-    draft: DraftTable | None = singletons.get("draft-table")
-    aging: AgingTable | None = singletons.get("aging-table")
-    mishaps: MishapTable | None = singletons.get("mishap-table")
-    medical_tiers: MedicalTiers | None = singletons.get("medical-tiers")
-    chargen: ChargenParameters | None = singletons.get("chargen-parameters")
-    given_names: GivenNameTable | None = singletons.get("given-names")
+        One carrier and one collection per file (research R5), folded into the
+        run-wide list at the point that kind is parsed -- so the call order
+        below is the insertion order, and moving a call moves a report. The
+        loader's single `problems.sort()` is what makes that unobservable
+        (FR-015), and it stays where it is.
+        """
+        if kind not in resolved_singleton:
+            return None
+        basename = resolved_singleton[kind]
+        ctx = ParseContext(basename)
+        value = parser(parsed[basename][1], ctx, *extra)
+        problems.extend(ctx.problems)
+        return value
+
+    given_names: GivenNameTable | None = parse_singleton("given-names", parse_given_names)
+    task_parameters: TaskParameters | None = parse_singleton(
+        "task-parameters", parse_task_parameters
+    )
+    characteristics: CharacteristicRegistry | None = parse_singleton(
+        "characteristics", parse_characteristics
+    )
+    skills: SkillRegistry | None = parse_singleton("skills", parse_skills)
+    benefits: BenefitRegistry | None = parse_singleton("benefits", parse_benefits)
+    draft: DraftTable | None = parse_singleton("draft-table", parse_draft_table)
+    aging: AgingTable | None = parse_singleton("aging-table", parse_aging_table)
+    mishaps: MishapTable | None = parse_singleton("mishap-table", parse_mishap_table)
+    medical_tiers: MedicalTiers | None = parse_singleton("medical-tiers", parse_medical_tiers)
+    chargen: ChargenParameters | None = parse_singleton(
+        "chargen-parameters", parse_chargen_parameters
+    )
 
     # Career validation proceeds even when a registry is missing or invalid,
     # against an empty substitute, so every reference cascades into its own
@@ -686,23 +657,21 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
     career_skills = skills or SkillRegistry(skills=MappingProxyType({}))
     career_benefits = benefits or BenefitRegistry(items=())
 
-    background_skills: BackgroundSkills | None = None
-    if "background-skills" in resolved_singleton:
-        bg_basename = resolved_singleton["background-skills"]
-        background_skills, bg_problems = parse_background_skills(
-            parsed[bg_basename][1], bg_basename, career_skills
-        )
-        problems.extend(bg_problems)
+    # Parsed after the substitutes above, because it takes the skills registry.
+    background_skills: BackgroundSkills | None = parse_singleton(
+        "background-skills", parse_background_skills, career_skills
+    )
 
     careers: dict[str, CareerDefinition] = {}
     career_names_seen: dict[str, str] = {}
     for basename, (kind, toml_data) in sorted(parsed.items()):
         if kind != "career":
             continue
-        career, sub_problems = _parse_career(
-            toml_data, basename, career_characteristics, career_skills, career_benefits
+        career_ctx = ParseContext(basename)
+        career = _parse_career(
+            toml_data, career_ctx, career_characteristics, career_skills, career_benefits
         )
-        problems.extend(sub_problems)
+        problems.extend(career_ctx.problems)
         if career is None:
             continue
         if career.name in career_names_seen:
@@ -725,8 +694,9 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
     for basename, (kind, toml_data) in sorted(parsed.items()):
         if kind != "surnames":
             continue
-        table, sub_problems = _parse_surnames(toml_data, basename)
-        problems.extend(sub_problems)
+        surnames_ctx = ParseContext(basename)
+        table = _parse_surnames(toml_data, surnames_ctx)
+        problems.extend(surnames_ctx.problems)
         if table is None:
             continue
         if table.region in surname_regions_seen:
@@ -1016,42 +986,43 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
         frozenset(characteristics.classes.values()) if characteristics is not None else frozenset()
     )
 
-    def _class_effect_problems(file: str, location: str, characteristic_class: str) -> None:
+    def _class_effect_problems(ctx: ParseContext, characteristic_class: str) -> None:
         if characteristic_class not in characteristic_classes:
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location=location,
-                    found=repr(characteristic_class),
-                    expected=(
-                        f"one of the declared characteristic classes: "
-                        f"{', '.join(sorted(characteristic_classes))}"
-                        if characteristic_classes
-                        else "a class declared by the characteristics registry"
-                    ),
-                )
+            ctx.report(
+                found=repr(characteristic_class),
+                expected=(
+                    f"one of the declared characteristic classes: "
+                    f"{', '.join(sorted(characteristic_classes))}"
+                    if characteristic_classes
+                    else "a class declared by the characteristics registry"
+                ),
             )
 
     if aging is not None:
         aging_basename = resolved_singleton["aging-table"]
+        # Built over the run-wide `problems` list directly, at the point this
+        # cross-file check runs today, rather than over a fresh list: this is
+        # a cross-file rule that happens to report at a location inside one
+        # named file (FR-012a), not a per-file parser with its own collection
+        # (research R4).
+        aging_class_ctx = ParseContext(aging_basename, problems=problems)
         for row_index, row in enumerate(aging.rows):
             for effect_index, effect in enumerate(row.effects):
                 _class_effect_problems(
-                    aging_basename,
-                    f"rows[{row_index}].effects[{effect_index}].class",
+                    aging_class_ctx.at("rows", row_index, "effects", effect_index, "class"),
                     effect.characteristic_class,
                 )
 
     if mishaps is not None:
         mishaps_basename = resolved_singleton["mishap-table"]
+        mishaps_class_ctx = ParseContext(mishaps_basename, problems=problems)
         for section, section_rows in (("mishaps", mishaps.rows), ("injuries", mishaps.injuries)):
             for row_index, row in enumerate(section_rows):
                 for effect_index, effect in enumerate(row.effects):
                     if effect.kind != "characteristic-class":
                         continue
                     _class_effect_problems(
-                        mishaps_basename,
-                        f"{section}[{row_index}].effects[{effect_index}].class",
+                        mishaps_class_ctx.at(section, row_index, "effects", effect_index, "class"),
                         effect.characteristic_class,
                     )
 

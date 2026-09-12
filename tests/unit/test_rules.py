@@ -4,7 +4,17 @@ from pathlib import Path
 import pytest
 
 from cetools.errors import RulesDataError, TaskError
-from cetools.rules import load_rules, parse_task_parameters, validate_rules
+from cetools.rules import load_rules
+from cetools.rules import parse_task_parameters as _parse_task_parameters
+from cetools.rules import validate_rules
+from cetools.schema import ParseContext
+
+
+def parse_task_parameters(data, file):
+    ctx = ParseContext(file)
+    parameters = _parse_task_parameters(data, ctx)
+    return parameters, ctx.problems
+
 
 _DATA = Path(__file__).resolve().parents[2] / "src" / "cetools" / "data"
 CHARACTERISTICS = (_DATA / "registries" / "characteristics.toml").read_text(encoding="utf-8")

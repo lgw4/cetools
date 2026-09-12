@@ -9,8 +9,8 @@ from cetools.careers import (
     RankLadder,
     SkillTable,
     Throw,
-    parse_career,
 )
+from cetools.careers import parse_career as _parse_career
 from cetools.notation import (
     CharacteristicAdjustment,
     CharacteristicCheck,
@@ -18,8 +18,15 @@ from cetools.notation import (
     SkillReference,
 )
 from cetools.registries import BenefitRegistry, CharacteristicRegistry, SkillRegistry
+from cetools.schema import ParseContext
 
 FILE = "navy.toml"
+
+
+def parse_career(data, file, characteristics, skills, benefits):
+    ctx = ParseContext(file)
+    career = _parse_career(data, ctx, characteristics, skills, benefits)
+    return career, ctx.problems
 
 
 @pytest.fixture

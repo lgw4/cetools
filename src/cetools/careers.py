@@ -13,7 +13,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 
-from cetools.errors import ValidationProblem, type_name
+from cetools.errors import type_name
 from cetools.notation import (
     BenefitItem,
     CharacteristicAdjustment,
@@ -31,18 +31,10 @@ from cetools.registries import (
     SkillRegistry,
     SkillResolution,
 )
-from cetools.schema import (
-    optional_bool,
-    require_dict,
-    require_int,
-    require_roll,
-    require_string,
-    unrecognized_key_problems,
-)
+from cetools.schema import HEADER_KEYS, ParseContext
 
 type SkillTableEntry = SkillReference | SkillGrant | CharacteristicAdjustment
 
-_HEADER_KEYS = frozenset({"schema", "schema-version"})
 _REQUIRED_THROWS = ("qualification", "survival", "re-enlistment")
 _OPTIONAL_THROWS = ("commission", "promotion")
 _ALL_THROWS = frozenset(_REQUIRED_THROWS) | frozenset(_OPTIONAL_THROWS)
@@ -125,66 +117,53 @@ def _notation_field(
     value: object,
     context: EntryContext,
     *,
-    file: str,
-    location: str,
+    ctx: ParseContext,
     characteristics: CharacteristicRegistry,
     skills: SkillRegistry,
     benefits: BenefitRegistry,
-) -> object | ValidationProblem:
+) -> object | None:
     if not isinstance(value, str):
-        return ValidationProblem(
-            file=file, location=location, found=type_name(value), expected="a notation string"
-        )
+        ctx.report(found=type_name(value), expected="a notation string")
+        return None
 
     parsed = parse_entry(value, context)
     if isinstance(parsed, NotationProblem):
-        return ValidationProblem(
-            file=file, location=location, found=parsed.found, expected=parsed.expected
-        )
+        ctx.report(found=parsed.found, expected=parsed.expected)
+        return None
 
     match parsed:
         case CharacteristicCheck(characteristic=code) | CharacteristicAdjustment(
             characteristic=code
         ):
             if code not in characteristics:
-                return ValidationProblem(
-                    file=file,
-                    location=location,
-                    found=code,
-                    expected="a code in the characteristics registry",
-                )
+                ctx.report(found=code, expected="a code in the characteristics registry")
+                return None
         case SkillGrant(skill=reference):
-            problem = _skill_problem(skills.resolve(reference), reference, file, location)
-            if problem is not None:
-                return problem
+            if _skill_problem(skills.resolve(reference), reference, ctx):
+                return None
         case SkillReference() as reference:
-            problem = _skill_problem(skills.resolve(reference), reference, file, location)
-            if problem is not None:
-                return problem
+            if _skill_problem(skills.resolve(reference), reference, ctx):
+                return None
         case BenefitItem(name=name) | QuantifiedBenefit(name=name):
             if name not in benefits:
-                return ValidationProblem(
-                    file=file,
-                    location=location,
-                    found=name,
-                    expected="a name in the benefits registry",
-                )
+                ctx.report(found=name, expected="a name in the benefits registry")
+                return None
 
     return parsed
 
 
 def _skill_problem(
-    resolution: SkillResolution, reference: SkillReference, file: str, location: str
-) -> ValidationProblem | None:
-    """Every outcome but `VALID` names the skills registry, because FR-013
-    asks a rejected name to report which registry it was checked against.
+    resolution: SkillResolution, reference: SkillReference, ctx: ParseContext
+) -> bool:
+    """Report a skill-resolution problem through `ctx` and return whether one
+    was reported. Every outcome but `VALID` names the skills registry,
+    because FR-013 asks a rejected name to report which registry it was
+    checked against.
     """
     if resolution is SkillResolution.VALID:
-        return None
+        return False
     if resolution is SkillResolution.UNRECOGNIZED_SKILL:
-        return ValidationProblem(
-            file=file,
-            location=location,
+        ctx.report(
             found=(
                 f"{reference.name} ({reference.specialty})"
                 if reference.specialty is not None
@@ -192,102 +171,71 @@ def _skill_problem(
             ),
             expected="a name in the skills registry",
         )
+        return True
     if resolution is SkillResolution.SPECIALTY_NOT_ALLOWED:
-        return ValidationProblem(
-            file=file,
-            location=location,
+        ctx.report(
             found=f"{reference.name} ({reference.specialty})",
             expected=f"a bare {reference.name}: the skills registry gives it no specialties",
         )
-    return ValidationProblem(
-        file=file,
-        location=location,
+        return True
+    ctx.report(
         found=f"{reference.name} ({reference.specialty})",
         expected=f"a specialty the skills registry gives {reference.name}",
     )
+    return True
 
 
 def _parse_throw(
     value: object,
-    file: str,
-    location: str,
+    ctx: ParseContext,
     characteristics: CharacteristicRegistry,
-    problems: list[ValidationProblem],
     *,
     admits_characteristic: bool = True,
 ) -> Throw | None:
-    table = require_dict(value, file, location, "a throw table", problems)
+    table = ctx.require_dict(value, expected="a throw table")
     if table is None:
         return None
 
     allowed_keys = {"target", "dice"} | ({"characteristic"} if admits_characteristic else set())
-    problems.extend(unrecognized_key_problems(table, allowed_keys, file, f"{location}."))
+    ctx.unrecognized_keys(table, allowed_keys)
 
     characteristic = None
     if "characteristic" in table and admits_characteristic:
         code = table["characteristic"]
         if not isinstance(code, str):
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location=f"{location}.characteristic",
-                    found=type_name(code),
-                    expected="a string",
-                )
-            )
+            ctx.at("characteristic").report(found=type_name(code), expected="a string")
         elif code not in characteristics:
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location=f"{location}.characteristic",
-                    found=code,
-                    expected="a code in the characteristics registry",
-                )
+            ctx.at("characteristic").report(
+                found=code, expected="a code in the characteristics registry"
             )
         else:
             characteristic = code
 
-    target = require_int(table, "target", file, f"{location}.target", problems, minimum=1)
-    dice = require_roll(table, "dice", file, f"{location}.dice", problems)
+    target = ctx.require_int(table, "target", minimum=1)
+    dice = ctx.require_roll(table, "dice")
     if target is None or dice is None:
         return None
     return Throw(characteristic=characteristic, target=target, dice=dice)
 
 
 def _parse_throws(
-    raw: object,
-    file: str,
-    characteristics: CharacteristicRegistry,
-    problems: list[ValidationProblem],
+    raw: object, ctx: ParseContext, characteristics: CharacteristicRegistry
 ) -> Mapping[str, Throw]:
     if not isinstance(raw, dict):
-        problems.append(
-            ValidationProblem(
-                file=file, location="throws", found=type_name(raw), expected="a throws table"
-            )
-        )
+        ctx.report(found=type_name(raw), expected="a throws table")
         return {}
 
-    problems.extend(unrecognized_key_problems(raw, _ALL_THROWS, file, "throws."))
+    ctx.unrecognized_keys(raw, _ALL_THROWS)
     for key in _REQUIRED_THROWS:
         if key not in raw:
-            problems.append(
-                ValidationProblem(
-                    file=file, location=f"throws.{key}", found="missing", expected="a throw"
-                )
-            )
+            ctx.at(key).report(found="missing", expected="a throw")
 
     throws: dict[str, Throw] = {}
     for key, value in raw.items():
         if key not in _ALL_THROWS:
             continue
         throw = _parse_throw(
-            value,
-            file,
-            f"throws.{key}",
-            characteristics,
-            problems,
-            admits_characteristic=key != "re-enlistment",
+            value, ctx.at(key), characteristics, admits_characteristic=key != "re-enlistment"
         )
         if throw is not None:
             throws[key] = throw
@@ -296,81 +244,50 @@ def _parse_throws(
 
 def _parse_skill_table(
     value: object,
-    file: str,
-    location: str,
+    ctx: ParseContext,
     characteristics: CharacteristicRegistry,
     skills: SkillRegistry,
     benefits: BenefitRegistry,
-    problems: list[ValidationProblem],
 ) -> SkillTable | None:
-    table = require_dict(value, file, location, "a table", problems)
+    table = ctx.require_dict(value, expected="a table")
     if table is None:
         return None
 
-    problems.extend(
-        unrecognized_key_problems(table, {"requires", "entries"}, file, f"{location}.")
-    )
+    ctx.unrecognized_keys(table, {"requires", "entries"})
 
     requires = None
     if "requires" in table:
-        resolved = _notation_field(
+        requires = _notation_field(
             table["requires"],
             EntryContext.GATE,
-            file=file,
-            location=f"{location}.requires",
+            ctx=ctx.at("requires"),
             characteristics=characteristics,
             skills=skills,
             benefits=benefits,
         )
-        if isinstance(resolved, ValidationProblem):
-            problems.append(resolved)
-        else:
-            requires = resolved
 
     entries: tuple[SkillTableEntry, ...] | None = None
-    if "entries" not in table:
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location=f"{location}.entries",
-                found="missing",
-                expected="a non-empty array",
+    raw_entries = ctx.require_list(
+        table, "entries", expected="at least one entry", expected_missing="a non-empty array"
+    )
+    if raw_entries is not None:
+        parsed_entries = []
+        ok = True
+        for index, item in enumerate(raw_entries):
+            resolved = _notation_field(
+                item,
+                EntryContext.SKILL_TABLE,
+                ctx=ctx.at("entries", index),
+                characteristics=characteristics,
+                skills=skills,
+                benefits=benefits,
             )
-        )
-    else:
-        raw_entries = table["entries"]
-        if not isinstance(raw_entries, list) or not raw_entries:
-            found = (
-                type_name(raw_entries) if not isinstance(raw_entries, list) else "an empty array"
-            )
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location=f"{location}.entries",
-                    found=found,
-                    expected="at least one entry",
-                )
-            )
-        else:
-            parsed_entries = []
-            ok = True
-            for index, item in enumerate(raw_entries):
-                resolved = _notation_field(
-                    item,
-                    EntryContext.SKILL_TABLE,
-                    file=file,
-                    location=f"{location}.entries[{index}]",
-                    characteristics=characteristics,
-                    skills=skills,
-                    benefits=benefits,
-                )
-                if isinstance(resolved, ValidationProblem):
-                    problems.append(resolved)
-                    ok = False
-                else:
-                    parsed_entries.append(resolved)
-            if ok:
-                entries = tuple(parsed_entries)
+            if resolved is None:
+                ok = False
+            else:
+                parsed_entries.append(resolved)
+        if ok:
+            entries = tuple(parsed_entries)
 
     if entries is None:
         return None
@@ -379,36 +296,25 @@ def _parse_skill_table(
 
 def _parse_tables(
     raw: object,
-    file: str,
+    ctx: ParseContext,
     characteristics: CharacteristicRegistry,
     skills: SkillRegistry,
     benefits: BenefitRegistry,
-    problems: list[ValidationProblem],
 ) -> Mapping[str, SkillTable]:
     if not isinstance(raw, dict):
-        problems.append(
-            ValidationProblem(
-                file=file, location="tables", found=type_name(raw), expected="a tables table"
-            )
-        )
+        ctx.report(found=type_name(raw), expected="a tables table")
         return {}
 
-    problems.extend(unrecognized_key_problems(raw, _ALL_TABLES, file, "tables."))
+    ctx.unrecognized_keys(raw, _ALL_TABLES)
     for key in _REQUIRED_TABLES:
         if key not in raw:
-            problems.append(
-                ValidationProblem(
-                    file=file, location=f"tables.{key}", found="missing", expected="a table"
-                )
-            )
+            ctx.at(key).report(found="missing", expected="a table")
 
     tables: dict[str, SkillTable] = {}
     for key, value in raw.items():
         if key not in _ALL_TABLES:
             continue
-        table = _parse_skill_table(
-            value, file, f"tables.{key}", characteristics, skills, benefits, problems
-        )
+        table = _parse_skill_table(value, ctx.at(key), characteristics, skills, benefits)
         if table is not None:
             tables[key] = table
     return tables
@@ -416,55 +322,39 @@ def _parse_tables(
 
 def _parse_rank(
     value: object,
-    file: str,
-    location: str,
+    ctx: ParseContext,
     characteristics: CharacteristicRegistry,
     skills: SkillRegistry,
     benefits: BenefitRegistry,
-    problems: list[ValidationProblem],
 ) -> Rank | None:
-    table = require_dict(value, file, location, "a rank table", problems)
+    table = ctx.require_dict(value, expected="a rank table")
     if table is None:
         return None
 
-    problems.extend(
-        unrecognized_key_problems(table, {"rank", "title", "bonus"}, file, f"{location}.")
-    )
+    ctx.unrecognized_keys(table, {"rank", "title", "bonus"})
 
-    rank_position = require_int(table, "rank", file, f"{location}.rank", problems, minimum=0)
+    rank_position = ctx.require_int(table, "rank", minimum=0)
 
     title = ""
     if "title" in table:
         raw_title = table["title"]
         if not isinstance(raw_title, str) or not raw_title:
             found = "an empty string" if raw_title == "" else type_name(raw_title)
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location=f"{location}.title",
-                    found=found,
-                    expected="a non-empty string",
-                )
-            )
+            ctx.at("title").report(found=found, expected="a non-empty string")
             title = None
         else:
             title = raw_title
 
     bonus = None
     if "bonus" in table:
-        resolved = _notation_field(
+        bonus = _notation_field(
             table["bonus"],
             EntryContext.SKILL_TABLE,
-            file=file,
-            location=f"{location}.bonus",
+            ctx=ctx.at("bonus"),
             characteristics=characteristics,
             skills=skills,
             benefits=benefits,
         )
-        if isinstance(resolved, ValidationProblem):
-            problems.append(resolved)
-        else:
-            bonus = resolved
 
     if rank_position is None or title is None:
         return None
@@ -472,41 +362,23 @@ def _parse_rank(
 
 
 def _parse_ranks(
-    raw: object,
-    file: str,
-    location: str,
+    raw: list,
+    ctx: ParseContext,
     characteristics: CharacteristicRegistry,
     skills: SkillRegistry,
     benefits: BenefitRegistry,
-    problems: list[ValidationProblem],
 ) -> tuple[Rank, ...] | None:
-    if not isinstance(raw, list) or not raw:
-        found = type_name(raw) if not isinstance(raw, list) else "an empty array"
-        problems.append(
-            ValidationProblem(
-                file=file, location=location, found=found, expected="at least one rank"
-            )
-        )
-        return None
-
     ranks: list[Rank] = []
     positions_seen: set[int] = set()
     ok = True
     for index, item in enumerate(raw):
-        rank = _parse_rank(
-            item, file, f"{location}[{index}]", characteristics, skills, benefits, problems
-        )
+        rank = _parse_rank(item, ctx.at(index), characteristics, skills, benefits)
         if rank is None:
             ok = False
             continue
         if rank.rank in positions_seen:
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location=f"{location}[{index}].rank",
-                    found=str(rank.rank),
-                    expected="a position distinct within its ladder",
-                )
+            ctx.at(index, "rank").report(
+                found=str(rank.rank), expected="a position distinct within its ladder"
             )
             ok = False
             continue
@@ -520,13 +392,9 @@ def _parse_ranks(
     contiguous = set(range(base, base + len(positions_seen)))
     if positions_seen != contiguous:
         missing = sorted(contiguous - positions_seen)
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location=location,
-                found=f"positions {sorted(positions_seen)}",
-                expected=f"contiguous from {base}: missing {missing}",
-            )
+        ctx.report(
+            found=f"positions {sorted(positions_seen)}",
+            expected=f"contiguous from {base}: missing {missing}",
         )
         return None
 
@@ -535,61 +403,39 @@ def _parse_ranks(
 
 def _parse_ladder(
     value: object,
-    file: str,
-    location: str,
+    ctx: ParseContext,
     characteristics: CharacteristicRegistry,
     skills: SkillRegistry,
     benefits: BenefitRegistry,
-    problems: list[ValidationProblem],
 ) -> RankLadder | None:
-    table = require_dict(value, file, location, "a ladder table", problems)
+    table = ctx.require_dict(value, expected="a ladder table")
     if table is None:
         return None
 
-    problems.extend(
-        unrecognized_key_problems(table, {"name", "role", "ranks"}, file, f"{location}.")
-    )
+    ctx.unrecognized_keys(table, {"name", "role", "ranks"})
 
-    name = require_string(table, "name", file, f"{location}.name", problems)
+    name = ctx.require_string(table, "name")
 
     role = None
     if "role" not in table:
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location=f"{location}.role",
-                found="missing",
-                expected=f"one of: {', '.join(sorted(_LADDER_ROLES))}",
-            )
+        ctx.at("role").report(
+            found="missing", expected=f"one of: {', '.join(sorted(_LADDER_ROLES))}"
         )
     else:
         raw_role = table["role"]
         if raw_role not in _LADDER_ROLES:
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location=f"{location}.role",
-                    found=repr(raw_role),
-                    expected=f"one of: {', '.join(sorted(_LADDER_ROLES))}",
-                )
+            ctx.at("role").report(
+                found=repr(raw_role), expected=f"one of: {', '.join(sorted(_LADDER_ROLES))}"
             )
         else:
             role = raw_role
 
-    ranks: tuple[Rank, ...] | None = None
-    if "ranks" not in table:
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location=f"{location}.ranks",
-                found="missing",
-                expected="at least one rank",
-            )
-        )
-    else:
-        ranks = _parse_ranks(
-            table["ranks"], file, f"{location}.ranks", characteristics, skills, benefits, problems
-        )
+    raw_ranks = ctx.require_list(table, "ranks", expected="at least one rank")
+    ranks = (
+        _parse_ranks(raw_ranks, ctx.at("ranks"), characteristics, skills, benefits)
+        if raw_ranks is not None
+        else None
+    )
 
     if name is None or role is None or ranks is None:
         return None
@@ -597,40 +443,23 @@ def _parse_ladder(
 
 
 def _parse_ladders(
-    raw: object,
-    file: str,
+    raw: list,
+    ctx: ParseContext,
     characteristics: CharacteristicRegistry,
     skills: SkillRegistry,
     benefits: BenefitRegistry,
-    problems: list[ValidationProblem],
 ) -> tuple[RankLadder, ...] | None:
-    if not isinstance(raw, list) or not raw:
-        found = type_name(raw) if not isinstance(raw, list) else "an empty array"
-        problems.append(
-            ValidationProblem(
-                file=file, location="ladders", found=found, expected="at least one ladder"
-            )
-        )
-        return None
-
     ladders: list[RankLadder] = []
     names_seen: set[str] = set()
     ok = True
     for index, item in enumerate(raw):
-        ladder = _parse_ladder(
-            item, file, f"ladders[{index}]", characteristics, skills, benefits, problems
-        )
+        ladder = _parse_ladder(item, ctx.at(index), characteristics, skills, benefits)
         if ladder is None:
             ok = False
             continue
         if ladder.name in names_seen:
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location=f"ladders[{index}].name",
-                    found=ladder.name,
-                    expected="a name distinct within the career",
-                )
+            ctx.at(index, "name").report(
+                found=ladder.name, expected="a name distinct within the career"
             )
             ok = False
             continue
@@ -642,25 +471,17 @@ def _parse_ladders(
 
     entry_count = sum(1 for ladder in ladders if ladder.role == "entry")
     if entry_count != 1:
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location="ladders",
-                found=f"{entry_count} ladders with role 'entry'",
-                expected="exactly one ladder with role 'entry'",
-            )
+        ctx.report(
+            found=f"{entry_count} ladders with role 'entry'",
+            expected="exactly one ladder with role 'entry'",
         )
         ok = False
 
     commissioned_count = sum(1 for ladder in ladders if ladder.role == "commissioned")
     if commissioned_count > 1:
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location="ladders",
-                found=f"{commissioned_count} ladders with role 'commissioned'",
-                expected="at most one ladder with role 'commissioned'",
-            )
+        ctx.report(
+            found=f"{commissioned_count} ladders with role 'commissioned'",
+            expected="at most one ladder with role 'commissioned'",
         )
         ok = False
 
@@ -669,13 +490,9 @@ def _parse_ladders(
     # rank 0 has nothing for that bare `next(...)` to find (T182).
     for index, ladder in enumerate(ladders):
         if ladder.role == "entry" and not any(rank.rank == 0 for rank in ladder.ranks):
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location=f"ladders[{index}].ranks",
-                    found="no rank 0",
-                    expected="a rank 0, since the entry ladder's bonus is always granted there",
-                )
+            ctx.at(index, "ranks").report(
+                found="no rank 0",
+                expected="a rank 0, since the entry ladder's bonus is always granted there",
             )
             ok = False
 
@@ -686,116 +503,60 @@ def _parse_ladders(
 
 def _parse_mustering_out(
     value: object,
-    file: str,
+    ctx: ParseContext,
     characteristics: CharacteristicRegistry,
     skills: SkillRegistry,
     benefits: BenefitRegistry,
-    problems: list[ValidationProblem],
 ) -> MusteringOut | None:
-    location = "mustering-out"
-    table = require_dict(value, file, location, "a mustering-out table", problems)
+    table = ctx.require_dict(value, expected="a mustering-out table")
     if table is None:
         return None
 
-    problems.extend(unrecognized_key_problems(table, {"cash", "benefits"}, file, f"{location}."))
+    ctx.unrecognized_keys(table, {"cash", "benefits"})
 
     cash: tuple[int, ...] | None = None
-    if "cash" not in table:
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location=f"{location}.cash",
-                found="missing",
-                expected="a non-empty array",
-            )
-        )
-    else:
-        raw_cash = table["cash"]
-        if not isinstance(raw_cash, list) or not raw_cash:
-            found = type_name(raw_cash) if not isinstance(raw_cash, list) else "an empty array"
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location=f"{location}.cash",
-                    found=found,
-                    expected="at least one amount",
-                )
-            )
-        else:
-            amounts = []
-            ok = True
-            for index, item in enumerate(raw_cash):
-                if not isinstance(item, int) or isinstance(item, bool):
-                    problems.append(
-                        ValidationProblem(
-                            file=file,
-                            location=f"{location}.cash[{index}]",
-                            found=type_name(item),
-                            expected="an integer",
-                        )
-                    )
-                    ok = False
-                elif item < 0:
-                    problems.append(
-                        ValidationProblem(
-                            file=file,
-                            location=f"{location}.cash[{index}]",
-                            found=str(item),
-                            expected="a non-negative integer",
-                        )
-                    )
-                    ok = False
-                else:
-                    amounts.append(item)
-            if ok:
-                cash = tuple(amounts)
+    raw_cash = ctx.require_list(
+        table, "cash", expected="at least one amount", expected_missing="a non-empty array"
+    )
+    if raw_cash is not None:
+        amounts = []
+        ok = True
+        for index, item in enumerate(raw_cash):
+            if not isinstance(item, int) or isinstance(item, bool):
+                ctx.at("cash", index).report(found=type_name(item), expected="an integer")
+                ok = False
+            elif item < 0:
+                ctx.at("cash", index).report(found=str(item), expected="a non-negative integer")
+                ok = False
+            else:
+                amounts.append(item)
+        if ok:
+            cash = tuple(amounts)
 
     mustering_benefits: (
         tuple[BenefitItem | CharacteristicAdjustment | QuantifiedBenefit, ...] | None
     ) = None
-    if "benefits" not in table:
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location=f"{location}.benefits",
-                found="missing",
-                expected="a non-empty array",
+    raw_benefits = ctx.require_list(
+        table, "benefits", expected="at least one benefit", expected_missing="a non-empty array"
+    )
+    if raw_benefits is not None:
+        items = []
+        ok = True
+        for index, item in enumerate(raw_benefits):
+            resolved = _notation_field(
+                item,
+                EntryContext.BENEFIT_TABLE,
+                ctx=ctx.at("benefits", index),
+                characteristics=characteristics,
+                skills=skills,
+                benefits=benefits,
             )
-        )
-    else:
-        raw_benefits = table["benefits"]
-        if not isinstance(raw_benefits, list) or not raw_benefits:
-            found = (
-                type_name(raw_benefits) if not isinstance(raw_benefits, list) else "an empty array"
-            )
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location=f"{location}.benefits",
-                    found=found,
-                    expected="at least one benefit",
-                )
-            )
-        else:
-            items = []
-            ok = True
-            for index, item in enumerate(raw_benefits):
-                resolved = _notation_field(
-                    item,
-                    EntryContext.BENEFIT_TABLE,
-                    file=file,
-                    location=f"{location}.benefits[{index}]",
-                    characteristics=characteristics,
-                    skills=skills,
-                    benefits=benefits,
-                )
-                if isinstance(resolved, ValidationProblem):
-                    problems.append(resolved)
-                    ok = False
-                else:
-                    items.append(resolved)
-            if ok:
-                mustering_benefits = tuple(items)
+            if resolved is None:
+                ok = False
+            else:
+                items.append(resolved)
+        if ok:
+            mustering_benefits = tuple(items)
 
     if cash is None or mustering_benefits is None:
         return None
@@ -804,97 +565,69 @@ def _parse_mustering_out(
 
 def parse_career(
     data: Mapping[str, object],
-    file: str,
+    ctx: ParseContext,
     characteristics: CharacteristicRegistry,
     skills: SkillRegistry,
     benefits: BenefitRegistry,
-) -> tuple[CareerDefinition | None, tuple[ValidationProblem, ...]]:
-    problems: list[ValidationProblem] = []
-    problems.extend(
-        unrecognized_key_problems(
-            data,
-            _HEADER_KEYS
-            | {
-                "name",
-                "medical-tier",
-                "always-available",
-                "re-enterable",
-                "throws",
-                "tables",
-                "ladders",
-                "mustering-out",
-            },
-            file,
-        )
+) -> CareerDefinition | None:
+    ctx.unrecognized_keys(
+        data,
+        HEADER_KEYS
+        | {
+            "name",
+            "medical-tier",
+            "always-available",
+            "re-enterable",
+            "throws",
+            "tables",
+            "ladders",
+            "mustering-out",
+        },
     )
 
-    name = require_string(data, "name", file, "name", problems)
-    medical_tier = require_string(data, "medical-tier", file, "medical-tier", problems)
+    name = ctx.require_string(data, "name")
+    medical_tier = ctx.require_string(data, "medical-tier")
 
-    always_available = optional_bool(data, "always-available", file, "always-available", problems)
-    re_enterable = optional_bool(data, "re-enterable", file, "re-enterable", problems)
+    always_available = ctx.optional_bool(data, "always-available")
+    re_enterable = ctx.optional_bool(data, "re-enterable")
 
     throws: Mapping[str, Throw] = {}
     if "throws" not in data:
-        problems.append(
-            ValidationProblem(
-                file=file, location="throws", found="missing", expected="a throws table"
-            )
-        )
+        ctx.at("throws").report(found="missing", expected="a throws table")
     else:
-        throws = _parse_throws(data["throws"], file, characteristics, problems)
+        throws = _parse_throws(data["throws"], ctx.at("throws"), characteristics)
 
     tables: Mapping[str, SkillTable] = {}
     if "tables" not in data:
-        problems.append(
-            ValidationProblem(
-                file=file, location="tables", found="missing", expected="a tables table"
-            )
-        )
+        ctx.at("tables").report(found="missing", expected="a tables table")
     else:
-        tables = _parse_tables(data["tables"], file, characteristics, skills, benefits, problems)
+        tables = _parse_tables(data["tables"], ctx.at("tables"), characteristics, skills, benefits)
 
-    ladders: tuple[RankLadder, ...] | None = ()
-    if "ladders" not in data:
-        problems.append(
-            ValidationProblem(
-                file=file, location="ladders", found="missing", expected="at least one ladder"
-            )
-        )
-        ladders = None
-    else:
-        ladders = _parse_ladders(
-            data["ladders"], file, characteristics, skills, benefits, problems
-        )
+    raw_ladders = ctx.require_list(data, "ladders", expected="at least one ladder")
+    ladders = (
+        _parse_ladders(raw_ladders, ctx.at("ladders"), characteristics, skills, benefits)
+        if raw_ladders is not None
+        else None
+    )
 
     mustering_out: MusteringOut | None = None
     if "mustering-out" not in data:
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location="mustering-out",
-                found="missing",
-                expected="a mustering-out table",
-            )
-        )
+        ctx.at("mustering-out").report(found="missing", expected="a mustering-out table")
     else:
         mustering_out = _parse_mustering_out(
-            data["mustering-out"], file, characteristics, skills, benefits, problems
+            data["mustering-out"], ctx.at("mustering-out"), characteristics, skills, benefits
         )
 
-    if problems or name is None or medical_tier is None:
-        return None, tuple(problems)
+    if ctx.failed or name is None or medical_tier is None:
+        return None
 
-    return (
-        CareerDefinition(
-            name=name,
-            medical_tier=medical_tier,
-            always_available=always_available,
-            re_enterable=re_enterable,
-            throws=MappingProxyType(dict(throws)),
-            tables=MappingProxyType(dict(tables)),
-            ladders=ladders,
-            mustering_out=mustering_out,
-        ),
-        (),
+    return CareerDefinition(
+        name=name,
+        medical_tier=medical_tier,
+        always_available=always_available,
+        re_enterable=re_enterable,
+        throws=MappingProxyType(dict(throws)),
+        tables=MappingProxyType(dict(tables)),
+        ladders=ladders,
+        mustering_out=mustering_out,
     )

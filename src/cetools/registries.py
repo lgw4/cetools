@@ -14,16 +14,9 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from types import MappingProxyType
 
-from cetools.errors import RulesDataError, TaskError, ValidationProblem, type_name
+from cetools.errors import RulesDataError, TaskError, type_name
 from cetools.notation import SkillReference
-from cetools.schema import (
-    require_dict,
-    require_int,
-    require_string,
-    unrecognized_key_problems,
-)
-
-_HEADER_KEYS = frozenset({"schema", "schema-version"})
+from cetools.schema import HEADER_KEYS, ParseContext
 
 _BAND_RANGE = re.compile(r"^(\d+)-(\d+)$")
 _BAND_UNBOUNDED = re.compile(r"^(\d+)\+$")
@@ -134,9 +127,7 @@ class BenefitRegistry:
         return name in self.items
 
 
-def _parse_bands(
-    data: object, file: str, location: str
-) -> tuple[tuple[Band, ...] | None, list[ValidationProblem]]:
+def _parse_bands(data: object, ctx: ParseContext) -> tuple[Band, ...] | None:
     """Parse a `key -> modifier` table (`"N-M"` or `"N+"`) into bands sorted
     by `minimum`, exactly one unbounded (003-npc-generator contracts/data-files.md).
 
@@ -144,27 +135,22 @@ def _parse_bands(
     `tasks.toml`'s `[characteristic-dms]`; the characteristics registry is
     where the bands live now (FR-039).
     """
-    problems: list[ValidationProblem] = []
     if not isinstance(data, dict) or not data:
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location=location,
-                found=(
-                    "missing"
-                    if data is None
-                    else ("an empty table" if data == {} else type_name(data))
-                ),
-                expected=f"a [{location}] table with at least one entry",
-            )
+        ctx.report(
+            found=(
+                "missing"
+                if data is None
+                else ("an empty table" if data == {} else type_name(data))
+            ),
+            expected=f"a [{ctx.location}] table with at least one entry",
         )
-        return None, problems
+        return None
 
     bands: list[Band] = []
     unbounded_count = 0
     ok = True
     for key in data:
-        value = require_int(data, key, file, f"{location}.{key}", problems)
+        value = ctx.require_int(data, key)
         if value is None:
             ok = False
             continue
@@ -176,99 +162,68 @@ def _parse_bands(
             minimum, maximum = int(unbounded_match.group(1)), None
             unbounded_count += 1
         else:
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location=f"{location}.{key}",
-                    found=repr(key),
-                    expected="a key of the form N-M or N+",
-                )
-            )
+            ctx.at(key).report(found=repr(key), expected="a key of the form N-M or N+")
             ok = False
             continue
         bands.append(Band(minimum=minimum, maximum=maximum, dm=value))
 
     if ok and unbounded_count != 1:
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location=location,
-                found=f"{unbounded_count} unbounded bands",
-                expected="exactly one unbounded band",
-            )
+        ctx.report(
+            found=f"{unbounded_count} unbounded bands",
+            expected="exactly one unbounded band",
         )
 
-    if problems:
-        return None, problems
+    if ctx.failed:
+        return None
     bands.sort(key=lambda band: band.minimum)
-    return tuple(bands), problems
+    return tuple(bands)
 
 
 _CHARACTERISTIC_ENTRY_KEYS = frozenset({"label", "class"})
 
 
-def _parse_characteristic_entry(
-    code: str, entry: object, file: str
-) -> tuple[str | None, str | None, list[ValidationProblem]]:
-    location = f"characteristics.{code}"
-    problems: list[ValidationProblem] = []
-    entry_table = require_dict(entry, file, location, "a table with label and class", problems)
+def _parse_characteristic_entry(entry: object, ctx: ParseContext) -> tuple[str | None, str | None]:
+    entry_table = ctx.require_dict(entry, expected="a table with label and class")
     if entry_table is None:
-        return None, None, problems
+        return None, None
 
-    problems.extend(
-        unrecognized_key_problems(entry_table, _CHARACTERISTIC_ENTRY_KEYS, file, f"{location}.")
-    )
+    ctx.unrecognized_keys(entry_table, _CHARACTERISTIC_ENTRY_KEYS)
 
-    label = require_string(entry_table, "label", file, f"{location}.label", problems)
-    characteristic_class = require_string(
-        entry_table, "class", file, f"{location}.class", problems
-    )
-    return label, characteristic_class, problems
+    label = ctx.require_string(entry_table, "label")
+    characteristic_class = ctx.require_string(entry_table, "class")
+    return label, characteristic_class
 
 
-def _parse_pseudo_hex(
-    data: object, file: str
-) -> tuple[tuple[int, tuple[str, ...]] | None, list[ValidationProblem]]:
-    location = "pseudo-hex"
-    problems: list[ValidationProblem] = []
-    table = require_dict(data, file, location, "a [pseudo-hex] table", problems)
+def _parse_pseudo_hex(data: object, ctx: ParseContext) -> tuple[int, tuple[str, ...]] | None:
+    # `ctx` is the file-level carrier here, not one derived for "pseudo-hex":
+    # the unrecognized-key check below must keep reporting a stray key at its
+    # bare name rather than prefixed with "pseudo-hex.", which is what the
+    # tree does before this migration. Converting it on the fragment carrier
+    # its surroundings suggest would move a reported location, which FR-014
+    # forbids. See inventory.md I-1.
+    pseudo_hex_ctx = ctx.at("pseudo-hex")
+    table = pseudo_hex_ctx.require_dict(data, expected="a [pseudo-hex] table")
     if table is None:
-        return None, problems
+        return None
 
-    problems.extend(unrecognized_key_problems(table, {"minimum", "symbols"}, file))
+    ctx.unrecognized_keys(table, {"minimum", "symbols"})
 
-    minimum = require_int(table, "minimum", file, f"{location}.minimum", problems)
+    minimum = pseudo_hex_ctx.require_int(table, "minimum")
 
-    symbols_raw = table.get("symbols")
+    symbols_raw = pseudo_hex_ctx.require_list(
+        table, "symbols", expected="a non-empty array of strings"
+    )
     symbols: tuple[str, ...] | None = None
-    if not isinstance(symbols_raw, list) or not symbols_raw:
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location=f"{location}.symbols",
-                found=(
-                    "missing"
-                    if "symbols" not in table
-                    else ("an empty array" if symbols_raw == [] else type_name(symbols_raw))
-                ),
-                expected="a non-empty array of strings",
-            )
-        )
-    else:
+    if symbols_raw is not None:
         parsed_symbols = []
         ok = True
         for index, symbol in enumerate(symbols_raw):
             if not isinstance(symbol, str) or not symbol:
-                problems.append(
-                    ValidationProblem(
-                        file=file,
-                        location=f"{location}.symbols[{index}]",
-                        found=(
-                            type_name(symbol) if not isinstance(symbol, str) else "an empty string"
-                        ),
-                        expected="a non-empty string",
-                    )
+                pseudo_hex_ctx.at("symbols", index).report(
+                    found=(
+                        type_name(symbol) if not isinstance(symbol, str) else "an empty string"
+                    ),
+                    expected="a non-empty string",
                 )
                 ok = False
                 continue
@@ -277,70 +232,54 @@ def _parse_pseudo_hex(
             symbols = tuple(parsed_symbols)
 
     if minimum is None or symbols is None:
-        return None, problems
-    return (minimum, symbols), problems
+        return None
+    return (minimum, symbols)
 
 
 def parse_characteristics(
-    data: Mapping[str, object], file: str
-) -> tuple[CharacteristicRegistry | None, tuple[ValidationProblem, ...]]:
-    problems = unrecognized_key_problems(
-        data, _HEADER_KEYS | {"characteristics", "modifier-dms", "pseudo-hex"}, file
-    )
+    data: Mapping[str, object], ctx: ParseContext
+) -> CharacteristicRegistry | None:
+    ctx.unrecognized_keys(data, HEADER_KEYS | {"characteristics", "modifier-dms", "pseudo-hex"})
 
+    characteristics_ctx = ctx.at("characteristics")
     table = data.get("characteristics")
     names: dict[str, str] = {}
     classes: dict[str, str] = {}
+    # A table check, not an array one, so require_list does not reach it;
+    # it splits its wording the same way benefits does (inventory.md I-5).
     if not isinstance(table, dict):
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location="characteristics",
-                found="missing" if table is None else type_name(table),
-                expected="a [characteristics] table with at least one entry",
-            )
+        characteristics_ctx.report(
+            found="missing" if table is None else type_name(table),
+            expected="a [characteristics] table with at least one entry",
         )
     elif not table:
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location="characteristics",
-                found="an empty table",
-                expected="at least one entry",
-            )
-        )
+        characteristics_ctx.report(found="an empty table", expected="at least one entry")
     else:
         for code, entry in table.items():
-            label, characteristic_class, entry_problems = _parse_characteristic_entry(
-                code, entry, file
+            label, characteristic_class = _parse_characteristic_entry(
+                entry, characteristics_ctx.at(code)
             )
-            problems.extend(entry_problems)
             if label is not None and characteristic_class is not None:
                 names[code] = label
                 classes[code] = characteristic_class
 
-    bands, band_problems = _parse_bands(data.get("modifier-dms"), file, "modifier-dms")
-    problems.extend(band_problems)
+    bands = _parse_bands(data.get("modifier-dms"), ctx.at("modifier-dms"))
 
-    pseudo_hex, pseudo_hex_problems = _parse_pseudo_hex(data.get("pseudo-hex"), file)
-    problems.extend(pseudo_hex_problems)
+    pseudo_hex = _parse_pseudo_hex(data.get("pseudo-hex"), ctx)
 
-    if problems:
-        return None, tuple(problems)
+    if ctx.failed:
+        return None
     pseudo_hex_minimum, pseudo_hex_symbols = pseudo_hex
-    return (
-        CharacteristicRegistry(
-            names=MappingProxyType(names),
-            classes=MappingProxyType(classes),
-            bands=bands,
-            pseudo_hex_minimum=pseudo_hex_minimum,
-            pseudo_hex=pseudo_hex_symbols,
-        ),
-        (),
+    return CharacteristicRegistry(
+        names=MappingProxyType(names),
+        classes=MappingProxyType(classes),
+        bands=bands,
+        pseudo_hex_minimum=pseudo_hex_minimum,
+        pseudo_hex=pseudo_hex_symbols,
     )
 
 
-def _acyclic_problems(skills: Mapping[str, tuple[str, ...]], file: str) -> list[ValidationProblem]:
+def _acyclic_problems(skills: Mapping[str, tuple[str, ...]], ctx: ParseContext) -> None:
     """The specialty graph must be acyclic (FR-012a): generation-time
     resolution (`_resolve_specialty`, `src/cetools/generator.py`) follows a
     specialty into another entry and continues until it finds one with none,
@@ -350,7 +289,6 @@ def _acyclic_problems(skills: Mapping[str, tuple[str, ...]], file: str) -> list[
     graph (D5): every specialty in the packaged registry happens to also be
     an entry, but nothing requires it.
     """
-    problems: list[ValidationProblem] = []
     state: dict[str, int] = {}  # 1: on the current path, 2: fully explored
 
     def visit(name: str, path: list[str]) -> None:
@@ -360,13 +298,9 @@ def _acyclic_problems(skills: Mapping[str, tuple[str, ...]], file: str) -> list[
                 continue
             if state.get(specialty) == 1:
                 cycle = path[path.index(specialty) :] + [specialty]
-                problems.append(
-                    ValidationProblem(
-                        file=file,
-                        location=f"skills.{name}",
-                        found=specialty,
-                        expected=f"an acyclic specialty graph: {' -> '.join(cycle)} is a cycle",
-                    )
+                ctx.at("skills", name).report(
+                    found=specialty,
+                    expected=f"an acyclic specialty graph: {' -> '.join(cycle)} is a cycle",
                 )
             elif specialty not in state:
                 visit(specialty, path + [specialty])
@@ -375,33 +309,23 @@ def _acyclic_problems(skills: Mapping[str, tuple[str, ...]], file: str) -> list[
     for name in sorted(skills):
         if name not in state:
             visit(name, [name])
-    return problems
 
 
-def parse_skills(
-    data: Mapping[str, object], file: str
-) -> tuple[SkillRegistry | None, tuple[ValidationProblem, ...]]:
-    problems = unrecognized_key_problems(data, _HEADER_KEYS | {"skills"}, file)
+def parse_skills(data: Mapping[str, object], ctx: ParseContext) -> SkillRegistry | None:
+    ctx.unrecognized_keys(data, HEADER_KEYS | {"skills"})
 
+    skills_ctx = ctx.at("skills")
     table = data.get("skills")
     if not isinstance(table, dict):
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location="skills",
-                found="missing" if table is None else type_name(table),
-                expected="a [skills] table with at least one entry",
-            )
+        skills_ctx.report(
+            found="missing" if table is None else type_name(table),
+            expected="a [skills] table with at least one entry",
         )
-        return None, tuple(problems)
+        return None
 
     if not table:
-        problems.append(
-            ValidationProblem(
-                file=file, location="skills", found="an empty table", expected="at least one entry"
-            )
-        )
-        return None, tuple(problems)
+        skills_ctx.report(found="an empty table", expected="at least one entry")
+        return None
 
     skills: dict[str, tuple[str, ...]] = {}
     for name, specialties in table.items():
@@ -414,99 +338,67 @@ def parse_skills(
         # mistake the author needs told about rather than a dead entry
         # (FR-006, FR-013, contracts/notation.md).
         if "(" in name or ")" in name:
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location=f"skills.{name}",
-                    found=name,
-                    expected=(
-                        "a skill name with no parentheses: a specialty is declared in this "
-                        "skill's array, never spelled into its name"
-                    ),
-                )
+            skills_ctx.at(name).report(
+                found=name,
+                expected=(
+                    "a skill name with no parentheses: a specialty is declared in this "
+                    "skill's array, never spelled into its name"
+                ),
             )
             continue
-        if not isinstance(specialties, list):
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location=f"skills.{name}",
-                    found=type_name(specialties),
-                    expected="an array of strings",
-                )
-            )
+        # `skills.py:429`: an empty array validates clean today (a
+        # non-cascade skill), unlike every other array field in this
+        # schema; the disagreement is inventory.md I-4.
+        raw_specialties = skills_ctx.require_list(
+            table, name, expected="an array of strings", allow_empty=True
+        )
+        if raw_specialties is None:
             continue
         # Every offending element, not the first: reporting one made this the
         # one field in the feature where fixing the reported mistake revealed
         # the next on the following run, which FR-021's collect-everything and
         # SC-003's "the number of runs needed to find every problem in a file
         # is always one" forbid. Both sibling parsers below already loop.
-        bad = [
-            ValidationProblem(
-                file=file,
-                location=f"skills.{name}[{index}]",
-                found=type_name(specialty),
-                expected="a string",
-            )
-            for index, specialty in enumerate(specialties)
-            if not isinstance(specialty, str)
-        ]
+        bad = False
+        for index, specialty in enumerate(raw_specialties):
+            if not isinstance(specialty, str):
+                skills_ctx.at(name, index).report(found=type_name(specialty), expected="a string")
+                bad = True
         if bad:
-            problems.extend(bad)
             continue
-        skills[name] = tuple(specialties)
+        skills[name] = tuple(raw_specialties)
 
-    if problems:
-        return None, tuple(problems)
+    if ctx.failed:
+        return None
 
-    problems.extend(_acyclic_problems(skills, file))
-    if problems:
-        return None, tuple(problems)
-    return SkillRegistry(skills=MappingProxyType(skills)), ()
+    _acyclic_problems(skills, ctx)
+    if ctx.failed:
+        return None
+    return SkillRegistry(skills=MappingProxyType(skills))
 
 
-def parse_benefits(
-    data: Mapping[str, object], file: str
-) -> tuple[BenefitRegistry | None, tuple[ValidationProblem, ...]]:
-    problems = unrecognized_key_problems(data, _HEADER_KEYS | {"benefits"}, file)
+def parse_benefits(data: Mapping[str, object], ctx: ParseContext) -> BenefitRegistry | None:
+    ctx.unrecognized_keys(data, HEADER_KEYS | {"benefits"})
 
-    items = data.get("benefits")
-    if not isinstance(items, list):
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location="benefits",
-                found="missing" if items is None else type_name(items),
-                expected="an array of strings with at least one entry",
-            )
-        )
-        return None, tuple(problems)
-
-    if not items:
-        problems.append(
-            ValidationProblem(
-                file=file,
-                location="benefits",
-                found="an empty array",
-                expected="at least one entry",
-            )
-        )
-        return None, tuple(problems)
+    # The missing/wrong-type and empty cases state the same rule in
+    # different words, unlike difficulty-dms's single wording for all three
+    # (inventory.md I-5).
+    items = ctx.require_list(
+        data,
+        "benefits",
+        expected="an array of strings with at least one entry",
+        expected_empty="at least one entry",
+    )
+    if items is None:
+        return None
 
     names: list[str] = []
     for index, item in enumerate(items):
         if not isinstance(item, str):
-            problems.append(
-                ValidationProblem(
-                    file=file,
-                    location=f"benefits[{index}]",
-                    found=type_name(item),
-                    expected="a string",
-                )
-            )
+            ctx.at("benefits", index).report(found=type_name(item), expected="a string")
             continue
         names.append(item)
 
-    if problems:
-        return None, tuple(problems)
-    return BenefitRegistry(items=tuple(names)), ()
+    if ctx.failed:
+        return None
+    return BenefitRegistry(items=tuple(names))

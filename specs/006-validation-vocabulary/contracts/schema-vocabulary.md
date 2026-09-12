@@ -9,6 +9,9 @@
 `__all__`, and nothing outside the package is expected to import it
 (spec FR-016).
 
+**Superseded**: this contract's signatures are superseded by
+[`007-parse-context-carrier/contracts/parse-context.md`](../../007-parse-context-carrier/contracts/parse-context.md); its wording tables remain authoritative.
+
 This is not a public API contract in the sense of
 `specs/001-dice-task-engine/contracts/library-api.md`. It is the internal
 agreement the five parsers hold each other to, written down so that a rule
