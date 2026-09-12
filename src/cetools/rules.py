@@ -191,19 +191,6 @@ def parse_task_parameters(data: Mapping[str, object], ctx: ParseContext) -> Task
     )
 
 
-# Kind to parse function, one entry per single-instance kind whose parser
-# needs nothing beyond its own file's data. `background-skills` is the one
-# exception: its parser also takes the skills registry, so it is parsed
-# separately once that registry is resolved, below.
-_SINGLETON_PARSERS = {
-    "draft-table": parse_draft_table,
-    "aging-table": parse_aging_table,
-    "mishap-table": parse_mishap_table,
-    "medical-tiers": parse_medical_tiers,
-    "chargen-parameters": parse_chargen_parameters,
-}
-
-
 # --- discovery ---------------------------------------------------------------
 
 
@@ -629,15 +616,6 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
         else:
             resolved_singleton[kind] = declarers[0]
 
-    singletons: dict[str, object] = {}
-    for kind, parser in _SINGLETON_PARSERS.items():
-        if kind not in resolved_singleton:
-            continue
-        basename = resolved_singleton[kind]
-        value, sub_problems = parser(parsed[basename][1], basename)
-        problems.extend(sub_problems)
-        singletons[kind] = value
-
     given_names: GivenNameTable | None = None
     if "given-names" in resolved_singleton:
         given_names_basename = resolved_singleton["given-names"]
@@ -677,11 +655,40 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
         benefits = parse_benefits(parsed[benefits_basename][1], benefits_ctx)
         problems.extend(benefits_ctx.problems)
 
-    draft: DraftTable | None = singletons.get("draft-table")
-    aging: AgingTable | None = singletons.get("aging-table")
-    mishaps: MishapTable | None = singletons.get("mishap-table")
-    medical_tiers: MedicalTiers | None = singletons.get("medical-tiers")
-    chargen: ChargenParameters | None = singletons.get("chargen-parameters")
+    draft: DraftTable | None = None
+    if "draft-table" in resolved_singleton:
+        draft_basename = resolved_singleton["draft-table"]
+        draft_ctx = ParseContext(draft_basename)
+        draft = parse_draft_table(parsed[draft_basename][1], draft_ctx)
+        problems.extend(draft_ctx.problems)
+
+    aging: AgingTable | None = None
+    if "aging-table" in resolved_singleton:
+        aging_basename = resolved_singleton["aging-table"]
+        aging_ctx = ParseContext(aging_basename)
+        aging = parse_aging_table(parsed[aging_basename][1], aging_ctx)
+        problems.extend(aging_ctx.problems)
+
+    mishaps: MishapTable | None = None
+    if "mishap-table" in resolved_singleton:
+        mishaps_basename = resolved_singleton["mishap-table"]
+        mishaps_ctx = ParseContext(mishaps_basename)
+        mishaps = parse_mishap_table(parsed[mishaps_basename][1], mishaps_ctx)
+        problems.extend(mishaps_ctx.problems)
+
+    medical_tiers: MedicalTiers | None = None
+    if "medical-tiers" in resolved_singleton:
+        medical_tiers_basename = resolved_singleton["medical-tiers"]
+        medical_tiers_ctx = ParseContext(medical_tiers_basename)
+        medical_tiers = parse_medical_tiers(parsed[medical_tiers_basename][1], medical_tiers_ctx)
+        problems.extend(medical_tiers_ctx.problems)
+
+    chargen: ChargenParameters | None = None
+    if "chargen-parameters" in resolved_singleton:
+        chargen_basename = resolved_singleton["chargen-parameters"]
+        chargen_ctx = ParseContext(chargen_basename)
+        chargen = parse_chargen_parameters(parsed[chargen_basename][1], chargen_ctx)
+        problems.extend(chargen_ctx.problems)
 
     # Career validation proceeds even when a registry is missing or invalid,
     # against an empty substitute, so every reference cascades into its own
@@ -693,10 +700,9 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
     background_skills: BackgroundSkills | None = None
     if "background-skills" in resolved_singleton:
         bg_basename = resolved_singleton["background-skills"]
-        background_skills, bg_problems = parse_background_skills(
-            parsed[bg_basename][1], bg_basename, career_skills
-        )
-        problems.extend(bg_problems)
+        bg_ctx = ParseContext(bg_basename)
+        background_skills = parse_background_skills(parsed[bg_basename][1], bg_ctx, career_skills)
+        problems.extend(bg_ctx.problems)
 
     careers: dict[str, CareerDefinition] = {}
     career_names_seen: dict[str, str] = {}

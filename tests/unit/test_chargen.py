@@ -9,15 +9,52 @@ from cetools.chargen import (
     DraftTable,
     MedicalTiers,
     MishapTable,
-    parse_aging_table,
-    parse_background_skills,
-    parse_chargen_parameters,
-    parse_draft_table,
-    parse_medical_tiers,
-    parse_mishap_table,
 )
+from cetools.chargen import parse_aging_table as _parse_aging_table
+from cetools.chargen import parse_background_skills as _parse_background_skills
+from cetools.chargen import parse_chargen_parameters as _parse_chargen_parameters
+from cetools.chargen import parse_draft_table as _parse_draft_table
+from cetools.chargen import parse_medical_tiers as _parse_medical_tiers
+from cetools.chargen import parse_mishap_table as _parse_mishap_table
 from cetools.errors import ValidationProblem
 from cetools.registries import SkillRegistry
+from cetools.schema import ParseContext
+
+
+def parse_draft_table(data, file):
+    ctx = ParseContext(file)
+    table = _parse_draft_table(data, ctx)
+    return table, ctx.problems
+
+
+def parse_aging_table(data, file):
+    ctx = ParseContext(file)
+    table = _parse_aging_table(data, ctx)
+    return table, ctx.problems
+
+
+def parse_mishap_table(data, file):
+    ctx = ParseContext(file)
+    table = _parse_mishap_table(data, ctx)
+    return table, ctx.problems
+
+
+def parse_background_skills(data, file, skills):
+    ctx = ParseContext(file)
+    table = _parse_background_skills(data, ctx, skills)
+    return table, ctx.problems
+
+
+def parse_medical_tiers(data, file):
+    ctx = ParseContext(file)
+    table = _parse_medical_tiers(data, ctx)
+    return table, ctx.problems
+
+
+def parse_chargen_parameters(data, file):
+    ctx = ParseContext(file)
+    table = _parse_chargen_parameters(data, ctx)
+    return table, ctx.problems
 
 
 class TestDraftTable:
