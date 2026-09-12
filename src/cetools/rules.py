@@ -53,6 +53,7 @@ from cetools.registries import (
     parse_skills,
 )
 from cetools.schema import (
+    ParseContext,
     require_dict,
     require_int,
     require_roll,
@@ -230,7 +231,6 @@ _SINGLETON_PARSERS = {
     "mishap-table": parse_mishap_table,
     "medical-tiers": parse_medical_tiers,
     "chargen-parameters": parse_chargen_parameters,
-    "given-names": parse_given_names,
 }
 
 
@@ -668,6 +668,13 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
         problems.extend(sub_problems)
         singletons[kind] = value
 
+    given_names: GivenNameTable | None = None
+    if "given-names" in resolved_singleton:
+        given_names_basename = resolved_singleton["given-names"]
+        given_names_ctx = ParseContext(given_names_basename)
+        given_names = parse_given_names(parsed[given_names_basename][1], given_names_ctx)
+        problems.extend(given_names_ctx.problems)
+
     task_parameters: TaskParameters | None = singletons.get("task-parameters")
     characteristics: CharacteristicRegistry | None = singletons.get("characteristics")
     skills: SkillRegistry | None = singletons.get("skills")
@@ -677,7 +684,6 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
     mishaps: MishapTable | None = singletons.get("mishap-table")
     medical_tiers: MedicalTiers | None = singletons.get("medical-tiers")
     chargen: ChargenParameters | None = singletons.get("chargen-parameters")
-    given_names: GivenNameTable | None = singletons.get("given-names")
 
     # Career validation proceeds even when a registry is missing or invalid,
     # against an empty substitute, so every reference cascades into its own
@@ -725,8 +731,9 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
     for basename, (kind, toml_data) in sorted(parsed.items()):
         if kind != "surnames":
             continue
-        table, sub_problems = _parse_surnames(toml_data, basename)
-        problems.extend(sub_problems)
+        surnames_ctx = ParseContext(basename)
+        table = _parse_surnames(toml_data, surnames_ctx)
+        problems.extend(surnames_ctx.problems)
         if table is None:
             continue
         if table.region in surname_regions_seen:

@@ -8,10 +8,26 @@ from cetools.names import (
     Name,
     SurnameEntry,
     SurnameTable,
-    parse_given_names,
-    parse_surnames,
+)
+from cetools.names import parse_given_names as _parse_given_names
+from cetools.names import parse_surnames as _parse_surnames
+from cetools.names import (
     roll_name,
 )
+from cetools.schema import ParseContext
+
+
+def parse_given_names(data, file):
+    ctx = ParseContext(file)
+    table = _parse_given_names(data, ctx)
+    return table, ctx.problems
+
+
+def parse_surnames(data, file):
+    ctx = ParseContext(file)
+    table = _parse_surnames(data, ctx)
+    return table, ctx.problems
+
 
 _DATA = Path(__file__).resolve().parents[2] / "src" / "cetools" / "data" / "names"
 
