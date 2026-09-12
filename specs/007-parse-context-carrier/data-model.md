@@ -199,6 +199,20 @@ meaning.
 
 Seventeen sites, sixteen functions: `parse_skills` asks twice.
 
+One near-miss, named so the conversion does not trip over it: `registries.py:454`
+(`if bad:`) also tests a list of problems for emptiness, but `bad` is a
+comprehension-local list of specialty problems inspected immediately and
+reported in one go, not the function's accumulator. Under SC-007's definition it
+is not one of the seventeen and does not become a scope; it keeps reaching the
+accumulator by the path it uses today. Counting it would make the number
+eighteen, which is the looser reading SC-007 explicitly declines.
+
+Two more shapes that a grep will mis-handle: `names.py:124` is written
+`if name is None or problems:`, with the emptiness test second, so a search for
+`if problems` misses it; and `registries.py:245`, row 15 above, inlines a
+three-way conditional rather than the two-line twin, so it is the one row of the
+fifteen that a mechanical rewrite will not match.
+
 The three fragment scopes are the ones the spec's first edge case flags as
 likeliest to be missed, and they are the reason `failed` measures against the
 carrier's own watermark rather than against the list being empty. Each of the
