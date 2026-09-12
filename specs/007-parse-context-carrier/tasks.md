@@ -52,10 +52,10 @@ say `structural` explicitly.
 every commit, and capture the baseline every later diff is taken against. None
 of this is committed to the repository.
 
-- [ ] T001 [P] Write the mutation harness at `<scratchpad>/mutate.py` following the recipe in [quickstart.md](quickstart.md) §1b: walk every `src/cetools/data/**/*.toml`, apply delete/retype/empty to each path, validate each mutant through `cetools.rules.validate_rules` against a temporary override directory, and print one sorted `file|path|kind|p.file|p.location|p.found|p.expected` line per problem
+- [ ] T001 Write the mutation harness at `<scratchpad>/mutate.py` following the recipe in [quickstart.md](quickstart.md) §1b: walk every `src/cetools/data/**/*.toml`, apply delete/retype/empty to each path, validate each mutant through `cetools.rules.validate_rules` against a temporary override directory, and print one sorted `file|path|kind|p.file|p.location|p.found|p.expected` line per problem
 - [ ] T002 Prove the harness is deterministic: run `uv run --with tomli-w python <scratchpad>/mutate.py` twice against the unmodified tree and confirm the two outputs are byte-identical — a non-deterministic harness makes every later diff noise rather than evidence
 - [ ] T003 Capture the full baseline sweep from the merge-base with `main` into `<scratchpad>/before-full.txt` using `uv run --with tomli-w python <scratchpad>/mutate.py`
-- [ ] T004 [P] Capture per-module baselines into `<scratchpad>/before-names.txt`, `before-rules.txt`, `before-registries.txt`, `before-careers.txt`, and `before-chargen.txt` by restricting the harness's outer loop to the files each parser reads, so each parser commit has a fast gate to run
+- [ ] T004 Capture per-module baselines into `<scratchpad>/before-names.txt`, `before-rules.txt`, `before-registries.txt`, `before-careers.txt`, and `before-chargen.txt` by restricting the harness's outer loop to the files each parser reads, so each parser commit has a fast gate to run
 - [ ] T005 Record the pre-feature state: `.venv/bin/python -m pytest` green, and `git diff --stat main -- tests/golden tests/contract tests/integration` empty, so FR-016's "unedited corpora" claim has a starting point
 
 **Checkpoint**: The evidence apparatus exists, is proven deterministic, and has
@@ -117,7 +117,7 @@ every step rather than only at the end.
 the tree as it stands; the corpora pass unedited and the comparison diffs empty.
 Confirm `git diff --stat main -- tests/golden tests/contract` is empty.
 
-- [ ] T024 [US1] Record the standing gate procedure at the top of `specs/007-parse-context-carrier/tasks.md`'s per-parser groups as the final task of each: `.venv/bin/python -m pytest` green, plus the restricted mutation diff for that module empty. Verify the gate is present on commits 2 through 7 before any of them lands
+- [ ] T024 [US1] Confirm the standing gate is present as the final task of every commit group — T036, T043, T054, T062, T072, and T082 — and that each states the same two conditions: `.venv/bin/python -m pytest` green, plus the mutation diff for that commit's scope empty. A commit group without its gate is a commit whose central claim has no evidence behind it (FR-016b)
 - [ ] T025 [P] [US1] Confirm US1 scenario 2 stays pinned: `.venv/bin/python -m pytest tests/integration/test_validation_categories.py -k "cycle"` — a skills file with a cycle and one unrelated bad field still does not report the cycle, because the gate at `src/cetools/registries.py:463` still skips (FR-017)
 - [ ] T026 [P] [US1] Confirm US1 scenario 3 stays pinned: `.venv/bin/python -m pytest tests/integration/test_validation_categories.py -k "duplicate"` — two career files declaring the same name still produce a problem naming one file in `file` and both in `found`, the shape the carrier deliberately cannot describe (FR-012)
 - [ ] T027 [US1] Confirm the frozen corpora are untouched: `git diff --stat main -- tests/golden tests/contract tests/integration` is empty. FR-016 makes a failure here a signal to stop and revert, never to adjust a fixture
@@ -163,10 +163,10 @@ entry in the same commit (FR-021), never fixed. See Phase 6.
 
 - [ ] T037 [US2] Convert `parse_task_parameters` at `src/cetools/rules.py:148` to `(data, ctx)`, replacing its `unrecognized_key_problems` / `require_dict` / `require_roll` calls with the carrier form shown in [contracts/parse-context.md](contracts/parse-context.md) §*Worked example*
 - [ ] T038 [US2] Convert the 2 hand-built problems in `parse_task_parameters` to `ctx.report(found=..., expected=...)`, and convert the emptiness question at `src/cetools/rules.py:206` to `ctx.failed` on the **file** carrier
-- [ ] T039 [US2] Convert `_class_effect_problems` at `src/cetools/rules.py:1019` to take a carrier: it is a cross-file rule that reports at `rows[i].effects[j].class` inside one named file, so FR-012a places it inside the carrier's territory. The loader builds one carrier for the aging file and one for the mishap file and passes them in
+- [ ] T039 [US2] Convert `_class_effect_problems` at `src/cetools/rules.py:1019` to take a carrier: it is a cross-file rule that reports at `rows[i].effects[j].class` inside one named file, so FR-012a places it inside the carrier's territory. The loader builds one carrier for the aging file and one for the mishap file and passes them in. Its single `ValidationProblem(` construction is the 103rd of SC-006 — the one in-file problem that does not sit in a per-file parser — and both carriers are built over the loader's run-wide list at the point the check runs today, taking their watermark from its current length (T013, research R4)
 - [ ] T040 [US2] Leave `_unreadable` at `src/cetools/rules.py:248` exactly as it is, taking its own `file` parameter. It builds the problem for a file that could not be opened, which FR-012 places outside the carrier — there is no carrier to report through. This is the one exclusion from FR-011 (research R7), and SC-002 is 53 → 1
 - [ ] T041 [US2] Delete `_HEADER_KEYS` at `src/cetools/rules.py:63` and import `HEADER_KEYS` from `src/cetools/schema.py`
-- [ ] T042 [US2] Update the `_SINGLETON_PARSERS` entry for `task-parameters` at `src/cetools/rules.py:223` and its dispatch at `src/cetools/rules.py:663` to the `(data, ctx)` signature, and confirm the other twenty-nine cross-file problems in `src/cetools/rules.py` still build their own `ValidationProblem` unchanged (SC-006: 0 of 29 go through a carrier)
+- [ ] T042 [US2] Update the `_SINGLETON_PARSERS` entry for `task-parameters` at `src/cetools/rules.py:223` and its dispatch at `src/cetools/rules.py:663` to the `(data, ctx)` signature, and confirm the other twenty-eight cross-file problems in `src/cetools/rules.py` still build their own `ValidationProblem` unchanged (SC-006: 0 of 28 go through a carrier). The twenty-eight are the 24 in `_validate` plus one each in `_unreadable`, `_unlistable`, `_not_a_regular_file`, and `_compose`; `_class_effect_problems`' one is not among them and converts in T039
 - [ ] T043 [US1] Gate commit 3: `.venv/bin/python -m pytest` green, and the restricted sweep over the task-parameters, aging, and mishap files diffed empty against `<scratchpad>/before-rules.txt`. Commit as structural — `refactor(rules): give the loader and task parameters a ParseContext`
 
 ### Commit 4 — `registries.py` (7 signatures, 16 problems, 1 array site + 2 bare guards, 5 scopes)
@@ -208,7 +208,7 @@ entry in the same commit (FR-021), never fixed. See Phase 6.
 - [ ] T072 [US1] Gate commit 6: `.venv/bin/python -m pytest` green, and the restricted sweep over `chargen/*.toml` diffed empty against `<scratchpad>/before-chargen.txt`. Commit as structural — `refactor(chargen): descend with ParseContext`
 
 **Checkpoint**: All five parsers descend with a carrier. SC-003 (5 → 1),
-SC-004 (3 → 1), SC-005 (15 → 0), SC-006 (102 through the carrier, 0 of 29),
+SC-004 (3 → 1), SC-005 (15 → 0), SC-006 (103 through the carrier, 0 of 28),
 and SC-007 (17 scoped) hold. SC-002 does not yet, because the seven free
 functions in `schema.py` still take a file name — commit 7 closes that.
 
@@ -228,7 +228,7 @@ for each of the seven; every one passes, and every diff changes structure only.
 - [ ] T073 [US3] Write `tests/guards/test_parsing_layer_shape.py` holding SC-002: no function in `src/cetools/careers.py`, `chargen.py`, `names.py`, `registries.py`, or `schema.py` has a parameter named `file`; in `src/cetools/rules.py` only `_unreadable` may, and the guard names it with FR-012 as the reason. Run it now — it MUST fail, because the seven free functions still take a file name. That failure is this commit's red step
 - [ ] T074 [P] [US3] Add SC-003 to `tests/guards/test_parsing_layer_shape.py`: the name `HEADER_KEYS` (or `_HEADER_KEYS`) is assigned at module level exactly once under `src/`, in `schema.py`
 - [ ] T075 [P] [US3] Add SC-004 to `tests/guards/test_parsing_layer_shape.py`: in the five parser modules, no function annotates a parameter as `list[ValidationProblem]` and no return annotation contains `list[ValidationProblem]`. The loader's bare `-> ValidationProblem` helpers are unaffected
-- [ ] T076 [P] [US3] Add SC-005 to `tests/guards/test_parsing_layer_shape.py`: the string literal `"an empty array"` appears in exactly one module under `src/`, `schema.py`. Run it now — it MUST fail, because the literal still sits in a free function body as well as in the class
+- [ ] T076 [P] [US3] Add SC-005 to `tests/guards/test_parsing_layer_shape.py`: no module under `src/` but `schema.py` contains a string constant equal to `"an empty array"`. Implement it as an AST walk comparing `ast.Constant` values for equality, skipping module, class, and function docstrings — `src/cetools/errors.py:37` names the phrase inside prose describing the vocabulary, so a `grep` for the quoted string would fail on it forever and get "fixed" by weakening the guard. Run it now — it MUST fail, because the literal still sits in a free function body as well as in the class
 - [ ] T077 [US3] Add a planted-violation self-test for each of the four counts in `tests/guards/test_parsing_layer_shape.py` — a function taking `file`, a second `HEADER_KEYS`, a `list[ValidationProblem]` parameter, a stray `"an empty array"` literal — each confirming its own detector rejects the shape and then removing it. One self-test covering the guard as a whole is not enough (FR-023)
 - [ ] T078 [US3] Move the seven free-function bodies into `ParseContext` in `src/cetools/schema.py` and delete `require_int`, `require_string`, `require_bool`, `require_roll`, `require_dict`, `optional_bool`, and `unrecognized_key_problems` as module-level functions. `unrecognized_keys` keeps appending rather than returning, and its sort by key name is unchanged
 - [ ] T079 [US3] Tighten `tests/guards/test_no_duplicate_checks.py` to the single-definition rule and delete the temporary tolerance and its expiry note
@@ -238,8 +238,16 @@ for each of the seven; every one passes, and every diff changes structure only.
 
 ### Sequence audit
 
-- [ ] T083 [US3] Confirm `rg -n "def (require_|optional_bool|unrecognized)" src/cetools/schema.py` shows exactly eight definitions, all indented inside `ParseContext`
-- [ ] T084 [US3] Walk the sequence: for each of the seven commits, `git switch --detach <commit> && .venv/bin/python -m pytest` passes, and each diff changes structure only, never behavior (FR-018, FR-019). Confirm each commit message names its scope and says it is structural
+> The guard of FR-022 holds four counts. SC-006, SC-007, and FR-015 are the
+> three claims no guard covers, so they are checked here by hand, once, against
+> the finished tree. A claim with no check behind it is a claim a reviewer can
+> only take on trust.
+
+- [ ] T083 [US2] Verify SC-006 against the finished tree: `ValidationProblem(` is constructed **0** times in `src/cetools/careers.py`, `chargen.py`, `names.py`, and `registries.py`, and **28** times in `src/cetools/rules.py` — 24 in `_validate` and one each in `_unreadable`, `_unlistable`, `_not_a_regular_file`, and `_compose`. Resolve the 28 by enclosing function with an `ast` walk rather than by eye, and confirm `_class_effect_problems` and `parse_task_parameters` construct none, because they now report through a carrier
+- [ ] T084 [US2] Verify SC-007 against the finished tree: **17** `ctx.failed` reads across **16** functions, matching [data-model.md](data-model.md)'s table site for site, with `parse_skills` asking twice and exactly three of the seventeen reading a fragment carrier (`registries._parse_bands`, `names._parse_surname_entry`, `chargen._parse_mishap_effect`). If conversion corrected the count in either direction, confirm data-model.md and SC-007 were corrected in the commit that found it, per the spec's own assumption
+- [ ] T085 [US1] Verify FR-015 against the finished tree and across the sequence: `src/cetools/rules.py` contains exactly one `problems.sort()`, it still sits in `_validate` immediately before the `ValidationReport(` construction, and `git log -p main..HEAD -- src/cetools/rules.py` shows no commit moved it, removed it, or added a second reporting path around it. The sort is what erases the insertion-order change a shared collection introduces, so a commit that touched it invalidates every empty mutation diff behind it
+- [ ] T086 [US3] Confirm `rg -n "def (require_|optional_bool|unrecognized)" src/cetools/schema.py` shows exactly eight definitions, all indented inside `ParseContext`
+- [ ] T087 [US3] Walk the sequence: for each of the seven commits, `git switch --detach <commit> && .venv/bin/python -m pytest` passes, and each diff changes structure only, never behavior (FR-018, FR-019). Confirm each commit message names its scope and says it is structural
 
 **Checkpoint**: The superseded path is gone, all four counts are guarded, and
 each guard can be shown to fail.
@@ -259,21 +267,21 @@ reports or which rule it applies (FR-021).
 **Note**: entries I-7 onward are added *during* Phase 4, in the commit that
 finds them. The tasks here finalize and verify.
 
-- [ ] T085 [US4] Append each disagreement noticed during Phase 4 to `specs/007-parse-context-carrier/inventory.md` as an `I-n` entry naming the concrete site and stating the question without answering it, in the same commit that reads the site
-- [ ] T086 [US4] Confirm every deliberately preserved anomaly cites its entry by identifier in a code comment: I-1 at `src/cetools/registries.py` (`_parse_pseudo_hex`), I-4 at `src/cetools/chargen.py:188`, `chargen.py:490`, and `src/cetools/registries.py:429`, and I-5 at `src/cetools/registries.py:474`
-- [ ] T087 [US4] Confirm [contracts/parse-context.md](contracts/parse-context.md) records every anomaly the migration deliberately preserved, so a later reader cannot mistake a wart for an oversight (FR-024). Add any I-7+ anomaly that the contract does not already cover
-- [ ] T088 [US4] Confirm nothing in `specs/007-parse-context-carrier/inventory.md` was acted on: no `found` or `expected` string changed, and no site applies a different rule. A keyword argument added only so two sites keep saying the different things they already say preserves the inconsistency and is required by FR-014, not forbidden by FR-021
+- [ ] T088 [US4] Append each disagreement noticed during Phase 4 to `specs/007-parse-context-carrier/inventory.md` as an `I-n` entry naming the concrete site and stating the question without answering it, in the same commit that reads the site
+- [ ] T089 [US4] Confirm every deliberately preserved anomaly cites its entry by identifier in a code comment: I-1 at `src/cetools/registries.py` (`_parse_pseudo_hex`), I-4 at `src/cetools/chargen.py:188`, `chargen.py:490`, and `src/cetools/registries.py:429`, and I-5 at `src/cetools/registries.py:474`
+- [ ] T090 [US4] Confirm [contracts/parse-context.md](contracts/parse-context.md) records every anomaly the migration deliberately preserved, so a later reader cannot mistake a wart for an oversight (FR-024). Add any I-7+ anomaly that the contract does not already cover
+- [ ] T091 [US4] Confirm nothing in `specs/007-parse-context-carrier/inventory.md` was acted on: no `found` or `expected` string changed, and no site applies a different rule. A keyword argument added only so two sites keep saying the different things they already say preserves the inconsistency and is required by FR-014, not forbidden by FR-021
 
 ---
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T089 [P] Run the documented lint commands over `src tests` — `black --check`, `isort --check-only`, `flake8` — and resolve every warning before the branch merges
-- [ ] T090 [P] Confirm no commit in the sequence touches `CHANGELOG.md`: `git log --oneline main..HEAD -- CHANGELOG.md` is empty. Nothing a library user or a data-file author can see has changed, so an entry would be noise (FR-018a)
-- [ ] T091 [P] Confirm `src/cetools/data/` is untouched: `git diff --stat main -- src/cetools/data/` is empty. No `.toml` file is added, edited, or moved, so no OGC or licensing question arises (Principle V)
-- [ ] T092 [P] Confirm the public surface is unchanged: `.venv/bin/python -m pytest tests/unit/test_library_api.py tests/contract` passes and `cetools/__init__.py`'s `__all__` does not mention `ParseContext` or `HEADER_KEYS` (Principle I, FR-028)
-- [ ] T093 Run the full [quickstart.md](quickstart.md) validation end to end — §1a, §1b, §1c, §US2's scratch-branch grep, §US3's per-commit walk, §US4's inventory check, and §*The guards can fail* — and record the result
-- [ ] T094 Delete the scratchpad: the mutation harness and its baselines are a verification step, not a committed corpus (research R10, FR-016b). Confirm nothing under `<scratchpad>/` was added to the repository
+- [ ] T092 [P] Run the documented lint commands over `src tests` — `black --check`, `isort --check-only`, `flake8` — and resolve every warning before the branch merges
+- [ ] T093 [P] Confirm no commit in the sequence touches `CHANGELOG.md`: `git log --oneline main..HEAD -- CHANGELOG.md` is empty. Nothing a library user or a data-file author can see has changed, so an entry would be noise (FR-018a)
+- [ ] T094 [P] Confirm `src/cetools/data/` is untouched: `git diff --stat main -- src/cetools/data/` is empty. No `.toml` file is added, edited, or moved, so no OGC or licensing question arises (Principle V)
+- [ ] T095 [P] Confirm the public surface is unchanged: `.venv/bin/python -m pytest tests/unit/test_library_api.py tests/contract` passes and `cetools/__init__.py`'s `__all__` does not mention `ParseContext` or `HEADER_KEYS` (Principle I, FR-028)
+- [ ] T096 Run the full [quickstart.md](quickstart.md) validation end to end — §1a, §1b, §1c, §US2's scratch-branch grep, §US3's per-commit walk, §US4's inventory check, and §*The guards can fail* — and record the result
+- [ ] T097 Delete the scratchpad: the mutation harness and its baselines are a verification step, not a committed corpus (research R10, FR-016b). Confirm nothing under `<scratchpad>/` was added to the repository
 
 ---
 
@@ -305,11 +313,11 @@ dispatch → gate. The gate is last and is not optional.
 
 ### Parallel Opportunities
 
-- T001 and T004 in Setup
+- None in Setup. T001 through T004 are a chain: the harness must exist before it can be proven deterministic, and both baselines restrict *its* outer loop, so neither can be captured before it runs
 - T009 is independent of T006–T008 (different files); the rest of Phase 2's tests are sequential by the constitution's "one test at a time"
 - T025 and T026 in Phase 3
 - T074, T075, T076 in Phase 5 (three independent facts added to one new file — parallel in authoring, serialized in the edit)
-- T089 through T092 in Phase 7
+- T092 through T095 in Phase 7
 
 ### Parallel Example: Phase 2 tests
 
@@ -353,6 +361,7 @@ them happening in order.
 - `[P]` = different files, no dependencies. Module commits never carry it
 - Every task's gate is the same: the suite green **and** the mutation diff empty. A green suite alone is not evidence — it pins 7 of 77 distinct `expected` wordings exactly, and the golden corpus pins none (FR-016a)
 - A report difference at any gate is a signal to stop and revert, never to adjust a fixture (FR-016)
-- The `problems.sort()` at `src/cetools/rules.py:1058` is immovable (FR-015)
+- The `problems.sort()` at `src/cetools/rules.py:1058` is immovable (FR-015), and T085 checks across the whole sequence that no commit moved it
+- The guard of FR-022 holds SC-002 through SC-005. SC-006, SC-007, and FR-015 have no guard, so T083, T084, and T085 check them by hand against the finished tree
 - Verify each test fails before implementing it (Principle III)
 - Commit at each named commit boundary, and say `structural` in the message

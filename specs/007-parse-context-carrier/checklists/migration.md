@@ -140,10 +140,23 @@ spec states is exact:
 | 5 header-key constants | 5, byte-identical |
 | 15 non-empty-array idioms (7/5/2/1) | 15, exact |
 | 4 further bare array guards | 4, of which 3 accept an empty array today |
-| ~102 bespoke in-file problems (40/37/16/7/2) | 102, exact in every module |
-| 29 cross-file problems | 29 |
+| ~102 bespoke in-file problems (40/37/16/7/2) | **103** — the five parsers are exact at 40/37/16/7/2, and `_class_effect_problems` builds a 103rd that FR-012a places inside the carrier. Corrected after `/speckit-analyze`; see the note below |
+| 29 cross-file problems | **28** — `rules.py` constructs 31, of which 2 are `parse_task_parameters`' and 1 is the class-effect check's |
 | 17 emptiness questions across 16 functions | 17 / 16, no fourth sub-file scope |
 | the bare-location site and the cross-reference gate | both confirmed present as described |
+
+**Correction (CHK026, CHK032).** The 102/29 pair this table originally recorded
+as verified was not. It summed the five parsers to 102 and then took the rest of
+`rules.py` — 31 constructions less the 2 in `parse_task_parameters` — as 29,
+which counts `_class_effect_problems`' single problem out of the in-file figure
+and into the cross-file one at once. FR-012a, added by CHK018/CHK034 in the same
+pass, says that problem is in-file. Resolved by an `ast` walk over `rules.py`:
+24 in `_validate`, 2 in `parse_task_parameters`, 1 each in `_unreadable`,
+`_unlistable`, `_not_a_regular_file`, and `_compose`, and 1 in
+`_class_effect_problems` — so 103 in-file and 28 cross-file. SC-006, FR-009,
+FR-012, FR-012a, the plan, the contract, research R3, and data-model.md were
+corrected together, and T083 now checks the figure against the finished tree
+rather than leaving it asserted.
 
 Three findings were fed back into [data-model.md](../data-model.md) as
 conversion hazards: one further list-of-problems test that is *not* one of the

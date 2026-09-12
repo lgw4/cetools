@@ -134,8 +134,10 @@ Rows 3, 4, 7, 9, and 10 are helpers that receive the raw value while their
 caller reports the absent case separately; after conversion the caller passes
 the container and the key and the single call covers both rows.
 
-The four further bare "must be an array" guards, which today accept an empty
-array and must continue to:
+The four further bare "must be an array" guards. Three of them accept an empty
+array today and must continue to; the fourth, `registries.py:474`, rejects one
+in words of its own, which is why it converts with `expected_empty` rather than
+with `allow_empty`:
 
 | Site | Reports at | `expected` | Note |
 |---|---|---|---|
@@ -155,7 +157,7 @@ converted sites disagree about wording. Each disagreement is
 [inventory.md](inventory.md) entry I-2 through I-5; if those are ever settled,
 the knobs collapse with them.
 
-## SC-006: bespoke problems recorded through the carrier (102), and the 29 that are not
+## SC-006: bespoke problems recorded through the carrier (103), and the 28 that are not
 
 | Module | `ValidationProblem(` constructions | Through the carrier |
 |---|---|---|
@@ -163,11 +165,20 @@ the knobs collapse with them.
 | `careers.py` | 37 | 37 |
 | `registries.py` | 16 | 16 |
 | `names.py` | 7 | 7 |
-| `rules.py` | 31 | 2 in `parse_task_parameters`, plus `_class_effect_problems` |
-| **inside one file** | **102** | **102** |
-| **loader / cross-file** | **29** | **0** |
+| `rules.py` | 31 | 3: 2 in `parse_task_parameters`, 1 in `_class_effect_problems` |
+| **inside one file** | **103** | **103** |
+| **loader / cross-file** | **28** | **0** |
 
-The 29 keep building their problems exactly as they do today: the three that
+`rules.py`'s 31 resolve by enclosing function as 24 in `_validate`, 2 in
+`parse_task_parameters`, 1 each in `_unreadable`, `_unlistable`,
+`_not_a_regular_file`, and `_compose`, and 1 in `_class_effect_problems`. Three
+of those are in-file and 28 are not, which is where the corrected totals come
+from: an earlier draft summed the five parsers to 102 and then called the rest
+of `rules.py` 29, counting the class-effect problem out of the in-file figure
+and into the cross-file one at the same time, which is exactly the mistake
+FR-012a exists to prevent.
+
+The 28 keep building their problems exactly as they do today: the three that
 name a glob, the two that name a pair of files, the unreadable/unlistable/
 not-a-regular-file trio, the schema-version and declared-kind rules, the
 duplicate-basename and duplicate-career-name rules, and the rest.
@@ -264,7 +275,7 @@ closes it (FR-020).
 | SC-002 | no function in `careers.py`, `chargen.py`, `names.py`, `registries.py`, or `schema.py` has a parameter named `file`; in `rules.py`, only `_unreadable` may, and the guard names it with FR-012 as the reason |
 | SC-003 | the name `HEADER_KEYS` (or `_HEADER_KEYS`) is assigned at module level exactly once under `src/`, in `schema.py` |
 | SC-004 | in the five modules, no function annotates a parameter as `list[ValidationProblem]`, and no return annotation contains `list[ValidationProblem]`; the loader's bare `-> ValidationProblem` helpers are unaffected |
-| SC-005 | the string literal `"an empty array"` appears in exactly one module under `src/`, `schema.py` |
+| SC-005 | no module under `src/` but `schema.py` contains a string constant equal to `"an empty array"`. The check is an AST walk comparing `ast.Constant` values for equality, and it skips module, class, and function docstrings: `errors.py:37` names the phrase inside prose explaining the vocabulary, and a `grep` for the quoted string would fail on it forever |
 
 Each fact gets a planted-violation self-test, per FR-023 and the obligation
 every existing guard in this project carries.

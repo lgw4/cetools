@@ -42,8 +42,12 @@
   rather than an oversight.
 - **Counts were verified against the current source, not taken on trust.** The
   53, the 5, the 15, the 13, the ~102, the 29, and the 17/16 were each counted
-  before being written into the spec. Two corrections to the feature description
-  were made as a result and are recorded in the spec itself:
+  before being written into the spec. The 102 and the 29 were counted by module
+  rather than by enclosing function, which put the class-effect check's single
+  problem on the wrong side of both; `/speckit-analyze` caught it and they now
+  read 103 and 28, with the working shown in
+  [migration.md](migration.md)'s correction note. Two corrections to the feature
+  description were made as a result and are recorded in the spec itself:
   - The description said "three of the thirteen sit deeper than a file". The
     thirteen whole-file entry points all carry a file-scope emptiness question,
     and the three sub-file scopes are *additional*, giving 17 questions across

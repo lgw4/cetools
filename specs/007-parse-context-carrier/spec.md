@@ -234,7 +234,7 @@ names a concrete site, and no entry has been acted on in this feature's diff.
   (`missing`, `an empty array`, or the data file's own word for the wrong type)
   and for what was expected.
 - **FR-009**: Every problem stated about something inside a single file MUST be
-  recorded through the carrier, including the one hundred and two bespoke
+  recorded through the carrier, including the one hundred and three bespoke
   problems no named check covers — a range that will not parse, an amount of
   zero, a name absent from a registry, a band set with the wrong number of
   unbounded bands, and the rest. A bespoke site MUST supply only what was found
@@ -253,7 +253,7 @@ names a concrete site, and no entry has been acted on in this feature's diff.
 #### What stays outside the carrier
 
 - **FR-012**: Problems that are not about a location inside one file MUST stay
-  outside the carrier. This covers the twenty-nine problems the loader and its
+  outside the carrier. This covers the twenty-eight problems the loader and its
   file-reading helpers build: the three that name a glob rather than a real
   file, the two that concern a pair of files at once, the problems raised when a
   file cannot be read, listed, or is not a regular file, and every other
@@ -266,7 +266,7 @@ names a concrete site, and no entry has been acted on in this feature's diff.
   class-effect check, which reports at a nested effect's `class` key — is inside
   the carrier's territory, is recorded through a carrier the loader builds for
   that file, and is counted among the problems FR-009 covers rather than among
-  the twenty-nine of FR-012. A rule is outside only when the problem it builds
+  the twenty-eight of FR-012. A rule is outside only when the problem it builds
   cannot name one file and one location within it.
 - **FR-013**: The carrier's meaning MUST remain "a point inside one named file".
   It MUST NOT be extended to describe a glob, a pair of files, or an absent file.
@@ -351,10 +351,11 @@ names a concrete site, and no entry has been acted on in this feature's diff.
 #### Guarding the result
 
 - **FR-022**: A guard test MUST hold the four counts after the migration: zero
-  parsing-layer functions taking a file name, exactly one definition of the
-  header-key constant, one problem-passing convention, and zero remaining copies
-  of the non-empty-array idiom. The reasoning is the one the project used the
-  first time it added such a guard: the duplication it removed had accumulated
+  parsing-layer functions taking a file name save the one exclusion FR-011
+  names, exactly one definition of the header-key constant, one problem-passing
+  convention, and zero remaining copies of the non-empty-array idiom. The
+  reasoning is the one the project used the first time it added such a guard:
+  the duplication it removed had accumulated
   one locally reasonable copy at a time, and a comment would not have stopped
   the next one.
 - **FR-023**: Each of the four counts MUST itself be demonstrably able to fail,
@@ -452,12 +453,16 @@ names a concrete site, and no entry has been acted on in this feature's diff.
   non-empty check would start reporting a file that validates clean today, which
   FR-014 forbids. The eighth check therefore has to be able to express both
   rules, and the disagreement is recorded in the inventory rather than settled.
-- **SC-006**: All **102** problems constructed by hand inside the per-file
-  parsers (40 chargen, 37 career, 16 registry, 7 names, 2 task parameters) are
-  recorded through the carrier, and **0** of the **29** cross-file problems are.
-  The figure is exact, not approximate: an approximate target cannot be held by
-  a guard or checked by a reviewer. The class-effect check is counted in the 102
-  and not in the 29, per FR-012a.
+- **SC-006**: All **103** problems constructed by hand about a location inside
+  one named file (40 chargen, 37 career, 16 registry, 7 names, 2 task
+  parameters, and the 1 the class-effect check builds) are recorded through the
+  carrier, and **0** of the **28** cross-file problems are. The figure is exact,
+  not approximate: an approximate target cannot be held by a guard or checked by
+  a reviewer. The class-effect check is counted in the 103 and not in the 28,
+  per FR-012a, and it is named separately because it is the one in-file problem
+  that does not sit in a per-file parser — the earlier figures of 102 and 29
+  summed the five parsers and then took the remainder of the loader's module,
+  which put that one problem on both wrong sides at once.
 - **SC-007**: All **17** local emptiness questions across **16** functions are
   converted to an explicit scope, and each preserves its current meaning. An
   "emptiness question" is a test of the problem accumulator a function threads
@@ -495,7 +500,7 @@ names a concrete site, and no entry has been acted on in this feature's diff.
   interleave. The sort therefore does no more work after this feature than
   before it, and the assumption has to hold only for pairs of problems within
   one file. Where it is load-bearing at all, a failure surfaces as a difference
-  in the comparison FR-016a requires, which reaches the orderings the frozen
+  in the comparison FR-016b requires, which reaches the orderings the frozen
   corpora never exercise. Either way the signal is to stop and reconsider, never
   to adjust the tests or to move the sort.
 - The three deeper-than-file scopes are the mishap-effect parser, the

@@ -72,7 +72,7 @@ it is (FR-015).
 
 **Scale/Scope**: 5 parser modules plus the loader. 52 file-name parameters
 removed of 53 counted (research R7), 5 header-key constants to 1, 3
-problem-passing conventions to 1, 19 array sites to `require_list`, ~102
+problem-passing conventions to 1, 19 array sites to `require_list`, 103
 bespoke problems rerouted through the carrier, 17 emptiness questions given an
 explicit scope. Roughly 150 lines added to `schema.py`; several hundred removed
 across the parsers.
@@ -287,7 +287,7 @@ Not optional; the feature is not complete without it (FR-020).
 | A converted site moves a message no test names | The mutation harness (research R10, [quickstart.md](quickstart.md)) derives its inputs from the data files rather than from what anyone thought to test, and is diffed per commit. This is the risk the suite cannot cover, and 006 met it with a weaker version of the same tool. |
 | A fragment scope is converted to the file scope by accident, so a sibling's failure suppresses this fragment's value | The carrier *is* the scope: `failed` measures against the carrier's own birth length, so a fragment helper that receives a derived carrier gets the fragment answer without asking for it. The three sites are named in [data-model.md](data-model.md), and `test_parse_context.py` pins the sibling-failed case directly. |
 | The cross-reference gate is "fixed" while being converted | FR-017 forbids it, [inventory.md](inventory.md) I-6 records the question, and the integration suite's cycle case pins the current behavior. |
-| Insertion order changes and a report reorders | One carrier and one collection **per file** (research R5), so files cannot interleave at all; within a file the loader's single sort erases the rest, and FR-015 forbids moving, bypassing, or routing around it. |
+| Insertion order changes and a report reorders | One carrier and one collection **per file** (research R5), so files cannot interleave at all; within a file the loader's single sort erases the rest, and FR-015 forbids moving, bypassing, or routing around it. The one carrier that does not own its collection is the class-effect one, which the loader builds over its own run-wide list at the point that check runs today (research R4) — the same list, at the same point, so the insertion order there is the one the tree already produces. |
 | Converting the four bare array guards silently starts rejecting an empty array | Caught in planning: three of the four accept empty today, so `require_list` grew `allow_empty` rather than a behavior change. [data-model.md](data-model.md) names them. |
 | The pseudo-hex prefix anomaly is normalized away | Caught in planning, preserved deliberately with a comment, recorded as I-1. |
 | SC-002's count of 53 cannot reach 0 without dragging the unopenable-file problem into a carrier that cannot describe it | Resolved in research R7 in favor of FR-012: `rules._unreadable` keeps its parameter, the guard names it as the one exclusion, and the plan reports 52 of 53 rather than quietly claiming 53. |

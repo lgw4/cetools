@@ -89,8 +89,9 @@ call gets silently backwards.
 To report one level down without descending, chain:
 `ctx.at("kind").report(found=..., expected=...)`.
 
-This is how all ~102 bespoke problems inside the per-file parsers are recorded
-(FR-009). A bespoke site supplies only `found` and `expected`.
+This is how all 103 bespoke problems about a location inside one named file are
+recorded (FR-009) — 102 in the five parsers and the one the class-effect check
+builds. A bespoke site supplies only `found` and `expected`.
 
 ## Reading the collection
 
@@ -247,10 +248,10 @@ reaching for any of it:
   directories, and paths that are not regular files are reported before any
   parse begins. `rules._unreadable` therefore keeps its own file-name
   parameter, the single exclusion from FR-011 (research R7).
-- **Any other cross-file rule.** The twenty-nine problems the loader and its
-  file-reading helpers build stay as they are — with one exception:
-  `_class_effect_problems`, which is a cross-file rule that reports at a
-  location inside one named file, and so is given a carrier.
+- **Any other cross-file rule.** The twenty-eight problems the loader and its
+  file-reading helpers build stay as they are. `_class_effect_problems` is not
+  among them: it is a cross-file rule that reports at a location inside one
+  named file, so it is given a carrier and counted among the 103 (FR-012a).
 
 ## Import position
 
