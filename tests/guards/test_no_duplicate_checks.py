@@ -1,20 +1,28 @@
-"""FR-014a/FR-014c: each of the seven field-checking vocabulary functions
-(006-validation-vocabulary, contracts/schema-vocabulary.md) is defined
-exactly once in the library's own source tree, under `src/`, in
-`src/cetools/schema.py`. That tree is the scope FR-014b sets and the scope
-this guard scans; a definition under `tests/` or anywhere else in the
-repository is outside its reach. This is the guard that holds the rule the
-migration restored: the duplication removed from five modules accumulated
-one locally reasonable copy at a time, and a comment would not have
-stopped the seventeenth.
+"""FR-014a/FR-014c: each of the eight field-checking vocabulary methods
+(contracts/parse-context.md, 007-parse-context-carrier; originally
+006-validation-vocabulary, contracts/schema-vocabulary.md) is defined
+exactly once in the library's own source tree, under `src/`, as a method of
+`ParseContext` in `src/cetools/schema.py`. That tree is the scope FR-014b
+sets and the scope this guard scans; a definition under `tests/` or
+anywhere else in the repository is outside its reach. This is the guard
+that holds the rule the migration restored: the duplication removed from
+five modules accumulated one locally reasonable copy at a time, and a
+comment would not have stopped the seventeenth.
+
+TEMPORARY (007-parse-context-carrier FR-020): for the duration of this
+migration, each name is tolerated exactly once more, and only as a
+module-level free function in `schema.py` -- the function `ParseContext`'s
+matching method delegates to (research R8). The final commit of the
+migration moves the seven bodies into the class, deletes the free
+functions, and this tolerance is deleted along with this paragraph.
 
 What this does not catch (FR-014b): the guard recognizes a check by its
-name at a module's top level. A check written fresh and inline, without a
-name, goes undetected -- which is the very shape this feature spent eleven
-conversions removing. Closing that would mean recognizing a check by its
-structure, a much larger machine aimed at a rarer mistake than the one that
-actually happened: the copies that accumulated were copies of a named
-helper, five times over.
+name, at a module's top level or as a method of `ParseContext`. A check
+written fresh and inline, without a name, goes undetected -- which is the
+very shape this feature spent eleven conversions removing. Closing that
+would mean recognizing a check by its structure, a much larger machine
+aimed at a rarer mistake than the one that actually happened: the copies
+that accumulated were copies of a named helper, five times over.
 """
 
 import ast
@@ -28,23 +36,42 @@ _CHECK_NAMES = frozenset(
         "require_roll",
         "require_dict",
         "optional_bool",
-        "unrecognized_key_problems",
+        "unrecognized_keys",
+        "require_list",
     }
 )
 
+_PARSE_CONTEXT = "ParseContext"
 
-def _top_level_check_definitions(path: Path) -> set[str]:
-    """The bare names of any of the seven checks defined at `path`'s module
-    top level, with or without a leading underscore.
+
+def _definitions(path: Path) -> list[tuple[str, bool]]:
+    """Every (bare name, is_a_parse_context_method) pair for a definition at
+    `path` matching one of the check names, at module top level or as a
+    method of `ParseContext`, with or without a leading underscore.
     """
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    found = set()
+    found: list[tuple[str, bool]] = []
     for node in tree.body:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             name = node.name.lstrip("_")
             if name in _CHECK_NAMES:
-                found.add(name)
+                found.append((name, False))
+        elif isinstance(node, ast.ClassDef) and node.name == _PARSE_CONTEXT:
+            for member in node.body:
+                if isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    name = member.name.lstrip("_")
+                    if name in _CHECK_NAMES:
+                        found.append((name, True))
     return found
+
+
+def _top_level_check_definitions(path: Path) -> set[str]:
+    """The bare names of any of the check names defined at `path`'s module
+    top level (never as a class method), with or without a leading
+    underscore. Kept for the two meta-tests below, which plant a bare
+    module-level function.
+    """
+    return {name for name, is_method in _definitions(path) if not is_method}
 
 
 def test_the_guard_can_fail(repo_root: Path):
@@ -71,18 +98,30 @@ def test_the_guard_catches_an_underscore_prefixed_copy_too(repo_root: Path):
         planted.unlink()
 
 
-def test_each_check_is_defined_exactly_once_in_schema_py(repo_root: Path):
+def test_each_check_is_defined_exactly_once_as_a_parse_context_method(repo_root: Path):
     src_dir = repo_root / "src"
     schema_py = src_dir / "cetools" / "schema.py"
-    locations: dict[str, list[str]] = {name: [] for name in _CHECK_NAMES}
+    schema_relative = schema_py.relative_to(repo_root).as_posix()
+
+    # name -> (files with a ParseContext method, files with a free function)
+    method_locations: dict[str, list[str]] = {name: [] for name in _CHECK_NAMES}
+    free_locations: dict[str, list[str]] = {name: [] for name in _CHECK_NAMES}
     for path in sorted(src_dir.rglob("*.py")):
-        for name in _top_level_check_definitions(path):
-            locations[name].append(path.relative_to(repo_root).as_posix())
+        relative = path.relative_to(repo_root).as_posix()
+        for name, is_method in _definitions(path):
+            (method_locations if is_method else free_locations)[name].append(relative)
 
     problems = []
-    for name, files in locations.items():
-        if files != [schema_py.relative_to(repo_root).as_posix()]:
-            problems.append(f"{name}: {files}")
-    assert not problems, "each check must be defined exactly once, in schema.py:\n" + "\n".join(
-        problems
+    for name in _CHECK_NAMES:
+        if method_locations[name] != [schema_relative]:
+            problems.append(f"{name}: method definitions {method_locations[name]}")
+        # Temporary tolerance (FR-020): exactly one free-function copy,
+        # only in schema.py -- the delegation bridge (research R8). Deleted
+        # when the final commit deletes the free functions themselves.
+        if free_locations[name] not in ([], [schema_relative]):
+            problems.append(f"{name}: free-function definitions {free_locations[name]}")
+    assert not problems, (
+        "each check must be defined exactly once, as a ParseContext method in schema.py "
+        "(plus, temporarily, at most one delegated-to free function, only in schema.py):\n"
+        + "\n".join(problems)
     )

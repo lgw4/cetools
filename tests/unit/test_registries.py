@@ -600,6 +600,25 @@ class TestSkillRegistryAcyclicGraph:
         assert registry is None
         assert any("cycle" in p.expected for p in problems)
 
+    def test_an_unrelated_bad_field_suppresses_the_cycle_report(self):
+        # 007-parse-context-carrier spec.md US1 scenario 2 / FR-017: the
+        # cross-reference gate at registries.py:463 runs only when the file
+        # has produced no problems at all, so a cycle elsewhere in the same
+        # file goes unreported until the unrelated field is fixed first.
+        # Pinned here (tests/unit is outside FR-016's frozen corpora) because
+        # no existing test in tests/integration/test_validation_categories.py
+        # names this scenario.
+        data = {
+            "schema": "skills",
+            "schema-version": 2,
+            "skills": {"Vehicle": ["Vehicle"], "Other": "not-a-list"},
+        }
+        registry, problems = parse_skills(data, "skills.toml")
+        assert registry is None
+        assert len(problems) == 1
+        assert problems[0].location == "skills.Other"
+        assert "cycle" not in problems[0].expected
+
     def test_a_non_cyclic_two_level_cascade_is_valid(self):
         data = {
             "schema": "skills",
