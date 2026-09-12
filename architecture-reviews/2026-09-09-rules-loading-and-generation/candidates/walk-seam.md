@@ -8,7 +8,7 @@ files: [src/cetools/generator.py, tests/unit/test_generator.py, tests/integratio
 ## Problem
 
 `_Walk`'s docstring says "Not part of the public surface; `generate_character`
-is the seam", but four test modules import it fifty-nine times and drive its
+is the seam", but four test modules import it sixty-five times and drive its
 methods directly.
 
 ## Solution
@@ -40,10 +40,10 @@ of through it.
 
 | File | `_Walk` mentions |
 |---|---|
-| `tests/unit/test_generator.py` | 56, via 24 separate function-local imports |
+| `tests/unit/test_generator.py` | 56, via 27 separate function-local imports |
 | `tests/integration/test_npc_sample.py` | 3 |
-| `tests/integration/test_traversal.py` | 2 |
-| `tests/integration/test_data_driven.py` | 2 |
+| `tests/integration/test_traversal.py` | 3 |
+| `tests/integration/test_data_driven.py` | 3 |
 
 Other privates imported by tests: `_eligible_tables`, `_resolve_specialty`
 (six times), `_apply_characteristic_delta`, `_Debt`, and

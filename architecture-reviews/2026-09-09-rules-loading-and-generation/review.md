@@ -13,7 +13,7 @@ feature: specs/006-validation-vocabulary/
 
 # Architecture review: rules loading and generation
 
-Eight candidates, all of them deepening opportunities: places where a large
+Nine candidates, all of them deepening opportunities: places where a large
 amount of behavior could sit behind a smaller interface than it does today.
 Nothing here is a bug, and nothing here changes what the package produces —
 `tests/golden/` and `tests/contract/` pin both output surfaces, so every
