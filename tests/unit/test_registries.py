@@ -8,10 +8,30 @@ from cetools.registries import (
     CharacteristicRegistry,
     SkillRegistry,
     SkillResolution,
-    parse_benefits,
-    parse_characteristics,
-    parse_skills,
 )
+from cetools.registries import parse_benefits as _parse_benefits
+from cetools.registries import parse_characteristics as _parse_characteristics
+from cetools.registries import parse_skills as _parse_skills
+from cetools.schema import ParseContext
+
+
+def parse_characteristics(data, file):
+    ctx = ParseContext(file)
+    registry = _parse_characteristics(data, ctx)
+    return registry, ctx.problems
+
+
+def parse_skills(data, file):
+    ctx = ParseContext(file)
+    registry = _parse_skills(data, ctx)
+    return registry, ctx.problems
+
+
+def parse_benefits(data, file):
+    ctx = ParseContext(file)
+    registry = _parse_benefits(data, ctx)
+    return registry, ctx.problems
+
 
 # A valid `[modifier-dms]` table, reused across `TestCharacteristicRegistry`
 # so each test can isolate the field it means to break (003-npc-generator

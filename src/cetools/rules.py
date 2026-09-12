@@ -196,9 +196,6 @@ def parse_task_parameters(data: Mapping[str, object], ctx: ParseContext) -> Task
 # exception: its parser also takes the skills registry, so it is parsed
 # separately once that registry is resolved, below.
 _SINGLETON_PARSERS = {
-    "characteristics": parse_characteristics,
-    "skills": parse_skills,
-    "benefits": parse_benefits,
     "draft-table": parse_draft_table,
     "aging-table": parse_aging_table,
     "mishap-table": parse_mishap_table,
@@ -657,9 +654,29 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
         )
         problems.extend(task_parameters_ctx.problems)
 
-    characteristics: CharacteristicRegistry | None = singletons.get("characteristics")
-    skills: SkillRegistry | None = singletons.get("skills")
-    benefits: BenefitRegistry | None = singletons.get("benefits")
+    characteristics: CharacteristicRegistry | None = None
+    if "characteristics" in resolved_singleton:
+        characteristics_basename = resolved_singleton["characteristics"]
+        characteristics_ctx = ParseContext(characteristics_basename)
+        characteristics = parse_characteristics(
+            parsed[characteristics_basename][1], characteristics_ctx
+        )
+        problems.extend(characteristics_ctx.problems)
+
+    skills: SkillRegistry | None = None
+    if "skills" in resolved_singleton:
+        skills_basename = resolved_singleton["skills"]
+        skills_ctx = ParseContext(skills_basename)
+        skills = parse_skills(parsed[skills_basename][1], skills_ctx)
+        problems.extend(skills_ctx.problems)
+
+    benefits: BenefitRegistry | None = None
+    if "benefits" in resolved_singleton:
+        benefits_basename = resolved_singleton["benefits"]
+        benefits_ctx = ParseContext(benefits_basename)
+        benefits = parse_benefits(parsed[benefits_basename][1], benefits_ctx)
+        problems.extend(benefits_ctx.problems)
+
     draft: DraftTable | None = singletons.get("draft-table")
     aging: AgingTable | None = singletons.get("aging-table")
     mishaps: MishapTable | None = singletons.get("mishap-table")
