@@ -9,13 +9,6 @@ that holds the rule the migration restored: the duplication removed from
 five modules accumulated one locally reasonable copy at a time, and a
 comment would not have stopped the seventeenth.
 
-TEMPORARY (007-parse-context-carrier FR-020): for the duration of this
-migration, each name is tolerated exactly once more, and only as a
-module-level free function in `schema.py` -- the function `ParseContext`'s
-matching method delegates to (research R8). The final commit of the
-migration moves the seven bodies into the class, deletes the free
-functions, and this tolerance is deleted along with this paragraph.
-
 What this does not catch (FR-014b): the guard recognizes a check by its
 name, at a module's top level or as a method of `ParseContext`. A check
 written fresh and inline, without a name, goes undetected -- which is the
@@ -103,25 +96,16 @@ def test_each_check_is_defined_exactly_once_as_a_parse_context_method(repo_root:
     schema_py = src_dir / "cetools" / "schema.py"
     schema_relative = schema_py.relative_to(repo_root).as_posix()
 
-    # name -> (files with a ParseContext method, files with a free function)
-    method_locations: dict[str, list[str]] = {name: [] for name in _CHECK_NAMES}
-    free_locations: dict[str, list[str]] = {name: [] for name in _CHECK_NAMES}
+    locations: dict[str, list[str]] = {name: [] for name in _CHECK_NAMES}
     for path in sorted(src_dir.rglob("*.py")):
         relative = path.relative_to(repo_root).as_posix()
-        for name, is_method in _definitions(path):
-            (method_locations if is_method else free_locations)[name].append(relative)
+        for name, _is_method in _definitions(path):
+            locations[name].append(relative)
 
-    problems = []
-    for name in _CHECK_NAMES:
-        if method_locations[name] != [schema_relative]:
-            problems.append(f"{name}: method definitions {method_locations[name]}")
-        # Temporary tolerance (FR-020): exactly one free-function copy,
-        # only in schema.py -- the delegation bridge (research R8). Deleted
-        # when the final commit deletes the free functions themselves.
-        if free_locations[name] not in ([], [schema_relative]):
-            problems.append(f"{name}: free-function definitions {free_locations[name]}")
+    problems = [
+        f"{name}: {files}" for name, files in locations.items() if files != [schema_relative]
+    ]
     assert not problems, (
-        "each check must be defined exactly once, as a ParseContext method in schema.py "
-        "(plus, temporarily, at most one delegated-to free function, only in schema.py):\n"
-        + "\n".join(problems)
+        "each check must be defined exactly once, as a ParseContext method in "
+        "schema.py:\n" + "\n".join(problems)
     )

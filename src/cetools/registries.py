@@ -245,6 +245,8 @@ def parse_characteristics(
     table = data.get("characteristics")
     names: dict[str, str] = {}
     classes: dict[str, str] = {}
+    # A table check, not an array one, so require_list does not reach it;
+    # it splits its wording the same way benefits does (inventory.md I-5).
     if not isinstance(table, dict):
         characteristics_ctx.report(
             found="missing" if table is None else type_name(table),
@@ -378,6 +380,9 @@ def parse_skills(data: Mapping[str, object], ctx: ParseContext) -> SkillRegistry
 def parse_benefits(data: Mapping[str, object], ctx: ParseContext) -> BenefitRegistry | None:
     ctx.unrecognized_keys(data, HEADER_KEYS | {"benefits"})
 
+    # The missing/wrong-type and empty cases state the same rule in
+    # different words, unlike difficulty-dms's single wording for all three
+    # (inventory.md I-5).
     items = ctx.require_list(
         data,
         "benefits",
