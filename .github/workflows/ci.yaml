@@ -3,10 +3,19 @@ name: CI
 # A branch with an open pull request matched both triggers, so every push ran
 # the six-job matrix twice and reported twelve checks. `main` still gets a run
 # per push, which is what protects the merge result itself.
+#
+# Only changes that can alter what the tests run against trigger a run. No
+# check is required on `main`, so a skipped run leaves nothing pending.
 on:
   push:
     branches: [main]
+    paths: &test-inputs
+      - "**.py"
+      - pyproject.toml
+      - uv.lock
+      - .github/workflows/ci.yaml
   pull_request:
+    paths: *test-inputs
 
 jobs:
   test:
