@@ -1,5 +1,8 @@
 [build-system]
-requires = ["hatchling"]
+# 1.32.3 is the first release that keeps the declared CalVer string, zero
+# padding included, in core metadata; 1.32.4 fixes surrounding whitespace in
+# that path. `tests/guards/test_documented_version.py` relies on it.
+requires = ["hatchling>=1.32.4"]
 build-backend = "hatchling.build"
 
 [project]

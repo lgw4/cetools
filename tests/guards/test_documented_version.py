@@ -1,12 +1,13 @@
 """Every package version written into a documented output must be the one
 the tool actually reports.
 
-`pyproject.toml` declares the constitution's CalVer form, `2026.08.1`, but
-PEP 440 normalizes a zero-padded month away, so `importlib.metadata` and
-therefore every rendered result carry `2026.8.1`. Documenting the declared
-form leaves a reader comparing what they ran against a string the tool never
-prints. This guard pins the documented outputs to the reported value, and so
-fails on the release that changes it (FR-033a).
+`pyproject.toml` declares the constitution's CalVer form, `2026.08.1`. Since
+hatchling 1.32.3 the core metadata keeps that string exactly as written, so
+`importlib.metadata` and therefore every rendered result carry `2026.08.1`
+too. The built artifact filenames still use the PEP 440 normalized form,
+`2026.8.1`, so the wheel filename in an install command is the one place the
+padding is dropped. This guard pins each documented position to the form that
+actually appears there, and so fails on the release that changes it (FR-033a).
 
 Only documented *outputs* are scanned: the README and, per feature, the
 quickstart and the contracts. Prose that discusses a version, such as a
@@ -22,14 +23,15 @@ from cetools.provenance import package_version
 
 _ROOT = Path(__file__).resolve().parents[2]
 
-# `Rules: packaged (cetools X)` in a text block, `"version": "X"` in a JSON
-# block, and the wheel filename in the install command are the three places
-# the *reported* (normalized) version reaches documented output.
+# `Rules: packaged (cetools X)` in a text block and `"version": "X"` in a JSON
+# block are the two places the *reported* version reaches documented output.
 _REPORTED_PATTERNS = (
     re.compile(r"\(cetools ([^)]+)\)"),
     re.compile(r'"version": "([^"]+)"'),
-    re.compile(r"cetools-([\w.]+)-py3-none-any\.whl"),
 )
+# The wheel filename in the install command is the one place the *normalized*
+# (unpadded) version reaches documented output.
+_NORMALIZED_PATTERNS = (re.compile(r"cetools-([\w.]+)-py3-none-any\.whl"),)
 # The `releases/download/v.../` tag segment and the `@v...` source-install
 # ref are the two places the *declared* (padded) version reaches documented
 # output (research.md R13 for 005-release-publishing).
@@ -62,6 +64,18 @@ def test_documented_versions_match_the_reported_version(path):
 
 
 @pytest.mark.parametrize("path", _documented_outputs(), ids=lambda path: path.name)
+def test_documented_normalized_versions_match_the_normalized_version(path):
+    text = path.read_text(encoding="utf-8")
+    found = _matches(text, _NORMALIZED_PATTERNS)
+    normalized = _normalized_version()
+    stale = sorted(version for version in found if version != normalized)
+    assert not stale, (
+        f"{path.relative_to(_ROOT)} documents {stale} in a wheel filename, "
+        f"but the built artifact is named for {normalized!r}"
+    )
+
+
+@pytest.mark.parametrize("path", _documented_outputs(), ids=lambda path: path.name)
 def test_documented_declared_versions_match_the_declared_version(path):
     text = path.read_text(encoding="utf-8")
     found = _matches(text, _DECLARED_PATTERNS)
@@ -75,16 +89,19 @@ def test_documented_declared_versions_match_the_declared_version(path):
 
 def test_swapped_version_spellings_fail_in_both_positions():
     """The property FR-012 requires: a padded form in the filename position,
-    or an unpadded form in the tag position, must each fail — not just the
-    ordinary case of a stale value in its own position. If this passed, the
-    guard would be normalizing before comparing.
+    or an unpadded form in the tag or provenance position, must each fail —
+    not just the ordinary case of a stale value in its own position. If this
+    passed, the guard would be normalizing before comparing.
     """
+    declared, normalized = _declared_version(), _normalized_version()
     swapped = (
-        "https://github.com/lgw4/cetools/releases/download/v2026.8.1/"
-        "cetools-2026.08.1-py3-none-any.whl"
+        f"https://github.com/lgw4/cetools/releases/download/v{normalized}/"
+        f"cetools-{declared}-py3-none-any.whl\n"
+        f"  Rules: packaged (cetools {normalized})\n"
     )
-    assert _matches(swapped, _DECLARED_PATTERNS) == {"2026.8.1"} != {_declared_version()}
-    assert _matches(swapped, _REPORTED_PATTERNS) == {"2026.08.1"} != {package_version()}
+    assert _matches(swapped, _DECLARED_PATTERNS) == {normalized} != {declared}
+    assert _matches(swapped, _NORMALIZED_PATTERNS) == {declared} != {normalized}
+    assert _matches(swapped, _REPORTED_PATTERNS) == {normalized} != {package_version()}
 
 
 def test_the_guard_has_something_to_check():
@@ -94,12 +111,18 @@ def test_the_guard_has_something_to_check():
         for path in _documented_outputs()
         for match in _matches(path.read_text(encoding="utf-8"), _REPORTED_PATTERNS)
     }
+    normalized = {
+        match
+        for path in _documented_outputs()
+        for match in _matches(path.read_text(encoding="utf-8"), _NORMALIZED_PATTERNS)
+    }
     declared = {
         match
         for path in _documented_outputs()
         for match in _matches(path.read_text(encoding="utf-8"), _DECLARED_PATTERNS)
     }
     assert reported == {package_version()}
+    assert normalized == {_normalized_version()}
     assert declared == {_declared_version()}
 
 
@@ -108,7 +131,7 @@ def test_the_guard_has_something_to_check():
 # Neither was checkable. `version` could be changed from `2026.08.1` to
 # `2026.8.1`, to `1.2.3`, or to `2026.13.1` with all 628 tests passing,
 # because PEP 440 normalizes the padded and unpadded forms to one string and
-# the drift guard above compares the *normalized* values — so nothing asserted
+# the drift guard above once compared the *normalized* values — so nothing asserted
 # the declared string carries the `YYYY.0M.INC1` shape the constitution fixes,
 # which is the very distinction the rendered output had to reconcile. And the
 # changelog heading could be renamed to anything at all, so a release cut
@@ -124,6 +147,13 @@ def _declared_version() -> str:
     return tomllib.loads((_ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"][
         "version"
     ]
+
+
+def _normalized_version() -> str:
+    """The PEP 440 form the built artifacts are named for: each CalVer
+    component as a plain integer, so `2026.08.1` becomes `2026.8.1`.
+    """
+    return ".".join(str(int(part)) for part in _declared_version().split("."))
 
 
 def test_the_declared_version_carries_the_constitutions_calver_shape():
@@ -144,14 +174,13 @@ def test_the_calver_shape_check_rejects_the_forms_it_must(bad):
     assert not _CALVER.match(bad)
 
 
-def test_the_declared_version_normalizes_to_the_version_the_tool_reports():
+def test_the_declared_version_is_the_version_the_tool_reports():
     # The two halves have to be pinned together, or the shape check above and
-    # the drift guard could pass while naming different releases.
+    # the drift guard could pass while naming different releases. Since
+    # hatchling 1.32.3 the metadata keeps the declared string verbatim.
     from importlib.metadata import version as _installed
 
-    assert _installed("cetools") == package_version()
-    padded, unpadded = _declared_version(), package_version()
-    assert padded.replace(".0", ".", 1) == unpadded or padded == unpadded
+    assert _installed("cetools") == package_version() == _declared_version()
 
 
 def test_the_changelog_carries_an_entry_for_the_declared_version():
