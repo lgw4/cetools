@@ -4,13 +4,18 @@ name: CI
 # the six-job matrix twice and reported twelve checks. `main` still gets a run
 # per push, which is what protects the merge result itself.
 #
-# Only changes that can alter what the tests run against trigger a run. No
-# check is required on `main`, so a skipped run leaves nothing pending.
+# Only changes that can alter what the tests run against trigger a run: code,
+# the packaged rules data under `src/`, and the golden files under `tests/`.
+# Documentation is deliberately excluded, even the Markdown the documented-
+# version guard reads. No check is required on `main`, so a skipped run leaves
+# nothing pending.
 on:
   push:
     branches: [main]
     paths: &test-inputs
       - "**.py"
+      - "src/**"
+      - "tests/**"
       - pyproject.toml
       - uv.lock
       - .github/workflows/ci.yaml
