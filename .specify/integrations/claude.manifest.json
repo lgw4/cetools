@@ -1,10 +1,10 @@
 {
   "integration": "claude",
-  "version": "1.0.6",
-  "installed_at": "2026-09-12T01:58:10.601591+00:00",
+  "version": "1.0.8",
+  "installed_at": "2026-09-23T01:29:40.548205+00:00",
   "files": {
     ".claude/skills/speckit-analyze/SKILL.md": "dc5ed23df64ef09201a77faafbccb4882ed7b813c815a84c5d4dfc17a4fc836d",
-    ".claude/skills/speckit-clarify/SKILL.md": "4e655264174de5e84daf7987d9419f11596b331d56de2beeeb3705f224ec4d4b",
+    ".claude/skills/speckit-clarify/SKILL.md": "97c905173f59835a94999561c7c5a0504b9b7f2776f6ce851b0e71e13e5993fd",
     ".claude/skills/speckit-constitution/SKILL.md": "53b1f2913b490bc7f6d25e0296f2a2eda43f2ffa5ddc3195612236f54e1a6301",
     ".claude/skills/speckit-implement/SKILL.md": "2eeec253ed62e264405e55cd1be88c2d32ec686eb17cf24fafecf0faf0eebf53",
     ".claude/skills/speckit-converge/SKILL.md": "c82824808cc9ac06b47edff825562d19425d1bd16cd62ccc18025835db50353d",
