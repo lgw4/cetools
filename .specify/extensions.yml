@@ -1,4 +1,6 @@
 installed:
+- assess
+- bug
 - git
 settings:
   auto_execute_hooks: true
