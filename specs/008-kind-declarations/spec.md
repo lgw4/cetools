@@ -26,6 +26,17 @@ becomes a test that each declared canonical file really is the packaged file
 declaring that kind, without a hard-coded count; and tests that fake a
 schema-version bump patch the declaration instead of the old list."
 
+## Clarifications
+
+### Session 2026-09-30
+
+- Q: Besides the test edits FR-012 permits, may or must this feature add new
+  tests that check the declarations themselves? → A: Require a few new tests of
+  declaration invariants; existing tests change only as FR-012 permits.
+- Q: Which kind declarations should state a parser? → A: Only the ten kinds
+  the general one-file loop parses; background skills, careers, and surname
+  tables carry none, and their explicit steps call their parsers directly.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Nothing a user sees moves (Priority: P1)
@@ -42,8 +53,8 @@ it can fail a user is by changing something. Everything else here is worthless
 if this does not hold.
 
 **Independent Test**: Run the full existing suite, including the golden and
-contract corpora, with only the test edits FR-012 permits. Every test passes and
-neither corpus has been touched.
+contract corpora, with existing tests changed only as FR-012 permits. Every
+test passes and neither corpus has been touched.
 
 **Acceptance Scenarios**:
 
@@ -126,8 +137,9 @@ feature.
   the declarations, with the same result for every input.
 - **Background skills depends on another kind.** Its parse needs the skills
   registry, or the empty substitute when that registry is absent or invalid. It
-  is declared like every other one-file kind but is excluded from the general
-  one-file parse and parsed in one explicit step after the substitutes exist.
+  is declared like every other one-file kind but states no parser, so the
+  general one-file parse passes over it, and it is parsed in one explicit step
+  after the substitutes exist.
   This is the only such kind; no general dependency mechanism is introduced.
 - **Many-file kinds have no canonical file.** Careers and surname tables are
   declared, with their supported versions, but have no canonical packaged file,
@@ -151,8 +163,11 @@ feature.
 
 - **FR-001**: Each of the thirteen kinds of rules-data file MUST be declared
   exactly once, stating its name, its supported schema version, whether it is
-  one file or many, its canonical packaged file if it is one file, and how it is
-  parsed.
+  one file or many, and its canonical packaged file if it is one file. A
+  declaration MUST state a parser if and only if the general one-file loop
+  (FR-007) parses its kind; background skills, careers, and surname tables
+  state none, and their explicit steps call their parsers directly, so no
+  parser is named in two places.
 - **FR-002**: The declarations MUST be internal to the loader and MUST NOT be
   exported or added to the public library interface.
 - **FR-003**: Declarations MUST be ordered for readers, grouped by the module
@@ -168,8 +183,9 @@ feature.
   the bookkeeping of which one-file slot a rejected file occupies, MUST read
   which kinds are one file and each one's canonical file from the declarations.
 - **FR-007**: Every one-file kind except background skills MUST be parsed by
-  one loop over the declarations. Background skills MUST be parsed in one
-  explicit step after the empty registry substitutes are built, as today.
+  one loop over the declarations that state a parser; the loop MUST NOT name
+  any kind. Background skills MUST be parsed in one explicit step after the
+  empty registry substitutes are built, as today.
 - **FR-008**: The final check that every required kind is present MUST read
   the one-file kinds from the declarations. The existing requirement that at
   least one surname table is present MUST be kept as it is.
@@ -192,7 +208,8 @@ feature.
 - **FR-012**: Nothing a user can see may change: human-readable output, JSON
   output, the validation report, and the wording, location, and order of every
   problem, for every input. The golden and contract corpora MUST NOT be edited.
-  The existing suite MUST pass, with only these test edits permitted:
+  The existing suite MUST pass, with only these edits to existing tests
+  permitted (new tests are governed by FR-015):
   - The test that pins the canonical-file table against the one-file kind list
     MUST become a test that each declared canonical file is the packaged file
     that declares that kind, and MUST lose its hard-coded count of one-file
@@ -206,6 +223,12 @@ feature.
 - **FR-014**: This feature is structural throughout. No commit may carry a
   behavioral change, and because nothing a user or library consumer can see
   changes, no commit adds a `CHANGELOG.md` entry.
+- **FR-015**: New tests MUST pin what only the declarations can get wrong,
+  written before the declarations exist so they fail first: every declared
+  name is unique; every one-file kind declares a canonical file and no
+  many-file kind does; and every one-file kind is parsed exactly once, by the
+  general loop or by the background-skills step. No new
+  test may assert a count of kinds (SC-005).
 
 ### Key Entities
 
@@ -216,7 +239,8 @@ feature.
   are many files each (careers, surname tables).
 - **Kind declaration**: The one internal statement of everything the loader
   knows about a kind: name, supported schema version, one file or many,
-  canonical packaged file where it has one, and parser.
+  canonical packaged file where it has one, and parser where the general
+  one-file loop parses it.
 - **Canonical file**: The packaged file a one-file kind lives at, and the name
   an override replaces it under.
 
@@ -225,8 +249,9 @@ feature.
 ### Measurable Outcomes
 
 - **SC-001**: The full suite passes, with the golden and contract corpora
-  byte-identical to their state before the feature, and with only the test
-  edits FR-012 permits.
+  byte-identical to their state before the feature, with existing tests
+  changed only as FR-012 permits, and with the new tests FR-015 requires
+  passing.
 - **SC-002**: Hand-kept enumerations of kinds in the loader go from five to
   one. The five are the supported-version table (whose keys also serve as the
   set of kinds, so it covers two of the input's six lists), the one-file kind
