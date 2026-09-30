@@ -88,8 +88,9 @@ catch two of them disagreeing.
 
 **Independent Test**: For any kind, search the loader for its name. Apart from
 the one declaration, it appears only where the code does something specific to
-that kind (the background-skills parse step, the many-file loops, and building
-the rules data set), never in a list whose job is to enumerate kinds.
+that kind (the background-skills parse step, the many-file loops, the
+cross-file rules that read a particular kind, and building the rules data set),
+never in a list whose job is to enumerate kinds.
 
 **Acceptance Scenarios**:
 
@@ -131,8 +132,10 @@ feature.
   it being sorted before joining, as it is today, rather than following
   declaration order.
 - **A rejected file still occupies its slot.** A one-file kind whose file is
-  rejected on its header (unreadable, bad version, unknown or missing kind) is
-  not also reported missing. That slot bookkeeping reads which kinds are one
+  rejected before its contents are interpreted (unreadable, not UTF-8, invalid
+  TOML, unknown or missing kind, a schema version of the wrong type or value,
+  or a kind differing from the packaged file at that basename) is not also
+  reported missing. That slot bookkeeping reads which kinds are one
   file and which basename each lives at; after this feature it reads both from
   the declarations, with the same result for every input.
 - **Background skills depends on another kind.** Its parse needs the skills
@@ -178,7 +181,9 @@ feature.
 - **FR-004**: Discovery of which packaged file declares which kind MUST read the
   set of recognized kinds from the declarations.
 - **FR-005**: The schema-version check and the unknown-kind check MUST read the
-  supported version and the set of recognized kinds from the declarations.
+  supported version and the set of recognized kinds from the declarations. The
+  unknown-kind problem MUST list the recognized kinds sorted by name, not in
+  declaration order.
 - **FR-006**: The missing-kind and duplicate-kind checks for one-file kinds, and
   the bookkeeping of which one-file slot a rejected file occupies, MUST read
   which kinds are one file and each one's canonical file from the declarations.
@@ -188,7 +193,8 @@ feature.
   empty registry substitutes are built, as today.
 - **FR-008**: The final check that every required kind is present MUST read
   the one-file kinds from the declarations. The existing requirement that at
-  least one surname table is present MUST be kept as it is.
+  least one surname table is present MUST be kept as it is, and no requirement
+  that at least one career be present may be added.
 - **FR-009**: Careers and surname tables MUST keep their own parsing loops and
   their kind-specific duplicate checks, unchanged.
 - **FR-010**: Building the rules data set MUST remain explicit, naming each of
@@ -201,7 +207,14 @@ feature.
   no separate list of one-file kinds, no separate table of canonical files, no
   hand-written sequence of one-file parse calls, and no hand-written presence
   check naming each one-file kind. The comment stating that parse order is
-  load-bearing MUST be removed.
+  load-bearing MUST be removed. This describes the final state. A commit
+  before the last may keep a removed table's name only as a value computed
+  from the declarations, never as a second hand-written list.
+  A *hand-kept enumeration of kinds* is any structure listing several kinds, or
+  one fact per kind, that must be edited when a kind is added to keep the
+  loader consistent. Code that acts on one named kind (a kind-specific parse
+  step, loop, or cross-file rule) and the explicit construction FR-010 keeps
+  are not enumerations.
 
 #### Preserving behavior
 
@@ -217,7 +230,9 @@ feature.
   - Tests that reach into the supported-version table MUST reach into the
     declarations instead. This covers the two tests that fake a schema-version
     bump by patching it, and the test that checks supported versions are
-    integer literals unrelated to the package version, which iterates it.
+    integer literals unrelated to the package version, which iterates it. A
+    helper shared by the two bump tests, added to the same test module, is
+    part of this edit.
 - **FR-013**: The loader's single sort of all problems before reporting MUST
   stay where it is.
 - **FR-014**: This feature is structural throughout. No commit may carry a
@@ -227,8 +242,12 @@ feature.
   written before the declarations exist so they fail first: every declared
   name is unique; every one-file kind declares a canonical file and no
   many-file kind does; and every one-file kind is parsed exactly once, by the
-  general loop or by the background-skills step. No new
-  test may assert a count of kinds (SC-005).
+  general loop or by the background-skills step. The last is a property of the
+  declarations: the one-file kinds declaring no parser are exactly background
+  skills, and no many-file kind declares one. Together with FR-001 (explicit
+  steps name their parsers directly) and the presence check (an unparsed kind
+  fails the packaged load), that is sufficient. No new test may assert a count
+  of kinds (SC-005).
 
 ### Key Entities
 
@@ -252,8 +271,9 @@ feature.
   byte-identical to their state before the feature, with existing tests
   changed only as FR-012 permits, and with the new tests FR-015 requires
   passing.
-- **SC-002**: Hand-kept enumerations of kinds in the loader go from five to
-  one. The five are the supported-version table (whose keys also serve as the
+- **SC-002**: Hand-kept enumerations of kinds (as FR-011 defines them) in the
+  loader go from five to one, checked by searching the loader for each of the
+  five. The five are the supported-version table (whose keys also serve as the
   set of kinds, so it covers two of the input's six lists), the one-file kind
   list, the canonical-file table, the sequence of one-file parse calls, and the
   presence check. The one is the declarations. The explicit construction of the
@@ -261,8 +281,12 @@ feature.
 - **SC-003**: Adding a kind means writing one declaration plus the code that is
   genuinely specific to that kind (its parser, its rules data field). No list
   exists that must also be edited to keep the loader consistent.
-- **SC-004**: The loader module is shorter after the feature than before.
-- **SC-005**: No test asserts a count of kinds.
+- **SC-004**: The loader module is shorter after the feature than before: fewer
+  than its 1103 lines at commit `0074436`.
+- **SC-005**: No test asserts a count of kinds. A count is a numeric assertion
+  on how many kinds or declarations exist (including a length or a list
+  compared against a hard-coded size); naming a specific kind, as FR-015's
+  background-skills check does, is not a count.
 
 ## Assumptions
 
