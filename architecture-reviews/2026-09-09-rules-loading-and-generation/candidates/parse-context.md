@@ -1,7 +1,7 @@
 ---
 title: Give the field checks a parsing context
 strength: Strong
-status: open
+status: specified
 files: [src/cetools/schema.py, src/cetools/careers.py, src/cetools/chargen.py, src/cetools/registries.py, src/cetools/names.py, src/cetools/rules.py, tests/unit/test_schema.py, tests/guards/test_no_duplicate_checks.py]
 ---
 
@@ -96,3 +96,10 @@ Principle VI (Simplicity) rejects speculative abstraction. This is not
 speculative: the abstraction is already present, spelled out 53 times as a
 threaded parameter, and the deletion test says the complexity concentrates
 rather than moves. Worth stating in the spec so the review has the argument.
+
+## Outcome
+
+Specified as [`specs/007-parse-context-carrier/`](../../../specs/007-parse-context-carrier/)
+and merged in PR #9 (`93c8f02`). `ParseContext` now carries `(file,
+location)` through the descent in names, rules, registries, careers, and
+chargen; the free check functions were folded into it and deleted.
