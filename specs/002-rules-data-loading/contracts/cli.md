@@ -60,13 +60,13 @@ errors and nothing else.
 Packaged:
 
 ```text
-  Rules: packaged (cetools 2026.9.2)
+  Rules: packaged (cetools 2026.09.2)
 ```
 
 Overridden, with a file ignored:
 
 ```text
-  Rules: overridden (cetools 2026.9.2)
+  Rules: overridden (cetools 2026.09.2)
     navy.toml     replaced  sha256:3b1f...c0
     scouts.toml   added     sha256:9ad4...71
     notes.md      ignored
@@ -74,9 +74,9 @@ Overridden, with a file ignored:
 
 The package version follows the source in parentheses, in both the packaged and the
 overridden case (FR-033a). It is the version as installed metadata reports it, which is
-the PEP 440 normalization of the declared CalVer: `2026.08.1` in `pyproject.toml` is
-reported as `2026.8.1`, the zero-padded month having been normalized away. The examples
-here hold the reported form, and `tests/guards/test_documented_version.py` keeps them
+the declared CalVer exactly as written: `2026.08.1` in `pyproject.toml` is reported as
+`2026.08.1`, zero-padded month included (hatchling 1.32.3 and later keep it rather than
+normalizing it away). The examples here hold the reported form, and `tests/guards/test_documented_version.py` keeps them
 from drifting from it. The file column is padded to the longest *name* present — a
 composition key for a file that took effect, a path within the override for an ignored
 one — and the disposition column to the longest disposition present, matching the
@@ -88,7 +88,7 @@ An override holding nothing but ignored files still reads `packaged`, because no
 took effect, and still lists them:
 
 ```text
-  Rules: packaged (cetools 2026.9.2)
+  Rules: packaged (cetools 2026.09.2)
     notes.md   ignored
 ```
 
@@ -110,7 +110,7 @@ Check: FAILURE
     cover                  -2
   Total: 5 vs target 8
   Seed:  14333185781139156525
-  Rules: packaged (cetools 2026.9.2)
+  Rules: packaged (cetools 2026.09.2)
 ```
 
 The outer label column stays seven characters wide, because `Rules:` is no longer
@@ -127,7 +127,7 @@ not become the only check on it.
 ```text
 Rules data is valid.
   Files: 5
-  Rules: packaged (cetools 2026.9.2)
+  Rules: packaged (cetools 2026.09.2)
 ```
 
 ### `cetools validate`, with problems
@@ -143,7 +143,7 @@ skills.toml:skills: found an empty table; expected at least one entry
 Rules data is invalid.
   Files:    5
   Problems: 4
-  Rules:    packaged (cetools 2026.9.2)
+  Rules:    packaged (cetools 2026.09.2)
 ```
 
 The problem line is `FILE:LOCATION: found FOUND; expected EXPECTED`, dropping

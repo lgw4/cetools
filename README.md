@@ -56,7 +56,7 @@ Check: FAILURE
     cover                  -2
   Total: 5 vs target 8
   Seed:  14333185781139156525
-  Rules: packaged (cetools 2026.9.2)
+  Rules: packaged (cetools 2026.09.2)
 ```
 
 `roll`, `check`, `validate`, and `npc` all accept `--json` for
@@ -123,7 +123,7 @@ reports every problem it finds in one run:
 $ cetools validate
 Rules data is valid.
   Files: 42
-  Rules: packaged (cetools 2026.9.2)
+  Rules: packaged (cetools 2026.09.2)
 ```
 
 A house rule is a directory or a single file, named on the command line and
@@ -132,7 +132,7 @@ composed over the packaged data by filename; nothing else changes:
 ```sh
 $ cetools check --seed session-alpha --rules-data ./house-rules
 ...
-  Rules: overridden (cetools 2026.9.2)
+  Rules: overridden (cetools 2026.09.2)
     navy.toml   replaced  sha256:3b1f...c0
 ```
 

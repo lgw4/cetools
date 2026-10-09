@@ -108,8 +108,8 @@ Expected: a failure naming `README.md`, the stale value, and the version it
 should have carried. Revert, and confirm the suite is green again.
 
 Repeat with the wheel filename segment, changing `2026.8.1` to `2026.8.9`.
-Expected: a failure again, and one that compares against the **reported** form,
-not the padded one.
+Expected: a failure again, and one that compares against the **normalized**
+(unpadded) form the artifact is named for, not the padded one.
 
 Then the case that proves the two groups are really separate: swap the
 spellings, putting the unpadded form in the tag segment and the padded form in
@@ -247,7 +247,7 @@ cetools --version
 cetools roll 2d6+1 --seed session-alpha
 ```
 
-Expected: the version reported is `2026.8.1`, and the roll matches the README's
+Expected: the version reported is `2026.08.1`, and the roll matches the README's
 worked example. Then the alternative instruction, `uv tool install` against the
 tagged source, and confirm the same version.
 

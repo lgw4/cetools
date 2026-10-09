@@ -8,12 +8,21 @@ release cut in August 2026, `2026.08.2` the second. Because CalVer says
 nothing about compatibility, breaking changes get their own **Breaking
 changes** heading in the entry that ships them.
 
-PEP 440 normalizes the zero-padded month away, so the version installed
-metadata reports — and therefore the version `cetools` prints in its
-provenance block — drops it: `2026.08.1` here is `2026.8.1` there. The two
-name the same release.
+The version installed metadata reports, and therefore the version `cetools`
+prints in its provenance block, keeps the zero-padded month: `2026.08.1` here
+is `2026.08.1` there. Only the built artifact filenames use the PEP 440
+normalized form, `2026.8.1`. The two name the same release.
 
 ## 2026.09.2 (unreleased)
+
+### Changed
+
+- **The reported version keeps its zero-padded month.** `cetools --version`,
+  the `Rules: ... (cetools X)` provenance line, and the JSON `"version"` field
+  now print `2026.09.2` rather than `2026.9.2`, matching `pyproject.toml`,
+  the changelog heading, and the release tag. hatchling 1.32.3 and later write
+  the declared version into core metadata verbatim, and the build now requires
+  it. Wheel and sdist filenames still use the normalized `2026.9.2`.
 
 ### Fixed
 
