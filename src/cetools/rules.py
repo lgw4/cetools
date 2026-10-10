@@ -16,6 +16,7 @@ from functools import cache
 from importlib import resources
 from pathlib import Path
 from types import MappingProxyType
+from typing import Literal
 
 from cetools.careers import CareerDefinition
 from cetools.careers import parse_career as _parse_career
@@ -54,49 +55,6 @@ from cetools.registries import (
 )
 from cetools.schema import HEADER_KEYS, ParseContext
 from cetools.tasks import TaskParameters
-
-_SUPPORTED_VERSION = {
-    "task-parameters": 2,
-    "characteristics": 2,
-    "skills": 2,
-    "benefits": 1,
-    "career": 4,
-    "draft-table": 1,
-    "aging-table": 1,
-    "mishap-table": 1,
-    "background-skills": 1,
-    "medical-tiers": 1,
-    "chargen-parameters": 2,
-    "given-names": 1,
-    "surnames": 1,
-}
-_SINGLETON_KINDS = (
-    "task-parameters",
-    "characteristics",
-    "skills",
-    "benefits",
-    "draft-table",
-    "aging-table",
-    "mishap-table",
-    "background-skills",
-    "medical-tiers",
-    "chargen-parameters",
-    "given-names",
-)
-_CANONICAL_FILE = {
-    "task-parameters": "tasks.toml",
-    "characteristics": "characteristics.toml",
-    "skills": "skills.toml",
-    "benefits": "benefits.toml",
-    "draft-table": "draft.toml",
-    "aging-table": "aging.toml",
-    "mishap-table": "mishaps.toml",
-    "background-skills": "background-skills.toml",
-    "medical-tiers": "medical-tiers.toml",
-    "given-names": "given-names.toml",
-    "chargen-parameters": "chargen-parameters.toml",
-}
-_KIND_AT_CANONICAL_FILE = {file: kind for kind, file in _CANONICAL_FILE.items()}
 
 
 @dataclass(frozen=True, slots=True)
@@ -189,6 +147,45 @@ def parse_task_parameters(data: Mapping[str, object], ctx: ParseContext) -> Task
         unskilled_dm=unskilled_dm,
         difficulty_dms=difficulty_dms,
     )
+
+
+# --- kind declarations -------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class _Kind:
+    """What the loader knows about one kind of rules-data file
+    (contracts/kind-declarations.md).
+    """
+
+    name: str
+    version: int
+    arity: Literal["one", "many"]
+    canonical_file: str | None = None
+    parser: Callable[[Mapping[str, object], ParseContext], object] | None = None
+
+
+# Ordered for readers, grouped by the module owning each parser; the order
+# carries no behavior.
+_KINDS: tuple[_Kind, ...] = (
+    _Kind("task-parameters", 2, "one", "tasks.toml", parse_task_parameters),
+    _Kind("characteristics", 2, "one", "characteristics.toml", parse_characteristics),
+    _Kind("skills", 2, "one", "skills.toml", parse_skills),
+    _Kind("benefits", 1, "one", "benefits.toml", parse_benefits),
+    _Kind("career", 4, "many"),
+    _Kind("draft-table", 1, "one", "draft.toml", parse_draft_table),
+    _Kind("aging-table", 1, "one", "aging.toml", parse_aging_table),
+    _Kind("mishap-table", 1, "one", "mishaps.toml", parse_mishap_table),
+    _Kind("background-skills", 1, "one", "background-skills.toml"),
+    _Kind("medical-tiers", 1, "one", "medical-tiers.toml", parse_medical_tiers),
+    _Kind("chargen-parameters", 2, "one", "chargen-parameters.toml", parse_chargen_parameters),
+    _Kind("given-names", 1, "one", "given-names.toml", parse_given_names),
+    _Kind("surnames", 1, "many"),
+)
+_SUPPORTED_VERSION = {k.name: k.version for k in _KINDS}
+_SINGLETON_KINDS = tuple(k.name for k in _KINDS if k.arity == "one")
+_CANONICAL_FILE = {k.name: k.canonical_file for k in _KINDS if k.arity == "one"}
+_KIND_AT_CANONICAL_FILE = {file: kind for kind, file in _CANONICAL_FILE.items()}
 
 
 # --- discovery ---------------------------------------------------------------
@@ -449,7 +446,8 @@ def _singleton_slots(basename: str, declared: object) -> set[str]:
     replaces — was carried here and was redundant with the second by
     construction: `_CANONICAL_FILE` maps each single-instance kind to the
     packaged basename that declares it, so the two answer identically for
-    every shipped file, and `test_canonical_file_names_the_packaged_declarer`
+    every shipped file, and
+    `test_each_declared_canonical_file_is_the_packaged_declarer_of_its_kind`
     pins that. Two sources that always agree cannot each be shown to matter,
     which is how all three came to be removable one at a time with the suite
     green.
