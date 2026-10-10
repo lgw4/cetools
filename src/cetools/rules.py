@@ -182,10 +182,6 @@ _KINDS: tuple[_Kind, ...] = (
     _Kind("given-names", 1, "one", "given-names.toml", parse_given_names),
     _Kind("surnames", 1, "many"),
 )
-_SUPPORTED_VERSION = {k.name: k.version for k in _KINDS}
-_SINGLETON_KINDS = tuple(k.name for k in _KINDS if k.arity == "one")
-_CANONICAL_FILE = {k.name: k.canonical_file for k in _KINDS if k.arity == "one"}
-_KIND_AT_CANONICAL_FILE = {file: kind for kind, file in _CANONICAL_FILE.items()}
 
 
 # --- discovery ---------------------------------------------------------------
@@ -224,6 +220,7 @@ def _discover_packaged() -> tuple[dict[str, bytes], tuple[ValidationProblem, ...
 
 
 def _packaged_kind_map(packaged: dict[str, bytes]) -> dict[str, str]:
+    declared = {k.name for k in _KINDS}
     kinds: dict[str, str] = {}
     for basename, data in packaged.items():
         try:
@@ -231,7 +228,7 @@ def _packaged_kind_map(packaged: dict[str, bytes]) -> dict[str, str]:
         except (UnicodeDecodeError, tomllib.TOMLDecodeError):
             continue
         kind = parsed.get("schema")
-        if isinstance(kind, str) and kind in _SUPPORTED_VERSION:
+        if isinstance(kind, str) and kind in declared:
             kinds[basename] = kind
     return kinds
 
@@ -444,7 +441,7 @@ def _singleton_slots(basename: str, declared: object) -> set[str]:
 
     A third source — the kind declared by the *packaged* file this basename
     replaces — was carried here and was redundant with the second by
-    construction: `_CANONICAL_FILE` maps each single-instance kind to the
+    construction: each one-file kind's declared canonical file is the
     packaged basename that declares it, so the two answer identically for
     every shipped file, and
     `test_each_declared_canonical_file_is_the_packaged_declarer_of_its_kind`
@@ -452,12 +449,11 @@ def _singleton_slots(basename: str, declared: object) -> set[str]:
     which is how all three came to be removable one at a time with the suite
     green.
     """
-    slots = set()
-    if isinstance(declared, str) and declared in _SINGLETON_KINDS:
-        slots.add(declared)
-    if (canonical := _KIND_AT_CANONICAL_FILE.get(basename)) is not None:
-        slots.add(canonical)
-    return slots
+    return {
+        k.name
+        for k in _KINDS
+        if k.arity == "one" and (k.name == declared or k.canonical_file == basename)
+    }
 
 
 def _highest_matching_rank_row(rows, rank: int) -> int:
@@ -488,6 +484,7 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
     for read_problem in read_problems:
         rejected_slots |= _singleton_slots(read_problem.file, None)
 
+    declared = {k.name: k for k in _KINDS}
     parsed: dict[str, tuple[str, dict]] = {}
     for basename in sorted(composed):
         data = composed[basename]
@@ -517,21 +514,21 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
             continue
 
         kind = toml_data.get("schema")
-        if not isinstance(kind, str) or kind not in _SUPPORTED_VERSION:
+        if not isinstance(kind, str) or kind not in declared:
             problems.append(
                 ValidationProblem(
                     file=basename,
                     found=(
                         "missing" if "schema" not in toml_data else f"unrecognized kind {kind!r}"
                     ),
-                    expected=f"one of: {', '.join(sorted(_SUPPORTED_VERSION))}",
+                    expected=f"one of: {', '.join(sorted(declared))}",
                 )
             )
             rejected_slots |= _singleton_slots(basename, kind)
             continue
 
         declared_version = toml_data.get("schema-version")
-        supported = _SUPPORTED_VERSION[kind]
+        supported = declared[kind].version
         # Typed before it is compared, because `True == 1` and `1.0 == 1`: a
         # file declaring `schema-version = true` passed the version gate and
         # validated clean, while `schema-version = "1"` was refused as a
@@ -582,15 +579,17 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
         parsed[basename] = (kind, toml_data)
 
     resolved_singleton: dict[str, str] = {}
-    for kind in _SINGLETON_KINDS:
-        declarers = sorted(name for name, (k, _) in parsed.items() if k == kind)
+    for k in _KINDS:
+        if k.canonical_file is None:  # a many-file kind
+            continue
+        declarers = sorted(name for name, (kind, _) in parsed.items() if kind == k.name)
         if not declarers:
-            if kind not in rejected_slots:
+            if k.name not in rejected_slots:
                 problems.append(
                     ValidationProblem(
-                        file=_CANONICAL_FILE[kind],
+                        file=k.canonical_file,
                         found="no file",
-                        expected=f"exactly one file declaring kind {kind!r}",
+                        expected=f"exactly one file declaring kind {k.name!r}",
                     )
                 )
         elif len(declarers) > 1:
@@ -605,14 +604,14 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
                 ValidationProblem(
                     file=declarers[0],
                     found=(
-                        f"kind {kind!r} declared by {len(declarers)} files: "
+                        f"kind {k.name!r} declared by {len(declarers)} files: "
                         f"{', '.join(declarers)}"
                     ),
-                    expected=f"exactly one file declaring kind {kind!r}",
+                    expected=f"exactly one file declaring kind {k.name!r}",
                 )
             )
         else:
-            resolved_singleton[kind] = declarers[0]
+            resolved_singleton[k.name] = declarers[0]
 
     def parse_singleton[T](kind: str, parser: Callable[..., T | None], *extra: object) -> T | None:
         """Parse the one file declaring `kind`, through its own carrier.

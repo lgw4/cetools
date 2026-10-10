@@ -1,4 +1,5 @@
 import re
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -312,6 +313,10 @@ def test_load_rules_accepts_str_or_path_override(tmp_path):
     assert report_from_path.valid == report_from_str.valid
 
 
+def _kinds_with_version(rules_module, name, version):
+    return tuple(replace(k, version=version) if k.name == name else k for k in rules_module._KINDS)
+
+
 def test_a_supported_schema_version_is_counted_per_kind(tmp_path, monkeypatch):
     # FR-002a states the claim: "a change to one kind's shape MUST NOT
     # invalidate a user-supplied file of a kind whose shape did not change".
@@ -321,7 +326,7 @@ def test_a_supported_schema_version_is_counted_per_kind(tmp_path, monkeypatch):
     # the claim needs a kind whose packaged file still declares version 1.
     from cetools import rules as rules_module
 
-    monkeypatch.setitem(rules_module._SUPPORTED_VERSION, "benefits", 2)
+    monkeypatch.setattr(rules_module, "_KINDS", _kinds_with_version(rules_module, "benefits", 2))
     (tmp_path / "benefits.toml").write_text(
         BENEFITS.replace("schema-version = 1", "schema-version = 2", 1), encoding="utf-8"
     )
@@ -339,7 +344,7 @@ def test_raising_one_kinds_version_rejects_that_kinds_file_and_no_others(tmp_pat
     # about the career.
     from cetools import rules as rules_module
 
-    monkeypatch.setitem(rules_module._SUPPORTED_VERSION, "benefits", 2)
+    monkeypatch.setattr(rules_module, "_KINDS", _kinds_with_version(rules_module, "benefits", 2))
     report = validate_rules(tmp_path)
     assert not report.valid
     version_problems = [p for p in report.problems if p.expected.startswith("version ")]
@@ -847,6 +852,6 @@ def test_supported_schema_version_is_a_literal_not_derived_from_package_version(
     from cetools import rules as rules_module
 
     installed = version("cetools")
-    for supported in rules_module._SUPPORTED_VERSION.values():
+    for supported in (k.version for k in rules_module._KINDS):
         assert str(supported) != installed
         assert isinstance(supported, int)
