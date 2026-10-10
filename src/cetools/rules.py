@@ -16,6 +16,7 @@ from functools import cache
 from importlib import resources
 from pathlib import Path
 from types import MappingProxyType
+from typing import Any, Literal
 
 from cetools.careers import CareerDefinition
 from cetools.careers import parse_career as _parse_career
@@ -54,49 +55,6 @@ from cetools.registries import (
 )
 from cetools.schema import HEADER_KEYS, ParseContext
 from cetools.tasks import TaskParameters
-
-_SUPPORTED_VERSION = {
-    "task-parameters": 2,
-    "characteristics": 2,
-    "skills": 2,
-    "benefits": 1,
-    "career": 4,
-    "draft-table": 1,
-    "aging-table": 1,
-    "mishap-table": 1,
-    "background-skills": 1,
-    "medical-tiers": 1,
-    "chargen-parameters": 2,
-    "given-names": 1,
-    "surnames": 1,
-}
-_SINGLETON_KINDS = (
-    "task-parameters",
-    "characteristics",
-    "skills",
-    "benefits",
-    "draft-table",
-    "aging-table",
-    "mishap-table",
-    "background-skills",
-    "medical-tiers",
-    "chargen-parameters",
-    "given-names",
-)
-_CANONICAL_FILE = {
-    "task-parameters": "tasks.toml",
-    "characteristics": "characteristics.toml",
-    "skills": "skills.toml",
-    "benefits": "benefits.toml",
-    "draft-table": "draft.toml",
-    "aging-table": "aging.toml",
-    "mishap-table": "mishaps.toml",
-    "background-skills": "background-skills.toml",
-    "medical-tiers": "medical-tiers.toml",
-    "given-names": "given-names.toml",
-    "chargen-parameters": "chargen-parameters.toml",
-}
-_KIND_AT_CANONICAL_FILE = {file: kind for kind, file in _CANONICAL_FILE.items()}
 
 
 @dataclass(frozen=True, slots=True)
@@ -191,6 +149,41 @@ def parse_task_parameters(data: Mapping[str, object], ctx: ParseContext) -> Task
     )
 
 
+# --- kind declarations -------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class _Kind:
+    """What the loader knows about one kind of rules-data file
+    (contracts/kind-declarations.md).
+    """
+
+    name: str
+    version: int
+    arity: Literal["one", "many"]
+    canonical_file: str | None = None
+    parser: Callable[[Mapping[str, object], ParseContext], object] | None = None
+
+
+# Ordered for readers, grouped by the module owning each parser; the order
+# carries no behavior.
+_KINDS: tuple[_Kind, ...] = (
+    _Kind("task-parameters", 2, "one", "tasks.toml", parse_task_parameters),
+    _Kind("characteristics", 2, "one", "characteristics.toml", parse_characteristics),
+    _Kind("skills", 2, "one", "skills.toml", parse_skills),
+    _Kind("benefits", 1, "one", "benefits.toml", parse_benefits),
+    _Kind("career", 4, "many"),
+    _Kind("draft-table", 1, "one", "draft.toml", parse_draft_table),
+    _Kind("aging-table", 1, "one", "aging.toml", parse_aging_table),
+    _Kind("mishap-table", 1, "one", "mishaps.toml", parse_mishap_table),
+    _Kind("background-skills", 1, "one", "background-skills.toml"),
+    _Kind("medical-tiers", 1, "one", "medical-tiers.toml", parse_medical_tiers),
+    _Kind("chargen-parameters", 2, "one", "chargen-parameters.toml", parse_chargen_parameters),
+    _Kind("given-names", 1, "one", "given-names.toml", parse_given_names),
+    _Kind("surnames", 1, "many"),
+)
+
+
 # --- discovery ---------------------------------------------------------------
 
 
@@ -227,6 +220,7 @@ def _discover_packaged() -> tuple[dict[str, bytes], tuple[ValidationProblem, ...
 
 
 def _packaged_kind_map(packaged: dict[str, bytes]) -> dict[str, str]:
+    declared = {k.name for k in _KINDS}
     kinds: dict[str, str] = {}
     for basename, data in packaged.items():
         try:
@@ -234,7 +228,7 @@ def _packaged_kind_map(packaged: dict[str, bytes]) -> dict[str, str]:
         except (UnicodeDecodeError, tomllib.TOMLDecodeError):
             continue
         kind = parsed.get("schema")
-        if isinstance(kind, str) and kind in _SUPPORTED_VERSION:
+        if isinstance(kind, str) and kind in declared:
             kinds[basename] = kind
     return kinds
 
@@ -447,19 +441,19 @@ def _singleton_slots(basename: str, declared: object) -> set[str]:
 
     A third source — the kind declared by the *packaged* file this basename
     replaces — was carried here and was redundant with the second by
-    construction: `_CANONICAL_FILE` maps each single-instance kind to the
+    construction: each one-file kind's declared canonical file is the
     packaged basename that declares it, so the two answer identically for
-    every shipped file, and `test_canonical_file_names_the_packaged_declarer`
+    every shipped file, and
+    `test_each_declared_canonical_file_is_the_packaged_declarer_of_its_kind`
     pins that. Two sources that always agree cannot each be shown to matter,
     which is how all three came to be removable one at a time with the suite
     green.
     """
-    slots = set()
-    if isinstance(declared, str) and declared in _SINGLETON_KINDS:
-        slots.add(declared)
-    if (canonical := _KIND_AT_CANONICAL_FILE.get(basename)) is not None:
-        slots.add(canonical)
-    return slots
+    return {
+        k.name
+        for k in _KINDS
+        if k.arity == "one" and (k.name == declared or k.canonical_file == basename)
+    }
 
 
 def _highest_matching_rank_row(rows, rank: int) -> int:
@@ -490,6 +484,7 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
     for read_problem in read_problems:
         rejected_slots |= _singleton_slots(read_problem.file, None)
 
+    declared = {k.name: k for k in _KINDS}
     parsed: dict[str, tuple[str, dict]] = {}
     for basename in sorted(composed):
         data = composed[basename]
@@ -519,21 +514,21 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
             continue
 
         kind = toml_data.get("schema")
-        if not isinstance(kind, str) or kind not in _SUPPORTED_VERSION:
+        if not isinstance(kind, str) or kind not in declared:
             problems.append(
                 ValidationProblem(
                     file=basename,
                     found=(
                         "missing" if "schema" not in toml_data else f"unrecognized kind {kind!r}"
                     ),
-                    expected=f"one of: {', '.join(sorted(_SUPPORTED_VERSION))}",
+                    expected=f"one of: {', '.join(sorted(declared))}",
                 )
             )
             rejected_slots |= _singleton_slots(basename, kind)
             continue
 
         declared_version = toml_data.get("schema-version")
-        supported = _SUPPORTED_VERSION[kind]
+        supported = declared[kind].version
         # Typed before it is compared, because `True == 1` and `1.0 == 1`: a
         # file declaring `schema-version = true` passed the version gate and
         # validated clean, while `schema-version = "1"` was refused as a
@@ -584,15 +579,17 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
         parsed[basename] = (kind, toml_data)
 
     resolved_singleton: dict[str, str] = {}
-    for kind in _SINGLETON_KINDS:
-        declarers = sorted(name for name, (k, _) in parsed.items() if k == kind)
+    for k in _KINDS:
+        if k.canonical_file is None:  # a many-file kind
+            continue
+        declarers = sorted(name for name, (kind, _) in parsed.items() if kind == k.name)
         if not declarers:
-            if kind not in rejected_slots:
+            if k.name not in rejected_slots:
                 problems.append(
                     ValidationProblem(
-                        file=_CANONICAL_FILE[kind],
+                        file=k.canonical_file,
                         found="no file",
-                        expected=f"exactly one file declaring kind {kind!r}",
+                        expected=f"exactly one file declaring kind {k.name!r}",
                     )
                 )
         elif len(declarers) > 1:
@@ -607,23 +604,22 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
                 ValidationProblem(
                     file=declarers[0],
                     found=(
-                        f"kind {kind!r} declared by {len(declarers)} files: "
+                        f"kind {k.name!r} declared by {len(declarers)} files: "
                         f"{', '.join(declarers)}"
                     ),
-                    expected=f"exactly one file declaring kind {kind!r}",
+                    expected=f"exactly one file declaring kind {k.name!r}",
                 )
             )
         else:
-            resolved_singleton[kind] = declarers[0]
+            resolved_singleton[k.name] = declarers[0]
 
     def parse_singleton[T](kind: str, parser: Callable[..., T | None], *extra: object) -> T | None:
         """Parse the one file declaring `kind`, through its own carrier.
 
         One carrier and one collection per file (research R5), folded into the
-        run-wide list at the point that kind is parsed -- so the call order
-        below is the insertion order, and moving a call moves a report. The
-        loader's single `problems.sort()` is what makes that unobservable
-        (FR-015), and it stays where it is.
+        run-wide list at the point that kind is parsed. The loader's single
+        `problems.sort()` is what makes parse order unobservable (FR-015), and
+        it stays where it is.
         """
         if kind not in resolved_singleton:
             return None
@@ -633,22 +629,18 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
         problems.extend(ctx.problems)
         return value
 
-    given_names: GivenNameTable | None = parse_singleton("given-names", parse_given_names)
-    task_parameters: TaskParameters | None = parse_singleton(
-        "task-parameters", parse_task_parameters
-    )
-    characteristics: CharacteristicRegistry | None = parse_singleton(
-        "characteristics", parse_characteristics
-    )
-    skills: SkillRegistry | None = parse_singleton("skills", parse_skills)
-    benefits: BenefitRegistry | None = parse_singleton("benefits", parse_benefits)
-    draft: DraftTable | None = parse_singleton("draft-table", parse_draft_table)
-    aging: AgingTable | None = parse_singleton("aging-table", parse_aging_table)
-    mishaps: MishapTable | None = parse_singleton("mishap-table", parse_mishap_table)
-    medical_tiers: MedicalTiers | None = parse_singleton("medical-tiers", parse_medical_tiers)
-    chargen: ChargenParameters | None = parse_singleton(
-        "chargen-parameters", parse_chargen_parameters
-    )
+    values: dict[str, Any] = {}
+    for k in _KINDS:
+        if k.parser is not None:
+            values[k.name] = parse_singleton(k.name, k.parser)
+    characteristics: CharacteristicRegistry | None = values["characteristics"]
+    skills: SkillRegistry | None = values["skills"]
+    benefits: BenefitRegistry | None = values["benefits"]
+    draft: DraftTable | None = values["draft-table"]
+    aging: AgingTable | None = values["aging-table"]
+    mishaps: MishapTable | None = values["mishap-table"]
+    medical_tiers: MedicalTiers | None = values["medical-tiers"]
+    chargen: ChargenParameters | None = values["chargen-parameters"]
 
     # Career validation proceeds even when a registry is missing or invalid,
     # against an empty substitute, so every reference cascades into its own
@@ -658,7 +650,7 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
     career_benefits = benefits or BenefitRegistry(items=())
 
     # Parsed after the substitutes above, because it takes the skills registry.
-    background_skills: BackgroundSkills | None = parse_singleton(
+    values["background-skills"] = parse_singleton(
         "background-skills", parse_background_skills, career_skills
     )
 
@@ -1033,35 +1025,25 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
 
     if (
         problems
-        or task_parameters is None
-        or characteristics is None
-        or skills is None
-        or benefits is None
-        or draft is None
-        or aging is None
-        or mishaps is None
-        or background_skills is None
-        or medical_tiers is None
-        or chargen is None
-        or given_names is None
+        or any(values.get(k.name) is None for k in _KINDS if k.arity == "one")
         or not surnames
     ):
         return None, report
 
     return (
         RulesData(
-            task_parameters=task_parameters,
-            characteristics=characteristics,
-            skills=skills,
-            benefits=benefits,
+            task_parameters=values["task-parameters"],
+            characteristics=values["characteristics"],
+            skills=values["skills"],
+            benefits=values["benefits"],
             careers=MappingProxyType(careers),
-            draft=draft,
-            aging=aging,
-            mishaps=mishaps,
-            background_skills=background_skills,
-            medical_tiers=medical_tiers,
-            chargen=chargen,
-            given_names=given_names,
+            draft=values["draft-table"],
+            aging=values["aging-table"],
+            mishaps=values["mishap-table"],
+            background_skills=values["background-skills"],
+            medical_tiers=values["medical-tiers"],
+            chargen=values["chargen-parameters"],
+            given_names=values["given-names"],
             surnames=MappingProxyType(surnames),
             provenance=provenance,
         ),

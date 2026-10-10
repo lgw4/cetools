@@ -1,4 +1,5 @@
 import re
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -312,6 +313,10 @@ def test_load_rules_accepts_str_or_path_override(tmp_path):
     assert report_from_path.valid == report_from_str.valid
 
 
+def _kinds_with_version(rules_module, name, version):
+    return tuple(replace(k, version=version) if k.name == name else k for k in rules_module._KINDS)
+
+
 def test_a_supported_schema_version_is_counted_per_kind(tmp_path, monkeypatch):
     # FR-002a states the claim: "a change to one kind's shape MUST NOT
     # invalidate a user-supplied file of a kind whose shape did not change".
@@ -321,7 +326,7 @@ def test_a_supported_schema_version_is_counted_per_kind(tmp_path, monkeypatch):
     # the claim needs a kind whose packaged file still declares version 1.
     from cetools import rules as rules_module
 
-    monkeypatch.setitem(rules_module._SUPPORTED_VERSION, "benefits", 2)
+    monkeypatch.setattr(rules_module, "_KINDS", _kinds_with_version(rules_module, "benefits", 2))
     (tmp_path / "benefits.toml").write_text(
         BENEFITS.replace("schema-version = 1", "schema-version = 2", 1), encoding="utf-8"
     )
@@ -339,7 +344,7 @@ def test_raising_one_kinds_version_rejects_that_kinds_file_and_no_others(tmp_pat
     # about the career.
     from cetools import rules as rules_module
 
-    monkeypatch.setitem(rules_module._SUPPORTED_VERSION, "benefits", 2)
+    monkeypatch.setattr(rules_module, "_KINDS", _kinds_with_version(rules_module, "benefits", 2))
     report = validate_rules(tmp_path)
     assert not report.valid
     version_problems = [p for p in report.problems if p.expected.startswith("version ")]
@@ -602,25 +607,51 @@ class TestRegistrySubProblemsAllReachTheReport:
         assert {"benefits[0]", "benefits[1]"} <= locations
 
 
-def test_canonical_file_names_the_packaged_declarer_of_every_single_instance_kind():
-    """`_singleton_slots` reads a basename's slot out of `_CANONICAL_FILE`
-    alone, which is only sound while that literal names the packaged file that
-    actually declares each kind. Pinned here rather than kept as a second,
-    always-agreeing source inside `_singleton_slots`, where neither could be
-    shown to matter (FR-010a, FR-029).
+def test_declared_kind_names_are_unique():
+    from cetools import rules as rules_module
+
+    names = [k.name for k in rules_module._KINDS]
+    assert len(set(names)) == len(names)
+
+
+def test_one_file_kinds_and_only_they_declare_a_canonical_file():
+    from cetools import rules as rules_module
+
+    for k in rules_module._KINDS:
+        assert k.arity in ("one", "many")
+        assert (k.arity == "one") == (k.canonical_file is not None)
+
+
+def test_every_one_file_kind_is_parsed_exactly_once():
+    """Background skills is parsed by its own step after the substitutes, so
+    its declaration names no parser; every other one-file kind is parsed by
+    the general loop. The explicit steps call their parsers directly
+    (FR-001), and the presence check fails a load that never parses a kind,
+    so together with this test no kind is parsed twice or not at all.
+    """
+    from cetools import rules as rules_module
+
+    assert [k.name for k in rules_module._KINDS if k.arity == "one" and k.parser is None] == [
+        "background-skills"
+    ]
+    assert all(k.parser is None for k in rules_module._KINDS if k.arity == "many")
+
+
+def test_each_declared_canonical_file_is_the_packaged_declarer_of_its_kind():
+    """`_singleton_slots` reads each one-file kind's slot from its declaration
+    alone, which is only sound while each declared canonical file is the
+    packaged file that actually declares that kind. Pinned here rather than
+    kept as a second, always-agreeing source inside `_singleton_slots`, where
+    neither could be shown to matter (FR-010a, FR-029).
     """
     from cetools import rules as rules_module
 
     packaged, problems = rules_module._discover_packaged()
     assert not problems
     declarers = rules_module._packaged_kind_map(packaged)
-    for kind, basename in rules_module._CANONICAL_FILE.items():
-        assert declarers.get(basename) == kind
-    assert sorted(rules_module._CANONICAL_FILE) == sorted(rules_module._SINGLETON_KINDS)
-    # Four inherited kinds, the six universal chargen tables, and
-    # `given-names`; `surnames` is the second repeatable kind, alongside
-    # `career`, and carries no canonical file of its own.
-    assert len(rules_module._SINGLETON_KINDS) == 11
+    for k in rules_module._KINDS:
+        if k.arity == "one":
+            assert declarers.get(k.canonical_file) == k.name
 
 
 def test_problems_arrive_sorted_by_file_then_location(tmp_path):
@@ -821,6 +852,6 @@ def test_supported_schema_version_is_a_literal_not_derived_from_package_version(
     from cetools import rules as rules_module
 
     installed = version("cetools")
-    for supported in rules_module._SUPPORTED_VERSION.values():
+    for supported in (k.version for k in rules_module._KINDS):
         assert str(supported) != installed
         assert isinstance(supported, int)

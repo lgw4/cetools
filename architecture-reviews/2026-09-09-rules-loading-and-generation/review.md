@@ -9,6 +9,7 @@ scope: >
   in rules.py, careers.py, chargen.py, registries.py and generator.py, which
   are also the five largest modules in the package.
 feature: specs/006-validation-vocabulary/
+refreshed: 2026-09-30 at 9027e90a46a592469a79f827234ffb4cc424a182
 ---
 
 # Architecture review: rules loading and generation
@@ -22,14 +23,15 @@ candidate is checkable as a structural change under Tidy First.
 ## Candidates
 
 - [Give the field checks a parsing context](candidates/parse-context.md) -
-  `Strong` - `file` is threaded through 53 signatures and `location` is
-  rebuilt by f-string at every level of descent.
+  `Strong` - **specified** as `specs/007-parse-context-carrier/`, merged in
+  PR #9.
 - [Collapse the six kind-keyed tables into one](candidates/one-kind-registry.md) -
-  `Strong` - adding one data-file kind means eleven hand-kept edits, and a
-  test exists purely to pin two of the six tables against each other.
+  `Strong` - adding a kind still means nine hand-kept edits across six
+  structures in `rules.py`; 007's `parse_singleton` only makes one kind
+  record easier to write.
 - [Let each kind answer what makes it valid](candidates/validation-with-its-kind.md) -
-  `Strong` - ~300 lines of `rules.py` are checks about other modules' data,
-  so a rank ladder's rules are split four ways.
+  `Strong` - single-file checks still live in `rules.py`; `ParseContext`
+  now makes moving them into their parsers cheap.
 - [One career throw behind five copies](candidates/one-career-throw.md) -
   `Strong` - the same thirty-line roll-and-record block is written five
   times, distinguished only by suffixed local names.
@@ -43,20 +45,18 @@ candidate is checkable as a structural change under Tidy First.
   `Worth exploring` - two independent dispatch registries whose parity is
   documented in `CLAUDE.md` and checked nowhere.
 - [Split chargen.py into the six schemas it holds](candidates/split-chargen.md) -
-  `Speculative` - the banner comments already mark the seams; the split
-  alone changes no interface.
+  `Speculative` - the 865-line `chargen.py` still holds six file schemas
+  behind banner comments; the split pays only alongside validation-with-its-kind.
 - [Close the CLI's reach past the library](candidates/cli-leaks.md) -
   `Worth exploring` - three private imports from `render`, and four
   validation rules restated with their message strings.
 
 ## Top recommendation
 
-Start with [Give the field checks a parsing
-context](candidates/parse-context.md): it is the direct successor to
-`006-validation-vocabulary`, which shipped six commits ago and deliberately
-left the `(file, location)` carrier out of scope on the grounds that it would
-be "easier to do later against one shared module than now against five" — and
-`tests/guards/test_no_duplicate_checks.py` is already in place to keep the
-result honest. If you would rather take a smaller first bite, [One career
-throw behind five copies](candidates/one-career-throw.md) touches five sites
-in one module and is fully pinned by the existing suite.
+With the parsing context shipped, start with [One career throw behind five
+copies](candidates/one-career-throw.md): `generator.py` is the package's
+most-changed module, 007 left it untouched so the candidate holds exactly as
+written, and it touches five sites in one module that the existing suite fully
+pins. If you would rather build on 007's momentum, [Let each kind answer what
+makes it valid](candidates/validation-with-its-kind.md) is the rules-side move
+that `ParseContext` just made cheap.
