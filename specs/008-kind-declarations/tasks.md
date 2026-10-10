@@ -176,7 +176,7 @@ is added because no behavior is (research R8).
 - [X] T035 Run [quickstart.md](quickstart.md) 1b: `git diff main -- tests/ ':!tests/unit/test_rules.py'` is empty, and `git diff main -- tests/unit/test_rules.py` shows only T007-T010 and T015-T017. Then read `git diff main -- src/cetools/rules.py` and confirm no hunk falls inside the career or surname loops or their duplicate-name checks (FR-009)
 - [X] T036 Run [quickstart.md](quickstart.md)'s commit hygiene: every subject in `git log --format='%s' main..HEAD` after the spec and merge commits starts `refactor(rules):`, and `git diff --stat main -- CHANGELOG.md` is empty (FR-014). Also confirm `git diff main -- src/cetools/__init__.py` is empty (FR-002)
 - [X] T037 Run the optional type check, `uv run mypy src > <scratchpad>/mypy-after.txt`, and confirm that every error line in it also appears in `<scratchpad>/mypy-before.txt` (T002), ignoring line numbers that shifted in `src/cetools/rules.py`. No new error is the pass condition
-- [ ] T038 Push the branch and open the PR via `git-ops`, with the body shaped by `sks:pr`: evidence is the suite, the three empty header-harness diffs, the empty body-harness diff, and the line count
+- [X] T038 Push the branch and open the PR via `git-ops`, with the body shaped by `sks:pr`: evidence is the suite, the three empty header-harness diffs, the empty body-harness diff, and the line count
 
 ---
 
