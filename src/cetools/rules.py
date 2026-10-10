@@ -16,7 +16,7 @@ from functools import cache
 from importlib import resources
 from pathlib import Path
 from types import MappingProxyType
-from typing import Literal
+from typing import Any, Literal
 
 from cetools.careers import CareerDefinition
 from cetools.careers import parse_career as _parse_career
@@ -617,10 +617,9 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
         """Parse the one file declaring `kind`, through its own carrier.
 
         One carrier and one collection per file (research R5), folded into the
-        run-wide list at the point that kind is parsed -- so the call order
-        below is the insertion order, and moving a call moves a report. The
-        loader's single `problems.sort()` is what makes that unobservable
-        (FR-015), and it stays where it is.
+        run-wide list at the point that kind is parsed. The loader's single
+        `problems.sort()` is what makes parse order unobservable (FR-015), and
+        it stays where it is.
         """
         if kind not in resolved_singleton:
             return None
@@ -630,22 +629,18 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
         problems.extend(ctx.problems)
         return value
 
-    given_names: GivenNameTable | None = parse_singleton("given-names", parse_given_names)
-    task_parameters: TaskParameters | None = parse_singleton(
-        "task-parameters", parse_task_parameters
-    )
-    characteristics: CharacteristicRegistry | None = parse_singleton(
-        "characteristics", parse_characteristics
-    )
-    skills: SkillRegistry | None = parse_singleton("skills", parse_skills)
-    benefits: BenefitRegistry | None = parse_singleton("benefits", parse_benefits)
-    draft: DraftTable | None = parse_singleton("draft-table", parse_draft_table)
-    aging: AgingTable | None = parse_singleton("aging-table", parse_aging_table)
-    mishaps: MishapTable | None = parse_singleton("mishap-table", parse_mishap_table)
-    medical_tiers: MedicalTiers | None = parse_singleton("medical-tiers", parse_medical_tiers)
-    chargen: ChargenParameters | None = parse_singleton(
-        "chargen-parameters", parse_chargen_parameters
-    )
+    values: dict[str, Any] = {}
+    for k in _KINDS:
+        if k.parser is not None:
+            values[k.name] = parse_singleton(k.name, k.parser)
+    characteristics: CharacteristicRegistry | None = values["characteristics"]
+    skills: SkillRegistry | None = values["skills"]
+    benefits: BenefitRegistry | None = values["benefits"]
+    draft: DraftTable | None = values["draft-table"]
+    aging: AgingTable | None = values["aging-table"]
+    mishaps: MishapTable | None = values["mishap-table"]
+    medical_tiers: MedicalTiers | None = values["medical-tiers"]
+    chargen: ChargenParameters | None = values["chargen-parameters"]
 
     # Career validation proceeds even when a registry is missing or invalid,
     # against an empty substitute, so every reference cascades into its own
@@ -655,7 +650,7 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
     career_benefits = benefits or BenefitRegistry(items=())
 
     # Parsed after the substitutes above, because it takes the skills registry.
-    background_skills: BackgroundSkills | None = parse_singleton(
+    values["background-skills"] = parse_singleton(
         "background-skills", parse_background_skills, career_skills
     )
 
@@ -1030,35 +1025,25 @@ def _validate(override: Path | str | None) -> tuple[RulesData | None, Validation
 
     if (
         problems
-        or task_parameters is None
-        or characteristics is None
-        or skills is None
-        or benefits is None
-        or draft is None
-        or aging is None
-        or mishaps is None
-        or background_skills is None
-        or medical_tiers is None
-        or chargen is None
-        or given_names is None
+        or any(values.get(k.name) is None for k in _KINDS if k.arity == "one")
         or not surnames
     ):
         return None, report
 
     return (
         RulesData(
-            task_parameters=task_parameters,
-            characteristics=characteristics,
-            skills=skills,
-            benefits=benefits,
+            task_parameters=values["task-parameters"],
+            characteristics=values["characteristics"],
+            skills=values["skills"],
+            benefits=values["benefits"],
             careers=MappingProxyType(careers),
-            draft=draft,
-            aging=aging,
-            mishaps=mishaps,
-            background_skills=background_skills,
-            medical_tiers=medical_tiers,
-            chargen=chargen,
-            given_names=given_names,
+            draft=values["draft-table"],
+            aging=values["aging-table"],
+            mishaps=values["mishap-table"],
+            background_skills=values["background-skills"],
+            medical_tiers=values["medical-tiers"],
+            chargen=values["chargen-parameters"],
+            given_names=values["given-names"],
             surnames=MappingProxyType(surnames),
             provenance=provenance,
         ),
