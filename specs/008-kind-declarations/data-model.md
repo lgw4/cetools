@@ -71,6 +71,6 @@ reading `values[...]` field by field (FR-010), and `problems.sort()` (FR-013).
 ## Transient state inside `_validate`
 
 `values: dict[str, Any]`, keyed by kind name, holding each one-file kind's
-parsed value or `None`. A kind that did not resolve to exactly one file has no
-entry, which `values.get` reads as `None`, matching today's `parse_singleton`
-returning `None` for an unresolved kind.
+parsed value or `None`. The parse loop and the background-skills step store an
+entry for every one-file kind; a kind that did not resolve to exactly one file
+stores `None`, because `parse_singleton` returns `None` for it, as today.

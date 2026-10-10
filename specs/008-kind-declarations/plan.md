@@ -143,7 +143,8 @@ harness diff (research R8, [quickstart.md](quickstart.md)).
 2. Green: add `_Kind` and `_KINDS` (values from [data-model.md](data-model.md)),
    and redefine `_SUPPORTED_VERSION`, `_SINGLETON_KINDS`, `_CANONICAL_FILE`, and
    `_KIND_AT_CANONICAL_FILE` as expressions over `_KINDS`, placed after it.
-   Readers untouched.
+   Readers' code untouched. Because step 1 renames the pinning test, point
+   `_singleton_slots`'s docstring at the new test name in this commit.
 
 ### Commit 2: `refactor(rules): read kind facts from the declarations`
 
@@ -154,8 +155,7 @@ harness diff (research R8, [quickstart.md](quickstart.md)).
 2. Green: `_packaged_kind_map`, `_singleton_slots`, the header checks (via one
    `{name: _Kind}` lookup built per `_validate` call), and the
    missing/duplicate loop read `_KINDS`. Delete the four derived names. Rewrite
-   `_singleton_slots`'s docstring, which cites `_CANONICAL_FILE` and the old
-   test name.
+   the part of `_singleton_slots`'s docstring that cites `_CANONICAL_FILE`.
 
 ### Commit 3: `refactor(rules): parse one-file kinds in one loop`
 
@@ -183,7 +183,7 @@ Then: full suite, header harness diff, 007's body harness diff, line count.
 | A duplicate declaration collapses silently | The table is a tuple, not a dict, and FR-015 test 1 checks uniqueness. |
 | Background skills parsed twice or not at all | FR-015 test 3, plus the presence check failing the packaged load if it is never parsed. |
 | The module grows | One-line positional declarations (research R1); `wc -l` against 1103 in the quickstart. |
-| A docstring names a deleted table or renamed test | `_singleton_slots`'s docstring is rewritten in commit 2; the quickstart's `rg` for the old names covers `src` and `tests`. |
+| A docstring names a deleted table or renamed test | `_singleton_slots`'s docstring follows the test rename in commit 1 and the table deletion in commit 2; the quickstart's `rg` for the old names covers `src` and `tests`. |
 
 ## Complexity Tracking
 

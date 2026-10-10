@@ -203,15 +203,16 @@ the sort would not hide.
 1. **`refactor(rules): declare each rules-data kind once`.** Red: the three
    FR-015 tests and the rewritten pinning test, reading `_KINDS`. Green: add
    `_Kind` and `_KINDS`, and redefine the four old names as expressions over
-   `_KINDS`. Readers are untouched. After this commit the table is the single
-   source, and the old names are views of it.
+   `_KINDS`. Readers' code is untouched; `_singleton_slots`'s docstring is
+   pointed at the renamed pinning test. After this commit the table is the
+   single source, and the old names are views of it.
 2. **`refactor(rules): read kind facts from the declarations`.** Red: point the
    two monkeypatches and the `:824` loop at `_KINDS`. The bump tests now fail,
    because the readers still read the derived `_SUPPORTED_VERSION`, computed
    before the patch. Green: `_packaged_kind_map`, `_singleton_slots`, the
    header checks, and the missing/duplicate check read `_KINDS`; delete the
-   four derived names; update `_singleton_slots`'s docstring, which names
-   `_CANONICAL_FILE` and the old test.
+   four derived names; update the part of `_singleton_slots`'s docstring
+   that names `_CANONICAL_FILE`.
 3. **`refactor(rules): parse one-file kinds in one loop`.** The loop, `values`,
    the explicit background-skills step, the cross-file locals, the presence
    check over one-file declarations, and the constructor reading `values`.
